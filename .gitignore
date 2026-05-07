@@ -1,19 +1,85 @@
-# Cada subproyecto tiene su propio .gitignore aplicable a su carpeta.
-# Acá van solo reglas a nivel raíz (deploy/, IDEs globales, etc.)
+# ============================================================================
+# .gitignore raíz del monorepo supermaster.
+# Cada subproyecto tiene su propio .gitignore que aplica dentro de su carpeta;
+# estas reglas son defensivas a nivel global.
+# ============================================================================
 
-# Deploy
-deploy/.env
-deploy/backups/
+# -- Variables de entorno y configuración con secretos --------------------
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.env.local
 
-# IDEs
+# -- Credenciales, claves, certificados ----------------------------------
+secrets/
+*.pem
+*.key
+*.p8
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.truststore
+*.crt
+*.cer
+*.csr
+*.der
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+*.gpg
+*.asc
+credentials.json
+client_secret*.json
+service-account*.json
+firebase-adminsdk*.json
+auth.json
+.npmrc
+.netrc
+.pgpass
+
+# -- Archivos típicos donde se filtran secretos --------------------------
+*secret*
+*secrets*
+!*Secrets.java
+!*Secret.java
+!*Secrets.kt
+!*Secret.kt
+!*secret*.example
+!*secrets*.example
+
+# -- Logs y dumps que pueden contener datos sensibles --------------------
+*.log
+logs/
+*.sql.gz
+*.dump
+*.bak
+
+# -- Build / dependencias (también cubierto por subproyectos) ------------
+node_modules/
+target/
+build/
+dist/
+out/
+.next/
+*.tsbuildinfo
+
+# -- IDEs y herramientas --------------------------------------------------
 .idea/
 .vscode/
 *.iml
-
-# Claude / Cursor
+*.iws
+*.ipr
 .claude/
 .cursor/
 
-# OS
+# -- Deploy ---------------------------------------------------------------
+deploy/.env
+deploy/backups/
+
+# -- OS -------------------------------------------------------------------
 .DS_Store
 Thumbs.db
+desktop.ini

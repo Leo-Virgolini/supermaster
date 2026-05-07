@@ -77,7 +77,10 @@ out/
 
 # -- Deploy ---------------------------------------------------------------
 deploy/.env
-deploy/backups/
+
+# -- Logs y backups del runtime (montados como volúmenes en docker) ------
+/logs/
+/backups/
 
 # -- OS -------------------------------------------------------------------
 .DS_Store

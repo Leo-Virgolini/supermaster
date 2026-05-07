@@ -42,7 +42,7 @@ services:
       - ${SECRETS_DIR:-C:/ProgramData/SuperMaster/secrets}:/app/secrets
       - ${IMAGENES_DIR:-D:/Doc. Compartidos/IMAGENES}:/app/imagenes:ro
       - ${CATALOGOS_DIR:-G:/Mi unidad}:/app/catalogos-salida
-      - ${LOGS_DIR:-C:/SuperMaster/logs}:/app/logs
+      - ${LOGS_DIR:-../logs}:/app/logs
     restart: unless-stopped
     depends_on:
       db:
@@ -95,7 +95,7 @@ services:
           sleep 60
         done
     volumes:
-      - ${BACKUPS_DIR:-./backups}:/backups
+      - ${BACKUPS_DIR:-../backups}:/backups
     depends_on:
       db:
         condition: service_healthy

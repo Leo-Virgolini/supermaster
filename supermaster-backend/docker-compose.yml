@@ -1,0 +1,74 @@
+services:
+
+  db:
+    image: mysql:8.4
+    container_name: supermaster-db
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-admin}
+      MYSQL_DATABASE: supermaster
+      TZ: America/Argentina/Buenos_Aires
+    ports:
+      # Exponer para acceso externo (herramientas, migracion, etc.)
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --innodb-buffer-pool-size=2G
+      --max-connections=100
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:-admin}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: supermaster-backend
+    ports:
+      - "8080:8080"
+    environment:
+      # Base de datos (MySQL en el mismo Docker network)
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/supermaster?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Argentina/Buenos_Aires&characterEncoding=UTF-8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=true
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME:-root}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-admin}
+      # Directorio de secretos (montado como volumen)
+      APP_SECRETS_DIR: /app/secrets
+      # Directorio de imagenes (montado como volumen)
+      APP_IMAGENES_DIR: /app/imagenes/
+      # JWT
+      JWT_ACCESS_TOKEN_EXPIRATION_MS: ${JWT_EXPIRATION:-43200000}
+      # Desactivar devtools en produccion
+      SPRING_DEVTOOLS_RESTART_ENABLED: "false"
+    volumes:
+      # Secretos (JWT key, tokens ML/Dux/Nube)
+      - ${SECRETS_DIR:-C:/ProgramData/SuperMaster/secrets}:/app/secrets
+      # Directorio de imagenes compartido
+      - ${IMAGENES_DIR:-D:/Doc. Compartidos/IMAGENES}:/app/imagenes:ro
+      # Logs persistentes (historial de automatizacion-precios.log y demas)
+      - ${LOGS_DIR:-C:/ProgramData/SuperMaster/logs}:/app/logs
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ${FRONTEND_PATH:-../master-application}
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_DATA_SOURCE: api
+    container_name: supermaster-frontend
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  mysql_data:

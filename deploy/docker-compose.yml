@@ -1,0 +1,105 @@
+services:
+  db:
+    image: mysql:8.4
+    container_name: supermaster-db
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-admin}
+      MYSQL_DATABASE: supermaster
+      TZ: America/Argentina/Buenos_Aires
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --innodb-buffer-pool-size=2G
+      --max-connections=100
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:-admin}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ${BACKEND_PATH:-../supermaster-backend}
+      dockerfile: Dockerfile
+    container_name: supermaster-backend
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/supermaster?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Argentina/Buenos_Aires&characterEncoding=UTF-8&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=true
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME:-root}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-admin}
+      APP_SECRETS_DIR: /app/secrets
+      APP_IMAGENES_DIR: /app/imagenes/
+      JWT_ACCESS_TOKEN_EXPIRATION_MS: ${JWT_EXPIRATION:-43200000}
+      SPRING_DEVTOOLS_RESTART_ENABLED: "false"
+    volumes:
+      - ${SECRETS_DIR:-C:/ProgramData/SuperMaster/secrets}:/app/secrets
+      - ${IMAGENES_DIR:-D:/Doc. Compartidos/IMAGENES}:/app/imagenes:ro
+      - ${CATALOGOS_DIR:-G:/Mi unidad}:/app/catalogos-salida
+      - ${LOGS_DIR:-C:/SuperMaster/logs}:/app/logs
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ${FRONTEND_PATH:-../supermaster-frontend}
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_DATA_SOURCE: api
+    container_name: supermaster-frontend
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  db-backup:
+    image: mysql:8.4
+    container_name: supermaster-db-backup
+    environment:
+      MYSQL_PWD: ${DB_PASSWORD:-admin}
+      TZ: America/Argentina/Buenos_Aires
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        while true; do
+          # Calcular segundos hasta la 1:00 AM
+          AHORA=$$(date +%s)
+          TARGET=$$(date -d "today 01:00" +%s)
+          if [ $$AHORA -ge $$TARGET ]; then
+            TARGET=$$(date -d "tomorrow 01:00" +%s)
+          fi
+          ESPERA=$$((TARGET - AHORA))
+          echo "[`date +%Y-%m-%d_%H:%M`] Próximo backup a la 01:00 (en $$((ESPERA / 3600))h $$((ESPERA % 3600 / 60))m)"
+          sleep $$ESPERA
+          # Ejecutar backup
+          FECHA=$$(date +%Y-%m-%d_%H-%M)
+          echo "[$$FECHA] Iniciando backup..."
+          mysqldump -h db -u ${DB_USERNAME:-root} --single-transaction --routines --triggers supermaster | gzip > /backups/supermaster_$$FECHA.sql.gz
+          if [ $$? -eq 0 ]; then
+            echo "[$$FECHA] Backup completado: supermaster_$$FECHA.sql.gz"
+          else
+            echo "[$$FECHA] Error en el backup"
+          fi
+          find /backups -name "supermaster_*.sql.gz" -mtime +7 -delete
+          sleep 60
+        done
+    volumes:
+      - ${BACKUPS_DIR:-./backups}:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  mysql_data:

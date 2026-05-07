@@ -1,0 +1,19 @@
+# Cada subproyecto tiene su propio .gitignore aplicable a su carpeta.
+# Acá van solo reglas a nivel raíz (deploy/, IDEs globales, etc.)
+
+# Deploy
+deploy/.env
+deploy/backups/
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# Claude / Cursor
+.claude/
+.cursor/
+
+# OS
+.DS_Store
+Thumbs.db

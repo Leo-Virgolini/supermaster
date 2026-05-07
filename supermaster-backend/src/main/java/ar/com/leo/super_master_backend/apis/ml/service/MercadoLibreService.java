@@ -1,0 +1,1409 @@
+package ar.com.leo.super_master_backend.apis.ml.service;
+
+import ar.com.leo.super_master_backend.apis.ml.MlRetryHandler;
+import ar.com.leo.super_master_backend.apis.ml.config.MercadoLibreProperties;
+import ar.com.leo.super_master_backend.apis.ml.dto.CostoEnvioMasivoResponseDTO;
+import ar.com.leo.super_master_backend.apis.ml.dto.CostoEnvioResponseDTO;
+import ar.com.leo.super_master_backend.apis.ml.dto.CostoVentaMasivoResponseDTO;
+import ar.com.leo.super_master_backend.apis.ml.dto.CostoVentaResponseDTO;
+import ar.com.leo.super_master_backend.apis.ml.entity.ConfiguracionMl;
+import ar.com.leo.super_master_backend.apis.ml.model.MLCredentials;
+import ar.com.leo.super_master_backend.apis.ml.model.Producto;
+import ar.com.leo.super_master_backend.apis.ml.model.TokensML;
+import ar.com.leo.super_master_backend.dominio.common.service.EstadoProcesoMasivo;
+import ar.com.leo.super_master_backend.dominio.common.service.ProcesoGlobalService;
+import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaAccion;
+import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaEntidad;
+import ar.com.leo.super_master_backend.dominio.auditoria.service.AuditoriaService;
+import ar.com.leo.super_master_backend.dominio.canal.entity.Canal;
+import ar.com.leo.super_master_backend.dominio.canal.repository.CanalRepository;
+import ar.com.leo.super_master_backend.dominio.common.dto.ProcesoMasivoEstadoDTO;
+import ar.com.leo.super_master_backend.dominio.common.exception.ServiceNotConfiguredException;
+import ar.com.leo.super_master_backend.dominio.producto.calculo.dto.PrecioCalculadoDTO;
+import ar.com.leo.super_master_backend.dominio.producto.calculo.service.CalculoPrecioService;
+import ar.com.leo.super_master_backend.dominio.producto.calculo.service.RecalculoPrecioFacade;
+import ar.com.leo.super_master_backend.dominio.producto.mla.entity.Mla;
+import ar.com.leo.super_master_backend.dominio.producto.mla.repository.MlaRepository;
+import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoRepository;
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.web.client.RestClient;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+
+import java.io.File;
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.math.RoundingMode;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
+@Slf4j
+@Service
+public class MercadoLibreService {
+
+    private static final String CANAL_ML = "ML";
+
+    /** Resultado interno del cálculo de envío: costo con IVA y motivo si falló (null si ok). */
+    private record ResultadoEnvio(BigDecimal costo, String motivoFallo) {
+        static ResultadoEnvio ok(BigDecimal costo) { return new ResultadoEnvio(costo, null); }
+        static ResultadoEnvio fallo(String motivo) { return new ResultadoEnvio(BigDecimal.ZERO, motivo); }
+    }
+
+    private final ObjectMapper objectMapper;
+    private final MlaRepository mlaRepository;
+    private final ProductoRepository productoRepository;
+    private final CanalRepository canalRepository;
+    private final ConfiguracionMlService configuracionMlService;
+    private final CalculoPrecioService calculoPrecioService;
+    private final RecalculoPrecioFacade recalculoPrecioFacade;
+    private final AuditoriaService auditoriaService;
+    private final RestClient restClient;
+    private final MercadoLibreProperties properties;
+    private final ProcesoGlobalService procesoGlobal;
+    private final Object tokenLock = new Object();
+
+    // Trackers reusables (estado + locks + supplier de progreso al SSE).
+    private EstadoProcesoMasivo trackerCostoEnvio;
+    private EstadoProcesoMasivo trackerCostoVenta;
+
+    // Resultados de las últimas ejecuciones (consultables post-finalización).
+    private volatile CostoEnvioMasivoResponseDTO resultadoProcesoMasivo = null;
+    private volatile CostoVentaMasivoResponseDTO resultadoProcesoMasivoCostoVenta = null;
+
+    // Auto-inyección para que las llamadas internas pasen por el proxy de Spring
+    // y respeten @Transactional
+    @Lazy
+    @Autowired
+    private MercadoLibreService self;
+
+    @org.springframework.beans.factory.annotation.Value("${app.secrets-dir}")
+    private String secretsDir;
+
+    private MlRetryHandler retryHandler;
+    private MLCredentials credentials;
+    private volatile TokensML tokens;
+    private String cachedUserId;
+
+    public MercadoLibreService(ObjectMapper objectMapper,
+                               MlaRepository mlaRepository,
+                               ProductoRepository productoRepository,
+                               CanalRepository canalRepository,
+                               ConfiguracionMlService configuracionMlService,
+                               CalculoPrecioService calculoPrecioService,
+                               RecalculoPrecioFacade recalculoPrecioFacade,
+                               AuditoriaService auditoriaService,
+                               RestClient mercadoLibreRestClient,
+                               MercadoLibreProperties properties,
+                               ProcesoGlobalService procesoGlobal) {
+        this.objectMapper = objectMapper;
+        this.mlaRepository = mlaRepository;
+        this.productoRepository = productoRepository;
+        this.canalRepository = canalRepository;
+        this.configuracionMlService = configuracionMlService;
+        this.calculoPrecioService = calculoPrecioService;
+        this.recalculoPrecioFacade = recalculoPrecioFacade;
+        this.auditoriaService = auditoriaService;
+        this.restClient = mercadoLibreRestClient;
+        this.properties = properties;
+        this.procesoGlobal = procesoGlobal;
+    }
+
+    @PostConstruct
+    public void init() {
+        this.retryHandler = new MlRetryHandler(
+                restClient,
+                properties.retryBaseWaitMs(),
+                properties.rateLimitPerSecond(),
+                this::verificarTokens
+        );
+        this.trackerCostoEnvio = new EstadoProcesoMasivo(
+                "costo-envio", "Cálculo masivo de costo de envío ML", procesoGlobal);
+        this.trackerCostoVenta = new EstadoProcesoMasivo(
+                "costo-venta", "Cálculo masivo de costo de venta ML", procesoGlobal);
+        cargarCredentials();
+        cargarTokens();
+    }
+
+    /**
+     * Calcula el costo de envío para el vendedor de un producto de ML.
+     * <p>
+     * - PVP >= umbral: consulta API ML para obtener el costo real de envío gratis.
+     * - PVP < umbral: usa los tiers configurados en BD.
+     * <p>
+     * Umbral y tiers se leen de {@link ConfiguracionMl} (tabla configuracion_ml),
+     * configurable desde la UI sin redeploy.
+     * <p>
+     * El cálculo es iterativo: al agregar el costo de envío, el PVP puede cambiar
+     * de tier, requiriendo recalcular hasta estabilizar.
+     */
+    @Transactional
+    public CostoEnvioResponseDTO calcularCostoEnvioGratis(String mlaCode) {
+        final int MAX_ITERACIONES = 10;
+
+        // Obtener configuración
+        ConfiguracionMl config = configuracionMlService.obtenerEntidad();
+        BigDecimal umbralEnvioGratis = config.getUmbralEnvioGratis();
+
+        // Buscar el MLA y su producto asociado
+        Optional<Mla> mlaOpt = mlaRepository.findFirstByMla(mlaCode);
+        if (mlaOpt.isEmpty()) {
+            log.warn("ML - MLA {} no encontrado en la base de datos", mlaCode);
+            return new CostoEnvioResponseDTO(mlaCode, null, null, BigDecimal.ZERO, BigDecimal.ZERO,
+                    "MLA no encontrado en la base de datos");
+        }
+
+        Mla mla = mlaOpt.get();
+        ar.com.leo.super_master_backend.dominio.producto.entity.Producto productoDb =
+                mla.getProductos().stream().findFirst().orElse(null);
+
+        if (productoDb == null) {
+            log.warn("ML - MLA {} no tiene producto asociado", mlaCode);
+            return new CostoEnvioResponseDTO(mlaCode, null, null, BigDecimal.ZERO, BigDecimal.ZERO,
+                    "MLA sin producto asociado");
+        }
+
+        // Si no tiene comisionPorcentaje, obtenerla primero (es necesaria para calcular el PVP correctamente)
+        if (mla.getComisionPorcentaje() == null) {
+            log.info("ML - MLA {} no tiene comisión, obteniendo primero costo de venta...", mlaCode);
+            CostoVentaResponseDTO costoVentaResult = obtenerCostoVenta(mlaCode);
+            if (costoVentaResult.porcentajeTotal() != null && costoVentaResult.porcentajeTotal().compareTo(BigDecimal.ZERO) > 0) {
+                log.info("ML - Comisión obtenida para MLA {}: {}%", mlaCode, costoVentaResult.porcentajeTotal());
+                // Recargar el MLA para tener la comisión actualizada
+                mla = mlaRepository.findFirstByMla(mlaCode).orElse(mla);
+            } else {
+                log.warn("ML - No se pudo obtener la comisión para MLA {}: {}", mlaCode, costoVentaResult.mensaje());
+            }
+        }
+
+        // Buscar el canal ML
+        Canal canalMl = canalRepository.findByNombreIgnoreCase(CANAL_ML)
+                .orElseThrow(() -> new IllegalStateException("No se encontró el canal " + CANAL_ML));
+
+        // Variables para API ML (se inicializan solo si es necesario)
+        Producto productoMl = null;
+        String userId = null;
+        String status = null;
+
+        // Divisor de IVA para convertir el costo de envío "con IVA" (lo que devuelven
+        // la API ML y los tiers configurados — siempre 21% del servicio de envío)
+        // al valor neto que se guarda y se usa en la fórmula de precio.
+        // Usamos el IVA del PRODUCTO porque al final del cálculo el motor multiplica
+        // la base por (1 + iva_producto/100). Así el cliente termina pagando exactamente
+        // lo que ML cobra al vendedor por el envío, independiente del IVA del producto
+        // (21%, 10.5%, exento, etc.).
+        BigDecimal ivaProducto = productoDb.getIva() != null ? productoDb.getIva() : new BigDecimal("21");
+        BigDecimal divisorIva = BigDecimal.ONE.add(
+                ivaProducto.divide(new BigDecimal("100"), 6, RoundingMode.HALF_UP));
+
+        // CÁLCULO ITERATIVO
+        // costoEnvioActual: valor SIN IVA que se pasa al cálculo de precio
+        // costoEnvioConIvaActual: valor CON IVA para comparar con API/tiers
+        BigDecimal costoEnvioActual = BigDecimal.ZERO;
+        BigDecimal costoEnvioConIvaActual = BigDecimal.ZERO;
+        BigDecimal pvpActual = BigDecimal.ZERO;
+        int iteracion = 0;
+        String tipoCalculo = "";
+        String motivoFallo = null;
+
+        while (iteracion < MAX_ITERACIONES) {
+            iteracion++;
+
+            // Calcular PVP con el costo de envío actual
+            PrecioCalculadoDTO precioCalculado;
+            try {
+                precioCalculado = calculoPrecioService.calcularPrecioCanalConEnvio(
+                        productoDb.getId(), canalMl.getId(), 0, costoEnvioActual);
+            } catch (Exception e) {
+                log.warn("ML - MLA {} - Error calculando PVP en iteración {}: {}",
+                        mlaCode, iteracion, e.getMessage());
+                return new CostoEnvioResponseDTO(mlaCode, status, pvpActual, BigDecimal.ZERO, BigDecimal.ZERO,
+                        "Error calculando PVP: " + e.getMessage());
+            }
+
+            pvpActual = precioCalculado.pvp();
+
+            // Determinar costo de envío según el PVP
+            BigDecimal nuevoCostoEnvio;
+
+            if (pvpActual.compareTo(umbralEnvioGratis) >= 0) {
+                // PVP >= umbral: consultar API ML
+                tipoCalculo = "API ML";
+
+                // Inicializar conexión con ML si es la primera vez
+                if (productoMl == null) {
+                    verificarTokens();
+                    productoMl = getItemByMLA(mlaCode);
+                    if (productoMl == null) {
+                        log.warn("ML - No se pudo obtener el producto con MLA: {}", mlaCode);
+                        return new CostoEnvioResponseDTO(mlaCode, null, pvpActual, BigDecimal.ZERO, BigDecimal.ZERO,
+                                "No se pudo obtener el producto de MercadoLibre");
+                    }
+                    status = productoMl.status;
+                    if (!"active".equals(status)) {
+                        log.warn("ML - El producto id: {} se encuentra en estado: '{}'", productoMl.id, status);
+                    }
+                    try {
+                        userId = getUserId();
+                    } catch (IOException e) {
+                        log.error("Error al obtener userId de ML", e);
+                        return new CostoEnvioResponseDTO(mlaCode, status, pvpActual, BigDecimal.ZERO, BigDecimal.ZERO,
+                                "Error al obtener userId de MercadoLibre");
+                    }
+                }
+
+                ResultadoEnvio resultado = calcularCostoEnvioInterno(userId, productoMl, pvpActual);
+                nuevoCostoEnvio = resultado.costo();
+                if (resultado.motivoFallo() != null) {
+                    motivoFallo = resultado.motivoFallo();
+                }
+            } else {
+                // PVP < umbral: usar tiers fijos
+                nuevoCostoEnvio = configuracionMlService.obtenerCostoEnvioPorPvp(pvpActual);
+                if (nuevoCostoEnvio == null) {
+                    log.warn("ML - MLA {} - Tiers no configurados", mlaCode);
+                    return new CostoEnvioResponseDTO(mlaCode, status, pvpActual, BigDecimal.ZERO, BigDecimal.ZERO,
+                            "Tiers de costo de envío no configurados");
+                }
+                tipoCalculo = "Tier";
+            }
+
+            log.info("ML - MLA {} - Iteración {}: costoEnvioSinIva=${}, PVP=${}, nuevoCostoEnvioConIva=${} ({})",
+                    mlaCode, iteracion, costoEnvioActual, pvpActual, nuevoCostoEnvio, tipoCalculo);
+
+            // Verificar si se estabilizó (comparar valores CON IVA)
+            if (nuevoCostoEnvio.compareTo(costoEnvioConIvaActual) == 0) {
+                log.info("ML - MLA {} - Estabilizado en iteración {}: PVP=${}, costoEnvioConIva=${}, costoEnvioSinIva=${} ({})",
+                        mlaCode, iteracion, pvpActual, nuevoCostoEnvio, costoEnvioActual, tipoCalculo);
+                break;
+            }
+
+            // Guardar el valor CON IVA para comparación
+            costoEnvioConIvaActual = nuevoCostoEnvio;
+            // Convertir a base neta usando el IVA del PRODUCTO (no el 21% del servicio
+            // de envío). Así cuando el motor multiplique al final por (1 + iva_producto),
+            // se reconstruye exactamente el valor que ML cobra.
+            costoEnvioActual = nuevoCostoEnvio.compareTo(BigDecimal.ZERO) > 0
+                    ? nuevoCostoEnvio.divide(divisorIva, 2, RoundingMode.HALF_UP)
+                    : BigDecimal.ZERO;
+        }
+
+        if (iteracion >= MAX_ITERACIONES) {
+            log.warn("ML - MLA {} - No convergió después de {} iteraciones. Último PVP=${}, costoEnvioConIva=${}",
+                    mlaCode, MAX_ITERACIONES, pvpActual, costoEnvioConIvaActual);
+        }
+
+        // Los valores finales
+        BigDecimal costoEnvioConIva = costoEnvioConIvaActual;
+        BigDecimal costoEnvioSinIva = costoEnvioActual;
+
+        // Guardar resultado (se guarda el costo SIN IVA)
+        String mensaje;
+        if (costoEnvioSinIva.compareTo(BigDecimal.ZERO) > 0) {
+            mensaje = String.format("Costo envío: $%.2f (sin IVA: $%.2f) - %s (iteraciones: %d)",
+                    costoEnvioConIva, costoEnvioSinIva, tipoCalculo, iteracion);
+            guardarCostoEnvio(mlaCode, costoEnvioSinIva);
+        } else {
+            mensaje = motivoFallo != null ? motivoFallo : "No se pudo calcular el costo de envío";
+            log.warn("ML - MLA {} - {}", mlaCode, mensaje);
+        }
+
+        return new CostoEnvioResponseDTO(mlaCode, status, pvpActual, costoEnvioConIva, costoEnvioSinIva, mensaje);
+    }
+
+    /**
+     * Calcula el costo de envío para un producto a partir de su ID.
+     * Busca el MLA asociado al producto y delega al método principal.
+     *
+     * @param productoId ID del producto
+     * @return DTO con el costo de envío calculado
+     */
+    @Transactional
+    public CostoEnvioResponseDTO calcularCostoEnvioPorProducto(Integer productoId) {
+        Optional<ar.com.leo.super_master_backend.dominio.producto.entity.Producto> productoOpt =
+                productoRepository.findById(productoId);
+
+        if (productoOpt.isEmpty()) {
+            log.warn("ML - Producto con ID {} no encontrado", productoId);
+            return new CostoEnvioResponseDTO(null, null, null, BigDecimal.ZERO, BigDecimal.ZERO,
+                    "Producto no encontrado con ID: " + productoId);
+        }
+
+        ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto = productoOpt.get();
+        Mla mla = producto.getMla();
+
+        if (mla == null) {
+            log.warn("ML - Producto {} no tiene MLA asociado", productoId);
+            return new CostoEnvioResponseDTO(null, null, null, BigDecimal.ZERO, BigDecimal.ZERO,
+                    "El producto no tiene MLA asociado");
+        }
+
+        return self.calcularCostoEnvioGratis(mla.getMla());
+    }
+
+    // =====================================================
+    // COSTO DE VENTA (COMISIONES ML)
+    // =====================================================
+
+    /**
+     * Obtiene los costos de venta (comisiones) de un producto en MercadoLibre
+     * y guarda el porcentaje de comisión (meli_percentage_fee) en la base de datos.
+     *
+     * @param mlaCode Código MLA del producto
+     * @return DTO con los costos de venta
+     */
+    @Transactional
+    public CostoVentaResponseDTO obtenerCostoVenta(String mlaCode) {
+        verificarTokens();
+
+        // Obtener producto de ML
+        Producto productoMl = getItemByMLA(mlaCode);
+        if (productoMl == null) {
+            log.warn("ML - No se pudo obtener el producto con MLA: {}", mlaCode);
+            return new CostoVentaResponseDTO(mlaCode, null, null, null, null, null, null, null,
+                    null, null, "No se pudo obtener el producto de MercadoLibre");
+        }
+
+        String status = productoMl.status;
+        BigDecimal precio = BigDecimal.valueOf(productoMl.price).setScale(2, RoundingMode.HALF_UP);
+
+        // Consultar API de costos de venta
+        String uri = String.format(
+                "/sites/%s/listing_prices?category_id=%s&price=%s&currency_id=%s&logistic_type=%s",
+                productoMl.siteId,
+                productoMl.categoryId,
+                productoMl.price,
+                "ARS",
+                productoMl.shipping.logisticType);
+
+        String responseBody = retryHandler.get(uri, () -> tokens.accessToken);
+
+        if (responseBody == null) {
+            log.warn("ML - Error al obtener costos de venta para MLA {}", mlaCode);
+            return new CostoVentaResponseDTO(mlaCode, status, precio, null, null, null, null, null,
+                    productoMl.listingTypeId, null, "Error al consultar costos de venta");
+        }
+
+        try {
+            JsonNode json = objectMapper.readTree(responseBody);
+            log.debug("ML - Costos de venta para MLA {}: {}", mlaCode, responseBody);
+
+            // Buscar el listing_type correspondiente
+            BigDecimal comisionVentaTotal = BigDecimal.ZERO;
+            BigDecimal costoFijo = BigDecimal.ZERO;
+            BigDecimal cargoFinanciacion = BigDecimal.ZERO;
+            BigDecimal porcentajeMeli = BigDecimal.ZERO;
+            BigDecimal porcentajeTotal = BigDecimal.ZERO;
+            String listingTypeName = null;
+
+            for (JsonNode listing : json) {
+                if (productoMl.listingTypeId.equals(listing.path("listing_type_id").asString())) {
+                    // Total de comisión de venta
+                    comisionVentaTotal = BigDecimal.valueOf(listing.path("sale_fee_amount").asDouble(0));
+                    listingTypeName = listing.path("listing_type_name").asString(null);
+
+                    // Detalles desglosados de sale_fee_details
+                    JsonNode details = listing.path("sale_fee_details");
+                    if (!details.isMissingNode()) {
+                        costoFijo = BigDecimal.valueOf(details.path("fixed_fee").asDouble(0));
+                        cargoFinanciacion = BigDecimal.valueOf(details.path("financing_add_on_fee").asDouble(0));
+                        porcentajeMeli = BigDecimal.valueOf(details.path("meli_percentage_fee").asDouble(0));
+                        porcentajeTotal = BigDecimal.valueOf(details.path("percentage_fee").asDouble(0));
+                    }
+                    break;
+                }
+            }
+
+            // Guardar meli_percentage_fee como comisionPorcentaje
+            if (porcentajeMeli.compareTo(BigDecimal.ZERO) > 0) {
+                guardarComisionPorcentaje(mlaCode, porcentajeMeli);
+            }
+
+            return new CostoVentaResponseDTO(
+                    mlaCode,
+                    status,
+                    precio,
+                    comisionVentaTotal,
+                    costoFijo,
+                    cargoFinanciacion,
+                    porcentajeMeli,
+                    porcentajeTotal,
+                    productoMl.listingTypeId,
+                    listingTypeName,
+                    String.format("Comisión total: $%.2f (Fijo: $%.2f + Financiación: $%.2f), Porcentaje ML: %.2f%%",
+                            comisionVentaTotal, costoFijo, cargoFinanciacion, porcentajeMeli)
+            );
+
+        } catch (Exception e) {
+            log.error("Error parseando respuesta de costos de venta", e);
+            return new CostoVentaResponseDTO(mlaCode, status, precio, null, null, null, null, null,
+                    productoMl.listingTypeId, null, "Error parseando respuesta: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Obtiene los costos de venta de un producto a partir de su ID
+     * y guarda el porcentaje de comisión en la base de datos.
+     *
+     * @param productoId ID del producto
+     * @return DTO con los costos de venta
+     */
+    @Transactional
+    public CostoVentaResponseDTO obtenerCostoVentaPorProducto(Integer productoId) {
+        Optional<ar.com.leo.super_master_backend.dominio.producto.entity.Producto> productoOpt =
+                productoRepository.findById(productoId);
+
+        if (productoOpt.isEmpty()) {
+            log.warn("ML - Producto con ID {} no encontrado", productoId);
+            return new CostoVentaResponseDTO(null, null, null, null, null, null, null, null,
+                    null, null, "Producto no encontrado con ID: " + productoId);
+        }
+
+        ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto = productoOpt.get();
+        Mla mla = producto.getMla();
+
+        if (mla == null) {
+            log.warn("ML - Producto {} no tiene MLA asociado", productoId);
+            return new CostoVentaResponseDTO(null, null, null, null, null, null, null, null,
+                    null, null, "El producto no tiene MLA asociado");
+        }
+
+        return obtenerCostoVenta(mla.getMla());
+    }
+
+    // =====================================================
+    // PROCESO MASIVO - COSTO DE VENTA
+    // =====================================================
+
+    /**
+     * Inicia el cálculo de costo de venta para todos los MLAs de forma asincrónica.
+     *
+     * @return true si se inició el proceso, false si ya había uno en ejecución
+     */
+    public boolean iniciarCalculoCostoVentaTodos() {
+        if (!trackerCostoVenta.adquirir()) {
+            log.warn("ML - No se pudo iniciar costo de venta: ya en ejecución u otro proceso ML activo");
+            return false;
+        }
+        resultadoProcesoMasivoCostoVenta = null;
+        self.calcularCostoVentaTodosAsync();
+        return true;
+    }
+
+    /**
+     * Calcula el costo de venta para todos los MLAs en la base de datos de forma asincrónica.
+     * Este método se ejecuta en un thread separado.
+     */
+    @Async
+    public void calcularCostoVentaTodosAsync() {
+        List<Mla> mlas = mlaRepository.findAll();
+        List<CostoVentaResponseDTO> resultados = new ArrayList<>();
+        int exitosos = 0;
+        int errores = 0;
+        int omitidos = 0;
+
+        log.info("ML - Iniciando cálculo masivo de costos de venta para {} MLAs", mlas.size());
+
+        // Activamos el batch: durante el masivo, los recálculos por cambio de MLA
+        // que se programen se acumulan acá y los despachamos UNO al final.
+        Set<Integer> batch = ConcurrentHashMap.newKeySet();
+        masivoMlaBatch.set(batch);
+        try {
+            for (Mla mla : mlas) {
+                if (trackerCostoVenta.estaCancelado()) {
+                    omitidos = mlas.size() - resultados.size();
+                    log.info("ML - Proceso masivo de costo de venta cancelado. Procesados: {}, Omitidos: {}",
+                            resultados.size(), omitidos);
+                    break;
+                }
+
+                try {
+                    CostoVentaResponseDTO resultado = obtenerCostoVenta(mla.getMla());
+                    resultados.add(resultado);
+
+                    if (resultado.comisionVentaTotal() != null && resultado.comisionVentaTotal().compareTo(java.math.BigDecimal.ZERO) > 0) {
+                        exitosos++;
+                    } else {
+                        errores++;
+                    }
+
+                } catch (Exception e) {
+                    log.error("ML - Error procesando costo de venta MLA {}: {}", mla.getMla(), e.getMessage());
+                    CostoVentaResponseDTO error = new CostoVentaResponseDTO(
+                            mla.getMla(), null, null, null, null, null, null, null,
+                            null, null, "Error: " + e.getMessage());
+                    resultados.add(error);
+                    errores++;
+                }
+
+                trackerCostoVenta.actualizar(mlas.size(), resultados.size(), exitosos, errores,
+                        String.format("Procesando %d/%d", resultados.size(), mlas.size()));
+            }
+
+            String tag = trackerCostoVenta.estaCancelado() ? "cancelado" : "completado";
+            log.info("ML - Cálculo masivo de costo de venta {}. Exitosos: {}, Errores: {}, Omitidos: {}",
+                    tag, exitosos, errores, omitidos);
+
+            resultadoProcesoMasivoCostoVenta = new CostoVentaMasivoResponseDTO(
+                    resultados.size(), exitosos, errores, omitidos, resultados);
+
+            trackerCostoVenta.completar(mlas.size(), exitosos, errores,
+                    String.format("Proceso %s. %d MLAs OK, %d errores, %d omitidos",
+                            tag, exitosos, errores, omitidos));
+
+        } catch (Exception e) {
+            log.error("ML - Error fatal en proceso masivo de costo de venta: {}", e.getMessage(), e);
+            resultadoProcesoMasivoCostoVenta = null;
+            trackerCostoVenta.completarConError(e.getMessage());
+        } finally {
+            trackerCostoVenta.liberar();
+            masivoMlaBatch.remove();
+            // Despachamos el recálculo batched DESPUÉS de liberar el lock del
+            // masivo: ejecutarRecalculoAsync usa el grupo BD (recalculo-canal),
+            // que es distinto al grupo ML del masivo, así que no compiten.
+            dispatchBatchRecalculoMla(batch);
+        }
+    }
+
+    /**
+     * Cancela el proceso masivo de cálculo de costos de venta en ejecución.
+     *
+     * @return true si había un proceso en ejecución que fue marcado para cancelar
+     */
+    public boolean cancelarProcesoMasivoCostoVenta() {
+        if (trackerCostoVenta.estaEjecutando()) {
+            trackerCostoVenta.cancelar();
+            log.info("ML - Solicitud de cancelación de proceso masivo de costo de venta recibida");
+            return true;
+        }
+        log.info("ML - No hay proceso masivo de costo de venta en ejecución para cancelar");
+        return false;
+    }
+
+    /**
+     * Obtiene el estado actual del proceso masivo de costo de venta.
+     *
+     * @return DTO con el estado del proceso
+     */
+    public ProcesoMasivoEstadoDTO obtenerEstadoProcesoMasivoCostoVenta() {
+        return trackerCostoVenta.obtener();
+    }
+
+    /**
+     * Obtiene el resultado del último proceso masivo de costo de venta completado.
+     *
+     * @return DTO con los resultados o null si no hay resultados disponibles
+     */
+    public CostoVentaMasivoResponseDTO obtenerResultadoProcesoMasivoCostoVenta() {
+        return resultadoProcesoMasivoCostoVenta;
+    }
+
+    /**
+     * Verifica si hay un proceso masivo de costo de venta en ejecución.
+     *
+     * @return true si hay un proceso en ejecución
+     */
+    public boolean isProcesoMasivoCostoVentaEnEjecucion() {
+        return trackerCostoVenta.estaEjecutando();
+    }
+
+    // =====================================================
+    // PROCESO MASIVO - COSTO DE ENVÍO
+    // =====================================================
+
+    /**
+     * Inicia el cálculo de costo de envío para todos los MLAs de forma asincrónica.
+     *
+     * @return true si se inició el proceso, false si ya había uno en ejecución
+     */
+    public boolean iniciarCalculoCostoEnvioTodos() {
+        if (!trackerCostoEnvio.adquirir()) {
+            log.warn("ML - No se pudo iniciar costo de envío: ya en ejecución u otro proceso ML activo");
+            return false;
+        }
+        resultadoProcesoMasivo = null;
+        self.calcularCostoEnvioTodosAsync();
+        return true;
+    }
+
+    /**
+     * Calcula el costo de envío para todos los MLAs en la base de datos de forma asincrónica.
+     * Este método se ejecuta en un thread separado.
+     */
+    @Async
+    public void calcularCostoEnvioTodosAsync() {
+        List<Mla> mlas = mlaRepository.findAll();
+        List<CostoEnvioResponseDTO> resultados = new ArrayList<>();
+        int exitosos = 0;
+        int errores = 0;
+        int omitidos = 0;
+
+        log.info("ML - Iniciando cálculo masivo de costos de envío para {} MLAs", mlas.size());
+
+        Set<Integer> batch = ConcurrentHashMap.newKeySet();
+        masivoMlaBatch.set(batch);
+        try {
+            for (Mla mla : mlas) {
+                if (trackerCostoEnvio.estaCancelado()) {
+                    omitidos = mlas.size() - resultados.size();
+                    log.info("ML - Proceso masivo cancelado. Procesados: {}, Omitidos: {}",
+                            resultados.size(), omitidos);
+                    break;
+                }
+
+                try {
+                    // Llamar via self para que pase por el proxy y respete @Transactional
+                    CostoEnvioResponseDTO resultado = self.calcularCostoEnvioGratis(mla.getMla());
+                    resultados.add(resultado);
+
+                    if (resultado.costoEnvioSinIva().compareTo(BigDecimal.ZERO) > 0) {
+                        exitosos++;
+                    } else {
+                        errores++;
+                    }
+
+                } catch (Exception e) {
+                    log.error("ML - Error procesando MLA {}: {}", mla.getMla(), e.getMessage());
+                    CostoEnvioResponseDTO error = new CostoEnvioResponseDTO(
+                            mla.getMla(), null, null, BigDecimal.ZERO, BigDecimal.ZERO,
+                            "Error: " + e.getMessage());
+                    resultados.add(error);
+                    errores++;
+                }
+
+                trackerCostoEnvio.actualizar(mlas.size(), resultados.size(), exitosos, errores,
+                        String.format("Procesando %d/%d", resultados.size(), mlas.size()));
+            }
+
+            String tag = trackerCostoEnvio.estaCancelado() ? "cancelado" : "completado";
+            log.info("ML - Cálculo masivo {}. Exitosos: {}, Errores: {}, Omitidos: {}",
+                    tag, exitosos, errores, omitidos);
+
+            resultadoProcesoMasivo = new CostoEnvioMasivoResponseDTO(
+                    resultados.size(), exitosos, errores, omitidos, resultados);
+
+            trackerCostoEnvio.completar(mlas.size(), exitosos, errores,
+                    String.format("Proceso %s. %d MLAs OK, %d errores, %d omitidos",
+                            tag, exitosos, errores, omitidos));
+
+        } catch (Exception e) {
+            log.error("ML - Error fatal en proceso masivo de costo de envío: {}", e.getMessage(), e);
+            resultadoProcesoMasivo = null;
+            trackerCostoEnvio.completarConError(e.getMessage());
+        } finally {
+            trackerCostoEnvio.liberar();
+            masivoMlaBatch.remove();
+            dispatchBatchRecalculoMla(batch);
+        }
+    }
+
+    /**
+     * Cancela el proceso masivo de cálculo de costos de envío en ejecución.
+     *
+     * @return true si había un proceso en ejecución que fue marcado para cancelar
+     */
+    public boolean cancelarProcesoMasivo() {
+        if (trackerCostoEnvio.estaEjecutando()) {
+            trackerCostoEnvio.cancelar();
+            log.info("ML - Solicitud de cancelación de proceso masivo recibida");
+            return true;
+        }
+        log.info("ML - No hay proceso masivo en ejecución para cancelar");
+        return false;
+    }
+
+    /**
+     * Obtiene el estado actual del proceso masivo.
+     *
+     * @return DTO con el estado del proceso
+     */
+    public ProcesoMasivoEstadoDTO obtenerEstadoProcesoMasivo() {
+        return trackerCostoEnvio.obtener();
+    }
+
+    /**
+     * Obtiene el resultado del último proceso masivo completado.
+     *
+     * @return DTO con los resultados o null si no hay resultados disponibles
+     */
+    public CostoEnvioMasivoResponseDTO obtenerResultadoProcesoMasivo() {
+        return resultadoProcesoMasivo;
+    }
+
+    /**
+     * Verifica si hay un proceso masivo en ejecución.
+     *
+     * @return true si hay un proceso en ejecución
+     */
+    public boolean isProcesoMasivoEnEjecucion() {
+        return trackerCostoEnvio.estaEjecutando();
+    }
+
+    /**
+     * Guarda el porcentaje de comisión en la entidad Mla.
+     */
+    private void guardarComisionPorcentaje(String mlaCode, BigDecimal porcentaje) {
+        List<Mla> mlas = mlaRepository.findByMla(mlaCode);
+        if (mlas.isEmpty()) {
+            log.warn("ML - No se encontró el MLA {} en la base de datos para guardar la comisión", mlaCode);
+            return;
+        }
+
+        LocalDateTime ahora = LocalDateTime.now();
+        for (Mla mla : mlas) {
+            BigDecimal comisionAnterior = mla.getComisionPorcentaje();
+
+            mla.setComisionPorcentaje(porcentaje);
+            mla.setFechaCalculoComision(ahora);
+            mlaRepository.save(mla);
+
+            Map<String, String> anterior = new LinkedHashMap<>();
+            anterior.put("comisionPorcentaje", comisionAnterior != null ? comisionAnterior.toPlainString() : null);
+            Map<String, String> nuevo = new LinkedHashMap<>();
+            nuevo.put("comisionPorcentaje", porcentaje.toPlainString());
+            auditoriaService.registrarCambios(AuditoriaEntidad.MLA, mla.getId(), mlaCode, AuditoriaAccion.UPDATE, anterior, nuevo);
+
+            if (comisionAnterior == null || comisionAnterior.compareTo(porcentaje) != 0) {
+                programarRecalculoMlaPostCommit(mla.getId());
+            }
+        }
+        log.info("ML - Porcentaje de comisión guardado para MLA {} ({} registros): {}%", mlaCode, mlas.size(), porcentaje);
+    }
+
+    /**
+     * Guarda el costo de envío en la entidad Mla.
+     */
+    private void guardarCostoEnvio(String mlaCode, BigDecimal costoEnvio) {
+        List<Mla> mlas = mlaRepository.findByMla(mlaCode);
+        if (mlas.isEmpty()) {
+            log.warn("ML - No se encontró el MLA {} en la base de datos para guardar el costo", mlaCode);
+            return;
+        }
+
+        LocalDateTime ahora = LocalDateTime.now();
+        for (Mla mla : mlas) {
+            BigDecimal precioAnterior = mla.getPrecioEnvio();
+
+            mla.setPrecioEnvio(costoEnvio);
+            mla.setFechaCalculoEnvio(ahora);
+            mlaRepository.save(mla);
+
+            Map<String, String> anterior = new LinkedHashMap<>();
+            anterior.put("precioEnvio", precioAnterior != null ? precioAnterior.toPlainString() : null);
+            Map<String, String> nuevo = new LinkedHashMap<>();
+            nuevo.put("precioEnvio", costoEnvio.toPlainString());
+            auditoriaService.registrarCambios(AuditoriaEntidad.MLA, mla.getId(), mlaCode, AuditoriaAccion.UPDATE, anterior, nuevo);
+
+            if (precioAnterior == null || precioAnterior.compareTo(costoEnvio) != 0) {
+                programarRecalculoMlaPostCommit(mla.getId());
+            }
+        }
+        log.info("ML - Costo de envío (sin IVA) guardado para MLA {} ({} registros): ${}", mlaCode, mlas.size(), costoEnvio);
+    }
+
+    /**
+     * Calcula el costo de envío gratis usando la API de ML.
+     */
+    private ResultadoEnvio calcularCostoEnvioInterno(String userId, Producto producto, BigDecimal precioEnvioGratis) {
+        verificarTokens();
+
+        final String itemId = producto.id;
+        final String itemPrice = String.format(Locale.forLanguageTag("en-US"), "%.2f", precioEnvioGratis);
+        final String listingType = producto.listingTypeId;
+        final String mode = producto.shipping != null ? producto.shipping.mode : null;
+        final String condition = producto.condition;
+        final String logisticType = producto.shipping != null ? producto.shipping.logisticType : null;
+        final String zipCode = producto.sellerAddress != null ? producto.sellerAddress.zipCode : null;
+        final String categoryId = producto.categoryId;
+
+        if (!"me2".equals(mode)) {
+            String motivo = String.format("modo de envío no es ME2 (mode='%s')", mode);
+            log.warn("ML - No se puede calcular costo de envío para {}: {}", itemId, motivo);
+            return ResultadoEnvio.fallo(motivo);
+        }
+
+        if (zipCode == null || zipCode.isBlank()
+                || logisticType == null || logisticType.isBlank()
+                || condition == null || condition.isBlank()
+                || listingType == null || listingType.isBlank()) {
+            String motivo = String.format("faltan datos (zip=%s, logistic=%s, cond=%s, listing=%s)",
+                    zipCode, logisticType, condition, listingType);
+            log.warn("ML - No se puede calcular envío para {}: {}", itemId, motivo);
+            return ResultadoEnvio.fallo(motivo);
+        }
+
+        String baseParams = String.format("&item_price=%s&listing_type_id=%s&mode=%s&condition=%s&logistic_type=%s&zip_code=%s&verbose=true&free_shipping=true",
+                itemPrice, listingType, mode, condition, logisticType, zipCode);
+        if (categoryId != null && !categoryId.isBlank()) {
+            baseParams += "&category_id=" + categoryId;
+        }
+
+        // Intentar primero con item_id
+        String uri = String.format("/users/%s/shipping_options/free?item_id=%s%s", userId, itemId, baseParams);
+        String responseBody = retryHandler.get(uri, () -> tokens.accessToken);
+
+        if (responseBody == null) {
+            // Si falló con item_id, intentar con dimensions como fallback
+            String dimensions = producto.getDimensions();
+            if (dimensions != null && !dimensions.isBlank()) {
+                log.info("ML - Reintentando cálculo de envío para {} usando dimensions...", itemId);
+                String dimUri = String.format("/users/%s/shipping_options/free?dimensions=%s%s",
+                        userId, URLEncoder.encode(dimensions, StandardCharsets.UTF_8), baseParams);
+                responseBody = retryHandler.get(dimUri, () -> tokens.accessToken);
+            }
+
+            if (responseBody == null) {
+                String motivo = "la API de ML no respondió (item_id y dimensions fallaron)";
+                log.warn("ML - {} para {}", motivo, itemId);
+                return ResultadoEnvio.fallo(motivo);
+            }
+        }
+
+        try {
+            JsonNode json = objectMapper.readTree(responseBody);
+            double cost = json.path("coverage").path("all_country").path("list_cost").asDouble(0);
+
+            JsonNode discount = json.path("coverage").path("discount");
+            if (!discount.isMissingNode() && discount.path("rate").asDouble(0) > 0) {
+                double rate = discount.path("rate").asDouble(0);
+                double promotedAmount = discount.path("promoted_amount").asDouble(0);
+                String type = discount.path("type").asText("");
+                log.info("ML - Envío {}: costo ${} (descuento {}% tipo '{}', costo original ${})",
+                        itemId, String.format("%.2f", cost), String.format("%.0f", rate * 100), type, String.format("%.2f", promotedAmount));
+            }
+
+            if (cost <= 0) {
+                return ResultadoEnvio.fallo("la API de ML devolvió costo 0");
+            }
+            return ResultadoEnvio.ok(BigDecimal.valueOf(cost));
+        } catch (Exception e) {
+            log.error("Error parseando respuesta de costo de envío", e);
+            return ResultadoEnvio.fallo("error parseando respuesta de ML: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Obtiene un producto de ML por su MLA.
+     */
+    public Producto getItemByMLA(String itemId) {
+        verificarTokens();
+
+        try {
+            return retryHandler.get("/items/" + itemId, () -> tokens.accessToken, Producto.class);
+        } catch (Exception e) {
+            log.warn("ML - No se pudo obtener item {}: {}", itemId, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Obtiene el userId del usuario autenticado.
+     */
+    public String getUserId() throws IOException {
+        // Usar cache si está disponible
+        if (cachedUserId != null) {
+            return cachedUserId;
+        }
+
+        verificarTokens();
+
+        String responseBody = retryHandler.get("/users/me", () -> tokens.accessToken);
+
+        if (responseBody == null) {
+            throw new IOException("Error al obtener el user ID de ML");
+        }
+
+        try {
+            cachedUserId = objectMapper.readTree(responseBody).get("id").asString();
+            return cachedUserId;
+        } catch (Exception e) {
+            throw new IOException("Error parseando userId de ML", e);
+        }
+    }
+
+    // ==================== MANEJO DE CREDENCIALES ====================
+
+    private void cargarCredentials() {
+        try {
+            File credFile = java.nio.file.Paths.get(secretsDir).resolve("ml_credentials.json").toFile();
+            if (credFile.exists()) {
+                credentials = objectMapper.readValue(credFile, MLCredentials.class);
+                log.info("ML - Credenciales cargadas desde {}", credFile.getAbsolutePath());
+            } else {
+                log.warn("ML - No se encontraron credenciales en {}", credFile.getAbsolutePath());
+            }
+        } catch (Exception e) {
+            log.error("Error cargando credenciales ML: {}", e.getMessage());
+        }
+    }
+
+    // ==================== MANEJO DE TOKENS ====================
+
+    private void verificarTokens() {
+        if (tokens == null) {
+            log.warn("ML - Tokens no inicializados. Intentando cargar...");
+            cargarTokens();
+            if (tokens == null) {
+                throw new ServiceNotConfiguredException("MercadoLibre",
+                        "No hay tokens disponibles. Debe generar los tokens de autenticación primero.");
+            }
+            return;
+        }
+
+        if (!tokens.isExpired()) {
+            return;
+        }
+
+        synchronized (tokenLock) {
+            if (tokens == null || !tokens.isExpired()) {
+                return;
+            }
+
+            if (credentials == null) {
+                throw new ServiceNotConfiguredException("MercadoLibre",
+                        "No hay credenciales configuradas para renovar el token expirado. " +
+                                "Verifique el archivo ml_credentials.json");
+            }
+
+            log.info("ML - Access token expirado, renovando...");
+            try {
+                tokens = refreshAccessToken(tokens.refreshToken);
+                tokens.issuedAt = System.currentTimeMillis();
+                guardarTokens(tokens);
+                // Limpiar cache de userId al renovar tokens
+                cachedUserId = null;
+                log.info("ML - Token renovado correctamente.");
+            } catch (Exception e) {
+                log.error("ML - Error al renovar token", e);
+                throw new ServiceNotConfiguredException("MercadoLibre",
+                        "Error al renovar el token: " + e.getMessage() + ". " +
+                                "Es posible que el refresh_token haya expirado y necesite re-autenticarse.");
+            }
+        }
+    }
+
+    private void cargarTokens() {
+        try {
+            File file = java.nio.file.Paths.get(secretsDir).resolve("ml_tokens.json").toFile();
+            if (file.exists()) {
+                tokens = objectMapper.readValue(file, TokensML.class);
+                log.info("ML - Tokens cargados desde {}", file.getAbsolutePath());
+            } else {
+                log.warn("ML - Archivo de tokens no encontrado en {}", file.getAbsolutePath());
+            }
+        } catch (Exception e) {
+            log.error("Error cargando tokens ML", e);
+        }
+    }
+
+    private void guardarTokens(TokensML tokens) {
+        try {
+            File file = java.nio.file.Paths.get(secretsDir).resolve("ml_tokens.json").toFile();
+            file.getParentFile().mkdirs();
+            objectMapper.writerWithDefaultPrettyPrinter().writeValue(file, tokens);
+            log.info("ML - Tokens guardados en {}", file.getAbsolutePath());
+        } catch (Exception e) {
+            log.error("Error guardando tokens ML", e);
+        }
+    }
+
+    private TokensML refreshAccessToken(String refreshToken) {
+        if (credentials == null) {
+            throw new ServiceNotConfiguredException("MercadoLibre",
+                    "No hay credenciales configuradas para renovar el token. " +
+                            "Verifique el archivo ml_credentials.json");
+        }
+
+        String formBody = String.format(
+                "grant_type=refresh_token&client_id=%s&client_secret=%s&refresh_token=%s",
+                credentials.clientId, credentials.clientSecret, refreshToken);
+
+        String responseBody = retryHandler.postForm("/oauth/token", formBody);
+
+        if (responseBody == null) {
+            throw new RuntimeException("Error al refrescar access_token");
+        }
+
+        try {
+            TokensML newTokens = objectMapper.readValue(responseBody, TokensML.class);
+            newTokens.issuedAt = System.currentTimeMillis();
+            return newTokens;
+        } catch (Exception e) {
+            throw new RuntimeException("Error parseando tokens de ML", e);
+        }
+    }
+
+    /**
+     * Verifica si el servicio tiene configuración completa.
+     */
+    public boolean isConfigured() {
+        return tokens != null && credentials != null;
+    }
+
+    // ==================== PROMOCIONES Y PRECIOS (para Automatización de Precios) ====================
+
+    /**
+     * Obtiene las promociones activas del vendedor.
+     * Retorna el JSON crudo como String para que el orquestador lo parsee.
+     */
+    public String obtenerPromocionesDelItem(String itemId) {
+        verificarTokens();
+        try {
+            return retryHandler.get(
+                    "/seller-promotions/items/" + itemId + "?app_version=v2",
+                    () -> tokens.accessToken
+            );
+        } catch (Exception e) {
+            log.warn("ML - Error obteniendo promociones del item {}: {}", itemId, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Elimina un item de una promoción específica.
+     */
+    public boolean removeItemFromPromotion(String promotionId, String itemId, String promotionType) {
+        verificarTokens();
+        try {
+            retryHandler.delete(
+                    "/seller-promotions/" + promotionId + "/items/" + itemId + "?promotion_type=" + promotionType,
+                    () -> tokens.accessToken
+            );
+            return true;
+        } catch (Exception e) {
+            log.warn("ML - Error removiendo item {} de promoción {}: {}", itemId, promotionId, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Elimina al item de TODAS las promociones en las que esté (independiente del status).
+     * Una sola llamada al endpoint bulk de ML.
+     */
+    public boolean removeAllItemPromotions(String itemId) {
+        verificarTokens();
+        try {
+            retryHandler.delete(
+                    "/seller-promotions/items/" + itemId + "?app_version=v2",
+                    () -> tokens.accessToken
+            );
+            return true;
+        } catch (Exception e) {
+            log.warn("ML - Error excluyendo todas las promociones del item {}: {}", itemId, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Incluye un item en una promoción (endpoint v2 de ML).
+     * SMART / PRICE_MATCHING / MARKETPLACE_CAMPAIGN → requieren offer_id.
+     * DEAL / SELLER_CAMPAIGN → requieren deal_price.
+     */
+    public boolean addItemToPromotion(String promotionId, String itemId, String promotionType,
+                                      double price, String offerId) {
+        verificarTokens();
+        try {
+            String body;
+            if (offerId != null) {
+                body = String.format(
+                        "{\"promotion_id\":\"%s\",\"promotion_type\":\"%s\",\"offer_id\":\"%s\"}",
+                        promotionId, promotionType, offerId);
+            } else {
+                body = String.format(Locale.US,
+                        "{\"promotion_id\":\"%s\",\"promotion_type\":\"%s\",\"deal_price\":%.2f}",
+                        promotionId, promotionType, price);
+            }
+            retryHandler.postJson(
+                    "/seller-promotions/items/" + itemId + "?app_version=v2",
+                    () -> tokens.accessToken,
+                    body
+            );
+            return true;
+        } catch (Exception e) {
+            String msg = e.getMessage();
+            if (msg != null && msg.contains("ERROR_CREDIBILITY_DISCOUNTED_PRICE")) {
+                log.info("ML - Precio no creíble (ignorado) al incluir item {} en promoción {} ({})", itemId, promotionId, promotionType);
+            } else {
+                log.warn("ML - Error incluyendo item {} en promoción {} ({}): {}", itemId, promotionId, promotionType, msg);
+            }
+            return false;
+        }
+    }
+
+    /**
+     * Actualiza el precio base de un item en ML (redondeado a entero, HALF_UP).
+     */
+    public boolean updateItemPrice(String itemId, double price) {
+        verificarTokens();
+        try {
+            long precioEntero = Math.round(price);
+            String body = "{\"price\":" + precioEntero + "}";
+            retryHandler.putJson("/items/" + itemId, () -> tokens.accessToken, body);
+            return true;
+        } catch (Exception e) {
+            log.warn("ML - Error actualizando precio de item {}: {}", itemId, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Actualiza el precio de todas las variaciones de un item en un solo PUT.
+     * ML requiere que todas las variaciones vengan con el mismo precio en el request.
+     * Si no se envían todos los IDs, las faltantes se borran, por eso es obligatorio
+     * pasar la lista completa de variationIds del item.
+     */
+    public boolean updateItemPriceConVariaciones(String itemId, List<Long> variationIds, double price) {
+        verificarTokens();
+        try {
+            long precioEntero = Math.round(price);
+            StringBuilder variationsJson = new StringBuilder("[");
+            for (int i = 0; i < variationIds.size(); i++) {
+                if (i > 0) variationsJson.append(",");
+                variationsJson.append("{\"id\":").append(variationIds.get(i))
+                        .append(",\"price\":").append(precioEntero).append("}");
+            }
+            variationsJson.append("]");
+            String body = "{\"variations\":" + variationsJson + "}";
+            retryHandler.putJson("/items/" + itemId, () -> tokens.accessToken, body);
+            return true;
+        } catch (Exception e) {
+            log.warn("ML - Error actualizando precio con variaciones de item {}: {}", itemId, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Multiget batch de price + variations para múltiples items (máx 20 por request).
+     * Retorna mapa de MLA → body (con id, price, variations).
+     */
+    public Map<String, JsonNode> obtenerDatosItemsPorLote(List<String> mlaIds) {
+        verificarTokens();
+        Map<String, JsonNode> resultado = new LinkedHashMap<>();
+        if (mlaIds == null || mlaIds.isEmpty()) return resultado;
+
+        for (int i = 0; i < mlaIds.size(); i += 20) {
+            List<String> batch = mlaIds.subList(i, Math.min(i + 20, mlaIds.size()));
+            String ids = String.join(",", batch);
+
+            try {
+                String response = retryHandler.get(
+                        "/items?ids=" + ids + "&attributes=id,price,variations",
+                        () -> tokens.accessToken
+                );
+                if (response == null) continue;
+
+                JsonNode array = objectMapper.readTree(response);
+                for (JsonNode item : array) {
+                    if (item.path("code").asInt(0) != 200) continue;
+                    JsonNode body = item.path("body");
+                    String id = body.path("id").asString(null);
+                    if (id != null) {
+                        resultado.put(id, body);
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("ML - Error obteniendo datos de items batch: {}", e.getMessage());
+            }
+        }
+        return resultado;
+    }
+
+    /**
+     * Obtiene las variaciones de un item.
+     * Retorna el JSON crudo como String.
+     */
+    public String getItemVariations(String itemId) {
+        verificarTokens();
+        try {
+            return retryHandler.get("/items/" + itemId + "?attributes=variations", () -> tokens.accessToken);
+        } catch (Exception e) {
+            log.warn("ML - Error obteniendo variaciones de item {}: {}", itemId, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Obtiene el status de múltiples items en batch (máx 20 por request).
+     * Retorna mapa de MLA → status (active, paused, closed, etc.)
+     */
+    public Map<String, String> obtenerStatusItems(List<String> mlaIds) {
+        verificarTokens();
+        Map<String, String> statusMap = new LinkedHashMap<>();
+
+        for (int i = 0; i < mlaIds.size(); i += 20) {
+            List<String> batch = mlaIds.subList(i, Math.min(i + 20, mlaIds.size()));
+            String ids = String.join(",", batch);
+
+            try {
+                String response = retryHandler.get(
+                        "/items?ids=" + ids + "&attributes=id,status",
+                        () -> tokens.accessToken
+                );
+                if (response == null) continue;
+
+                JsonNode array = objectMapper.readTree(response);
+                for (JsonNode item : array) {
+                    if (item.path("code").asInt(0) == 200) {
+                        String id = item.path("body").path("id").asString(null);
+                        String status = item.path("body").path("status").asString(null);
+                        if (id != null && status != null) {
+                            statusMap.put(id, status);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("ML - Error obteniendo status de items batch: {}", e.getMessage());
+            }
+        }
+        return statusMap;
+    }
+
+    /**
+     * Obtiene los items activos del vendedor usando scroll.
+     * Retorna lista de MLA IDs.
+     */
+    public List<String> obtenerItemsActivos() {
+        verificarTokens();
+        try {
+            String userId = getUserId();
+            List<String> items = new ArrayList<>();
+            String scrollId = null;
+
+            while (true) {
+                String uri = "/users/" + userId + "/items/search?status=active&limit=100&search_type=scan"
+                        + (scrollId != null ? "&scroll_id=" + URLEncoder.encode(scrollId, StandardCharsets.UTF_8) : "");
+                String response = retryHandler.get(uri, () -> tokens.accessToken);
+                if (response == null) break;
+
+                JsonNode root = objectMapper.readTree(response);
+                JsonNode results = root.get("results");
+                if (results == null || results.isEmpty()) break;
+
+                for (JsonNode item : results) {
+                    items.add(item.asString());
+                }
+
+                scrollId = root.path("scroll_id").asString(null);
+                if (scrollId == null) break;
+            }
+            return items;
+        } catch (Exception e) {
+            log.error("ML - Error obteniendo items activos: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    private static final String PENDING_MLA_RECALC_KEY = "MercadoLibreService.pendingMlaRecalc";
+
+    /**
+     * Acumulador de mlaIds por thread para los procesos masivos. Cuando está
+     * activo (no-null), {@link #programarRecalculoMlaPostCommit} agrega el id
+     * acá en vez de despachar un recálculo individual. Al final del masivo se
+     * dispara UN solo recálculo batched. Evita la avalancha de N×2 toasts
+     * "iniciado/finalizado" cuando se procesan cientos de MLAs.
+     */
+    private final ThreadLocal<Set<Integer>> masivoMlaBatch = new ThreadLocal<>();
+
+    /**
+     * Registra un recálculo por MLA para ejecutarse post-commit, deduplicado por mlaId
+     * dentro de la transacción actual. Evita doble recálculo cuando en el mismo flujo
+     * se actualizan comisión y envío del mismo MLA.
+     *
+     * <p>Si hay un masivo activo en el thread (ver {@link #masivoMlaBatch}), solo
+     * acumula el id en el batch — el masivo se encarga de dispatch al final.
+     */
+    private void programarRecalculoMlaPostCommit(Integer mlaId) {
+        if (mlaId == null) {
+            return;
+        }
+        // Si el masivo está activo en este thread, sumamos al batch y salimos.
+        // El dispatch lo hace el masivo en su finally.
+        Set<Integer> batchMasivo = masivoMlaBatch.get();
+        if (batchMasivo != null) {
+            batchMasivo.add(mlaId);
+            return;
+        }
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            recalculoPrecioFacade.ejecutarRecalculoAsync(
+                    "Recálculo por cambio en MLA " + describirMla(mlaId),
+                    () -> recalculoPrecioFacade.recalcularProductosDelMla(mlaId));
+            return;
+        }
+        @SuppressWarnings("unchecked")
+        Set<Integer> pending = (Set<Integer>) TransactionSynchronizationManager.getResource(PENDING_MLA_RECALC_KEY);
+        if (pending == null) {
+            final Set<Integer> nuevos = new LinkedHashSet<>();
+            TransactionSynchronizationManager.bindResource(PENDING_MLA_RECALC_KEY, nuevos);
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    for (Integer id : nuevos) {
+                        recalculoPrecioFacade.ejecutarRecalculoAsync(
+                                "Recálculo por cambio en MLA " + describirMla(id),
+                                () -> recalculoPrecioFacade.recalcularProductosDelMla(id));
+                    }
+                }
+
+                @Override
+                public void afterCompletion(int status) {
+                    if (TransactionSynchronizationManager.hasResource(PENDING_MLA_RECALC_KEY)) {
+                        TransactionSynchronizationManager.unbindResource(PENDING_MLA_RECALC_KEY);
+                    }
+                }
+            });
+            pending = nuevos;
+        }
+        pending.add(mlaId);
+    }
+
+    /**
+     * Devuelve el código del MLA (ej. "MLA1234567890") a partir de su id en BD.
+     * Si no se encuentra, devuelve "#id" como fallback. Usado solo para armar
+     * el string de descripción del proceso async — fuera de hot path.
+     */
+    private String describirMla(Integer mlaId) {
+        if (mlaId == null) return "?";
+        return mlaRepository.findById(mlaId)
+                .map(Mla::getMla)
+                .filter(s -> s != null && !s.isBlank())
+                .orElse("#" + mlaId);
+    }
+
+    /**
+     * Despacha en una sola tarea async el recálculo de los productos de todos
+     * los MLAs del batch. Una sola entrada en el badge del header y un solo
+     * toast al finalizar — en vez de N toasts individuales.
+     */
+    private void dispatchBatchRecalculoMla(Set<Integer> mlaIds) {
+        if (mlaIds == null || mlaIds.isEmpty()) return;
+        Set<Integer> snapshot = Set.copyOf(mlaIds);
+        String descripcion = "Recálculo post-cambio masivo ML: " + snapshot.size() + " MLAs";
+        recalculoPrecioFacade.ejecutarRecalculoAsync(descripcion, () -> {
+            for (Integer id : snapshot) {
+                try {
+                    recalculoPrecioFacade.recalcularProductosDelMla(id);
+                } catch (Exception e) {
+                    log.warn("Error recalculando productos del MLA id={}: {}", id, e.getMessage());
+                }
+            }
+        });
+    }
+
+}

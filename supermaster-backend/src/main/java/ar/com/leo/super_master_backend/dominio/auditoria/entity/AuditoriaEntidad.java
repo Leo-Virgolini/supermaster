@@ -1,0 +1,30 @@
+package ar.com.leo.super_master_backend.dominio.auditoria.entity;
+
+public enum AuditoriaEntidad {
+    PRODUCTO,
+    PROVEEDOR,
+    CLIENTE,
+    CANAL,
+    CONCEPTO_CALCULO,
+    CANAL_CONCEPTO,
+    CANAL_CONCEPTO_CUOTA,
+    CANAL_CONCEPTO_REGLA,
+    CANAL_REGLA,
+    REGLA_DESCUENTO,
+    PRECIO_INFLADO,
+    MLA,
+    CATALOGO,
+    MARCA,
+    TIPO,
+    MATERIAL,
+    ORIGEN,
+    CLASIF_GRAL,
+    CLASIF_GASTRO,
+    APTO,
+    USUARIO,
+    ORDEN_COMPRA,
+    REPOSICION,
+    CONFIGURACION_ML,
+    CONFIG_AUTOMATIZACION,
+    CATALOGO_PDF_CONFIG
+}

@@ -13,15 +13,15 @@
 --   GAN.MIN.ML  -> FLAG_USAR_MARGEN_MINORISTA  (MARGEN_MIN, canonico, reusado de ML)
 --   KH_RELMKUP  -> AJUSTE_MARGEN_PUNTOS        (suma puntos al margen)
 --   IVA         -> FLAG_APLICAR_IVA            (IVA, canonico, reusado de ML)
---   IIBB        -> IMPUESTO_ADICIONAL          (reusado de ML)
+--   IIBB        -> IMPUESTO_EN_FACTOR_IMP      (reusado de ML)
 --   KH_MP       -> COMISION_SOBRE_PVP
 --   KH_MKT      -> COMISION_SOBRE_PVP
 --   KH_EMB      -> COMISION_SOBRE_PVP
 --   KH_COMI     -> COMISION_SOBRE_PVP
---   KH_6C       -> COMISION_SOBRE_PVP          (esta HARDCODEADO en la formula)
---   KH_CO       -> RECARGO_CUPON               (bucket 2)
---   KH_CUPON    -> INFLACION_DIVISOR           (bucket 3)
---   PRECIO_INFLADO -> FLAG_APLICAR_PRECIO_INFLADO (canonico; aqui se crea por primera vez)
+--   KH_6C       -> canal_concepto_cuota (cuotas=6, recargo 18%) — NO es ConceptoCalculo
+--   KH_CO       -> COSTO_OCULTO_PVP            (bucket 2)
+--   KH_CUPON    -> INFLACION_DIVISOR_FINAL     (bucket 3)
+--   INFLADO     -> FLAG_APLICAR_PRECIO_INFLADO (canonico; aqui se crea por primera vez)
 --
 -- Mapeo de PROMO (Excel) -> PrecioInflado:
 --   ""    -> sin asignacion (no se calcula pvpInflado)
@@ -32,9 +32,6 @@
 -- IMPORTANTE:
 --   * Los porcentajes son PLACEHOLDERS. Ajustar con los valores reales del Excel.
 --   * En NUBE NO se suma envio (a diferencia de ML).
---   * KH_6C se agrega como concepto fijo (no como opcion de cuota) porque la
---     formula lo aplica siempre. Si el negocio publica a precio de 6 cuotas, este
---     concepto representa el costo financiero incorporado al PVP base.
 --   * El filtro del Excel "si TAG=MAQUINA o TAG=REPUESTO -> vacio" NO se modela
 --     aqui como regla por concepto: el backend siempre calcula un PVP. Ver nota
 --     al final (paso 4) si se quiere excluir estos productos del canal.
@@ -46,21 +43,20 @@ USE supermaster;
 -- 1) ConceptoCalculo
 --    Conceptos canonicos (IVA, MARGEN_MIN, IIBB) ya fueron creados
 --    en ml-conceptos.sql. Aqui solo se crean los conceptos propios
---    de NUBE con porcentaje especifico, mas el canonico PRECIO_INFLADO
+--    de NUBE con porcentaje especifico, mas el canonico INFLADO
 --    (que se crea por primera vez aqui).
 -- -------------------------------------------------------------
 INSERT INTO conceptos_calculo (nombre, porcentaje, aplica_sobre, descripcion) VALUES
   -- Canonico nuevo (FLAG, sin prefijo de canal): primera carga
-  ('PRECIO_INFLADO', NULL, 'FLAG_APLICAR_PRECIO_INFLADO', 'Habilita la aplicacion de precios inflados (PrecioInflado asignado al producto-canal)'),
+  ('INFLADO',        NULL,  'FLAG_APLICAR_PRECIO_INFLADO', 'Habilita que se calculen los precios inflados si tienen la regla'),
   -- Conceptos con porcentaje propio del canal NUBE
-  ('KH_RELMKUP',     5.00,  'AJUSTE_MARGEN_PUNTOS',       'Ajuste: suma puntos al margen minorista para NUBE'),
-  ('KH_MP',          6.00,  'COMISION_SOBRE_PVP',         'Comision medio de pago (MercadoPago) en NUBE'),
-  ('KH_MKT',         5.00,  'COMISION_SOBRE_PVP',         'Gasto de marketing / publicaciones NUBE'),
-  ('KH_EMB',         2.00,  'COMISION_SOBRE_PVP',         'Gasto de embalaje para envio NUBE'),
-  ('KH_COMI',        8.00,  'COMISION_SOBRE_PVP',         'Comision de la plataforma Tienda Nube'),
-  ('KH_6C',         18.00,  'COMISION_SOBRE_PVP',         'Costo fijo de publicar a precio 6 cuotas en NUBE'),
-  ('KH_CO',          5.00,  'RECARGO_CUPON',              'Costo oculto NUBE (bucket 2)'),
-  ('KH_CUPON',      10.00,  'INFLACION_DIVISOR',          'Cupon / inflacion NUBE (bucket 3)');
+  ('KH_RELMKUP',     5.00,  'AJUSTE_MARGEN_PUNTOS',       'Ajuste de margen NUBE: suma puntos al margen minorista del producto'),
+  ('KH_MP',          6.00,  'COMISION_SOBRE_PVP',         'Comision del medio de pago (MercadoPago) que se retiene sobre el PVP'),
+  ('KH_MKT',         5.00,  'COMISION_SOBRE_PVP',         'Gasto de marketing / publicaciones NUBE (gasto real del dueno)'),
+  ('KH_EMB',         2.00,  'COMISION_SOBRE_PVP',         'Gasto de embalaje NUBE (gasto real del dueno)'),
+  ('KH_COMI',        8.00,  'COMISION_SOBRE_PVP',         'Comision de la plataforma Tienda Nube sobre el PVP'),
+  ('KH_CO',          5.00,  'COSTO_OCULTO_PVP',           'Costo oculto NUBE: retencion adicional de la plataforma. Divisor separado que infla el PVP y reduce ingreso del dueno'),
+  ('KH_CUPON',      10.00,  'INFLACION_DIVISOR_FINAL',    'Inflacion cosmetica del PVP NUBE para mostrar un cupon/descuento al cliente. El dueno se queda con la plata extra (no es costo)');
 
 -- -------------------------------------------------------------
 -- 2) Asignar conceptos al canal NUBE (canal_concepto)
@@ -75,7 +71,7 @@ WHERE c.nombre = 'NUBE'
     'IVA', 'IIBB', 'MARGEN_MIN', 'KH_RELMKUP',
     'KH_MP', 'KH_MKT', 'KH_EMB', 'KH_COMI',
     'KH_CO', 'KH_CUPON',
-    'PRECIO_INFLADO'
+    'INFLADO'
   );
 
 -- -------------------------------------------------------------
@@ -117,7 +113,7 @@ WHERE c.nombre = 'NUBE'
 -- WHERE c.nombre = 'NUBE'
 --   AND cc.nombre IN (
 --     'IVA', 'IIBB', 'MARGEN_MIN', 'KH_RELMKUP',
---     'KH_MP', 'KH_MKT', 'KH_EMB', 'KH_COMI', 'KH_6C',
+--     'KH_MP', 'KH_MKT', 'KH_EMB', 'KH_COMI',
 --     'KH_CO', 'KH_CUPON'
 --   );
 --
@@ -128,15 +124,15 @@ WHERE c.nombre = 'NUBE'
 -- WHERE c.nombre = 'NUBE'
 --   AND cc.nombre IN (
 --     'IVA', 'IIBB', 'MARGEN_MIN', 'KH_RELMKUP',
---     'KH_MP', 'KH_MKT', 'KH_EMB', 'KH_COMI', 'KH_6C',
+--     'KH_MP', 'KH_MKT', 'KH_EMB', 'KH_COMI',
 --     'KH_CO', 'KH_CUPON'
 --   );
 
 -- -------------------------------------------------------------
 -- 5) Cuotas del canal NUBE (canal_concepto_cuota) - OPCIONAL
 --
---    Si ademas del KH_6C hardcoded se quieren ofrecer otras cuotas,
---    cargarlas aca (ejemplo, ajustar porcentajes):
+--    Si se quieren ofrecer cuotas con recargo, cargarlas aca
+--    (ejemplo, ajustar porcentajes):
 --
 --   INSERT INTO canal_concepto_cuota (id_canal, cuotas, porcentaje, descripcion) VALUES
 --     ( (SELECT id_canal FROM canales WHERE nombre='NUBE'),  3, 12.00, 'KH_3C'),

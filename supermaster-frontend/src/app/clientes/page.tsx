@@ -1,7 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { toast } from "sonner";
+import { notificar } from "../utils/notificar";
 import { UserIcon, PlusIcon, TrashIcon, CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { confirmDialog } from "../utils/confirmDialog";
 import Table, { getInitialPageSize } from "../components/Table/core/Table";
@@ -52,7 +52,7 @@ export default function ClientesPage() {
             await createCliente({ nombre: cliente });
             setCliente(""); setFormTouched(false);
             setIsModalOpen(false);
-        } catch (e: any) { toast.error("Error: " + e.message); } finally { setIsSaving(false); }
+        } catch (e: any) { notificar.error("Error: " + e.message); } finally { setIsSaving(false); }
     };
 
     const handleDelete = async () => {

@@ -1,5 +1,8 @@
 package ar.com.leo.super_master_backend.dominio.producto.calculo.controller;
 
+import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaAccion;
+import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaEntidad;
+import ar.com.leo.super_master_backend.dominio.auditoria.service.AuditoriaService;
 import ar.com.leo.super_master_backend.dominio.common.dto.ProcesoMasivoEstadoDTO;
 import ar.com.leo.super_master_backend.dominio.common.dto.RecalculoPendienteDTO;
 import ar.com.leo.super_master_backend.dominio.common.service.AplicadorPendientesService;
@@ -31,6 +34,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import ar.com.leo.super_master_backend.config.Permisos;
 
 @RestController
@@ -43,6 +47,7 @@ public class PrecioController {
     private final RecalculoPendienteService recalculoPendienteService;
     private final RecalculoPendienteSseService recalculoPendienteSseService;
     private final AplicadorPendientesService aplicadorPendientesService;
+    private final AuditoriaService auditoriaService;
 
     // =====================================================
     // LISTAR PRODUCTOS CON PRECIOS (PAGINADO)
@@ -297,7 +302,17 @@ public class PrecioController {
     @PreAuthorize(Permisos.PRECIOS_EDITAR)
     public ResponseEntity<Void> iniciarRecalculoMasivo() {
         boolean started = calculoPrecioService.iniciarRecalculoMasivo();
-        if (started) recalculoPendienteService.limpiar();
+        if (started) {
+            recalculoPendienteService.limpiar();
+            auditoriaService.registrarCambios(
+                    AuditoriaEntidad.RECALCULO,
+                    null,
+                    "masivo",
+                    AuditoriaAccion.CREATE,
+                    Map.of(),
+                    Map.of("evento", "recalculo_masivo_iniciado", "scope", "todos los productos y canales")
+            );
+        }
         return started ? ResponseEntity.ok().build() : ResponseEntity.status(409).build();
     }
 
@@ -341,6 +356,14 @@ public class PrecioController {
             boolean started = calculoPrecioService.iniciarRecalculoMasivo();
             if (started) {
                 recalculoPendienteService.limpiar();
+                auditoriaService.registrarCambios(
+                        AuditoriaEntidad.RECALCULO,
+                        null,
+                        "pendiente-todo",
+                        AuditoriaAccion.CREATE,
+                        Map.of(),
+                        Map.of("evento", "aplicar_recalculo_pendiente", "scope", "todo")
+                );
                 return ResponseEntity.ok().build();
             }
             // No arrancó (otro proceso corriendo): NO limpiar, devolver 409.
@@ -355,6 +378,19 @@ public class PrecioController {
         // Limpiamos los pendientes ANTES del async para que cambios nuevos que lleguen
         // mientras corre se acumulen para el siguiente Apply (no se pierden).
         recalculoPendienteService.limpiar();
+        auditoriaService.registrarCambios(
+                AuditoriaEntidad.RECALCULO,
+                null,
+                "pendiente-scoped",
+                AuditoriaAccion.CREATE,
+                Map.of(),
+                Map.of(
+                        "evento", "aplicar_recalculo_pendiente",
+                        "scope", "scoped",
+                        "productos", String.valueOf(plan.productos().size()),
+                        "canales", String.valueOf(plan.canales().size())
+                )
+        );
         aplicadorPendientesService.ejecutarPlanScopedAsync(plan);
         return ResponseEntity.ok().build();
     }
@@ -369,6 +405,14 @@ public class PrecioController {
     @PreAuthorize(Permisos.PRECIOS_EDITAR)
     public ResponseEntity<Void> cancelarRecalculoMasivo() {
         calculoPrecioService.cancelarRecalculo();
+        auditoriaService.registrarCambios(
+                AuditoriaEntidad.RECALCULO,
+                null,
+                "masivo",
+                AuditoriaAccion.DELETE,
+                Map.of("evento", "recalculo_masivo_en_curso"),
+                Map.of("evento", "recalculo_masivo_cancelado")
+        );
         return ResponseEntity.ok().build();
     }
 

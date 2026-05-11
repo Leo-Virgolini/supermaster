@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { toast } from "sonner";
+import { notificar } from "../utils/notificar";
 import Button from "../components/Button/Button";
 import { confirmDialog } from "../utils/confirmDialog";
 import {
@@ -156,9 +156,9 @@ export default function ReposicionPage() {
             const updated = await updateConfigAPI({ ...config, idsSucursalDux: ids });
             setConfig(updated);
             setSucursalInput((updated.idsSucursalDux || []).join(", "));
-            toast.success("Configuración guardada.");
+            notificar.success("Configuración guardada.");
         } catch (e: any) {
-            toast.error("Error al guardar configuración: " + e.message);
+            notificar.error("Error al guardar configuración: " + e.message);
         } finally {
             setIsSavingConfig(false);
         }
@@ -179,7 +179,7 @@ export default function ReposicionPage() {
             startPolling();
         } catch (e: any) {
             setIsCalculando(false);
-            toast.error("Error al iniciar el cálculo: " + e.message);
+            notificar.error("Error al iniciar el cálculo: " + e.message);
         }
     };
 
@@ -194,7 +194,7 @@ export default function ReposicionPage() {
             setTimeout(refreshProcesosActivos, 3000);
             setTimeout(refreshProcesosActivos, 8000);
         } catch (e: any) {
-            toast.error("Error al cancelar: " + e.message);
+            notificar.error("Error al cancelar: " + e.message);
         }
     };
 
@@ -216,9 +216,9 @@ export default function ReposicionPage() {
             const updatedPedidos: Record<number, number> = {};
             nuevoResultado.sugerencias.forEach((r) => { updatedPedidos[r.productoId] = r.pedido; });
             setPedidos(updatedPedidos);
-            toast.success("Pedidos ajustados correctamente.");
+            notificar.success("Pedidos ajustados correctamente.");
         } catch (e: any) {
-            toast.error("Error al ajustar pedidos: " + e.message);
+            notificar.error("Error al ajustar pedidos: " + e.message);
         } finally {
             setIsAjustando(false);
         }
@@ -229,9 +229,9 @@ export default function ReposicionPage() {
         try {
             setIsGenerandoOrdenes(true);
             await generarOrdenesAPI();
-            toast.success("Órdenes de compra generadas correctamente.");
+            notificar.success("Órdenes de compra generadas correctamente.");
         } catch (e: any) {
-            toast.error("Error al generar órdenes: " + e.message);
+            notificar.error("Error al generar órdenes: " + e.message);
         } finally {
             setIsGenerandoOrdenes(false);
         }
@@ -258,8 +258,8 @@ export default function ReposicionPage() {
         setExportandoSugerencias(true);
         try {
             await descargarBlob(`${API_BASE_URL}/api/reposiciones/resultado/excel`, "sugerencias.xlsx");
-            toast.success("Archivo descargado.");
-        } catch (e: any) { toast.error(e?.message || "Error al descargar"); }
+            notificar.success("Archivo descargado.");
+        } catch (e: any) { notificar.error(e?.message || "Error al descargar"); }
         finally { setExportandoSugerencias(false); }
     };
 
@@ -268,8 +268,8 @@ export default function ReposicionPage() {
         setExportandoOC(true);
         try {
             await descargarBlob(`${API_BASE_URL}/api/reposiciones/resultado/excel/oc/${ocId.trim()}`, `oc-${ocId.trim()}.xlsx`);
-            toast.success("Archivo descargado.");
-        } catch (e: any) { toast.error(e?.message || "Error al descargar"); }
+            notificar.success("Archivo descargado.");
+        } catch (e: any) { notificar.error(e?.message || "Error al descargar"); }
         finally { setExportandoOC(false); }
     };
 

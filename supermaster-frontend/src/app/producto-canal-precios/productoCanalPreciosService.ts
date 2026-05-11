@@ -50,6 +50,19 @@ export const recalcularTodosAPI = async (): Promise<RecalculoMasivoResultDTO> =>
 	return await response.json();
 };
 
+/**
+ * Devuelve el resultado del último recálculo masivo (sincrónico o async),
+ * con la lista detallada de SKUs problemáticos:
+ *  - skusConErrores, skusSinCosto, skusSinMargen.
+ * Devuelve null si el endpoint responde 204 (no hay resultado guardado todavía).
+ */
+export const getResultadoRecalculoMasivoAPI = async (): Promise<RecalculoMasivoResultDTO | null> => {
+	const response = await fetchAPI(`${API_URL}/recalculo-masivo/resultado`, { allowedStatuses: [204] });
+	if (response.status === 204) return null;
+	if (!response.ok) throw new Error("Error al obtener resultado del recálculo masivo");
+	return await response.json();
+};
+
 export const getProductoPreciosAPI = async (productoId: number): Promise<ProductoCanalPrecioDTO | null> => {
 	const response = await fetchAPI(`${API_URL}?productoId=${productoId}&page=0&size=1`, { allowedStatuses: [404] });
 	if (response.status === 404) return null;

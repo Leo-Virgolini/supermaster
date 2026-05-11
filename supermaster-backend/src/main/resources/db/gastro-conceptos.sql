@@ -13,15 +13,11 @@
 --       baseImp    = costoFinal * IMP   (IMP = 1 + IVA + IIBB)
 --
 --   * MAQUINA (relMkUp = 0):
---       gastosSobrePVP = mla.comisionPorcentaje + KG_MAQ_MKT + KG_MAQ_EMB(*) + KG_MAQ_SERTEC
---                        (mismo divisor; KG_MAQ_EMB es INFLACION_SOBRE_PVP -> infla pero no costo)
---       costoOculto    = KG_CO_MAQCENV(*)   (INFLACION_DIVISOR, divisor separado)
---                        (*) KG_MAQ_EMB y KG_CO_MAQCENV solo si tiene envio
---       gastoDuenoOff  = KG_COMVEND   (GASTO_FUERA_PVP: cuenta como costo, NO afecta PVP)
---       PVP = baseImp / (1 - gastosSobrePVP) / (1 - costoOculto) * (1 - KG_DESC_5/100)
---       costosVenta MAQUINA = (KG_MAQ_MKT + KG_MAQ_SERTEC + KG_COMVEND)% * PVP
---       Equivale al Excel: PVP_ML * (1 - PRTACHADO) * 0,95
---       (PRTACHADO se cancela; el costoOculto sobrevive; PVP exacto al Excel)
+--       gastosSobrePVP = mla.comisionPorcentaje + KG_MKT + KG_MAQ_SERTEC
+--       gastoDuenoOff  = KG_COMVEND   (GASTO_SIN_INFLAR_PVP: cuenta como costo, NO afecta PVP)
+--       PVP = baseImp / (1 - gastosSobrePVP) * (1 - KG_DESC_5/100)
+--       costosVenta MAQUINA = (KG_MKT + KG_MAQ_SERTEC + KG_COMVEND)% * PVP
+--       Equivale al Excel: PVP_ML_sin_envio * 0,95
 --
 --   * REPUESTO (relMkUp = KG_RELMKUP_REP):
 --       gastosVenta = KG_MKT + KG_EMB
@@ -31,16 +27,18 @@
 --       gastosVenta = KG_COMI + KG_CO + KG_MKT + KG_EMB
 --       PVP = baseImp / (1 - gastosVenta)
 --
+--   Nota: KG_MKT (5%) aplica por igual a los 3 tags — antes existían dos
+--   conceptos separados (KG_MAQ_MKT y KG_MKT) con el mismo % y aplicaSobre.
+--   Se unificaron en KG_MKT eliminando la regla EXCLUIR tag=MAQUINA.
+--
 -- Mapeo fuente (Excel) -> modelo backend:
 --   GAN.MIN.ML       -> FLAG_USAR_MARGEN_MINORISTA   (MARGEN_MIN, canonico compartido)
 --   IVA              -> FLAG_APLICAR_IVA             (IVA, canonico compartido)
---   IIBB             -> IMPUESTO_ADICIONAL           (IIBB, canonico compartido)
---   ML_COMI (13%)    -> FLAG_INFLACION_ML            (KG_INFLA_ML, usa mla.comisionPorcentaje)
---   ML_MKT           -> COMISION_SOBRE_PVP           (KG_MAQ_MKT,    PROPIO, en gastos del dueño)
---   ML_EMB           -> INFLACION_SOBRE_PVP          (KG_MAQ_EMB,    PROPIO, c/regla envio - INFLA EN MISMO DIVISOR, NO COSTO)
+--   IIBB             -> IMPUESTO_EN_FACTOR_IMP       (IIBB, canonico compartido)
+--   ML_COMI (13%)    -> FLAG_COMISION_ML + naturaleza=INFLACION (KG_INFLA_ML, usa mla.comisionPorcentaje)
+--   ML_MKT (MAQUINA) -> COMISION_SOBRE_PVP           (unificado en KG_MKT — aplica a los 3 tags)
 --   ML_SERTEC        -> COMISION_SOBRE_PVP           (KG_MAQ_SERTEC, PROPIO, en gastos del dueño)
---   ML_CO_MAQCENV    -> INFLACION_DIVISOR            (KG_CO_MAQCENV, PROPIO, solo MAQUINA c/envio)
---   KG_COMVEND       -> GASTO_FUERA_PVP              (KG_COMVEND,    NO afecta PVP, SI cuenta como costo)
+--   KG_COMVEND       -> GASTO_SIN_INFLAR_PVP         (KG_COMVEND,    NO afecta PVP, SI cuenta como costo)
 --   "* 0,95" MAQUINA -> DESCUENTO_PORCENTUAL         (KG_DESC_5)
 --   relMkUp REPUESTO -> AJUSTE_MARGEN_PROPORCIONAL   (KG_RELMKUP_REP, NEGATIVO)
 --   relMkUp MENAJE   -> AJUSTE_MARGEN_PROPORCIONAL   (KG_RELMKUP_MEN, NEGATIVO)
@@ -52,25 +50,26 @@
 --     Los canonicos FLAG (IVA, MARGEN_MIN, IIBB) si se comparten
 --     porque son globales (mismo % para todos los canales).
 --
---   * La comision ML para MAQUINA se modela con FLAG_INFLACION_ML
---     (no con COMISION_SOBRE_PVP/FLAG_COMISION_ML) porque desde la
---     perspectiva del dueño no es un costo neto del canal: el PVP
---     ya esta inflado por el factor de ML, sumarlo de vuelta como
---     costo seria doble. FLAG_INFLACION_ML divide el PVP por
---     (1 - mla.comisionPorcentaje/100) IGUAL que una comision, pero
---     NO se suma a costosVenta.
+--   * La comision ML para MAQUINA se modela con FLAG_COMISION_ML
+--     + naturaleza=INFLACION (override). La razon: desde la perspectiva
+--     del dueño no es un costo neto del canal — el PVP ya esta inflado
+--     por el factor de ML, sumarlo de vuelta como costo seria doble.
+--     El flag divide el PVP por (1 - mla.comisionPorcentaje/100) igual
+--     que una comision real, pero al tener naturaleza INFLACION NO se
+--     suma a costosVenta en los indicadores.
 --
---   * Por el mismo motivo, KG_MAQ_EMB se mapea a INFLACION_SOBRE_PVP:
+--   * Por el mismo motivo, KG_MAQ_EMB (cuando existia) se mapeaba a
+--     COMISION_SOBRE_PVP con naturaleza override INFLACION:
 --     se SUMA al MISMO divisor que las comisiones (matchea Excel exacto)
 --     pero NO cuenta como costo del dueno (en el Excel el dueno no
 --     incluye EMB en sus gastos para MAQUINA, solo SERTEC + MKT + COMVEND).
 --
---   * KG_COMVEND es un GASTO_FUERA_PVP: el dueño paga 1,5% como
+--   * KG_COMVEND es un GASTO_SIN_INFLAR_PVP: el dueño paga 1,5% como
 --     comision interna del vendedor pero NO infla el precio. Solo
 --     reduce el ingresoNetoVendedor / ganancia.
 --
 --   * Resultado en indicadores MAQUINA (Excel matchea):
---       costosVenta = (KG_MAQ_MKT 5 + KG_MAQ_SERTEC 3 + KG_COMVEND 1,5)% * PVP = 9,5% * PVP
+--       costosVenta = (KG_MKT 5 + KG_MAQ_SERTEC 3 + KG_COMVEND 1,5)% * PVP = 9,5% * PVP
 --       ingresoNetoVendedor refleja lo que el dueño ve como ingreso "real".
 --
 --   * AJUSTE_MARGEN_PROPORCIONAL aplica: gananciaAjustada = margen * (1 + %/100).
@@ -85,7 +84,7 @@
 --     no tiene EMB" del Excel.
 --
 -- IMPORTANTE - PORCENTAJES PLACEHOLDERS:
---   KG_MAQ_MKT / KG_MAQ_EMB / KG_MAQ_SERTEC / KG_DESC_5 /
+--   KG_MAQ_SERTEC / KG_DESC_5 / KG_COMVEND /
 --   KG_RELMKUP_REP / KG_RELMKUP_MEN / KG_MKT / KG_EMB / KG_COMI / KG_CO
 --   son PLACEHOLDERS. Ajustar con los valores reales del Excel.
 --
@@ -94,7 +93,7 @@
 --   * Los conceptos canonicos IVA, IIBB, MARGEN_MIN deben existir
 --     (ml-conceptos.sql los crea).
 --   * La tabla canal_concepto_regla debe tener la columna "tiene_envio".
---   * El ENUM aplica_sobre debe incluir 'GASTO_FUERA_PVP'. Si no, correr
+--   * El ENUM aplica_sobre debe incluir 'GASTO_SIN_INFLAR_PVP'. Si no, correr
 --     primero: add-aplica-sobre-gasto-fuera-pvp.sql
 --
 -- IDEMPOTENTE: usa INSERT IGNORE / WHERE NOT EXISTS para que se pueda
@@ -107,83 +106,61 @@ USE supermaster;
 -- 1) ConceptoCalculo (idempotente: no re-inserta si el nombre existe)
 --    Patron WHERE NOT EXISTS para no depender de UNIQUE constraint en nombre.
 -- -------------------------------------------------------------
-INSERT INTO conceptos_calculo (nombre, porcentaje, aplica_sobre, descripcion)
-SELECT 'KG_INFLA_ML', NULL, 'FLAG_INFLACION_ML',
-       'Infla el PVP de KT GASTRO MAQUINA con la comision MLA (sin contarla como costo del canal)'
+INSERT INTO conceptos_calculo (nombre, porcentaje, aplica_sobre, naturaleza, descripcion)
+SELECT 'KG_INFLA_ML', NULL, 'FLAG_COMISION_ML', 'INFLACION',
+       'Infla el PVP de KT GASTRO MAQUINA con la comision MLA (FLAG_COMISION_ML + naturaleza INFLACION para que no cuente como costo del canal)'
 WHERE NOT EXISTS (SELECT 1 FROM conceptos_calculo WHERE nombre = 'KG_INFLA_ML');
-
-INSERT INTO conceptos_calculo (nombre, porcentaje, aplica_sobre, descripcion)
-SELECT 'KG_MAQ_MKT', 5.000, 'COMISION_SOBRE_PVP',
-       'Marketing / publicaciones para MAQUINA en KT GASTRO'
-WHERE NOT EXISTS (SELECT 1 FROM conceptos_calculo WHERE nombre = 'KG_MAQ_MKT');
-
--- KG_MAQ_EMB: INFLACION_SOBRE_PVP (no COMISION_SOBRE_PVP, no INFLACION_DIVISOR).
--- Suma al MISMO divisor que las comisiones (matchea Excel exacto), pero NO
--- cuenta como costo del dueño (el embalaje no esta en sus gastos para MAQUINA).
-INSERT INTO conceptos_calculo (nombre, porcentaje, aplica_sobre, descripcion)
-SELECT 'KG_MAQ_EMB', 2.000, 'INFLACION_SOBRE_PVP',
-       'Embalaje para MAQUINA en KT GASTRO (solo si tiene envio; infla PVP en el divisor de gastos, NO cuenta como costo del dueno)'
-WHERE NOT EXISTS (SELECT 1 FROM conceptos_calculo WHERE nombre = 'KG_MAQ_EMB');
-
--- Force-update si ya existia con otro aplica_sobre de una carga previa.
-UPDATE conceptos_calculo
-   SET aplica_sobre = 'INFLACION_SOBRE_PVP',
-       descripcion  = 'Embalaje para MAQUINA en KT GASTRO (solo si tiene envio; infla PVP en el divisor de gastos, NO cuenta como costo del dueno)'
- WHERE nombre = 'KG_MAQ_EMB' AND aplica_sobre <> 'INFLACION_SOBRE_PVP';
 
 INSERT INTO conceptos_calculo (nombre, porcentaje, aplica_sobre, descripcion)
 SELECT 'KG_MAQ_SERTEC', 3.000, 'COMISION_SOBRE_PVP',
        'Servicio tecnico para MAQUINA en KT GASTRO'
 WHERE NOT EXISTS (SELECT 1 FROM conceptos_calculo WHERE nombre = 'KG_MAQ_SERTEC');
 
--- Costo oculto para MAQUINA con envio (Excel: ML_CO_MAQCENV).
--- INFLACION_DIVISOR: divisor sobre PVP, NO suma a costosVenta (consistente con KG_INFLA_ML).
-INSERT INTO conceptos_calculo (nombre, porcentaje, aplica_sobre, descripcion)
-SELECT 'KG_CO_MAQCENV', 10.000, 'INFLACION_DIVISOR',
-       'Costo oculto KT GASTRO para MAQUINA con envio (infla PVP, no cuenta como costo del canal)'
-WHERE NOT EXISTS (SELECT 1 FROM conceptos_calculo WHERE nombre = 'KG_CO_MAQCENV');
-
 INSERT INTO conceptos_calculo (nombre, porcentaje, aplica_sobre, descripcion)
 SELECT 'KG_DESC_5', 5.000, 'DESCUENTO_PORCENTUAL',
        'Descuento 5% sobre PVP en MAQUINA'
 WHERE NOT EXISTS (SELECT 1 FROM conceptos_calculo WHERE nombre = 'KG_DESC_5');
 
--- KG_COMVEND: GASTO_FUERA_PVP (cuenta como costo del dueño pero NO infla el PVP).
+-- KG_COMVEND: GASTO_SIN_INFLAR_PVP (cuenta como costo del dueño pero NO infla el PVP).
 -- Excel: KG_COMVEND aparece SOLO en la formula de gastos del dueño para MAQUINA,
 -- nunca en la formula de PVP.
 INSERT INTO conceptos_calculo (nombre, porcentaje, aplica_sobre, descripcion)
-SELECT 'KG_COMVEND', 1.500, 'GASTO_FUERA_PVP',
+SELECT 'KG_COMVEND', 1.500, 'GASTO_SIN_INFLAR_PVP',
        'Comision interna del vendedor para MAQUINA en KT GASTRO (cuenta como costo del dueno, NO afecta el PVP)'
 WHERE NOT EXISTS (SELECT 1 FROM conceptos_calculo WHERE nombre = 'KG_COMVEND');
 
+-- KG_RELMKUP_REP: ajuste proporcional al margen para REPUESTO. Porcentaje negativo
+-- reduce el margen, positivo lo aumenta. Aplica como margen * (1 + porcentaje/100).
 INSERT INTO conceptos_calculo (nombre, porcentaje, aplica_sobre, descripcion)
 SELECT 'KG_RELMKUP_REP', 0, 'AJUSTE_MARGEN_PROPORCIONAL',
-       'Reduccion proporcional del margen para REPUESTO en KT GASTRO (margen * (1 - 0,20))'
+       'Ajuste proporcional al margen minorista para productos REPUESTO en KT GASTRO. Porcentaje negativo reduce el margen.'
 WHERE NOT EXISTS (SELECT 1 FROM conceptos_calculo WHERE nombre = 'KG_RELMKUP_REP');
 
 INSERT INTO conceptos_calculo (nombre, porcentaje, aplica_sobre, descripcion)
 SELECT 'KG_RELMKUP_MEN', -12.000, 'AJUSTE_MARGEN_PROPORCIONAL',
-       'Reduccion proporcional del margen para MENAJE en KT GASTRO (margen * (1 - 0,10))'
+       'Ajuste proporcional al margen minorista para productos MENAJE en KT GASTRO. Porcentaje negativo reduce el margen.'
 WHERE NOT EXISTS (SELECT 1 FROM conceptos_calculo WHERE nombre = 'KG_RELMKUP_MEN');
 
+-- KG_MKT: marketing del canal KT GASTRO. Aplica a los 3 tags (MAQUINA, REPUESTO, MENAJE)
+-- después de unificar con el antiguo KG_MAQ_MKT.
 INSERT INTO conceptos_calculo (nombre, porcentaje, aplica_sobre, descripcion)
 SELECT 'KG_MKT', 5.000, 'COMISION_SOBRE_PVP',
-       'Marketing KT GASTRO (REPUESTO / MENAJE)'
+       'Marketing / publicaciones KT GASTRO (aplica a los 3 tags: MAQUINA, REPUESTO y MENAJE)'
 WHERE NOT EXISTS (SELECT 1 FROM conceptos_calculo WHERE nombre = 'KG_MKT');
 
 INSERT INTO conceptos_calculo (nombre, porcentaje, aplica_sobre, descripcion)
 SELECT 'KG_EMB', 2.000, 'COMISION_SOBRE_PVP',
-       'Embalaje KT GASTRO (REPUESTO / MENAJE)'
+       'Embalaje KT GASTRO (solo REPUESTO y MENAJE; MAQUINA no usa embalaje en esta formula)'
 WHERE NOT EXISTS (SELECT 1 FROM conceptos_calculo WHERE nombre = 'KG_EMB');
 
 INSERT INTO conceptos_calculo (nombre, porcentaje, aplica_sobre, descripcion)
 SELECT 'KG_COMI', 8.000, 'COMISION_SOBRE_PVP',
-       'Comision KT GASTRO (solo MENAJE)'
+       'Comision adicional KT GASTRO (solo MENAJE / productos sin tag)'
 WHERE NOT EXISTS (SELECT 1 FROM conceptos_calculo WHERE nombre = 'KG_COMI');
 
 INSERT INTO conceptos_calculo (nombre, porcentaje, aplica_sobre, descripcion)
 SELECT 'KG_CO', 5.000, 'COMISION_SOBRE_PVP',
-       'Costo oculto KT GASTRO (solo MENAJE)'
+       'Costo operativo KT GASTRO (solo MENAJE / productos sin tag)'
 WHERE NOT EXISTS (SELECT 1 FROM conceptos_calculo WHERE nombre = 'KG_CO');
 
 -- -------------------------------------------------------------
@@ -201,7 +178,7 @@ WHERE c.nombre = 'KT GASTRO'
     -- canonicos compartidos
     'IVA', 'IIBB', 'MARGEN_MIN',
     -- MAQUINA
-    'KG_INFLA_ML', 'KG_MAQ_MKT', 'KG_MAQ_EMB', 'KG_MAQ_SERTEC', 'KG_CO_MAQCENV', 'KG_DESC_5', 'KG_COMVEND',
+    'KG_INFLA_ML', 'KG_MAQ_SERTEC', 'KG_DESC_5', 'KG_COMVEND',
     -- REPUESTO / MENAJE
     'KG_RELMKUP_REP', 'KG_RELMKUP_MEN',
     'KG_MKT', 'KG_EMB', 'KG_COMI', 'KG_CO'
@@ -220,12 +197,12 @@ WHERE c.nombre = 'KT GASTRO'
 --      - Producto sin tag se trata como MENAJE (default del "else" del Excel)
 -- -------------------------------------------------------------
 
--- 3.1) MAQUINA: INCLUIR KG_INFLA_ML, KG_MAQ_MKT, KG_MAQ_SERTEC, KG_DESC_5, KG_COMVEND
+-- 3.1) MAQUINA: INCLUIR KG_INFLA_ML, KG_MAQ_SERTEC, KG_DESC_5, KG_COMVEND
 INSERT INTO canal_concepto_regla (id_canal, id_concepto, tipo_regla, tag)
 SELECT c.id_canal, cc.id_concepto, 'INCLUIR', 'MAQUINA'
 FROM canales c CROSS JOIN conceptos_calculo cc
 WHERE c.nombre = 'KT GASTRO'
-  AND cc.nombre IN ('KG_INFLA_ML', 'KG_MAQ_MKT', 'KG_MAQ_SERTEC', 'KG_DESC_5', 'KG_COMVEND')
+  AND cc.nombre IN ('KG_INFLA_ML', 'KG_MAQ_SERTEC', 'KG_DESC_5', 'KG_COMVEND')
   AND NOT EXISTS (
     SELECT 1 FROM canal_concepto_regla x
     WHERE x.id_canal = c.id_canal
@@ -235,23 +212,7 @@ WHERE c.nombre = 'KT GASTRO'
       AND x.tiene_envio IS NULL
   );
 
--- 3.2) KG_MAQ_EMB y KG_CO_MAQCENV: INCLUIR solo si MAQUINA Y tiene envio
---      (Excel: la columna "MAQ S/ENVIO" no tiene EMBALAJE ni costo oculto)
-INSERT INTO canal_concepto_regla (id_canal, id_concepto, tipo_regla, tag, tiene_envio)
-SELECT c.id_canal, cc.id_concepto, 'INCLUIR', 'MAQUINA', TRUE
-FROM canales c CROSS JOIN conceptos_calculo cc
-WHERE c.nombre = 'KT GASTRO'
-  AND cc.nombre IN ('KG_MAQ_EMB', 'KG_CO_MAQCENV')
-  AND NOT EXISTS (
-    SELECT 1 FROM canal_concepto_regla x
-    WHERE x.id_canal = c.id_canal
-      AND x.id_concepto = cc.id_concepto
-      AND x.tipo_regla = 'INCLUIR'
-      AND x.tag = 'MAQUINA'
-      AND x.tiene_envio = TRUE
-  );
-
--- 3.3) REPUESTO: INCLUIR KG_RELMKUP_REP
+-- 3.2) REPUESTO: INCLUIR KG_RELMKUP_REP
 INSERT INTO canal_concepto_regla (id_canal, id_concepto, tipo_regla, tag)
 SELECT c.id_canal, cc.id_concepto, 'INCLUIR', 'REPUESTO'
 FROM canales c CROSS JOIN conceptos_calculo cc
@@ -266,7 +227,7 @@ WHERE c.nombre = 'KT GASTRO'
       AND x.tiene_envio IS NULL
   );
 
--- 3.4) MENAJE: INCLUIR KG_RELMKUP_MEN, KG_COMI, KG_CO
+-- 3.3) MENAJE: INCLUIR KG_RELMKUP_MEN, KG_COMI, KG_CO
 INSERT INTO canal_concepto_regla (id_canal, id_concepto, tipo_regla, tag)
 SELECT c.id_canal, cc.id_concepto, 'INCLUIR', 'MENAJE'
 FROM canales c CROSS JOIN conceptos_calculo cc
@@ -281,13 +242,14 @@ WHERE c.nombre = 'KT GASTRO'
       AND x.tiene_envio IS NULL
   );
 
--- 3.5) KG_MKT y KG_EMB: EXCLUIR MAQUINA
---      (aplican a REPUESTO y MENAJE; MAQUINA usa KG_MAQ_MKT y KG_MAQ_EMB)
+-- 3.4) KG_EMB: EXCLUIR MAQUINA
+--      (aplica solo a REPUESTO y MENAJE; MAQUINA no tiene embalaje en su formula).
+--      KG_MKT NO se excluye: el marketing 5% aplica por igual a los 3 tags.
 INSERT INTO canal_concepto_regla (id_canal, id_concepto, tipo_regla, tag)
 SELECT c.id_canal, cc.id_concepto, 'EXCLUIR', 'MAQUINA'
 FROM canales c CROSS JOIN conceptos_calculo cc
 WHERE c.nombre = 'KT GASTRO'
-  AND cc.nombre IN ('KG_MKT', 'KG_EMB')
+  AND cc.nombre IN ('KG_EMB')
   AND NOT EXISTS (
     SELECT 1 FROM canal_concepto_regla x
     WHERE x.id_canal = c.id_canal
@@ -315,17 +277,10 @@ WHERE c.nombre = 'KT GASTRO'
 --
 -- 2) Validacion rapida de PVPs esperados (con porcentajes placeholder):
 --
---    MAQUINA con envio (mla.comisionPorcentaje = 13%):
---      gastosSobrePVP = 13 (INFLA_ML) + 5 (MAQ_MKT) + 2 (MAQ_EMB INFLACION_SOBRE_PVP) + 3 (MAQ_SERTEC) = 23%
---      costoOculto    = 10 (CO_MAQCENV INFLACION_DIVISOR)                                              = 10%
---      PVP = baseImp / (1 - 0,23) / (1 - 0,10) * (1 - 0,05) ≈ baseImp * 1,371   (== Excel exacto)
---      costosVenta = (5 MAQ_MKT + 3 MAQ_SERTEC + 1,5 COMVEND)% * PVP        = 9,5% * PVP
---
---    MAQUINA sin envio (mla.comisionPorcentaje = 13%):
---      gastosSobrePVP = 13 + 5 + 3 = 21%   (sin EMB ni CO_MAQCENV por regla envio=TRUE)
---      costoOculto    = 0%
---      PVP = baseImp / (1 - 0,21) * 0,95 ≈ baseImp * 1,203
---      costosVenta = (5 + 3 + 1,5)% * PVP = 9,5% * PVP
+--    MAQUINA (mla.comisionPorcentaje = 13%):
+--      gastosSobrePVP = 13 (INFLA_ML) + 5 (KG_MKT) + 3 (MAQ_SERTEC) = 21%
+--      PVP = baseImp / (1 - 0,21) * 0,95 ≈ baseImp * 1,203   (== Excel: pvpMLSinEnvio * 0,95)
+--      costosVenta = (5 KG_MKT + 3 MAQ_SERTEC + 1,5 COMVEND)% * PVP = 9,5% * PVP
 --
 --    REPUESTO:
 --      baseImp = COSTO * (1 + GAN.MIN.ML * 0,80) * IMP

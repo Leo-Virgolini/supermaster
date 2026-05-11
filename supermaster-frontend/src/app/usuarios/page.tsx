@@ -11,7 +11,7 @@ import {
     UserPlusIcon,
     XMarkIcon,
 } from "@heroicons/react/24/outline";
-import { toast } from "sonner";
+import { notificar } from "../utils/notificar";
 import ErrorBanner from "../components/ErrorBanner/ErrorBanner";
 import { useAuth } from "../context/AuthContext";
 import { confirmDialog } from "../utils/confirmDialog";
@@ -297,7 +297,7 @@ export default function UsuariosPage() {
                     rolId: Number(form.rolId),
                     activo: form.activo,
                 });
-                toast.success("Usuario actualizado");
+                notificar.success("Usuario actualizado");
             } else {
                 const payload: UsuarioCreateDTO = {
                     username: form.username.trim(),
@@ -306,7 +306,7 @@ export default function UsuariosPage() {
                     rolId: Number(form.rolId),
                 };
                 await createUsuario(payload);
-                toast.success("Usuario creado");
+                notificar.success("Usuario creado");
             }
             closeForm();
         } finally {

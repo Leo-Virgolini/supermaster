@@ -1,9 +1,14 @@
 package ar.com.leo.super_master_backend.dominio.producto.service;
 
 import java.math.BigDecimal;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
+import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaAccion;
+import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaEntidad;
+import ar.com.leo.super_master_backend.dominio.auditoria.service.AuditoriaService;
 import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
 import org.openapitools.jackson.nullable.JsonNullable;
 import org.springframework.stereotype.Service;
@@ -27,6 +32,7 @@ public class ProductoMargenServiceImpl implements ProductoMargenService {
     private final ProductoMargenMapper mapper;
     private final ProductoRepository productoRepository;
     private final ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService recalculoPendienteService;
+    private final AuditoriaService auditoriaService;
 
     @Override
     @Transactional(readOnly = true)
@@ -39,7 +45,7 @@ public class ProductoMargenServiceImpl implements ProductoMargenService {
     @Transactional
     public ProductoMargenDTO guardar(ProductoMargenDTO dto) {
         // Validar que exista el producto
-        productoRepository.findById(dto.productoId())
+        Producto producto = productoRepository.findById(dto.productoId())
                 .orElseThrow(() -> new NotFoundException("Producto no encontrado"));
 
         // Buscar configuracion existente
@@ -50,9 +56,13 @@ public class ProductoMargenServiceImpl implements ProductoMargenService {
         BigDecimal margenMayoristaAnterior = null;
         BigDecimal margenFijoMinoristaAnterior = null;
         BigDecimal margenFijoMayoristaAnterior = null;
+        Map<String, String> estadoAnterior;
+        AuditoriaAccion accion;
 
         if (existente.isPresent()) {
             pm = existente.get();
+            estadoAnterior = capturarSnapshot(pm);
+            accion = AuditoriaAccion.UPDATE;
             // Guardar valores anteriores para detectar cambios
             margenMinoristaAnterior = pm.getMargenMinorista();
             margenMayoristaAnterior = pm.getMargenMayorista();
@@ -69,9 +79,20 @@ public class ProductoMargenServiceImpl implements ProductoMargenService {
             pm.setMargenFijoMinorista(dto.margenFijoMinorista());
             pm.setMargenFijoMayorista(dto.margenFijoMayorista());
             pm.setObservaciones(dto.observaciones());
+            estadoAnterior = Map.of();
+            accion = AuditoriaAccion.CREATE;
         }
 
         pm = repo.save(pm);
+
+        auditoriaService.registrarCambios(
+                AuditoriaEntidad.PRODUCTO_MARGEN,
+                pm.getId(),
+                producto.getSku(),
+                accion,
+                estadoAnterior,
+                capturarSnapshot(pm)
+        );
 
         // Recalcular si cambió algo que afecta el precio
         boolean cambioMargenMinorista = !Objects.equals(margenMinoristaAnterior, pm.getMargenMinorista());
@@ -80,7 +101,7 @@ public class ProductoMargenServiceImpl implements ProductoMargenService {
         boolean cambioMargenFijoMayorista = !Objects.equals(margenFijoMayoristaAnterior, pm.getMargenFijoMayorista());
 
         if (cambioMargenMinorista || cambioMargenMayorista || cambioMargenFijoMinorista || cambioMargenFijoMayorista) {
-            programarRecalculoPostCommit("Recálculo por cambio en margen", dto.productoId());
+            programarRecalculoPostCommit("Cambio en margen del producto", dto.productoId());
         }
 
         return mapper.toDTO(pm);
@@ -98,7 +119,7 @@ public class ProductoMargenServiceImpl implements ProductoMargenService {
         }
 
 
-        productoRepository.findById(productoId)
+        Producto producto = productoRepository.findById(productoId)
                 .orElseThrow(() -> new NotFoundException("Producto no encontrado"));
 
         Optional<ProductoMargen> existente = repo.findByProductoId(productoId);
@@ -107,6 +128,9 @@ public class ProductoMargenServiceImpl implements ProductoMargenService {
             nuevo.setProducto(new Producto(productoId));
             return nuevo;
         });
+
+        Map<String, String> estadoAnterior = existente.isPresent() ? capturarSnapshot(pm) : Map.of();
+        AuditoriaAccion accion = existente.isPresent() ? AuditoriaAccion.UPDATE : AuditoriaAccion.CREATE;
 
         BigDecimal margenMinoristaAnterior = pm.getMargenMinorista();
         BigDecimal margenMayoristaAnterior = pm.getMargenMayorista();
@@ -137,13 +161,22 @@ public class ProductoMargenServiceImpl implements ProductoMargenService {
 
         pm = repo.save(pm);
 
+        auditoriaService.registrarCambios(
+                AuditoriaEntidad.PRODUCTO_MARGEN,
+                pm.getId(),
+                producto.getSku(),
+                accion,
+                estadoAnterior,
+                capturarSnapshot(pm)
+        );
+
         boolean cambioMargenMinorista = !Objects.equals(margenMinoristaAnterior, pm.getMargenMinorista());
         boolean cambioMargenMayorista = !Objects.equals(margenMayoristaAnterior, pm.getMargenMayorista());
         boolean cambioMargenFijoMinorista = !Objects.equals(margenFijoMinoristaAnterior, pm.getMargenFijoMinorista());
         boolean cambioMargenFijoMayorista = !Objects.equals(margenFijoMayoristaAnterior, pm.getMargenFijoMayorista());
 
         if (cambioMargenMinorista || cambioMargenMayorista || cambioMargenFijoMinorista || cambioMargenFijoMayorista) {
-            programarRecalculoPostCommit("Recálculo por cambio en margen", productoId);
+            programarRecalculoPostCommit("Cambio en margen del producto", productoId);
         }
 
         return mapper.toDTO(pm);
@@ -152,7 +185,32 @@ public class ProductoMargenServiceImpl implements ProductoMargenService {
     @Override
     @Transactional
     public void eliminar(Integer productoId) {
+        Optional<ProductoMargen> existente = repo.findByProductoId(productoId);
+        if (existente.isEmpty()) return;
+        ProductoMargen pm = existente.get();
+        Map<String, String> snapshot = capturarSnapshot(pm);
+        String sku = pm.getProducto() != null ? pm.getProducto().getSku() : null;
+        Integer pmId = pm.getId();
         repo.deleteByProductoId(productoId);
+        auditoriaService.registrarCambios(
+                AuditoriaEntidad.PRODUCTO_MARGEN,
+                pmId,
+                sku,
+                AuditoriaAccion.DELETE,
+                snapshot,
+                Map.of()
+        );
+    }
+
+    private Map<String, String> capturarSnapshot(ProductoMargen pm) {
+        Map<String, String> snap = new LinkedHashMap<>();
+        snap.put("productoId", pm.getProducto() != null ? String.valueOf(pm.getProducto().getId()) : "");
+        snap.put("margenMinorista", pm.getMargenMinorista() != null ? pm.getMargenMinorista().toPlainString() : "");
+        snap.put("margenMayorista", pm.getMargenMayorista() != null ? pm.getMargenMayorista().toPlainString() : "");
+        snap.put("margenFijoMinorista", pm.getMargenFijoMinorista() != null ? pm.getMargenFijoMinorista().toPlainString() : "");
+        snap.put("margenFijoMayorista", pm.getMargenFijoMayorista() != null ? pm.getMargenFijoMayorista().toPlainString() : "");
+        snap.put("observaciones", pm.getObservaciones() != null ? pm.getObservaciones() : "");
+        return snap;
     }
 
 

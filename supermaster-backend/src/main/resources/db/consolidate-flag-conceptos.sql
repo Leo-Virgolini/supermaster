@@ -10,8 +10,8 @@
 --
 -- Como los conceptos FLAG no tienen porcentaje propio (son solo
 -- marcadores de comportamiento), tenerlos duplicados por canal es
--- innecesario. Esta migracion los unifica en 5 conceptos canonicos:
---   IVA, MARGEN_MIN, MARGEN_MAY, ENVIO, PRECIO_INFLADO
+-- innecesario. Esta migracion los unifica en conceptos canonicos:
+--   IVA, MARGEN_MIN, MARGEN_MAY, ENVIO_ML, INFLADO, COMISION_ML, FINANCIACION_PROVEEDOR
 --
 -- La migracion preserva todas las relaciones canal_concepto y
 -- canal_concepto_regla — solo cambia el id_concepto al canonico.
@@ -41,12 +41,20 @@ SELECT 'MARGEN_MAY', NULL, 'FLAG_USAR_MARGEN_MAYORISTA', 'Usa margen mayorista d
 WHERE NOT EXISTS (SELECT 1 FROM conceptos_calculo WHERE nombre = 'MARGEN_MAY');
 
 INSERT INTO conceptos_calculo (nombre, porcentaje, aplica_sobre, descripcion)
-SELECT 'ENVIO', NULL, 'FLAG_INCLUIR_ENVIO', 'Suma precio_envio del MLA al costo antes de impuestos'
-WHERE NOT EXISTS (SELECT 1 FROM conceptos_calculo WHERE nombre = 'ENVIO');
+SELECT 'ENVIO_ML', NULL, 'FLAG_INCLUIR_ENVIO', 'Suma precio_envio del MLA al costo antes de impuestos'
+WHERE NOT EXISTS (SELECT 1 FROM conceptos_calculo WHERE nombre = 'ENVIO_ML');
 
 INSERT INTO conceptos_calculo (nombre, porcentaje, aplica_sobre, descripcion)
-SELECT 'PRECIO_INFLADO', NULL, 'FLAG_APLICAR_PRECIO_INFLADO', 'Habilita la aplicacion de precios inflados (PrecioInflado asignado al producto-canal)'
-WHERE NOT EXISTS (SELECT 1 FROM conceptos_calculo WHERE nombre = 'PRECIO_INFLADO');
+SELECT 'INFLADO', NULL, 'FLAG_APLICAR_PRECIO_INFLADO', 'Habilita que se calculen los precios inflados si tienen la regla'
+WHERE NOT EXISTS (SELECT 1 FROM conceptos_calculo WHERE nombre = 'INFLADO');
+
+INSERT INTO conceptos_calculo (nombre, porcentaje, aplica_sobre, descripcion)
+SELECT 'COMISION_ML', NULL, 'FLAG_COMISION_ML', 'Habilita la comision de cada producto de Mercado Libre sobre el PVP (toma el % del MLA del producto)'
+WHERE NOT EXISTS (SELECT 1 FROM conceptos_calculo WHERE nombre = 'COMISION_ML');
+
+INSERT INTO conceptos_calculo (nombre, porcentaje, aplica_sobre, descripcion)
+SELECT 'FINANCIACION_PROVEEDOR', NULL, 'FLAG_FINANCIACION_PROVEEDOR', 'Habilita la aplicacion del % de financiacion del proveedor del producto sobre el costo. Concepto canonico reusable entre canales.'
+WHERE NOT EXISTS (SELECT 1 FROM conceptos_calculo WHERE nombre = 'FINANCIACION_PROVEEDOR');
 
 -- -------------------------------------------------------------
 -- Paso 2: Construir tabla temporal de mapeo (duplicado -> canonico)
@@ -78,14 +86,20 @@ WHERE dup.nombre = 'LG_MARGEN_MAY' AND dup.id_concepto <> can.id_concepto;
 INSERT INTO _flag_mapeo (id_duplicado, id_canonico)
 SELECT dup.id_concepto, can.id_concepto
 FROM conceptos_calculo dup
-JOIN conceptos_calculo can ON can.nombre = 'ENVIO'
-WHERE dup.nombre = 'ML_ENVIO' AND dup.id_concepto <> can.id_concepto;
+JOIN conceptos_calculo can ON can.nombre = 'ENVIO_ML'
+WHERE dup.nombre IN ('ML_ENVIO', 'ENVIO') AND dup.id_concepto <> can.id_concepto;
 
 INSERT INTO _flag_mapeo (id_duplicado, id_canonico)
 SELECT dup.id_concepto, can.id_concepto
 FROM conceptos_calculo dup
-JOIN conceptos_calculo can ON can.nombre = 'PRECIO_INFLADO'
-WHERE dup.nombre = 'KH_PRECIO_INFLADO' AND dup.id_concepto <> can.id_concepto;
+JOIN conceptos_calculo can ON can.nombre = 'INFLADO'
+WHERE dup.nombre IN ('KH_PRECIO_INFLADO', 'PRECIO_INFLADO') AND dup.id_concepto <> can.id_concepto;
+
+INSERT INTO _flag_mapeo (id_duplicado, id_canonico)
+SELECT dup.id_concepto, can.id_concepto
+FROM conceptos_calculo dup
+JOIN conceptos_calculo can ON can.nombre = 'COMISION_ML'
+WHERE dup.nombre = 'ML_COMI' AND dup.id_concepto <> can.id_concepto;
 
 -- -------------------------------------------------------------
 -- Paso 3: Migrar canal_concepto desde duplicados al canonico

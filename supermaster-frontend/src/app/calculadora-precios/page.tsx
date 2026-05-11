@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { CalculatorIcon, InformationCircleIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
-import { toast } from "sonner";
+import { notificar } from "../utils/notificar";
 import CanalSelectBadge from "../components/CanalSelectBadge/CanalSelectBadge";
 import SimuladorForm from "./SimuladorForm";
 import { getAllCanalesSimpleAPI, type CanalListItem } from "../canal-formula/canalFormulaService";
@@ -33,7 +33,7 @@ export default function CalculadoraPreciosPage() {
                 setCanales(data);
                 if (data.length > 0) setCanalIdSel(data[0].id);
             } catch (e: any) {
-                toast.error(e?.message || "Error al cargar canales");
+                notificar.error(e?.message || "Error al cargar canales");
             } finally {
                 if (!cancelled) setIsLoadingCanales(false);
             }

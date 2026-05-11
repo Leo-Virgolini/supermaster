@@ -1,7 +1,7 @@
 export interface AuditoriaCambioDTO {
 	id: number;
 	entidad: string;
-	entidadId: number;
+	entidadId: number | null;
 	entidadCodigo?: string | null;
 	accion: string;
 	campo: string;

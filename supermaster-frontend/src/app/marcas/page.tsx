@@ -1,6 +1,5 @@
 "use client";
 import { useState, useMemo } from "react";
-import { toast } from "sonner";
 import ErrorBanner from "../components/ErrorBanner/ErrorBanner";
 import { TagIcon, PlusIcon, TrashIcon, CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { confirmDialog } from "../utils/confirmDialog";

@@ -293,6 +293,22 @@ export function getColumns(onOpenDetalle: (producto: ProductoDTO) => void, canEd
         cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={String(getValue())} type="number" suffix="%" className={FONT.numericSoft} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, Number(val))} disabled={!canEdit} />)
     },
     {
+        accessorKey: "margenMinorista", header: "Mrg Min", size: 85, enableColumnFilter: false, meta: { editable: true, center: true },
+        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={(getValue() as number | null) ?? ""} type="number" nullable suffix="%" className="font-mono text-indigo-600" onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val === null ? null : Number(val))} disabled={!canEdit} />)
+    },
+    {
+        accessorKey: "margenMayorista", header: "Mrg May", size: 85, enableColumnFilter: false, meta: { editable: true, center: true },
+        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={(getValue() as number | null) ?? ""} type="number" nullable suffix="%" className="font-mono text-indigo-600" onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val === null ? null : Number(val))} disabled={!canEdit} />)
+    },
+    {
+        accessorKey: "margenFijoMinorista", header: "Fijo Min", size: 95, enableColumnFilter: false, meta: { editable: true, center: true },
+        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={(getValue() as number | null) ?? ""} type="number" nullable prefix="$ " className="font-mono text-indigo-600" onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val === null ? null : Number(val))} disabled={!canEdit} />)
+    },
+    {
+        accessorKey: "margenFijoMayorista", header: "Fijo May", size: 95, enableColumnFilter: false, meta: { editable: true, center: true },
+        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={(getValue() as number | null) ?? ""} type="number" nullable prefix="$ " className="font-mono text-indigo-600" onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val === null ? null : Number(val))} disabled={!canEdit} />)
+    },
+    {
         accessorKey: "stock", header: "Stock", enableColumnFilter: false, meta: { editable: true },
         cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={(getValue() as number | null) ?? ""} type="number" nullable className={FONT.numeric} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val === null ? null : Number(val))} disabled={!canEdit} />)
     },

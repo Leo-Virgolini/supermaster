@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { toast } from "sonner";
+import { notificar } from "../utils/notificar";
 import { ShoppingCartIcon, PlusIcon, TrashIcon, CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { confirmDialog } from "../utils/confirmDialog";
 import { type SortingState } from "@tanstack/react-table";
@@ -169,7 +170,7 @@ export default function OrdenesCompraPage() {
       setIsNuevaOrdenOpen(false);
       resetNuevaOrdenForm();
     } catch (e: any) {
-      toast.error("Error: " + e.message);
+      notificar.error("Error: " + e.message);
     } finally {
       setIsSaving(false);
     }
@@ -193,7 +194,7 @@ export default function OrdenesCompraPage() {
       await refresh();
       setOrdenAEnviar(null);
     } catch (e: any) {
-      toast.error("Error al enviar: " + e.message);
+      notificar.error("Error al enviar: " + e.message);
     } finally {
       setIsEnviando(false);
     }
@@ -231,7 +232,7 @@ export default function OrdenesCompraPage() {
       await refresh();
       setOrdenRecepcion(null);
     } catch (e: any) {
-      toast.error("Error al registrar recepción: " + e.message);
+      notificar.error("Error al registrar recepción: " + e.message);
     } finally {
       setIsRegistrando(false);
     }

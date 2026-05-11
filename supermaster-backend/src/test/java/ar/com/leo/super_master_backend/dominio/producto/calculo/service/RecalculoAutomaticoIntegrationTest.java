@@ -20,6 +20,7 @@ import ar.com.leo.super_master_backend.dominio.clasif_gastro.dto.ClasifGastroUpd
 import ar.com.leo.super_master_backend.dominio.clasif_gral.entity.ClasifGral;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.repository.ClasifGralRepository;
 import ar.com.leo.super_master_backend.dominio.concepto_calculo.entity.AplicaSobre;
+import ar.com.leo.super_master_backend.dominio.concepto_calculo.entity.NaturalezaConcepto;
 import ar.com.leo.super_master_backend.dominio.concepto_calculo.entity.ConceptoCalculo;
 import ar.com.leo.super_master_backend.dominio.concepto_calculo.repository.ConceptoCalculoRepository;
 import ar.com.leo.super_master_backend.dominio.concepto_calculo.service.ConceptoCalculoService;
@@ -97,11 +98,11 @@ import static org.junit.jupiter.api.Assertions.*;
  * 15.    AJUSTE_MARGEN_PUNTOS
  * 16.    AJUSTE_MARGEN_PROPORCIONAL
  * 17.    GASTO_POST_GANANCIA
- * 18.    IMPUESTO_ADICIONAL
+ * 18.    IMPUESTO_EN_FACTOR_IMP
  * 19.    GASTO_POST_IMPUESTOS
- * 20.    RECARGO_CUPON
+ * 20.    COSTO_OCULTO_PVP
  * 27.    DESCUENTO_PORCENTUAL
- * 28.    INFLACION_DIVISOR
+ * 28.    INFLACION_DIVISOR_FINAL
  *
  * CUOTAS:
  * 7.     CanalConceptoCuota (modificar porcentaje)
@@ -139,7 +140,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * FLAGS ML Y ENVÍO:
  * 37.    FLAG_INCLUIR_ENVIO (incluir costo de envío ML en el PVP)
  * 38.    FLAG_COMISION_ML (usar comisión de ML desde el MLA)
- * 39.    FLAG_INFLACION_ML (aplicar inflación ML al divisor)
+ * 39.    FLAG_COMISION_ML con naturaleza override INFLACION (inflar PVP sin contar como costo)
  *
  * PRECIO INFLADO (regla):
  * 40.    PrecioInflado (modificar valor de la regla recalcula asignaciones)
@@ -502,6 +503,7 @@ class RecalculoAutomaticoIntegrationTest {
                         conceptoComision.getNombre(),
                         new BigDecimal("20"), // aumentar comisión de 10% a 20%
                         conceptoComision.getAplicaSobre().name(),
+                        null,
                         null
                 ));
         calculoPrecioService.recalcularYGuardarPrecioCanalTodasCuotas(producto.getId(), canal.getId());
@@ -1072,19 +1074,19 @@ class RecalculoAutomaticoIntegrationTest {
     }
 
     // ===========================================
-    // TEST 18: Concepto IMPUESTO_ADICIONAL
+    // TEST 18: Concepto IMPUESTO_EN_FACTOR_IMP
     // ===========================================
     @Test
     @Order(18)
-    @DisplayName("18. Recálculo automático con concepto IMPUESTO_ADICIONAL")
+    @DisplayName("18. Recálculo automático con concepto IMPUESTO_EN_FACTOR_IMP")
     void testRecalculoConImpuestoAdicional() {
         BigDecimal pvpInicial = obtenerPvpActual();
 
-        // Crear concepto IMPUESTO_ADICIONAL (ej: IIBB)
+        // Crear concepto IMPUESTO_EN_FACTOR_IMP (ej: IIBB)
         ConceptoCalculo conceptoImpuesto = new ConceptoCalculo();
         conceptoImpuesto.setNombre(TEST_PREFIX + "IIBB");
         conceptoImpuesto.setPorcentaje(new BigDecimal("3.5"));
-        conceptoImpuesto.setAplicaSobre(AplicaSobre.IMPUESTO_ADICIONAL);
+        conceptoImpuesto.setAplicaSobre(AplicaSobre.IMPUESTO_EN_FACTOR_IMP);
         conceptoImpuesto = conceptoGastoRepository.save(conceptoImpuesto);
 
         // Asignar al canal
@@ -1094,7 +1096,7 @@ class RecalculoAutomaticoIntegrationTest {
         BigDecimal pvpNuevo = obtenerPvpActual();
 
         assertNotEquals(pvpInicial, pvpNuevo,
-                "El PVP debe cambiar al agregar IMPUESTO_ADICIONAL");
+                "El PVP debe cambiar al agregar IMPUESTO_EN_FACTOR_IMP");
         assertTrue(pvpNuevo.compareTo(pvpInicial) > 0,
                 "El PVP debe aumentar al agregar impuesto adicional");
     }
@@ -1128,19 +1130,19 @@ class RecalculoAutomaticoIntegrationTest {
     }
 
     // ===========================================
-    // TEST 20: Concepto RECARGO_CUPON
+    // TEST 20: Concepto COSTO_OCULTO_PVP
     // ===========================================
     @Test
     @Order(20)
-    @DisplayName("20. Recálculo automático con concepto RECARGO_CUPON")
+    @DisplayName("20. Recálculo automático con concepto COSTO_OCULTO_PVP")
     void testRecalculoConRecargoCupon() {
         BigDecimal pvpInicial = obtenerPvpActual();
 
-        // Crear concepto RECARGO_CUPON
+        // Crear concepto COSTO_OCULTO_PVP
         ConceptoCalculo conceptoCupon = new ConceptoCalculo();
         conceptoCupon.setNombre(TEST_PREFIX + "CUPON");
         conceptoCupon.setPorcentaje(new BigDecimal("5"));
-        conceptoCupon.setAplicaSobre(AplicaSobre.RECARGO_CUPON);
+        conceptoCupon.setAplicaSobre(AplicaSobre.COSTO_OCULTO_PVP);
         conceptoCupon = conceptoGastoRepository.save(conceptoCupon);
 
         // Asignar al canal
@@ -1150,9 +1152,9 @@ class RecalculoAutomaticoIntegrationTest {
         BigDecimal pvpNuevo = obtenerPvpActual();
 
         assertNotEquals(pvpInicial, pvpNuevo,
-                "El PVP debe cambiar al agregar RECARGO_CUPON");
+                "El PVP debe cambiar al agregar COSTO_OCULTO_PVP");
         assertTrue(pvpNuevo.compareTo(pvpInicial) > 0,
-                "El PVP debe aumentar al agregar recargo de cupón");
+                "El PVP debe aumentar al agregar costo oculto sobre PVP");
     }
 
     // ===========================================
@@ -1317,6 +1319,7 @@ class RecalculoAutomaticoIntegrationTest {
                         conceptoComision.getNombre(),
                         new BigDecimal("25"), // aumentar comisión
                         conceptoComision.getAplicaSobre().name(),
+                        null,
                         null
                 ));
         calculoPrecioService.recalcularYGuardarPrecioCanalTodasCuotas(producto.getId(), canal.getId());
@@ -1446,19 +1449,19 @@ class RecalculoAutomaticoIntegrationTest {
     }
 
     // ===========================================
-    // TEST 28: Concepto INFLACION_DIVISOR
+    // TEST 28: Concepto INFLACION_DIVISOR_FINAL
     // ===========================================
     @Test
     @Order(28)
-    @DisplayName("28. Recálculo automático con concepto INFLACION_DIVISOR")
+    @DisplayName("28. Recálculo automático con concepto INFLACION_DIVISOR_FINAL")
     void testRecalculoConInflacionDivisor() {
         BigDecimal pvpInicial = obtenerPvpActual();
 
-        // Crear concepto INFLACION_DIVISOR
+        // Crear concepto INFLACION_DIVISOR_FINAL
         ConceptoCalculo conceptoInflacion = new ConceptoCalculo();
         conceptoInflacion.setNombre(TEST_PREFIX + "INFLACION");
         conceptoInflacion.setPorcentaje(new BigDecimal("10")); // 10% inflación
-        conceptoInflacion.setAplicaSobre(AplicaSobre.INFLACION_DIVISOR);
+        conceptoInflacion.setAplicaSobre(AplicaSobre.INFLACION_DIVISOR_FINAL);
         conceptoInflacion = conceptoGastoRepository.save(conceptoInflacion);
 
         // Asignar al canal
@@ -1468,7 +1471,7 @@ class RecalculoAutomaticoIntegrationTest {
         BigDecimal pvpNuevo = obtenerPvpActual();
 
         assertNotEquals(pvpInicial, pvpNuevo,
-                "El PVP debe cambiar al agregar INFLACION_DIVISOR");
+                "El PVP debe cambiar al agregar INFLACION_DIVISOR_FINAL");
         assertTrue(pvpNuevo.compareTo(pvpInicial) > 0,
                 "El PVP debe aumentar al aplicar inflación como divisor");
     }
@@ -2029,12 +2032,13 @@ class RecalculoAutomaticoIntegrationTest {
     }
 
     // ===========================================
-    // TEST 39: FLAG_INFLACION_ML
+    // TEST 39: FLAG_COMISION_ML con naturaleza override INFLACION
+    // (antes era FLAG_INFLACION_ML, ahora unificado en FLAG_COMISION_ML con override)
     // ===========================================
     @Test
     @Order(39)
-    @DisplayName("39. Recálculo con FLAG_INFLACION_ML infla PVP con comisión ML")
-    void testRecalculoConFlagInflacionMl() {
+    @DisplayName("39. FLAG_COMISION_ML con naturaleza INFLACION infla PVP sin contar como costo")
+    void testRecalculoConComisionMlComoInflacion() {
         // Crear MLA con comisiónPorcentaje
         Mla mla = new Mla();
         mla.setMla(TEST_PREFIX + "MLA_INFML");
@@ -2045,15 +2049,16 @@ class RecalculoAutomaticoIntegrationTest {
         producto = productoRepository.save(producto);
         entityManager.flush();
 
-        // PVP sin FLAG_INFLACION_ML
+        // PVP sin comisión ML
         calculoPrecioService.recalcularYGuardarPrecioCanalTodasCuotas(producto.getId(), canal.getId());
         BigDecimal pvpSinInflacion = obtenerPvpActual();
 
-        // Agregar concepto FLAG_INFLACION_ML al canal
+        // Agregar concepto FLAG_COMISION_ML con naturaleza INFLACION (override) — infla PVP pero NO cuenta como costo
         ConceptoCalculo conceptoInflacionMl = new ConceptoCalculo();
         conceptoInflacionMl.setNombre(TEST_PREFIX + "INFLACION_ML");
         conceptoInflacionMl.setPorcentaje(BigDecimal.ZERO);
-        conceptoInflacionMl.setAplicaSobre(AplicaSobre.FLAG_INFLACION_ML);
+        conceptoInflacionMl.setAplicaSobre(AplicaSobre.FLAG_COMISION_ML);
+        conceptoInflacionMl.setNaturaleza(NaturalezaConcepto.INFLACION);
         conceptoInflacionMl = conceptoGastoRepository.save(conceptoInflacionMl);
 
         CanalConcepto ccInflacionMl = new CanalConcepto();
@@ -2063,12 +2068,12 @@ class RecalculoAutomaticoIntegrationTest {
         canalConceptoRepository.save(ccInflacionMl);
         entityManager.flush();
 
-        // PVP con FLAG_INFLACION_ML
+        // PVP con FLAG_COMISION_ML
         calculoPrecioService.recalcularYGuardarPrecioCanalTodasCuotas(producto.getId(), canal.getId());
         BigDecimal pvpConInflacion = obtenerPvpActual();
 
         assertTrue(pvpConInflacion.compareTo(pvpSinInflacion) > 0,
-                "El PVP debe aumentar al aplicar inflación ML del MLA");
+                "El PVP debe aumentar al aplicar comisión ML del MLA");
     }
 
     // ===========================================

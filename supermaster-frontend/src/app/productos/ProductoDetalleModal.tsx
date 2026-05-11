@@ -18,7 +18,7 @@ import {
     ProductoMargenDTO,
 } from "./productoMargenService";
 import { confirmDialog } from "../utils/confirmDialog";
-import { toast } from "sonner";
+import { notificar } from "../utils/notificar";
 import { formatFechaAR } from "../utils/formatDate";
 import {
     getProductoPreciosAPI,
@@ -508,9 +508,9 @@ function PreciosTab({ productoId }: { productoId: number }) {
         try {
             await calcularPreciosAPI(productoId);
             await load();
-            toast.success("Precios calculados.");
+            notificar.success("Precios calculados.");
         } catch (e: any) {
-            toast.error("Error al calcular: " + e.message);
+            notificar.error("Error al calcular: " + e.message);
         } finally {
             setIsCalculating(false);
         }

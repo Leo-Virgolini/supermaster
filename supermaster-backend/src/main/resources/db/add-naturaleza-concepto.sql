@@ -32,53 +32,63 @@ ALTER TABLE supermaster.conceptos_calculo
 -- en lugar de INFLACION.
 -- =====================================================================
 
+-- IMPORTANTE: todos los UPDATE filtran por `naturaleza IS NULL` para NO pisar
+-- overrides explícitos seteados desde los seeds o desde la UI. Solo populan
+-- los conceptos que aún no tienen naturaleza declarada.
+
 UPDATE supermaster.conceptos_calculo SET naturaleza = 'COSTO_PRODUCTO'
-  WHERE aplica_sobre = 'FLAG_FINANCIACION_PROVEEDOR';
+  WHERE naturaleza IS NULL
+    AND aplica_sobre = 'FLAG_FINANCIACION_PROVEEDOR';
 
 UPDATE supermaster.conceptos_calculo SET naturaleza = 'COSTO_VENTA'
-  WHERE aplica_sobre IN (
-    'FLAG_INCLUIR_ENVIO',
-    'COMISION_SOBRE_PVP',
-    'FLAG_COMISION_ML',
-    'RECARGO_CUPON',
-    'GASTO_FUERA_PVP'
-  );
+  WHERE naturaleza IS NULL
+    AND aplica_sobre IN (
+      'FLAG_INCLUIR_ENVIO',
+      'COMISION_SOBRE_PVP',
+      'FLAG_COMISION_ML',
+      'COSTO_OCULTO_PVP',
+      'GASTO_SIN_INFLAR_PVP'
+    );
 
 UPDATE supermaster.conceptos_calculo SET naturaleza = 'IMPUESTO'
-  WHERE aplica_sobre IN (
-    'FLAG_APLICAR_IVA',
-    'IMPUESTO_ADICIONAL'
-  );
+  WHERE naturaleza IS NULL
+    AND aplica_sobre IN (
+      'FLAG_APLICAR_IVA',
+      'IMPUESTO_EN_FACTOR_IMP'
+    );
 
 UPDATE supermaster.conceptos_calculo SET naturaleza = 'MARKUP'
-  WHERE aplica_sobre IN (
-    'FLAG_USAR_MARGEN_MINORISTA',
-    'FLAG_USAR_MARGEN_MAYORISTA',
-    'AJUSTE_MARGEN_PUNTOS',
-    'AJUSTE_MARGEN_PROPORCIONAL'
-  );
+  WHERE naturaleza IS NULL
+    AND aplica_sobre IN (
+      'FLAG_USAR_MARGEN_MINORISTA',
+      'FLAG_USAR_MARGEN_MAYORISTA',
+      'AJUSTE_MARGEN_PUNTOS',
+      'AJUSTE_MARGEN_PROPORCIONAL'
+    );
 
 UPDATE supermaster.conceptos_calculo SET naturaleza = 'INFLACION'
-  WHERE aplica_sobre IN (
-    'GASTO_SOBRE_COSTO',
-    'GASTO_POST_GANANCIA',
-    'GASTO_POST_IMPUESTOS',
-    'INFLACION_SOBRE_PVP',
-    'FLAG_INFLACION_ML',
-    'INFLACION_DIVISOR'
-  );
+  WHERE naturaleza IS NULL
+    AND aplica_sobre IN (
+      'GASTO_SOBRE_COSTO',
+      'GASTO_POST_GANANCIA',
+      'GASTO_POST_IMPUESTOS',
+      'INFLACION_DIVISOR_FINAL'
+    );
 
 UPDATE supermaster.conceptos_calculo SET naturaleza = 'DESCUENTO'
-  WHERE aplica_sobre = 'DESCUENTO_PORCENTUAL';
+  WHERE naturaleza IS NULL
+    AND aplica_sobre = 'DESCUENTO_PORCENTUAL';
 
 UPDATE supermaster.conceptos_calculo SET naturaleza = 'BASE'
-  WHERE aplica_sobre IN (
-    'CALCULO_SOBRE_CANAL_BASE',
-    'CALCULO_SOBRE_CANAL_BASE_RESELLER'
-  );
+  WHERE naturaleza IS NULL
+    AND aplica_sobre IN (
+      'CALCULO_SOBRE_CANAL_BASE',
+      'CALCULO_SOBRE_CANAL_BASE_RESELLER'
+    );
 
 UPDATE supermaster.conceptos_calculo SET naturaleza = 'COSMETICO'
-  WHERE aplica_sobre = 'FLAG_APLICAR_PRECIO_INFLADO';
+  WHERE naturaleza IS NULL
+    AND aplica_sobre = 'FLAG_APLICAR_PRECIO_INFLADO';
 
 -- Verificación: todos los conceptos deberían tener naturaleza después de esto.
 -- Si alguno queda en NULL, es porque su aplica_sobre no está en este script

@@ -1,9 +1,11 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+import { toast } from "sonner";
 import { API_BASE_URL } from "../config/runtime";
 import { fetchAPI } from "../utils/fetchAPI";
 import { notificar } from "../utils/notificar";
+import { getResultadoRecalculoMasivoAPI } from "../producto-canal-precios/productoCanalPreciosService";
 
 interface ProcesoItem {
     proceso: string;
@@ -58,6 +60,19 @@ const PROCESO_RUTAS: Record<string, string> = {
     "recalculo-canal": "/canal-concepto-cuotas",
 };
 
+// Procesos cuyo inicio/fin ya se notifica desde un componente específico
+// (típicamente el banner que dispara el proceso). Para evitar toasts duplicados
+// (uno del banner + uno del context) los silenciamos acá.
+const PROCESOS_SIN_TOAST_GLOBAL = new Set<string>([]);
+
+// Procesos cuyo INICIO ya se notifica desde otro componente (ej. el banner emite
+// "Recálculo iniciado…" al apretar Aplicar). Silenciamos solo el toast "Proceso
+// iniciado: …" del context para no duplicar, pero dejamos el de cierre — ese sí
+// agrega valor (contadores: "X productos recalculados").
+const PROCESOS_SIN_TOAST_INICIO = new Set<string>([
+    "recalculo-pendiente-scoped",
+]);
+
 // Grupos de exclusión: el frontend los pide al backend en /api/procesos/grupos
 // para que sean una sola fuente de verdad. Mientras la respuesta no llegue,
 // usamos un fallback embebido (sincronizado con el backend al momento de
@@ -82,6 +97,63 @@ const ProcesoActivoContext = createContext<ProcesoActivoContextType>({
     tieneConflicto: () => null,
     refresh: async () => {},
 });
+
+/**
+ * Cuando un recálculo masivo termina con SKUs problemáticos, hace fetch del
+ * resultado detallado y emite:
+ *  - Un toast con acción "Copiar SKUs" (efímero, 30s).
+ *  - Una notificación al panel con el detalle pegable (persistente vía localStorage).
+ *
+ * Útil para diagnosticar qué productos fallaron sin tener que abrir otra pantalla.
+ */
+async function mostrarDetalleRecalculoMasivo() {
+    try {
+        const resultado = await getResultadoRecalculoMasivoAPI();
+        if (!resultado) return;
+        const { skusConErrores = [], skusSinCosto = [], skusSinMargen = [] } = resultado;
+        if (skusConErrores.length === 0 && skusSinCosto.length === 0 && skusSinMargen.length === 0) {
+            return;
+        }
+        const partes: string[] = [];
+        if (skusConErrores.length > 0) partes.push(`${skusConErrores.length} con errores`);
+        if (skusSinCosto.length > 0) partes.push(`${skusSinCosto.length} sin costo`);
+        if (skusSinMargen.length > 0) partes.push(`${skusSinMargen.length} sin margen`);
+        const titulo = `SKUs problemáticos: ${partes.join(", ")}`;
+        // Texto a copiar: secciones separadas por encabezado.
+        const lineas: string[] = [];
+        if (skusConErrores.length > 0) {
+            lineas.push("# Con errores", ...skusConErrores, "");
+        }
+        if (skusSinCosto.length > 0) {
+            lineas.push("# Sin costo", ...skusSinCosto, "");
+        }
+        if (skusSinMargen.length > 0) {
+            lineas.push("# Sin margen", ...skusSinMargen, "");
+        }
+        const textoCopia = lineas.join("\n").trimEnd();
+
+        // 1) Toast efímero con acción rápida (sonner). 30s para apretar el botón.
+        toast.info(titulo, {
+            description: "Apretá 'Copiar SKUs' o expandilo desde el panel de notificaciones.",
+            duration: 30000,
+            action: {
+                label: "Copiar SKUs",
+                onClick: () => {
+                    navigator.clipboard.writeText(textoCopia)
+                        .then(() => toast.success("SKUs copiados al portapapeles"))
+                        .catch(() => toast.error("No se pudo copiar al portapapeles"));
+                },
+            },
+        });
+
+        // 2) Notificación persistente en el panel con el detalle expandible/copiable.
+        //    Usamos persistir (no info) para no emitir un toast duplicado: el
+        //    toast efímero de arriba ya cubre la notificación visual.
+        notificar.persistir("info", titulo, textoCopia);
+    } catch {
+        // Silencioso: si falla el fetch, ya hay un toast con los contadores agregados.
+    }
+}
 
 export function ProcesoActivoProvider({ children }: { children: React.ReactNode }) {
     const [procesos, setProcesos] = useState<ProcesoItem[]>([]);
@@ -128,6 +200,7 @@ export function ProcesoActivoProvider({ children }: { children: React.ReactNode 
         if (!firstEventRef.current) {
             for (const [prevId, prev] of prevProcesosRef.current) {
                 if (!nuevosMap.has(prevId)) {
+                    if (PROCESOS_SIN_TOAST_GLOBAL.has(prevId)) continue;
                     // El proceso terminó: clasificar según contadores finales del
                     // último snapshot que recibimos antes de que desapareciera.
                     const desc = prev.descripcion;
@@ -164,9 +237,19 @@ export function ProcesoActivoProvider({ children }: { children: React.ReactNode 
                         // Contadores en cero (sin items que procesar): info neutro.
                         notificar.info(texto);
                     }
+
+                    // Si fue un recálculo masivo y hubo SKUs problemáticos (errores, sin
+                    // costo o sin margen), hacemos fetch del resultado detallado y
+                    // mostramos un toast con acción "Copiar SKUs" para diagnóstico.
+                    if (prevId === "recalculo-precios"
+                        && (errores > 0 || mensajeBack.includes("sin costo") || mensajeBack.includes("sin margen"))) {
+                        mostrarDetalleRecalculoMasivo();
+                    }
                 }
             }
             for (const [nuevoId, nuevo] of nuevosMap) {
+                if (PROCESOS_SIN_TOAST_GLOBAL.has(nuevoId)) continue;
+                if (PROCESOS_SIN_TOAST_INICIO.has(nuevoId)) continue;
                 if (!prevProcesosRef.current.has(nuevoId)) notificar.info(`Proceso iniciado: ${nuevo.descripcion}`);
             }
         }

@@ -1,6 +1,9 @@
 package ar.com.leo.super_master_backend.dominio.producto.service;
 
 import ar.com.leo.super_master_backend.dominio.apto.entity.Apto;
+import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaAccion;
+import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaEntidad;
+import ar.com.leo.super_master_backend.dominio.auditoria.service.AuditoriaService;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoAptoDTO;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoApto;
@@ -16,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +29,7 @@ public class ProductoAptoServiceImpl implements ProductoAptoService {
     private final ProductoAptoMapper mapper;
     private final ProductoRepository productoRepository;
     private final AptoRepository aptoRepository;
+    private final AuditoriaService auditoriaService;
 
     @Override
     @Transactional(readOnly = true)
@@ -58,6 +63,15 @@ public class ProductoAptoServiceImpl implements ProductoAptoService {
 
         repo.save(entity);
 
+        auditoriaService.registrarCambios(
+                AuditoriaEntidad.PRODUCTO_APTO,
+                null,
+                "P" + productoId + "-A" + aptoId,
+                AuditoriaAccion.CREATE,
+                Map.of(),
+                Map.of("productoId", String.valueOf(productoId), "aptoId", String.valueOf(aptoId))
+        );
+
         return mapper.toDTO(entity);
     }
 
@@ -69,6 +83,15 @@ public class ProductoAptoServiceImpl implements ProductoAptoService {
             throw new NotFoundException("Relación Producto-Apto no existe");
         }
         repo.deleteByProductoIdAndAptoId(productoId, aptoId);
+
+        auditoriaService.registrarCambios(
+                AuditoriaEntidad.PRODUCTO_APTO,
+                null,
+                "P" + productoId + "-A" + aptoId,
+                AuditoriaAccion.DELETE,
+                Map.of("productoId", String.valueOf(productoId), "aptoId", String.valueOf(aptoId)),
+                Map.of()
+        );
     }
 
 }

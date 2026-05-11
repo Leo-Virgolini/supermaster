@@ -81,7 +81,7 @@ public class ClasifGastroServiceImpl implements ClasifGastroService {
         // Si cambió esMaquina, recalcular todos los productos de esta clasificación
         if (dto.esMaquina() != null && !Objects.equals(dto.esMaquina(), esMaquinaAnterior)) {
             // Solo los productos de esta clasificación — no recalcular los 5500+ del catálogo.
-            marcarProductosDeClasifGastro(id, "Cambio en clasif. gastro");
+            marcarProductosDeClasifGastro(id, "Cambio en clasificación gastro");
         }
 
         auditoriaService.registrarCambios(AuditoriaEntidad.CLASIF_GASTRO, id, entity.getNombre(), AuditoriaAccion.UPDATE, estadoAnterior, capturarSnapshot(entity));
@@ -119,7 +119,7 @@ public class ClasifGastroServiceImpl implements ClasifGastroService {
 
         if (presente(patchDto.getEsMaquina()) && !Objects.equals(esMaquinaAnterior, entity.getEsMaquina())) {
             // Solo los productos de esta clasificación — no recalcular los 5500+ del catálogo.
-            marcarProductosDeClasifGastro(id, "Cambio en clasif. gastro");
+            marcarProductosDeClasifGastro(id, "Cambio en clasificación gastro");
         }
 
         auditoriaService.registrarCambios(AuditoriaEntidad.CLASIF_GASTRO, id, entity.getNombre(), AuditoriaAccion.UPDATE, estadoAnterior, capturarSnapshot(entity));

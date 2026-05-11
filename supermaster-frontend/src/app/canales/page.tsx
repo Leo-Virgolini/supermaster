@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useState, useMemo } from "react";
-import { toast } from "sonner";
+import { notificar } from "../utils/notificar";
 import ErrorBanner from "../components/ErrorBanner/ErrorBanner";
 import Table, { getInitialPageSize } from "../components/Table/core/Table";
 import SearchInput from "../components/SearchInput/SearchInput";
@@ -87,9 +87,9 @@ export default function CanalesPage() {
             if (copiarDeCanalId != null && creado?.id != null) {
                 try {
                     const result = await clonarConceptosDeCanalAPI(creado.id, copiarDeCanalId, "FORM");
-                    toast.success(`Se copiaron ${result.copiadas} conceptos al canal nuevo.`);
+                    notificar.success(`Se copiaron ${result.copiadas} conceptos al canal nuevo.`);
                 } catch (e: any) {
-                    toast.error(e?.message || "Canal creado, pero falló la copia de conceptos.");
+                    notificar.error(e?.message || "Canal creado, pero falló la copia de conceptos.");
                 }
             }
             setIsModalOpen(false);
@@ -119,7 +119,7 @@ export default function CanalesPage() {
         try {
             await updateCanal(itemOriginal.id, { [columnId]: value } as Partial<CanalDTO>);
         } catch (error) {
-            toast.error((error as any)?.message || "Error al guardar los cambios.");
+            notificar.error((error as any)?.message || "Error al guardar los cambios.");
         }
     };
 

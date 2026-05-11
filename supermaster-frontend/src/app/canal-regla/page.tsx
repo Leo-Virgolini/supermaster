@@ -1,6 +1,7 @@
 "use client";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
+import { notificar } from "../utils/notificar";
 import Table, { getInitialPageSize } from "../components/Table/core/Table";
 import SearchInput from "../components/SearchInput/SearchInput";
 import Modal from "../components/Modal/Modal";
@@ -104,7 +105,7 @@ export default function CanalReglaPage() {
             }
             setIsModalOpen(false);
         } catch (e) {
-            toast.error((e as any)?.message || "Error al guardar regla");
+            notificar.error((e as any)?.message || "Error al guardar regla");
         } finally {
             setIsSaving(false);
         }

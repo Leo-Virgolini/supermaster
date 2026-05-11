@@ -1,7 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { toast } from "sonner";
+import { notificar } from "../utils/notificar";
 import { TruckIcon, PlusIcon, TrashIcon, CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { confirmDialog } from "../utils/confirmDialog";
 import Table, { getInitialPageSize } from "../components/Table/core/Table";
@@ -65,7 +65,7 @@ export default function ProveedoresPage() {
             setProveedorNombre(""); setApodo(""); setPlazoPago(""); setFinanciacionPorcentaje(null); setLeadTimeDias(null); setEntrega(false); setFormTouched(false);
             setIsModalOpen(false);
         } catch (e: any) {
-            toast.error("Error: " + e.message);
+            notificar.error("Error: " + e.message);
         } finally {
             setIsSaving(false);
         }

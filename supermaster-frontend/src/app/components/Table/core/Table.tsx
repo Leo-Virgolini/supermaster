@@ -10,6 +10,7 @@ import {
 import { useEffect, useState, useCallback, Fragment, useRef } from "react";
 import { ClipboardDocumentIcon, ArrowDownTrayIcon } from "@heroicons/react/24/outline";
 import { toast } from "sonner";
+import { notificar } from "../../../utils/notificar";
 import TableToolbar from "./TableToolbar";
 import PaginationControls from "./PaginationControls";
 import ColumnContextMenu from "../../ColumnContextMenu/ColumnContextMenu";
@@ -299,9 +300,9 @@ const Table = ({
             const allData = await onExportAll();
             const cols = buildExportColumns(table);
             exportToExcel(allData, cols, exportFilename || tableId);
-            toast.success(`${allData.length} registro(s) exportados`);
+            notificar.success(`${allData.length} registro(s) exportados`);
         } catch (e: any) {
-            toast.error("Error al exportar: " + (e?.message || "desconocido"));
+            notificar.error("Error al exportar: " + (e?.message || "desconocido"));
         } finally {
             setIsExporting(false);
         }

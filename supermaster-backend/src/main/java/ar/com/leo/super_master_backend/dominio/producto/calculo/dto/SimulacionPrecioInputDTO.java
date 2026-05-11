@@ -45,7 +45,7 @@ public record SimulacionPrecioInputDTO(
         // Financiación de proveedor (para FLAG_FINANCIACION_PROVEEDOR)
         BigDecimal proveedorFinanciacionPorcentaje,
 
-        // Datos de MLA (para FLAG_INCLUIR_ENVIO, FLAG_COMISION_ML, FLAG_INFLACION_ML)
+        // Datos de MLA (para FLAG_INCLUIR_ENVIO, FLAG_COMISION_ML)
         BigDecimal mlaPrecioEnvio,
         BigDecimal mlaComisionPorcentaje,
 

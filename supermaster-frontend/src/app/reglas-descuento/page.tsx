@@ -1,6 +1,6 @@
 "use client";
 import { useState, useMemo } from "react";
-import { toast } from "sonner";
+import { notificar } from "../utils/notificar";
 import Table, { getInitialPageSize } from "../components/Table/core/Table";
 import SearchInput from "../components/SearchInput/SearchInput";
 import Button from "../components/Button/Button";
@@ -81,7 +81,7 @@ export default function ReglasDescuentoPage() {
             setCanalId(null); setCatalogoId(null); setClasifGralId(null); setClasifGastroId(null);
             setMontoMinimo(0); setDescuentoPorcentaje(0); setPrioridad(1); setActivo(true); setDescripcion("");
             setIsModalOpen(false);
-        } catch (e: any) { toast.error("Error: " + e.message); } finally { setIsSaving(false); }
+        } catch (e: any) { notificar.error("Error: " + e.message); } finally { setIsSaving(false); }
     };
 
     const handleDelete = async () => {

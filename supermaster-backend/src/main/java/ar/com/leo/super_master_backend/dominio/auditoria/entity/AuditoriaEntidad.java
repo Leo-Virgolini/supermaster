@@ -2,6 +2,11 @@ package ar.com.leo.super_master_backend.dominio.auditoria.entity;
 
 public enum AuditoriaEntidad {
     PRODUCTO,
+    PRODUCTO_MARGEN,
+    PRODUCTO_CANAL_PRECIO_INFLADO,
+    PRODUCTO_APTO,
+    PRODUCTO_CATALOGO,
+    PRODUCTO_CLIENTE,
     PROVEEDOR,
     CLIENTE,
     CANAL,
@@ -26,5 +31,7 @@ public enum AuditoriaEntidad {
     REPOSICION,
     CONFIGURACION_ML,
     CONFIG_AUTOMATIZACION,
-    CATALOGO_PDF_CONFIG
+    CATALOGO_PDF_CONFIG,
+    AUTH,
+    RECALCULO
 }

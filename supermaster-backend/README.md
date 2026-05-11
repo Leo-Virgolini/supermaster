@@ -41,7 +41,7 @@ Productos con SKU, costo, IVA, atributos físicos, relaciones con marca, tipo, o
 
 ### Canales y pricing
 Los canales (MercadoLibre, Tienda Nube, catálogo gastronómico, etc.) se definen como una composición de:
-- **ConceptoCalculo** — porcentajes que afectan el cálculo (`GASTO_SOBRE_COSTO`, `COMISION_SOBRE_PVP`, `FLAG_APLICAR_IVA`, `DESCUENTO_PORCENTUAL`, `RECARGO_CUPON`, `FLAG_INCLUIR_ENVIO`…).
+- **ConceptoCalculo** — porcentajes que afectan el cálculo (`GASTO_SOBRE_COSTO`, `COMISION_SOBRE_PVP`, `FLAG_APLICAR_IVA`, `DESCUENTO_PORCENTUAL`, `COSTO_OCULTO_PVP`, `FLAG_INCLUIR_ENVIO`…).
 - **CanalConceptoCuota** — planes de cuotas con recargos.
 - **CanalConceptoRegla** — reglas condicionales (AND de atributos) que deciden si un concepto aplica a un producto.
 
@@ -59,7 +59,7 @@ PVP = (COSTO_AJUSTADO × (1 + MARGEN/100) × FACTOR_IMP) / (1 − COMISIONES_PVP
 | Métrica | Fórmula |
 |---------|---------|
 | `costoProducto` | costo × (1 + financiaciónProveedor%) |
-| `costosVenta` | Σ conceptos COMISION_SOBRE_PVP, DESCUENTO_PORCENTUAL, RECARGO_CUPON, FLAG_INCLUIR_ENVIO + cuotas |
+| `costosVenta` | Σ conceptos COMISION_SOBRE_PVP, DESCUENTO_PORCENTUAL, COSTO_OCULTO_PVP, FLAG_INCLUIR_ENVIO, GASTO_SIN_INFLAR_PVP + cuotas |
 | `ingresoNetoVendedor` | PVP − IVA − impuestos − costosVenta |
 | `ganancia` | ingresoNetoVendedor − costoProducto |
 | `margenSobreIngresoNeto` | (ganancia / ingresoNetoVendedor) × 100 |

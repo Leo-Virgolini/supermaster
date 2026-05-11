@@ -52,6 +52,11 @@ public class SecurityConfig {
                         .requestMatchers("/api/automatizacion-precios/ejecutar").permitAll()
                         // Actuator: health e info abiertos (Docker HEALTHCHECK), resto requiere JWT
                         .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
+                        // Página de error de Spring/Tomcat: cuando una request falla y el
+                        // container hace forward interno a /error, esa ruta debe ser pública.
+                        // Si no, genera "response already committed" en cascada con el error
+                        // original (ej: AuthorizationDeniedException en async dispatch).
+                        .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex

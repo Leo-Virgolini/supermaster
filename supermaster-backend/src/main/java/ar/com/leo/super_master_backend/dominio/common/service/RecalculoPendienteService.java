@@ -13,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Tracker en memoria de cambios que requieren recálculo de precios.
@@ -27,6 +28,10 @@ import java.util.concurrent.atomic.AtomicReference;
 @Service
 public class RecalculoPendienteService {
 
+    // ReentrantLock en lugar de synchronized: evita pinning de carrier threads
+    // cuando hay muchos virtual threads concurrentes apuntando a este punto caliente.
+    private final ReentrantLock lock = new ReentrantLock();
+
     private final AtomicInteger cantidad = new AtomicInteger(0);
     private final AtomicReference<LocalDateTime> ultimaModificacion = new AtomicReference<>(null);
     // Contador por motivo (descripción del trigger) para mostrar el detalle al usuario.
@@ -38,7 +43,7 @@ public class RecalculoPendienteService {
     private final Set<Integer> productosPendientes = ConcurrentHashMap.newKeySet();
     private final Set<Integer> canalesPendientes = ConcurrentHashMap.newKeySet();
 
-    // Snapshot del estado actualizado dentro del synchronized en cada mutación.
+    // Snapshot del estado actualizado dentro del lock en cada mutación.
     // Permite que estado() y broadcast() lean sin tomar el lock — evita que un
     // cliente SSE lento o un endpoint /estado lento bloqueen a marcar*.
     private final AtomicReference<RecalculoPendienteDTO> snapshot = new AtomicReference<>(RecalculoPendienteDTO.vacio());
@@ -53,10 +58,13 @@ public class RecalculoPendienteService {
      * Cuando se aplique, se ejecutará el recálculo masivo completo.
      */
     public void marcarTodo(String motivo) {
-        synchronized (this) {
+        lock.lock();
+        try {
             recalcularTodo.set(true);
             registrarComunInterno(motivo);
             actualizarSnapshot();
+        } finally {
+            lock.unlock();
         }
         broadcast();
     }
@@ -66,10 +74,13 @@ public class RecalculoPendienteService {
      * relación de un solo producto). Al aplicar, se recalcula SOLO ese producto.
      */
     public void marcarProducto(String motivo, Integer productoId) {
-        synchronized (this) {
+        lock.lock();
+        try {
             if (productoId != null) productosPendientes.add(productoId);
             registrarComunInterno(motivo);
             actualizarSnapshot();
+        } finally {
+            lock.unlock();
         }
         broadcast();
     }
@@ -79,10 +90,13 @@ public class RecalculoPendienteService {
      * regla de excepción de un concepto en ese canal). Al aplicar, se recalcula SOLO ese canal.
      */
     public void marcarCanal(String motivo, Integer canalId) {
-        synchronized (this) {
+        lock.lock();
+        try {
             if (canalId != null) canalesPendientes.add(canalId);
             registrarComunInterno(motivo);
             actualizarSnapshot();
+        } finally {
+            lock.unlock();
         }
         broadcast();
     }
@@ -96,7 +110,9 @@ public class RecalculoPendienteService {
      * Si la lista está vacía no marca nada.
      */
     public void marcarProductos(String motivo, Iterable<Integer> productoIds) {
-        synchronized (this) {
+        boolean huboCambios = false;
+        lock.lock();
+        try {
             int agregados = 0;
             for (Integer pid : productoIds) {
                 if (pid != null) {
@@ -107,8 +123,11 @@ public class RecalculoPendienteService {
             if (agregados == 0) return;
             registrarComunInterno(motivo);
             actualizarSnapshot();
+            huboCambios = true;
+        } finally {
+            lock.unlock();
         }
-        broadcast();
+        if (huboCambios) broadcast();
     }
 
     /**
@@ -117,7 +136,9 @@ public class RecalculoPendienteService {
      * un solo broadcast.
      */
     public void marcarCanales(String motivo, Iterable<Integer> canalIds) {
-        synchronized (this) {
+        boolean huboCambios = false;
+        lock.lock();
+        try {
             int agregados = 0;
             for (Integer cid : canalIds) {
                 if (cid != null) {
@@ -128,8 +149,11 @@ public class RecalculoPendienteService {
             if (agregados == 0) return;
             registrarComunInterno(motivo);
             actualizarSnapshot();
+            huboCambios = true;
+        } finally {
+            lock.unlock();
         }
-        broadcast();
+        if (huboCambios) broadcast();
     }
 
     /**
@@ -140,7 +164,7 @@ public class RecalculoPendienteService {
         marcarTodo(motivo);
     }
 
-    // Asume que el caller está dentro del synchronized(this).
+    // Asume que el caller tiene el lock tomado.
     private void registrarComunInterno(String motivo) {
         cantidad.incrementAndGet();
         ultimaModificacion.set(LocalDateTime.now());
@@ -159,23 +183,28 @@ public class RecalculoPendienteService {
         }
     }
 
-    public synchronized PlanRecalculo plan() {
-        return new PlanRecalculo(
-                recalcularTodo.get(),
-                Set.copyOf(productosPendientes),
-                Set.copyOf(canalesPendientes)
-        );
+    public PlanRecalculo plan() {
+        lock.lock();
+        try {
+            return new PlanRecalculo(
+                    recalcularTodo.get(),
+                    Set.copyOf(productosPendientes),
+                    Set.copyOf(canalesPendientes)
+            );
+        } finally {
+            lock.unlock();
+        }
     }
 
     /**
-     * Limpia el contador y los scopes. Sincronizado en el mismo monitor que las
-     * operaciones marcar / plan para evitar race conditions: si un nuevo cambio
-     * intenta entrar mientras se limpia, espera al lock y queda registrado para
-     * el siguiente ciclo.
+     * Limpia el contador y los scopes. Usa el mismo lock que las operaciones marcar / plan
+     * para evitar race conditions: si un nuevo cambio intenta entrar mientras se limpia,
+     * espera al lock y queda registrado para el siguiente ciclo.
      */
     public void limpiar() {
         int previo;
-        synchronized (this) {
+        lock.lock();
+        try {
             previo = cantidad.getAndSet(0);
             ultimaModificacion.set(null);
             contadorPorMotivo.clear();
@@ -184,6 +213,8 @@ public class RecalculoPendienteService {
             productosPendientes.clear();
             canalesPendientes.clear();
             actualizarSnapshot();
+        } finally {
+            lock.unlock();
         }
         if (previo > 0) {
             log.info("Recálculo pendiente limpiado (había {} cambios pendientes)", previo);
@@ -192,7 +223,7 @@ public class RecalculoPendienteService {
     }
 
     /**
-     * Broadcast SSE FUERA del synchronized para no bloquear a otros threads que
+     * Broadcast SSE FUERA del lock para no bloquear a otros threads que
      * intentan marcar pendientes mientras un cliente lento procesa el evento.
      * Mismo patrón que ProcesoGlobalService.adquirir/liberar.
      */
@@ -208,15 +239,14 @@ public class RecalculoPendienteService {
 
     /**
      * Devuelve el snapshot pre-construido. Lectura sin lock — siempre consistente
-     * porque el DTO es inmutable y se reemplaza atómicamente desde dentro del synchronized.
+     * porque el DTO es inmutable y se reemplaza atómicamente desde dentro del lock.
      */
     public RecalculoPendienteDTO estado() {
         return snapshot.get();
     }
 
-    // Asume que el caller está dentro del synchronized(this). Construye el DTO actual
-    // y lo guarda en la AtomicReference para que estado()/broadcast() puedan leerlo
-    // sin tomar el lock.
+    // Asume que el caller tiene el lock tomado. Construye el DTO actual y lo guarda
+    // en la AtomicReference para que estado()/broadcast() puedan leerlo sin tomar el lock.
     //
     // Cantidad: cardinalidad del scope (productos+canales únicos). Si recalcularTodo=true,
     // se cuenta como 1 (representa "todo"). Esto evita que "3 edits al mismo producto"

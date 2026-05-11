@@ -1,6 +1,5 @@
 "use client";
 import { useMemo, useState } from "react";
-import { toast } from "sonner";
 import { ArrowTrendingUpIcon, PlusIcon, TrashIcon, CheckIcon, XMarkIcon, InformationCircleIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
 import ErrorBanner from "../components/ErrorBanner/ErrorBanner";
 import { confirmDialog } from "../utils/confirmDialog";
@@ -126,8 +125,9 @@ export default function PreciosInfladosPage() {
                 {ayudaAbierta && (
                     <div className="border-t border-blue-200 px-4 py-3 text-sm text-blue-900 dark:border-blue-800/60 dark:text-blue-100">
                         <p className="mb-3">
-                            Generan un <strong>precio &quot;inflado&quot; (precio tachado)</strong> que se muestra al cliente junto al precio
-                            real, simulando un descuento. Útil para campañas de tipo &quot;antes $X, ahora $Y&quot;.
+                            Generan un <strong>precio &quot;inflado&quot; (precio tachado)</strong>{" "}
+                            que se muestra al cliente junto al precio real, simulando un descuento.
+                            Útil para campañas de tipo &quot;antes $X, ahora $Y&quot;.
                         </p>
 
                         <div className="mb-3 rounded-md bg-white/60 p-3 text-xs dark:bg-blue-950/40">
@@ -153,8 +153,10 @@ export default function PreciosInfladosPage() {
                         </div>
 
                         <p className="mb-3">
-                            Las reglas se crean acá y luego se <strong>asignan a producto + canal</strong> desde el detalle del producto
-                            (pestaña &quot;Precios Inflados&quot;). El precio inflado se calcula sobre el PVP final del canal y se muestra como precio tachado en exportaciones e integraciones (TiendaNube, etc.).
+                            Las reglas se crean acá y luego se <strong>asignan a producto + canal</strong>{" "}
+                            desde el detalle del producto (pestaña &quot;Precios Inflados&quot;). El precio
+                            inflado se calcula sobre el PVP final del canal y se muestra como precio tachado
+                            en exportaciones e integraciones (TiendaNube, etc.).
                         </p>
 
                         <div className="rounded-md border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900 dark:border-amber-700/60 dark:bg-amber-900/30 dark:text-amber-100">

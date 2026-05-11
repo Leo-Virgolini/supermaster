@@ -12,7 +12,7 @@ import { fetchAPI } from "../utils/fetchAPI";
 import { confirmDialog } from "../utils/confirmDialog";
 import { useProcesoActivo } from "../context/ProcesoActivoContext";
 import { type SortingState } from "@tanstack/react-table";
-import { toast } from "sonner";
+import { notificar } from "../utils/notificar";
 import { updateProductoAPI } from "../productos/productosService";
 import { getProductoMargenAPI, updateProductoMargenAPI } from "../productos/productoMargenService";
 import { asignarPrecioInfladoAPI } from "../productos/productoSubRecursosService";
@@ -125,7 +125,7 @@ export default function ProductoCanalPreciosPage() {
     const handleRecalcular = useCallback(async (productoId: number) => {
         const conflicto = tieneConflictoRef.current("recalculo-precios");
         if (conflicto) {
-            toast.warning(`No se puede recalcular: hay otro proceso en curso (${conflicto.descripcion})`);
+            notificar.warning(`No se puede recalcular: hay otro proceso en curso (${conflicto.descripcion})`);
             return;
         }
         const sku = dataRef.current.find((p) => p.id === productoId)?.sku ?? productoId;
@@ -133,9 +133,9 @@ export default function ProductoCanalPreciosPage() {
         try {
             await calcularPreciosAPI(productoId);
             await refetch();
-            toast.success(`Precios recalculados para ${sku}`);
+            notificar.success(`Precios recalculados para ${sku}`);
         } catch (e: any) {
-            toast.error(e?.message || "Error al recalcular");
+            notificar.error(e?.message || "Error al recalcular");
         } finally {
             setCalcLoading((prev) => ({ ...prev, [productoId]: false }));
         }
@@ -149,7 +149,7 @@ export default function ProductoCanalPreciosPage() {
             const formula = await getFormulaAPI(productoId, canalId, cuotas);
             setFormulaModal({ isOpen: true, loading: false, data: formula });
         } catch (e: any) {
-            toast.error(e?.message || "Error al obtener la fórmula");
+            notificar.error(e?.message || "Error al obtener la fórmula");
             setFormulaModal({ isOpen: false, loading: false, data: null });
         }
     }, []);
@@ -175,9 +175,9 @@ export default function ProductoCanalPreciosPage() {
                     [field]: numValue,
                 });
             }
-            toast.success(`SKU ${sku} actualizado`);
+            notificar.success(`SKU ${sku} actualizado`);
         } catch (e: any) {
-            toast.error(e?.message || "Error al actualizar");
+            notificar.error(e?.message || "Error al actualizar");
             throw e;
         }
         // El PATCH solo MARCA el cambio como pendiente — el recálculo no corre hasta que
@@ -185,7 +185,7 @@ export default function ProductoCanalPreciosPage() {
         // costo/iva/margen recién editado se vea, aunque los precios calculados sigan
         // siendo los viejos hasta el próximo Apply (el banner avisa con cardinal).
         refreshRowLocal(productoId).catch((e: any) => {
-            toast.error(`Error refrescando SKU ${sku}: ${e?.message ?? ""}`);
+            notificar.error(`Error refrescando SKU ${sku}: ${e?.message ?? ""}`);
         });
     }, [refreshRowLocal]);
 
@@ -199,9 +199,9 @@ export default function ProductoCanalPreciosPage() {
             }
             await refreshRowLocal(productoId);
             const sku = dataRef.current.find((p) => p.id === productoId)?.sku ?? productoId;
-            toast.success(precioInfladoId ? `SKU ${sku}: regla inflada actualizada` : `SKU ${sku}: regla inflada quitada`);
+            notificar.success(precioInfladoId ? `SKU ${sku}: regla inflada actualizada` : `SKU ${sku}: regla inflada quitada`);
         } catch (e: any) {
-            toast.error(e?.message || "Error al actualizar");
+            notificar.error(e?.message || "Error al actualizar");
         }
     }, [refreshRowLocal]);
 
@@ -430,7 +430,7 @@ function RecalculoMasivoButton({ disabled }: { disabled: boolean }) {
             // El badge del header se enciende al instante (ProcesoGlobalService
             // hace broadcast cuando se adquiere el lock). No hace falta poll.
         } catch (e: unknown) {
-            toast.error(e instanceof Error ? e.message : "Error al iniciar recálculo");
+            notificar.error(e instanceof Error ? e.message : "Error al iniciar recálculo");
         }
     };
 
@@ -439,32 +439,49 @@ function RecalculoMasivoButton({ disabled }: { disabled: boolean }) {
         setCancelando(true);
         try {
             await fetchAPI(`${API_BASE_URL}/api/precios/recalculo-masivo/cancelar`, { method: "POST" });
-            toast.info("Cancelación solicitada. Esperando que termine el batch en curso...");
+            notificar.info("Cancelación solicitada. Esperando que termine el batch en curso...");
         } catch (e: unknown) {
             setCancelando(false);
-            toast.error(e instanceof Error ? e.message : "Error al cancelar el recálculo");
+            notificar.error(e instanceof Error ? e.message : "Error al cancelar el recálculo");
         }
     };
 
+    if (masivoActivo) {
+        return (
+            <button
+                type="button"
+                onClick={handleCancelar}
+                disabled={cancelando}
+                title="Detener el recálculo en curso"
+                className="group inline-flex items-center gap-2 rounded-lg bg-gradient-to-b from-rose-500 to-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm ring-1 ring-rose-700/10 transition hover:shadow-md hover:from-rose-500 hover:to-rose-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100"
+            >
+                <XMarkIcon className="w-4 h-4" />
+                {cancelando ? "Cancelando…" : "Cancelar recálculo"}
+            </button>
+        );
+    }
+
+    const tooltipDisabled = conflicto
+        ? `Bloqueado: ${conflicto.descripcion}`
+        : disabled
+            ? "No tenés permisos para recalcular"
+            : "Recalcula todos los productos en todos los canales (puede tardar varios minutos)";
+
     return (
-        <div className="flex items-center gap-2">
-            {masivoActivo ? (
-                <Button variant="danger" onClick={handleCancelar} disabled={cancelando}>
-                    <XMarkIcon className="w-3.5 h-3.5" /> {cancelando ? "Cancelando..." : "Cancelar"}
-                </Button>
-            ) : (
-                <>
-                    {conflicto && (
-                        <span className="text-xs text-amber-600 dark:text-amber-400">
-                            Bloqueado: {conflicto.descripcion}
-                        </span>
-                    )}
-                    <Button variant="outline" onClick={handleClick} disabled={isDisabled}>
-                        <ArrowPathIcon className="w-4 h-4" />
-                        Recalcular Todos
-                    </Button>
-                </>
+        <button
+            type="button"
+            onClick={handleClick}
+            disabled={isDisabled}
+            title={tooltipDisabled}
+            className="group inline-flex items-center gap-2 rounded-lg bg-gradient-to-b from-blue-500 to-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm ring-1 ring-blue-700/10 transition hover:shadow-md hover:from-blue-500 hover:to-blue-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-none disabled:bg-slate-200 disabled:text-slate-500 disabled:ring-slate-300 disabled:shadow-none disabled:hover:shadow-none disabled:active:scale-100 dark:disabled:bg-slate-700 dark:disabled:text-slate-400 dark:disabled:ring-slate-600"
+        >
+            <ArrowPathIcon className="w-4 h-4 transition-transform group-hover:rotate-180 group-disabled:rotate-0" />
+            <span>Recalcular todos</span>
+            {conflicto && (
+                <span className="ml-1 rounded-md bg-amber-400/90 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-900 ring-1 ring-amber-500/30">
+                    Bloqueado
+                </span>
             )}
-        </div>
+        </button>
     );
 }

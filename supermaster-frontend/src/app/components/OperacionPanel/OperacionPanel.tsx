@@ -8,6 +8,7 @@ import { confirmDialog } from "../../utils/confirmDialog";
 import { PlayIcon, StopIcon, ArrowPathIcon, EyeIcon } from "@heroicons/react/24/outline";
 import { useProcesoActivo } from "../../context/ProcesoActivoContext";
 import { toast } from "sonner";
+import { notificar } from "../../utils/notificar";
 
 export interface ProcesoEstado {
     enEjecucion: boolean;
@@ -177,7 +178,7 @@ export function OperacionPanel({
             const data = await res.json();
             setResultado(data);
         } catch {
-            if (origen === "manual") toast.error("No se pudo obtener el resultado.");
+            if (origen === "manual") notificar.error("No se pudo obtener el resultado.");
         }
     };
 

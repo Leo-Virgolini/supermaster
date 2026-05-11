@@ -56,8 +56,10 @@ public class RecalculoPrecioFacade {
     @Transactional
     public void recalcularProductoEnTodosLosCanales(Integer productoId) {
         log.info("Recalculando producto {} en todos los canales", productoId);
-        canalRepository.findAll().forEach(canal ->
+        var canales = canalRepository.findAll();
+        canales.forEach(canal ->
                 calculoPrecioService.recalcularYGuardarPrecioCanalTodasCuotas(productoId, canal.getId()));
+        log.info("Producto {} recalculado en {} canales", productoId, canales.size());
     }
 
     /**

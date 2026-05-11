@@ -16,7 +16,7 @@ import {
     XMarkIcon,
 } from "@heroicons/react/24/outline";
 import CanalSelectBadge from "../components/CanalSelectBadge/CanalSelectBadge";
-import { toast } from "sonner";
+import { notificar } from "../utils/notificar";
 import {
     buildCanalFormulaView,
     getAllCanalesSimpleAPI,
@@ -24,6 +24,7 @@ import {
     type CanalListItem,
 } from "./canalFormulaService";
 import { APLICA_SOBRE_LABEL, isFlag, ETAPAS_INFO } from "./etapas";
+import { getAplicaSobreInfo } from "./aplica-sobre";
 import { getNaturalezaInfo } from "./naturaleza";
 import type { EtapaConConceptos, EtapaId } from "./types";
 import type { CanalFormulaView, ConceptoEnCanal, CuotaCanal } from "./types";
@@ -160,7 +161,10 @@ function ConceptoCard({
                     <div className="flex min-w-0 flex-col">
                         <span className="font-semibold text-slate-800 dark:text-slate-100">{concepto.nombre}</span>
                         <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
-                            <span>{APLICA_SOBRE_LABEL[concepto.aplicaSobre] ?? concepto.aplicaSobre}</span>
+                            {(() => {
+                                const ap = getAplicaSobreInfo(concepto.aplicaSobre);
+                                return <span className="normal-case" title={ap.descripcion}>{ap.icon} {ap.label}</span>;
+                            })()}
                             {(() => {
                                 const nat = getNaturalezaInfo(concepto.naturaleza);
                                 return (
@@ -179,7 +183,7 @@ function ConceptoCard({
                 <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                     {flag ? (
                         <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700 dark:bg-slate-700 dark:text-slate-200">
-                            ⚑ flag
+                            🚩 flag
                         </span>
                     ) : editMode && editingPorcentaje ? (
                         <span className="inline-flex items-center gap-1">
@@ -522,7 +526,7 @@ function AddConceptoButton({
                                 >
                                     <span className="font-bold text-slate-800 dark:text-slate-100">{c.nombre}</span>
                                     <span className="text-[10px] text-slate-400">
-                                        {APLICA_SOBRE_LABEL[c.aplicaSobre] ?? c.aplicaSobre}
+                                        {getAplicaSobreInfo(c.aplicaSobre).icon} {APLICA_SOBRE_LABEL[c.aplicaSobre] ?? c.aplicaSobre}
                                         {c.porcentaje != null && !c.aplicaSobre.startsWith("FLAG_") && ` · ${c.porcentaje}%`}
                                     </span>
                                 </button>
@@ -583,7 +587,7 @@ export default function CanalFormulaPage() {
                     setCanalIdSel(desde);
                 }
             } catch (e: any) {
-                toast.error(e?.message || "Error al cargar canales");
+                notificar.error(e?.message || "Error al cargar canales");
             } finally {
                 if (!cancelled) setIsLoadingCanales(false);
             }
@@ -608,7 +612,7 @@ export default function CanalFormulaPage() {
                 setView(data);
                 setCuotaSel(null);
             } catch (e: any) {
-                toast.error(e?.message || "Error al cargar la fórmula del canal");
+                notificar.error(e?.message || "Error al cargar la fórmula del canal");
                 setView(null);
             } finally {
                 if (!cancelled) setIsLoadingView(false);
@@ -632,7 +636,7 @@ export default function CanalFormulaPage() {
             const data = await buildCanalFormulaView(canal.id, canal.nombre, canalBaseNombre);
             setView(data);
         } catch (e) {
-            toast.error(errorMessage(e) || "Error al refrescar la fórmula");
+            notificar.error(errorMessage(e) || "Error al refrescar la fórmula");
         }
     }, [canalIdSel, canales]);
 
@@ -641,7 +645,7 @@ export default function CanalFormulaPage() {
         if (!editMode || allConceptos.length > 0) return;
         getConceptosGastoAPI(0, 500, {}, "nombre,asc")
             .then((r) => setAllConceptos(r.content || []))
-            .catch(() => toast.error("No se pudieron cargar los conceptos disponibles"));
+            .catch(() => notificar.error("No se pudieron cargar los conceptos disponibles"));
     }, [editMode, allConceptos.length]);
 
     const handleAsignarConcepto = useCallback(async (conceptoId: number) => {
@@ -649,9 +653,9 @@ export default function CanalFormulaPage() {
         try {
             await asignarConceptoAPI(canalIdSel, conceptoId, "INLINE");
             await refrescarView();
-            toast.success("Concepto agregado al canal");
+            notificar.success("Concepto agregado al canal");
         } catch (e) {
-            toast.error(errorMessage(e) || "Error al agregar concepto");
+            notificar.error(errorMessage(e) || "Error al agregar concepto");
         }
     }, [canalIdSel, refrescarView]);
 
@@ -667,9 +671,9 @@ export default function CanalFormulaPage() {
         try {
             await eliminarConceptoDelCanalAPI(canalIdSel, conceptoId, "INLINE");
             await refrescarView();
-            toast.success("Concepto quitado del canal");
+            notificar.success("Concepto quitado del canal");
         } catch (e) {
-            toast.error(errorMessage(e) || "Error al quitar concepto");
+            notificar.error(errorMessage(e) || "Error al quitar concepto");
         }
     }, [canalIdSel, refrescarView]);
 
@@ -677,9 +681,9 @@ export default function CanalFormulaPage() {
         try {
             await updateConceptoGastoAPI(conceptoId, { porcentaje: nuevo }, "INLINE");
             await refrescarView();
-            toast.success("Porcentaje actualizado");
+            notificar.success("Porcentaje actualizado");
         } catch (e) {
-            toast.error(errorMessage(e) || "Error al actualizar el porcentaje");
+            notificar.error(errorMessage(e) || "Error al actualizar el porcentaje");
             throw e;
         }
     }, [refrescarView]);

@@ -6,12 +6,12 @@
 //   4. Margen base + AJUSTE_MARGEN_PUNTOS + AJUSTE_MARGEN_PROPORCIONAL
 //   5. GASTO_POST_GANANCIA       × (1 + Σ%)
 //   6. FLAG_INCLUIR_ENVIO        + envío
-//   7. IVA (FLAG_APLICAR_IVA) + IMPUESTO_ADICIONAL  × (1 + Σ%)
+//   7. IVA (FLAG_APLICAR_IVA) + IMPUESTO_EN_FACTOR_IMP × (1 + Σ%)
 //   8. GASTO_POST_IMPUESTOS      × (1 + Σ%)
-//   9. COMISION_SOBRE_PVP + FLAG_COMISION_ML + FLAG_INFLACION_ML + cuota → ÷ (1 − Σ%)
-//  10. RECARGO_CUPON             ÷ (1 − %)
+//   9. COMISION_SOBRE_PVP + FLAG_COMISION_ML + cuota → ÷ (1 − Σ%)
+//  10. COSTO_OCULTO_PVP          ÷ (1 − %)
 //  11. DESCUENTO_PORCENTUAL      × (1 − %)
-//  12. INFLACION_DIVISOR         ÷ (1 − %)
+//  12. INFLACION_DIVISOR_FINAL   ÷ (1 − %)
 //  13. FLAG_APLICAR_PRECIO_INFLADO  reemplazo final si aplica.
 
 import type { CanalFormulaView, ConceptoEnCanal, CuotaCanal } from "./types";
@@ -190,7 +190,7 @@ export function buildFormulaCompuesta(view: CanalFormulaView, cuotaSel?: CuotaCa
 
     // 7. IVA + impuesto adicional.
     const iva = por(view, "FLAG_APLICAR_IVA");
-    const impAdic = por(view, "IMPUESTO_ADICIONAL");
+    const impAdic = por(view, "IMPUESTO_EN_FACTOR_IMP");
     if (iva.length > 0 || impAdic.length > 0) {
         const conceptos = [...iva, ...impAdic];
         const partes: string[] = [];
@@ -218,24 +218,18 @@ export function buildFormulaCompuesta(view: CanalFormulaView, cuotaSel?: CuotaCa
         });
     }
 
-    // 9. Comisiones + inflaciones + cuotas (divisor).
+    // 9. Comisiones + cuotas (divisor). La naturaleza del concepto decide si
+    // cada uno se cuenta como costo de venta o como inflación (no es costo);
+    // en el bucket del divisor entran todos por igual.
     const comisionPVP = por(view, "COMISION_SOBRE_PVP");
     const comisionML = por(view, "FLAG_COMISION_ML");
-    const inflacionML = por(view, "FLAG_INFLACION_ML");
-    const inflacionPVP = por(view, "INFLACION_SOBRE_PVP");
-    const tieneFlagsML = comisionML.length > 0 || inflacionML.length > 0;
+    const tieneFlagsML = comisionML.length > 0;
 
-    if (comisionPVP.length > 0 || tieneFlagsML || inflacionPVP.length > 0 || (cuotaSel && cuotaSel.porcentaje !== 0)) {
-        const conceptos = [...comisionPVP, ...comisionML, ...inflacionML, ...inflacionPVP];
+    if (comisionPVP.length > 0 || tieneFlagsML || (cuotaSel && cuotaSel.porcentaje !== 0)) {
+        const conceptos = [...comisionPVP, ...comisionML];
         const partes: string[] = [];
         for (const c of comisionPVP) {
             partes.push(c.porcentaje >= 0 ? `+ ${fmtPorc(c.porcentaje)}` : `− ${fmtPorc(Math.abs(c.porcentaje))}`);
-        }
-        // Inflación s/PVP (porcentaje propio): se suma al divisor pero NO cuenta como costo.
-        for (const c of inflacionPVP) {
-            partes.push(c.porcentaje >= 0
-                ? `+ ${fmtPorc(c.porcentaje)} (inflación)`
-                : `− ${fmtPorc(Math.abs(c.porcentaje))} (inflación)`);
         }
         if (tieneFlagsML) partes.push("+ comisión ML");
 
@@ -252,7 +246,7 @@ export function buildFormulaCompuesta(view: CanalFormulaView, cuotaSel?: CuotaCa
         if (partes.length > 0) {
             const expression = "1 " + partes.join(" ");
             pasos.push({
-                label: "Comisiones / inflaciones / cuotas",
+                label: "Comisiones sobre PVP / cuotas",
                 operator: "÷",
                 expression: `(${expression})`,
                 conceptos: conceptosResumen(conceptos),
@@ -260,16 +254,16 @@ export function buildFormulaCompuesta(view: CanalFormulaView, cuotaSel?: CuotaCa
         }
     }
 
-    // 10. Recargo cupón.
-    const recargoCupon = por(view, "RECARGO_CUPON");
-    if (recargoCupon.length > 0) {
+    // 10. Costo oculto sobre PVP (ex Recargo cupón).
+    const costoOcultoPvp = por(view, "COSTO_OCULTO_PVP");
+    if (costoOcultoPvp.length > 0) {
         // Se aplica como divisor (1 − %).
-        const ps = recargoCupon.map((c) => c.porcentaje);
+        const ps = costoOcultoPvp.map((c) => c.porcentaje);
         pasos.push({
-            label: "Recargo por cupón",
+            label: "Costo oculto sobre PVP",
             operator: "÷",
             expression: expresionDivisorMenos(ps),
-            conceptos: conceptosResumen(recargoCupon),
+            conceptos: conceptosResumen(costoOcultoPvp),
         });
     }
 
@@ -287,12 +281,12 @@ export function buildFormulaCompuesta(view: CanalFormulaView, cuotaSel?: CuotaCa
         });
     }
 
-    // 12. Inflación divisor.
-    const inflacionDiv = por(view, "INFLACION_DIVISOR");
+    // 12. Inflación divisor final.
+    const inflacionDiv = por(view, "INFLACION_DIVISOR_FINAL");
     if (inflacionDiv.length > 0) {
         const ps = inflacionDiv.map((c) => c.porcentaje);
         pasos.push({
-            label: "Inflación (divisor)",
+            label: "Inflación (divisor final)",
             operator: "÷",
             expression: expresionDivisorMenos(ps),
             conceptos: conceptosResumen(inflacionDiv),

@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { ArrowPathIcon, ChevronDownIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
-import { toast } from "sonner";
+import { notificar } from "../../utils/notificar";
 import { useRecalculoPendiente } from "./useRecalculoPendiente";
 
 /**
@@ -18,9 +18,9 @@ export default function RecalculoPendienteBanner() {
     const handleAplicar = async () => {
         const result = await aplicar();
         if (result.ok) {
-            toast.success("Recálculo iniciado — corre en segundo plano. Podés seguir trabajando.");
+            notificar.success("Recálculo iniciado — corre en segundo plano. Podés seguir trabajando.");
         } else if (result.error) {
-            toast.error(result.error);
+            notificar.error(result.error);
         }
     };
 

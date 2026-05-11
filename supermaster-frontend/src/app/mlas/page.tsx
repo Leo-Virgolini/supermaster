@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useMemo } from "react";
-import { toast } from "sonner";
+import { notificar } from "../utils/notificar";
 import { CurrencyDollarIcon, PlusIcon, TrashIcon, CheckIcon, XMarkIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
 import { confirmDialog } from "../utils/confirmDialog";
 import Table, { getInitialPageSize } from "../components/Table/core/Table";
@@ -76,7 +76,7 @@ export default function MlasPage() {
         if (!mla.mla) return;
         const conflicto = tieneConflicto("costo-envio");
         if (conflicto) {
-            toast.warning(`No se puede calcular envío: hay otro proceso ML en curso (${conflicto.descripcion})`);
+            notificar.warning(`No se puede calcular envío: hay otro proceso ML en curso (${conflicto.descripcion})`);
             return;
         }
         setCalcLoading((prev) => ({ ...prev, [mla.id]: { ...(prev[mla.id] ?? { envio: false, comision: false }), envio: true } }));
@@ -84,13 +84,13 @@ export default function MlasPage() {
             const res = await calcularCostoEnvioMlaAPI(mla.mla);
             const conIva = Number(res.costoEnvioConIva ?? 0);
             if (conIva > 0) {
-                toast.success(`Envío "${mla.mla}": $${conIva.toLocaleString("es-AR")} c/IVA (s/IVA: $${Number(res.costoEnvioSinIva ?? 0).toLocaleString("es-AR")})`);
+                notificar.success(`Envío "${mla.mla}": $${conIva.toLocaleString("es-AR")} c/IVA (s/IVA: $${Number(res.costoEnvioSinIva ?? 0).toLocaleString("es-AR")})`);
             } else {
-                toast.error(`No se pudo calcular envío para "${mla.mla}": ${res.mensaje ?? "motivo desconocido"}`);
+                notificar.error(`No se pudo calcular envío para "${mla.mla}": ${res.mensaje ?? "motivo desconocido"}`);
             }
             refreshMlaLocal(mla.id);
         } catch (e: any) {
-            toast.error("Error al calcular envío: " + e.message);
+            notificar.error("Error al calcular envío: " + e.message);
         } finally {
             setCalcLoading((prev) => ({ ...prev, [mla.id]: { ...(prev[mla.id] ?? { envio: false, comision: false }), envio: false } }));
         }
@@ -100,16 +100,16 @@ export default function MlasPage() {
         if (!mla.mla) return;
         const conflicto = tieneConflicto("costo-venta");
         if (conflicto) {
-            toast.warning(`No se puede calcular comisión: hay otro proceso ML en curso (${conflicto.descripcion})`);
+            notificar.warning(`No se puede calcular comisión: hay otro proceso ML en curso (${conflicto.descripcion})`);
             return;
         }
         setCalcLoading((prev) => ({ ...prev, [mla.id]: { ...(prev[mla.id] ?? { envio: false, comision: false }), comision: true } }));
         try {
             const res = await calcularCostoVentaMlaAPI(mla.mla);
-            toast.success(`Comisión "${mla.mla}": ${res.porcentajeTotal}% (${res.listingTypeName})`);
+            notificar.success(`Comisión "${mla.mla}": ${res.porcentajeTotal}% (${res.listingTypeName})`);
             refreshMlaLocal(mla.id);
         } catch (e: any) {
-            toast.error("Error al calcular comisión: " + e.message);
+            notificar.error("Error al calcular comisión: " + e.message);
         } finally {
             setCalcLoading((prev) => ({ ...prev, [mla.id]: { ...(prev[mla.id] ?? { envio: false, comision: false }), comision: false } }));
         }
@@ -124,7 +124,7 @@ export default function MlasPage() {
             const data = await getProductosPorMlaAPI(mla.id);
             setSkusList(data);
         } catch (e: any) {
-            toast.error("Error al cargar SKUs: " + e.message);
+            notificar.error("Error al cargar SKUs: " + e.message);
         } finally {
             setSkusLoading(false);
         }
@@ -152,7 +152,7 @@ export default function MlasPage() {
             setMlaNombre(""); setMlaCodigo(""); setMlaPrecio(0); setTopePromocion(0); setFormTouched(false);
             setIsModalOpen(false);
         } catch (error: any) {
-            toast.error("Error al crear: " + error.message);
+            notificar.error("Error al crear: " + error.message);
         } finally {
             setIsSaving(false);
         }
@@ -173,7 +173,7 @@ export default function MlasPage() {
         try {
             await updateMla(itemOriginal.id, { [columnId]: value });
         } catch (e) {
-            toast.error((e as any)?.message || "Error al actualizar la celda");
+            notificar.error((e as any)?.message || "Error al actualizar la celda");
         }
     };
 
@@ -198,14 +198,20 @@ export default function MlasPage() {
                             Borrar ({selectedIds.length})
                         </Button>
                     )}
-                    <Button
-                        variant="outline"
+                    <button
+                        type="button"
                         onClick={() => setShowMasivo(!showMasivo)}
-                        text={showMasivo ? "Ocultar Masivo" : "Recálculo Masivo"}
                         disabled={!canEdit}
+                        title={!canEdit
+                            ? "No tenés permisos para recalcular"
+                            : showMasivo
+                                ? "Cerrar panel de recálculo masivo"
+                                : "Recalcular envíos y comisiones de todos los MLAs"}
+                        className="group inline-flex items-center gap-2 rounded-lg bg-gradient-to-b from-blue-500 to-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm ring-1 ring-blue-700/10 transition hover:shadow-md hover:from-blue-500 hover:to-blue-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-none disabled:bg-slate-200 disabled:text-slate-500 disabled:ring-slate-300 disabled:shadow-none disabled:hover:shadow-none disabled:active:scale-100 dark:disabled:bg-slate-700 dark:disabled:text-slate-400 dark:disabled:ring-slate-600"
                     >
-                        <ArrowPathIcon className="w-4 h-4" />
-                    </Button>
+                        <ArrowPathIcon className={`w-4 h-4 transition-transform group-hover:rotate-180 group-disabled:rotate-0 ${showMasivo ? "rotate-180" : ""}`} />
+                        <span>{showMasivo ? "Ocultar Masivo" : "Recálculo Masivo"}</span>
+                    </button>
                     <Button variant="dark" onClick={() => setIsModalOpen(true)} disabled={!canEdit}>
                         <PlusIcon className="w-4 h-4" />
                         Crear MLA

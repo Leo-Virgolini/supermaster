@@ -63,30 +63,8 @@ export const toEtapaId = (etapa: string | null | undefined): EtapaId => {
     return etapa && ETAPA_IDS.has(etapa as EtapaId) ? (etapa as EtapaId) : "POST_PRECIO";
 };
 
-// Etiqueta legible de cada `aplicaSobre`.
-export const APLICA_SOBRE_LABEL: Record<string, string> = {
-    GASTO_SOBRE_COSTO: "% sobre Costo",
-    FLAG_FINANCIACION_PROVEEDOR: "Financiación del proveedor",
-    AJUSTE_MARGEN_PUNTOS: "Ajuste de margen (puntos)",
-    AJUSTE_MARGEN_PROPORCIONAL: "Ajuste de margen (%)",
-    FLAG_USAR_MARGEN_MINORISTA: "Margen minorista",
-    FLAG_USAR_MARGEN_MAYORISTA: "Margen mayorista",
-    GASTO_POST_GANANCIA: "% post-ganancia",
-    FLAG_APLICAR_IVA: "Aplicar IVA",
-    IMPUESTO_ADICIONAL: "Impuesto adicional",
-    GASTO_POST_IMPUESTOS: "% post-impuestos",
-    FLAG_INCLUIR_ENVIO: "Incluir costo de envío",
-    COMISION_SOBRE_PVP: "Comisión sobre PVP",
-    FLAG_COMISION_ML: "Comisión MercadoLibre",
-    FLAG_INFLACION_ML: "Inflación MercadoLibre (% del MLA)",
-    INFLACION_SOBRE_PVP: "Inflación sobre PVP (% propio)",
-    CALCULO_SOBRE_CANAL_BASE: "Cálculo sobre canal base (canal propio)",
-    CALCULO_SOBRE_CANAL_BASE_RESELLER: "Cálculo sobre canal base (reseller)",
-    RECARGO_CUPON: "Recargo por cupón",
-    DESCUENTO_PORCENTUAL: "Descuento %",
-    INFLACION_DIVISOR: "Inflación divisor",
-    GASTO_FUERA_PVP: "Gasto fuera de PVP",
-    FLAG_APLICAR_PRECIO_INFLADO: "Precio inflado",
-};
-
-export const isFlag = (aplicaSobre: string) => aplicaSobre.startsWith("FLAG_");
+// La metadata visual de cada `aplicaSobre` (label, icon, etapa) vive en
+// `aplica-sobre.ts` para mantener el patrón paralelo a NATURALEZAS_INFO.
+// Re-exportamos las APIs principales para compatibilidad con imports existentes.
+export { APLICA_SOBRE_LABEL, isFlag, getAplicaSobreInfo, getAplicaSobreBadgeClass, APLICA_SOBRE_INFO } from "./aplica-sobre";
+export type { AplicaSobreInfo, AplicaSobreId } from "./aplica-sobre";

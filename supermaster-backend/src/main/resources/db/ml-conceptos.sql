@@ -4,11 +4,12 @@
 --
 -- Mapeo fuente (Excel) -> modelo backend:
 --   GAN.MIN.ML         -> FLAG_USAR_MARGEN_MINORISTA (MARGEN_MIN, canonico compartido)
---   ENVIO              -> FLAG_INCLUIR_ENVIO         (ENVIO, canonico compartido)
---   IMP (1 + IVA + IIBB) -> FLAG_APLICAR_IVA (IVA, canonico) + IMPUESTO_ADICIONAL (IIBB, canonico)
---   ML_COMI + ML_MKT + ML_EMB + ML_SERTEC -> COMISION_SOBRE_PVP (bucket 1 "gastosVenta")
---   ML_CO_MAQCENV / ML_CO_REP / ML_CO_MENAJE -> RECARGO_CUPON (bucket 2 "costoOculto")
---   ML_PRTACHADO       -> INFLACION_DIVISOR (bucket 3 "tachado")
+--   ENVIO              -> FLAG_INCLUIR_ENVIO         (ENVIO_ML, canonico compartido)
+--   IMP (1 + IVA + IIBB) -> FLAG_APLICAR_IVA (IVA, canonico) + IMPUESTO_EN_FACTOR_IMP (IIBB, canonico)
+--   ML_COMI            -> FLAG_COMISION_ML           (COMISION_ML, canonico; toma el % del MLA del producto)
+--   ML_MKT + ML_EMB + ML_SERTEC -> COMISION_SOBRE_PVP (bucket 1 "gastosVenta")
+--   ML_CO_MAQCENV / ML_CO_REP / ML_CO_MENAJE -> COSTO_OCULTO_PVP (bucket 2 "costoOculto")
+--   ML_PRTACHADO       -> INFLACION_DIVISOR_FINAL (bucket 3 "tachado")
 --   Cuotas (ML_3C / 6C / 9C / 12C) -> canal_concepto_cuota (NO es ConceptoCalculo).
 --
 -- CONVENCION DE NOMBRES:
@@ -41,20 +42,20 @@ USE supermaster;
 -- 1) ConceptoCalculo
 -- -------------------------------------------------------------
 INSERT INTO conceptos_calculo (nombre, porcentaje, aplica_sobre, descripcion) VALUES
-  -- Conceptos canonicos (FLAG, sin prefijo de canal): se reusan entre canales
-  ('IVA',             NULL, 'FLAG_APLICAR_IVA',           'Habilita la aplicacion del IVA del producto'),
-  ('IIBB',            3.00, 'IMPUESTO_ADICIONAL',         'Ingresos Brutos: se suma al factor IMP junto con el IVA'),
-  ('MARGEN_MIN',      NULL, 'FLAG_USAR_MARGEN_MINORISTA', 'Usa margen minorista del producto (GAN.MIN.ML)'),
-  ('ENVIO',           NULL, 'FLAG_INCLUIR_ENVIO',         'Suma precio_envio del MLA al costo antes de impuestos'),
+  -- Conceptos canonicos (FLAG, sin prefijo o con sufijo de canal): se reusan entre canales
+  ('IVA',                    NULL, 'FLAG_APLICAR_IVA',            'Habilita la aplicacion del IVA del producto'),
+  ('IIBB',                   3.00, 'IMPUESTO_EN_FACTOR_IMP',      'Ingresos Brutos: se suma al factor IMP junto con el IVA'),
+  ('MARGEN_MIN',             NULL, 'FLAG_USAR_MARGEN_MINORISTA',  'Usa margen minorista del producto (GAN.MIN.ML)'),
+  ('ENVIO_ML',               NULL, 'FLAG_INCLUIR_ENVIO',          'Suma precio_envio del MLA al costo antes de impuestos'),
+  ('COMISION_ML',            NULL, 'FLAG_COMISION_ML',            'Habilita la comision de cada producto de Mercado Libre sobre el PVP (toma el % del MLA del producto)'),
   -- Conceptos con porcentaje propio del canal ML
-  ('ML_COMI',        13.00, 'COMISION_SOBRE_PVP',         'Comision Mercado Libre sobre el PVP'),
-  ('ML_MKT',          5.00, 'COMISION_SOBRE_PVP',         'Gasto de marketing / publicaciones ML'),
-  ('ML_EMB',          2.00, 'COMISION_SOBRE_PVP',         'Gasto de embalaje para envio ML'),
-  ('ML_SERTEC',       3.00, 'COMISION_SOBRE_PVP',         'Cargo de servicio tecnico ML (solo para tag=MAQUINA)'),
-  ('ML_CO_MAQCENV',  10.00, 'RECARGO_CUPON',              'Costo oculto ML para maquinas con envio'),
-  ('ML_CO_REP',       5.00, 'RECARGO_CUPON',              'Costo oculto ML para repuestos'),
-  ('ML_CO_MENAJE',    8.00, 'RECARGO_CUPON',              'Costo oculto ML para menaje'),
-  ('ML_PRTACHADO',   10.00, 'INFLACION_DIVISOR',          'Inflacion por precio tachado ML');
+  ('ML_MKT',          5.00, 'COMISION_SOBRE_PVP',         'Gasto de marketing / publicaciones del canal ML (gasto real del dueno)'),
+  ('ML_EMB',          2.00, 'COMISION_SOBRE_PVP',         'Gasto de embalaje del envio ML (gasto real del dueno; aplica a todos salvo MAQUINA sin envio)'),
+  ('ML_SERTEC',       3.00, 'COMISION_SOBRE_PVP',         'Cargo de servicio tecnico ML que se retiene en ventas de tag=MAQUINA'),
+  ('ML_CO_MAQCENV',  10.00, 'COSTO_OCULTO_PVP',           'Costo oculto ML para MAQUINA con envio: retencion adicional. Divisor separado que infla el PVP y reduce ingreso del dueno'),
+  ('ML_CO_REP',       5.00, 'COSTO_OCULTO_PVP',           'Costo oculto ML para REPUESTO: retencion adicional. Divisor separado que infla el PVP y reduce ingreso del dueno'),
+  ('ML_CO_MENAJE',    8.00, 'COSTO_OCULTO_PVP',           'Costo oculto ML para MENAJE / sin tag: retencion adicional. Divisor separado que infla el PVP y reduce ingreso del dueno'),
+  ('ML_PRTACHADO',   10.00, 'INFLACION_DIVISOR_FINAL',    'Inflacion cosmetica del PVP ML para mostrar precio tachado al cliente. ML no retiene esto: el dueno se queda con la plata extra (no es costo)');
 
 -- -------------------------------------------------------------
 -- 2) Asignar conceptos al canal ML (canal_concepto)
@@ -65,8 +66,8 @@ FROM canales c
 CROSS JOIN conceptos_calculo cc
 WHERE c.nombre = 'ML'
   AND cc.nombre IN (
-    'IVA', 'IIBB', 'MARGEN_MIN', 'ENVIO',
-    'ML_COMI', 'ML_MKT', 'ML_EMB', 'ML_SERTEC',
+    'IVA', 'IIBB', 'MARGEN_MIN', 'ENVIO_ML', 'COMISION_ML',
+    'ML_MKT', 'ML_EMB', 'ML_SERTEC',
     'ML_CO_MAQCENV', 'ML_CO_REP', 'ML_CO_MENAJE',
     'ML_PRTACHADO'
   );

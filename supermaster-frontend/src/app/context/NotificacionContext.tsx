@@ -7,6 +7,8 @@ export interface Notificacion {
     id: string;
     tipo: NotificacionTipo;
     mensaje: string;
+    /** Texto largo opcional (lista de SKUs, stack trace, etc.) — se puede copiar desde el panel. */
+    detalle?: string | null;
     timestamp: string;
     usuario: string;
     leida: boolean;
@@ -107,6 +109,7 @@ export function NotificacionProvider({ children }: { children: React.ReactNode }
             agregar({
                 tipo: detail.tipo,
                 mensaje: detail.mensaje,
+                detalle: detail.detalle ?? null,
                 timestamp: new Date().toISOString(),
                 usuario: obtenerUsuario(),
             });

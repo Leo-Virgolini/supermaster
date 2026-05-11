@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { notificar } from "../utils/notificar";
 import { getProductosAPI, createProductoAPI, updateProductoAPI, deleteProductoAPI } from "./productosService";
+import { updateProductoMargenAPI, ProductoMargenDTO } from "./productoMargenService";
 import { ProductoCreateDTO, ProductoDTO, ProductoPatchDTO } from "./types";
 import { serializeForDeps } from "../utils/serializeForDeps";
 
@@ -80,6 +81,20 @@ export function useProductos(pageIndex: number, pageSize: number, filters: Recor
 		}
 	};
 
+	const updateProductoMargen = async (
+		id: number,
+		data: Partial<Omit<ProductoMargenDTO, "id" | "productoId">>
+	) => {
+		try {
+			await updateProductoMargenAPI(id, data);
+			await getProductos();
+			notificar.success(`[Productos] Margen #${id} actualizado`);
+		} catch (e: unknown) {
+			notificar.error(e instanceof Error ? e.message : "Error al actualizar margen");
+			throw e;
+		}
+	};
+
 	const deleteProducto = async (ids: number[]) => {
 		try {
 			await Promise.all(ids.map((id) => deleteProductoAPI(id, "TABLE")));
@@ -97,6 +112,7 @@ export function useProductos(pageIndex: number, pageSize: number, filters: Recor
 		isLoading,
 		createProducto,
 		updateProducto,
+		updateProductoMargen,
 		deleteProducto,
 	};
 }

@@ -66,10 +66,10 @@ USE supermaster;
 -- 1) ConceptoCalculo (todos nuevos, propios de los subcanales LIZZY)
 -- -------------------------------------------------------------
 INSERT INTO conceptos_calculo (nombre, porcentaje, aplica_sobre, descripcion) VALUES
-  ('LZ_GASTRO_DESC', -28.000, 'CALCULO_SOBRE_CANAL_BASE_RESELLER', 'Descuento mayorista LIZZY GASTRO (Excel: * 0,72) - corta ingreso del dueño aqui'),
-  ('LZ_GASTRO_MUP',  50.000,  'CALCULO_SOBRE_CANAL_BASE',          'Markup LIZZY GASTRO al consumidor final (Excel: * 1,5) - no afecta ingreso del dueño'),
-  ('LZ_HUDSON_DESC', -35.000, 'CALCULO_SOBRE_CANAL_BASE_RESELLER', 'Descuento mayorista LIZZY HUDSON (Excel: * 0,65) - corta ingreso del dueño aqui'),
-  ('LZ_HUDSON_MUP',  70.000,  'CALCULO_SOBRE_CANAL_BASE',          'Markup LIZZY HUDSON al consumidor final (Excel: * 1,7) - no afecta ingreso del dueño');
+  ('LZ_GASTRO_DESC', -28.000, 'CALCULO_SOBRE_CANAL_BASE_RESELLER', 'LIZZY GASTRO: descuento mayorista sobre el PVP del canal base (Excel: PVP_LINEA_GE * 0,72). El ingreso del dueno se calcula en este punto, antes del markup del reseller.'),
+  ('LZ_GASTRO_MUP',  50.000,  'CALCULO_SOBRE_CANAL_BASE',          'LIZZY GASTRO: markup que el reseller agrega para llegar al consumidor final (Excel: * 1,5). No afecta el ingreso del dueno (solo el del reseller).'),
+  ('LZ_HUDSON_DESC', -35.000, 'CALCULO_SOBRE_CANAL_BASE_RESELLER', 'LIZZY HUDSON: descuento mayorista sobre el PVP del canal base (Excel: PVP_LINEA_GE * 0,65). El ingreso del dueno se calcula en este punto, antes del markup del reseller.'),
+  ('LZ_HUDSON_MUP',  70.000,  'CALCULO_SOBRE_CANAL_BASE',          'LIZZY HUDSON: markup que el reseller agrega para llegar al consumidor final (Excel: * 1,7). No afecta el ingreso del dueno (solo el del reseller).');
 
 -- -------------------------------------------------------------
 -- 2) Asignar conceptos a LIZZY GASTRO (canal_concepto)

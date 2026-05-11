@@ -33,10 +33,14 @@ public interface ProductoMapper {
     // ENTITY → DTO
     // ================================================================
     default ProductoDTO toDTO(Producto entity) {
-        return toDTO(entity, null, null, null);
+        return toDTO(entity, null, null, null, null);
     }
 
     default ProductoDTO toDTO(Producto entity, List<String> aptos, List<String> catalogos, List<String> clientes) {
+        return toDTO(entity, aptos, catalogos, clientes, null);
+    }
+
+    default ProductoDTO toDTO(Producto entity, List<String> aptos, List<String> catalogos, List<String> clientes, ProductoMargen margen) {
         if (entity == null) return null;
         return new ProductoDTO(
                 entity.getId(),
@@ -76,7 +80,11 @@ public interface ProductoMapper {
                 entity.getFechaModificacion(),
                 aptos != null ? aptos : obtenerAptos(entity),
                 catalogos != null ? catalogos : obtenerCatalogos(entity),
-                clientes != null ? clientes : obtenerClientes(entity)
+                clientes != null ? clientes : obtenerClientes(entity),
+                margen != null ? margen.getMargenMinorista() : null,
+                margen != null ? margen.getMargenMayorista() : null,
+                margen != null ? margen.getMargenFijoMinorista() : null,
+                margen != null ? margen.getMargenFijoMayorista() : null
         );
     }
 

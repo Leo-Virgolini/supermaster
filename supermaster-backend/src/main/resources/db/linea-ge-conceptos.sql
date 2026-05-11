@@ -10,14 +10,14 @@
 --   LGELOG   -> GASTO_POST_GANANCIA         (LG_LOG)
 --   LGEMKT   -> GASTO_POST_GANANCIA         (LG_MKT)
 --   LGEFIN   -> COMISION_SOBRE_PVP          (LG_FIN, bucket 1: divisor)
---   LGEINF   -> INFLACION_DIVISOR           (LG_INF, bucket 3: divisor final)
+--   LGEINF   -> INFLACION_DIVISOR_FINAL     (LG_INF, bucket 3: divisor final)
 --
 -- Verificacion del orden de cuentas en el calculador:
 --   1. costoConGanancia = costoBase * (1 + margen)
 --   2. costoConGanancia *= (1 + Sigma GASTO_POST_GANANCIA / 100)
 --   3. (sin IMP - LINEA GE NO aplica IVA ni IIBB, es precio mayorista neto)
 --   4. / (1 - Sigma COMISION_SOBRE_PVP / 100)
---   5. / (1 - Sigma INFLACION_DIVISOR / 100)
+--   5. / (1 - Sigma INFLACION_DIVISOR_FINAL / 100)
 --   Coincide exacto con la formula del Excel.
 --
 -- IMPORTANTE:
@@ -34,14 +34,17 @@ USE supermaster;
 -- -------------------------------------------------------------
 -- 1) ConceptoCalculo (todos nuevos, propios de LINEA GE)
 -- -------------------------------------------------------------
-INSERT INTO conceptos_calculo (nombre, porcentaje, aplica_sobre, descripcion) VALUES
+-- LG_LOG y LG_MKT son GASTO_POST_GANANCIA (matemática: amplifica costo+ganancia),
+-- pero son GASTOS REALES del dueño (logística al transportista, publicidad).
+-- Por eso van con naturaleza COSTO_VENTA explícita (no la default INFLACION del enum).
+INSERT INTO conceptos_calculo (nombre, porcentaje, aplica_sobre, naturaleza, descripcion) VALUES
   -- Canonico nuevo (FLAG, sin prefijo de canal): primera carga
-  ('MARGEN_MAY',    NULL, 'FLAG_USAR_MARGEN_MAYORISTA', 'Usa margen mayorista del producto (%GAN)'),
+  ('MARGEN_MAY',    NULL,  'FLAG_USAR_MARGEN_MAYORISTA', NULL,         'Usa margen mayorista del producto (%GAN)'),
   -- Conceptos con porcentaje propio del canal LINEA GE
-  ('LG_LOG',        5.000, 'GASTO_POST_GANANCIA',        'Logistica LINEA GE: amplifica costo+ganancia (LGELOG)'),
-  ('LG_MKT',        3.000, 'GASTO_POST_GANANCIA',        'Marketing LINEA GE: amplifica costo+ganancia (LGEMKT)'),
-  ('LG_FIN',        5.000, 'COMISION_SOBRE_PVP',         'Financiacion LINEA GE: divisor (1 - LGEFIN)'),
-  ('LG_INF',        8.000, 'INFLACION_DIVISOR',          'Inflacion LINEA GE: divisor (1 - LGEINF)');
+  ('LG_LOG',        5.000, 'GASTO_POST_GANANCIA',        'COSTO_VENTA', 'Logistica LINEA GE: gasto real del dueno (transportista). Amplifica costo+ganancia (LGELOG).'),
+  ('LG_MKT',        3.000, 'GASTO_POST_GANANCIA',        'COSTO_VENTA', 'Marketing LINEA GE: gasto real del dueno (publicidad). Amplifica costo+ganancia (LGEMKT).'),
+  ('LG_FIN',        5.000, 'COMISION_SOBRE_PVP',         NULL,         'Costo financiero LINEA GE (intereses por pago diferido / medio de pago). Divisor que infla PVP y se cuenta como costo del dueno.'),
+  ('LG_INF',        8.000, 'INFLACION_DIVISOR_FINAL',    NULL,         'Inflacion cosmetica del PVP LINEA GE. Divisor separado: el cliente paga el sobrecargo y queda como ganancia del dueno (no es costo).');
 
 -- -------------------------------------------------------------
 -- 2) Asignar conceptos al canal LINEA GE (canal_concepto)

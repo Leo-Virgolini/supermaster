@@ -1,6 +1,7 @@
 "use client";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
+import { notificar } from "../utils/notificar";
 import { BoltIcon, XMarkIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import AsyncSelect from "../components/AsyncSelect/AsyncSelect";
 import Button from "../components/Button/Button";
@@ -286,7 +287,7 @@ export default function SimuladorForm({ canalId, cuotas }: SimuladorFormProps) {
         } catch (e: any) {
             const msg = e?.message ?? "Error al simular";
             setError(msg);
-            toast.error(msg);
+            notificar.error(msg);
             setResultado(null);
         } finally {
             setIsLoading(false);
@@ -501,7 +502,7 @@ export default function SimuladorForm({ canalId, cuotas }: SimuladorFormProps) {
                                 placeholder="—"
                             />
                             <span className="mt-1 block text-[10px] italic text-slate-500 dark:text-slate-400">
-                                Aplica solo si el canal tiene <span className="font-mono">FLAG_COMISION_ML</span> o <span className="font-mono">FLAG_INFLACION_ML</span>.
+                                Aplica solo si el canal tiene <span className="font-mono">FLAG_COMISION_ML</span>.
                             </span>
                         </label>
                     </div>

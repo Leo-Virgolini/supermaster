@@ -15,6 +15,7 @@ import {
     getAllConceptosCalculoAPI,
 } from "./canalConceptosService";
 import { ETAPAS_INFO, toEtapaId, APLICA_SOBRE_LABEL } from "../canal-formula/etapas";
+import { getAplicaSobreInfo, getAplicaSobreBadgeClass } from "../canal-formula/aplica-sobre";
 import { getNaturalezaInfo } from "../canal-formula/naturaleza";
 import type { EtapaId } from "../canal-formula/types";
 import {
@@ -128,11 +129,11 @@ function validarConceptosCanal(
     const cantidadDe = (a: string) => conceptos.filter((c) => c.aplicaSobre === a).length;
 
     // 1) IIBB sin IVA: poco común fiscalmente. IIBB se suma al IVA en el divisor.
-    if (tieneAplicaSobre("IMPUESTO_ADICIONAL") && !tieneAplicaSobre("FLAG_APLICAR_IVA")) {
+    if (tieneAplicaSobre("IMPUESTO_EN_FACTOR_IMP") && !tieneAplicaSobre("FLAG_APLICAR_IVA")) {
         checks.push({
             severidad: "warning",
             titulo: "Hay impuestos adicionales pero el IVA no está habilitado",
-            detalle: "Tenés un IMPUESTO_ADICIONAL (ej: IIBB) asignado pero falta FLAG_APLICAR_IVA. Los impuestos adicionales se suman al IVA en el factor de impuestos — sin IVA, el factor solo aplica el porcentaje del impuesto adicional.",
+            detalle: "Tenés un IMPUESTO_EN_FACTOR_IMP (ej: IIBB) asignado pero falta FLAG_APLICAR_IVA. Los impuestos adicionales se suman al IVA en el factor de impuestos — sin IVA, el factor solo aplica el porcentaje del impuesto adicional.",
         });
     }
 
@@ -175,7 +176,7 @@ function validarConceptosCanal(
     // 5) Más de un FLAG_FINANCIACION_PROVEEDOR / FLAG_APLICAR_IVA / FLAG_APLICAR_PRECIO_INFLADO.
     // Son flags binarios — duplicarlos no aporta nada y puede confundir.
     const flagsBinarios = ["FLAG_FINANCIACION_PROVEEDOR", "FLAG_APLICAR_IVA", "FLAG_APLICAR_PRECIO_INFLADO",
-        "FLAG_INCLUIR_ENVIO", "FLAG_COMISION_ML", "FLAG_INFLACION_ML"];
+        "FLAG_INCLUIR_ENVIO", "FLAG_COMISION_ML"];
     for (const flag of flagsBinarios) {
         if (cantidadDe(flag) > 1) {
             checks.push({
@@ -292,12 +293,12 @@ function ConceptosTab({ canalId, canalBaseId }: { canalId: number; canalBaseId: 
     // Nombre primero (el usuario busca por nombre), luego un descriptor visual:
     //   KH_RELMKUP        — +25%
     //   LZ_GASTRO_DESC    — -28%
-    //   FINANCIACION_PROV — ⚑ flag
+    //   FINANCIACION_PROV — 🚩 flag
     // El signo explícito "+" en positivos hace fácil distinguir recargo vs descuento
     // (los <option> nativos no permiten color, así que el signo es el único indicador).
     const formatOptionLabel = (c: ConceptoCalculoOption): string => {
         const esFlag = c.aplicaSobre.startsWith("FLAG_");
-        if (esFlag) return `${c.label}  —  ⚑ flag`;
+        if (esFlag) return `${c.label}  —  🚩 flag`;
         if (c.porcentaje == null) return c.label;
         const sign = c.porcentaje > 0 ? "+" : "";
         return `${c.label}  —  ${sign}${c.porcentaje}%`;
@@ -437,7 +438,7 @@ function ConceptosTab({ canalId, canalBaseId }: { canalId: number; canalBaseId: 
                                                 </td>
                                                 <td className="px-3 py-2 text-xs font-mono w-[60px]">
                                                     {isFlag(item.aplicaSobre) ? (
-                                                        <span className="text-slate-400" title="Flag — el porcentaje no aplica">⚑</span>
+                                                        <span className="text-slate-400" title="Flag — el porcentaje no aplica">🚩</span>
                                                     ) : (
                                                         <span className={item.porcentaje > 0 ? "text-emerald-700" : item.porcentaje < 0 ? "text-rose-700" : "text-slate-400"}>
                                                             {item.porcentaje}%
@@ -445,9 +446,15 @@ function ConceptosTab({ canalId, canalBaseId }: { canalId: number; canalBaseId: 
                                                     )}
                                                 </td>
                                                 <td className="px-3 py-2 w-[200px]">
-                                                    <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300">
-                                                        {APLICA_SOBRE_LABEL[item.aplicaSobre] ?? item.aplicaSobre}
-                                                    </span>
+                                                    {(() => {
+                                                        const ap = getAplicaSobreInfo(item.aplicaSobre);
+                                                        return (
+                                                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold ${getAplicaSobreBadgeClass(item.aplicaSobre)}`} title={ap.descripcion}>
+                                                                <span>{ap.icon}</span>
+                                                                <span>{ap.labelCorto}</span>
+                                                            </span>
+                                                        );
+                                                    })()}
                                                 </td>
                                                 <td className="px-3 py-2 w-[140px]">
                                                     {(() => {

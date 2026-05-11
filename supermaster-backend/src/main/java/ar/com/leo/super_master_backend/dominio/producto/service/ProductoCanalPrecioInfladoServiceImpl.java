@@ -1,5 +1,8 @@
 package ar.com.leo.super_master_backend.dominio.producto.service;
 
+import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaAccion;
+import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaEntidad;
+import ar.com.leo.super_master_backend.dominio.auditoria.service.AuditoriaService;
 import ar.com.leo.super_master_backend.dominio.canal.repository.CanalRepository;
 import ar.com.leo.super_master_backend.dominio.common.exception.ConflictException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
@@ -18,7 +21,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +35,7 @@ public class ProductoCanalPrecioInfladoServiceImpl implements ProductoCanalPreci
     private final CanalRepository canalRepository;
     private final PrecioInfladoRepository precioInfladoRepository;
     private final ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService recalculoPendienteService;
+    private final AuditoriaService auditoriaService;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -106,7 +112,16 @@ public class ProductoCanalPrecioInfladoServiceImpl implements ProductoCanalPreci
 
         precioInflado = repository.saveAndFlush(precioInflado);
 
-        recalculoPendienteService.marcarProducto("Cambio en precio inflado del producto", dto.productoId());
+        auditoriaService.registrarCambios(
+                AuditoriaEntidad.PRODUCTO_CANAL_PRECIO_INFLADO,
+                precioInflado.getId(),
+                codigoAsignacion(precioInflado),
+                AuditoriaAccion.CREATE,
+                Map.of(),
+                capturarSnapshot(precioInflado)
+        );
+
+        recalculoPendienteService.marcarProducto("Asignación de precio inflado a producto", dto.productoId());
 
         return mapper.toDTO(precioInflado);
     }
@@ -118,6 +133,8 @@ public class ProductoCanalPrecioInfladoServiceImpl implements ProductoCanalPreci
         ProductoCanalPrecioInflado precioInflado = repository.findByProductoIdAndCanalId(productoId, canalId)
                 .orElseThrow(() -> new NotFoundException(
                         "Precio inflado no encontrado para producto ID: " + productoId + " y canal ID: " + canalId));
+
+        Map<String, String> estadoAnterior = capturarSnapshot(precioInflado);
 
         if (dto.precioInfladoId() != null) {
             PrecioInflado precioInfladoMaestro =
@@ -132,7 +149,16 @@ public class ProductoCanalPrecioInfladoServiceImpl implements ProductoCanalPreci
 
         precioInflado = repository.saveAndFlush(precioInflado);
 
-        recalculoPendienteService.marcarProducto("Cambio en precio inflado del producto", productoId);
+        auditoriaService.registrarCambios(
+                AuditoriaEntidad.PRODUCTO_CANAL_PRECIO_INFLADO,
+                precioInflado.getId(),
+                codigoAsignacion(precioInflado),
+                AuditoriaAccion.UPDATE,
+                estadoAnterior,
+                capturarSnapshot(precioInflado)
+        );
+
+        recalculoPendienteService.marcarProducto("Asignación de precio inflado a producto", productoId);
 
         return mapper.toDTO(precioInflado);
     }
@@ -143,6 +169,9 @@ public class ProductoCanalPrecioInfladoServiceImpl implements ProductoCanalPreci
         ProductoCanalPrecioInflado precioInflado = repository.findByProductoIdAndCanalId(productoId, canalId)
                 .orElseThrow(() -> new NotFoundException(
                         "Precio inflado no encontrado para producto ID: " + productoId + " y canal ID: " + canalId));
+
+        Map<String, String> snapshotPrevio = capturarSnapshot(precioInflado);
+        String codigo = codigoAsignacion(precioInflado);
 
         // Limpiar el contexto de persistencia ANTES del delete para evitar
         // TransientPropertyValueException: si ProductoCanalPrecio está en la sesión
@@ -159,7 +188,33 @@ public class ProductoCanalPrecioInfladoServiceImpl implements ProductoCanalPreci
         repository.delete(precioInflado);
         repository.flush();
 
-        recalculoPendienteService.marcarProducto("Cambio en precio inflado del producto", productoId);
+        auditoriaService.registrarCambios(
+                AuditoriaEntidad.PRODUCTO_CANAL_PRECIO_INFLADO,
+                precioInfladoDbId,
+                codigo,
+                AuditoriaAccion.DELETE,
+                snapshotPrevio,
+                Map.of()
+        );
+
+        recalculoPendienteService.marcarProducto("Asignación de precio inflado a producto", productoId);
+    }
+
+    private Map<String, String> capturarSnapshot(ProductoCanalPrecioInflado pcpi) {
+        Map<String, String> snap = new LinkedHashMap<>();
+        snap.put("productoId", pcpi.getProducto() != null ? String.valueOf(pcpi.getProducto().getId()) : "");
+        snap.put("canalId", pcpi.getCanal() != null ? String.valueOf(pcpi.getCanal().getId()) : "");
+        snap.put("precioInfladoId", pcpi.getPrecioInflado() != null ? String.valueOf(pcpi.getPrecioInflado().getId()) : "");
+        snap.put("precioInfladoCodigo", pcpi.getPrecioInflado() != null && pcpi.getPrecioInflado().getCodigo() != null
+                ? pcpi.getPrecioInflado().getCodigo() : "");
+        snap.put("activo", pcpi.getActivo() != null ? String.valueOf(pcpi.getActivo()) : "");
+        return snap;
+    }
+
+    private String codigoAsignacion(ProductoCanalPrecioInflado pcpi) {
+        Integer prodId = pcpi.getProducto() != null ? pcpi.getProducto().getId() : null;
+        Integer canalId = pcpi.getCanal() != null ? pcpi.getCanal().getId() : null;
+        return "P" + prodId + "-C" + canalId;
     }
 
 }

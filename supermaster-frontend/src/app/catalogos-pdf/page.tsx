@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { notificar } from "../utils/notificar";
 import {
     ArrowDownTrayIcon,
     BookOpenIcon,
@@ -289,7 +290,7 @@ export default function CatalogosPdfPage() {
             const data = await response.json() as { content?: CatalogoPdfConfigItem[] };
             setConfigsPdf(data.content ?? []);
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : "No se pudieron cargar las automatizaciones PDF.");
+            notificar.error(err instanceof Error ? err.message : "No se pudieron cargar las automatizaciones PDF.");
         } finally {
             setCargandoConfigsPdf(false);
         }
@@ -302,7 +303,7 @@ export default function CatalogosPdfPage() {
             const data = await response.json() as CatalogoPdfGlobalConfig;
             setGlobalConfig({ imagenesDir: data.imagenesDir ?? "" });
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : "No se pudo cargar la configuración global de imágenes.");
+            notificar.error(err instanceof Error ? err.message : "No se pudo cargar la configuración global de imágenes.");
         } finally {
             setCargandoGlobalConfig(false);
         }
@@ -347,10 +348,10 @@ export default function CatalogosPdfPage() {
         if (subtitulo.trim()) params.append("subtitulo", subtitulo.trim());
         try {
             const { productos, productosSinImagen: sinImagen } = await descargarPdf(`${API_BASE_URL}/api/catalogos-pdf/exportar?${params.toString()}`);
-            toast.success(productos > 0 ? `Catálogo PDF descargado (${productos} productos).` : "Catálogo PDF descargado.");
+            notificar.success(productos > 0 ? `Catálogo PDF descargado (${productos} productos).` : "Catálogo PDF descargado.");
             setProductosSinImagen(sinImagen);
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Error al exportar catálogo PDF");
+            notificar.error(err instanceof Error ? err.message : "Error al exportar catálogo PDF");
             setProductosSinImagen([]);
         } finally {
             setExportandoCatalogoPdf(false);
@@ -367,7 +368,7 @@ export default function CatalogosPdfPage() {
             if (contentType.includes("application/json")) {
                 // Guardado en disco del servidor
                 const data = await response.json() as { mensaje: string; ruta: string; productosExportados: number; productosSinImagen: string[] };
-                toast.success(`PDF generado para "${config.nombre}" (${data.productosExportados} productos). Guardado en: ${data.ruta}`);
+                notificar.success(`PDF generado para "${config.nombre}" (${data.productosExportados} productos). Guardado en: ${data.ruta}`);
                 setProductosSinImagen(data.productosSinImagen ?? []);
             } else {
                 // Descarga directa (sin ubicación de salida configurada)
@@ -383,12 +384,12 @@ export default function CatalogosPdfPage() {
                 document.body.removeChild(a);
                 URL.revokeObjectURL(blobUrl);
                 const productos = Number(response.headers.get("X-Productos-Count") ?? "0");
-                toast.success(productos > 0 ? `PDF generado para "${config.nombre}" (${productos} productos).` : `PDF generado para "${config.nombre}".`);
+                notificar.success(productos > 0 ? `PDF generado para "${config.nombre}" (${productos} productos).` : `PDF generado para "${config.nombre}".`);
                 const sinImagenHeader = response.headers.get("X-Productos-Sin-Imagen") ?? "";
                 setProductosSinImagen(sinImagenHeader ? sinImagenHeader.split(",") : []);
             }
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : `No se pudo generar el PDF para "${config.nombre}".`);
+            notificar.error(err instanceof Error ? err.message : `No se pudo generar el PDF para "${config.nombre}".`);
         } finally {
             setEjecutandoConfigSlug(null);
         }
@@ -447,11 +448,11 @@ export default function CatalogosPdfPage() {
                 headers: withAuditOrigin("FORM", { "Content-Type": "application/json" }),
                 body: JSON.stringify(payload),
             });
-            toast.success(editingConfigId ? "Automatización PDF actualizada." : "Automatización PDF creada.");
+            notificar.success(editingConfigId ? "Automatización PDF actualizada." : "Automatización PDF creada.");
             closeConfigModal();
             await cargarConfigsPdf();
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : "No se pudo guardar la automatización PDF.");
+            notificar.error(err instanceof Error ? err.message : "No se pudo guardar la automatización PDF.");
         } finally {
             setGuardandoConfig(false);
         }
@@ -468,10 +469,10 @@ export default function CatalogosPdfPage() {
                 headers: withAuditOrigin("TABLE"),
                 allowedStatuses: [204],
             });
-            toast.success("Automatización PDF eliminada.");
+            notificar.success("Automatización PDF eliminada.");
             await cargarConfigsPdf();
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : "No se pudo eliminar la automatización PDF.");
+            notificar.error(err instanceof Error ? err.message : "No se pudo eliminar la automatización PDF.");
         } finally {
             setEliminandoConfigId(null);
         }

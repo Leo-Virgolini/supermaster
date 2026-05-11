@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { notificar } from "../utils/notificar";
 import { CalculatorIcon, InformationCircleIcon, PlusIcon, TrashIcon, CheckIcon, XMarkIcon, ChevronDownIcon, FunnelIcon } from "@heroicons/react/24/outline";
 import { confirmDialog } from "../utils/confirmDialog";
 import Table, { getInitialPageSize } from "../components/Table/core/Table";
@@ -11,6 +11,8 @@ import { useAuth } from "../context/AuthContext";
 import { useConceptosGasto } from "./useConceptosGastos";
 import { getConceptosGastoAPI, getCanalesDelConceptoAPI, type NaturalezaConcepto } from "./conceptosGastosService";
 import { NATURALEZAS_INFO } from "../canal-formula/naturaleza";
+import { APLICA_SOBRE_INFO, getAplicaSobreInfo } from "../canal-formula/aplica-sobre";
+import { ETAPAS_INFO } from "../canal-formula/etapas";
 import { BuildingStorefrontIcon } from "@heroicons/react/24/outline";
 import { getColumns } from "./columns";
 import { type SortingState } from "@tanstack/react-table";
@@ -37,6 +39,7 @@ export default function ConceptosGastoPage() {
     const [descripcion, setDescripcion] = useState("");
 
     const [showAplicaSobreHelp, setShowAplicaSobreHelp] = useState(false);
+    const [showNaturalezaHelp, setShowNaturalezaHelp] = useState(false);
     const [ayudaAbierta, setAyudaAbierta] = useState(false);
 
     // Modal canales del concepto
@@ -77,7 +80,7 @@ export default function ConceptosGastoPage() {
             .catch(() => {
                 if (cancelled) return;
                 setCanalConceptoIds(new Set());
-                toast.error("Error al obtener los conceptos del canal");
+                notificar.error("Error al obtener los conceptos del canal");
             })
             .finally(() => { if (!cancelled) setIsLoadingCanalConceptos(false); });
         return () => { cancelled = true; };
@@ -111,7 +114,7 @@ export default function ConceptosGastoPage() {
             setCanalesModal(prev => ({ ...prev, loading: false, canales }));
         } catch {
             setCanalesModal(prev => ({ ...prev, loading: false, canales: [] }));
-            toast.error("Error al obtener canales");
+            notificar.error("Error al obtener canales");
         }
     }, [conceptos]);
 
@@ -242,8 +245,15 @@ export default function ConceptosGastoPage() {
                             <p className="mb-1 font-semibold">Campos clave:</p>
                             <ul className="ml-4 list-disc space-y-0.5">
                                 <li><strong>Nombre</strong>: identificador corto (ej: <span className="font-mono">ML_COMI</span>, <span className="font-mono">KG_DESC_5</span>).</li>
-                                <li><strong>Porcentaje</strong>: valor numérico que aplica al cálculo. Para <em>flags</em> (⚑) este valor se ignora.</li>
-                                <li><strong>Aplica Sobre</strong>: define la etapa y la fórmula con la que se aplica. Mirá la guía detallada en el botón <strong>ℹ</strong> de la toolbar para ver los 22 valores disponibles agrupados por etapa.</li>
+                                <li><strong>Porcentaje</strong>: valor numérico que aplica al cálculo. Para <em>flags</em> (🚩) este valor se ignora.</li>
+                                <li><strong>Aplica Sobre</strong>: define la <em>matemática del PVP</em> — en qué etapa y con qué fórmula se aplica. Mirá la guía detallada en el botón <strong>ℹ</strong> de la toolbar para ver los 22 valores agrupados por etapa.</li>
+                                <li>
+                                    <strong>Naturaleza</strong>: define cómo el concepto <em>impacta los indicadores</em>{" "}
+                                    (ganancia, márgenes, markup) — independiente de Aplica Sobre. Por defecto cada Aplica
+                                    Sobre tiene su naturaleza coherente (⚙ Auto); podés sobreescribirla cuando dos conceptos
+                                    comparten matemática pero distinto efecto contable. Mirá la guía detallada en el botón{" "}
+                                    <strong>ℹ</strong> de la toolbar para ver los 8 valores con su impacto contable.
+                                </li>
                                 <li><strong>Descripción</strong>: nota interna para documentar para qué se usa. Se muestra como tooltip en otras pantallas.</li>
                             </ul>
                         </div>
@@ -300,13 +310,24 @@ export default function ConceptosGastoPage() {
                     onExportAll={handleExportAll}
                     exportFilename="conceptos-gastos"
                     toolbarExtra={
-                        <button
-                            onClick={() => setShowAplicaSobreHelp(true)}
-                            className="shrink-0 p-1.5 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-blue-600 dark:text-blue-400 transition-colors"
-                            title="Guía de conceptos"
-                        >
-                            <InformationCircleIcon className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                            <button
+                                onClick={() => setShowAplicaSobreHelp(true)}
+                                className="shrink-0 p-1.5 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-blue-600 dark:text-blue-400 transition-colors flex items-center gap-1"
+                                title="Guía: Aplica Sobre"
+                            >
+                                <InformationCircleIcon className="w-4 h-4" />
+                                <span className="text-xs font-semibold">Aplica Sobre</span>
+                            </button>
+                            <button
+                                onClick={() => setShowNaturalezaHelp(true)}
+                                className="shrink-0 p-1.5 rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/40 text-purple-600 dark:text-purple-400 transition-colors flex items-center gap-1"
+                                title="Guía: Naturaleza"
+                            >
+                                <InformationCircleIcon className="w-4 h-4" />
+                                <span className="text-xs font-semibold">Naturaleza</span>
+                            </button>
+                        </div>
                     }
                 />
             </div>
@@ -340,38 +361,13 @@ export default function ConceptosGastoPage() {
                     <label className="block">
                         <span className="font-bold text-gray-700">Aplica Sobre <span className="text-red-500">*</span></span>
                         <select className="w-full border p-2 rounded text-sm" required value={aplicaSobre} onChange={e => setAplicaSobre(e.target.value)}>
-                            <optgroup label="Costo">
-                                <option value="GASTO_SOBRE_COSTO">% sobre Costo</option>
-                                <option value="FLAG_FINANCIACION_PROVEEDOR">⚑ Financiación Proveedor</option>
-                            </optgroup>
-                            <optgroup label="Margen">
-                                <option value="AJUSTE_MARGEN_PUNTOS">Ajuste Margen (puntos)</option>
-                                <option value="AJUSTE_MARGEN_PROPORCIONAL">Ajuste Margen (%)</option>
-                                <option value="FLAG_USAR_MARGEN_MINORISTA">⚑ Margen Minorista</option>
-                                <option value="FLAG_USAR_MARGEN_MAYORISTA">⚑ Margen Mayorista</option>
-                                <option value="GASTO_POST_GANANCIA">% post Ganancia</option>
-                            </optgroup>
-                            <optgroup label="Impuestos">
-                                <option value="FLAG_APLICAR_IVA">⚑ Aplicar IVA</option>
-                                <option value="IMPUESTO_ADICIONAL">Impuesto Adicional</option>
-                                <option value="GASTO_POST_IMPUESTOS">% post Impuestos</option>
-                            </optgroup>
-                            <optgroup label="Precio">
-                                <option value="FLAG_INCLUIR_ENVIO">⚑ Incluir Envío</option>
-                                <option value="COMISION_SOBRE_PVP">Comisión s/PVP</option>
-                                <option value="FLAG_COMISION_ML">⚑ Comisión ML</option>
-                                <option value="FLAG_INFLACION_ML">⚑ Inflación ML (% del MLA)</option>
-                                <option value="INFLACION_SOBRE_PVP">Inflación s/PVP (% propio)</option>
-                                <option value="CALCULO_SOBRE_CANAL_BASE">Canal Base (canal propio)</option>
-                                <option value="CALCULO_SOBRE_CANAL_BASE_RESELLER">Canal Base (reseller)</option>
-                            </optgroup>
-                            <optgroup label="Post-precio">
-                                <option value="RECARGO_CUPON">Recargo Cupón</option>
-                                <option value="DESCUENTO_PORCENTUAL">Descuento %</option>
-                                <option value="INFLACION_DIVISOR">Inflación Divisor</option>
-                                <option value="GASTO_FUERA_PVP">Gasto fuera de PVP</option>
-                                <option value="FLAG_APLICAR_PRECIO_INFLADO">⚑ Precio Inflado</option>
-                            </optgroup>
+                            {ETAPAS_INFO.map((etapa) => (
+                                <optgroup key={etapa.id} label={`${etapa.icon} ${etapa.label}`}>
+                                    {APLICA_SOBRE_INFO.filter((a) => a.etapa === etapa.id).map((a) => (
+                                        <option key={a.id} value={a.id}>{a.icon} {a.label}</option>
+                                    ))}
+                                </optgroup>
+                            ))}
                         </select>
                     </label>
                     <label className="block">
@@ -434,47 +430,45 @@ export default function ConceptosGastoPage() {
             <Modal isOpen={showAplicaSobreHelp} onClose={() => setShowAplicaSobreHelp(false)} title="Guía: Aplica Sobre" size="lg">
                 <div className="max-h-[65vh] overflow-y-auto space-y-5 text-sm">
                     <p className="text-gray-500 dark:text-slate-400">
-                        Cada concepto se aplica en una etapa específica del cálculo de precio. Los conceptos marcados con <span className="font-bold">⚑</span> son <em>flags</em>: solo habilitan una funcionalidad, el porcentaje se ignora.
+                        Cada concepto se aplica en una etapa específica del cálculo de precio. Los conceptos marcados con <span className="font-bold">🚩</span> son <em>flags</em>: solo habilitan una funcionalidad, el porcentaje se ignora.
                     </p>
 
                     <div className="rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4 space-y-2">
-                        <h3 className="font-bold text-blue-900 dark:text-blue-300">1. Costo</h3>
+                        <h3 className="font-bold text-blue-900 dark:text-blue-300">{ETAPAS_INFO[0].icon} 1. Costo</h3>
                         <dl className="space-y-1.5 text-gray-700 dark:text-slate-300">
-                            <div><dt className="font-semibold inline">% sobre Costo:</dt><dd className="inline ml-1">Multiplica el costo base. Ej: Embalaje +2% → COSTO × (1 + 2/100)</dd></div>
-                            <div><dt className="font-semibold inline">⚑ Financiación Proveedor:</dt><dd className="inline ml-1">Usa el % de financiación del proveedor del producto. El valor viene de la ficha del proveedor.</dd></div>
+                            <div><dt className="font-semibold inline">{getAplicaSobreInfo("GASTO_SOBRE_COSTO").icon} % sobre Costo:</dt><dd className="inline ml-1">Multiplica el costo base. Ej: Embalaje +2% → COSTO × (1 + 2/100)</dd></div>
+                            <div><dt className="font-semibold inline">{getAplicaSobreInfo("FLAG_FINANCIACION_PROVEEDOR").icon} Financiación Proveedor:</dt><dd className="inline ml-1">Usa el % de financiación del proveedor del producto. El valor viene de la ficha del proveedor.</dd></div>
                         </dl>
                     </div>
 
                     <div className="rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-4 space-y-2">
-                        <h3 className="font-bold text-green-900 dark:text-green-300">2. Margen</h3>
+                        <h3 className="font-bold text-green-900 dark:text-green-300">{ETAPAS_INFO[1].icon} 2. Margen</h3>
                         <dl className="space-y-1.5 text-gray-700 dark:text-slate-300">
-                            <div><dt className="font-semibold inline">Ajuste Margen (puntos):</dt><dd className="inline ml-1">Suma/resta puntos al margen. Ej: margen 60% + 25pts = 85%</dd></div>
-                            <div><dt className="font-semibold inline">Ajuste Margen (%):</dt><dd className="inline ml-1">Ajusta proporcionalmente. Ej: margen 60% × (1 - 12/100) = 52.8%</dd></div>
-                            <div><dt className="font-semibold inline">⚑ Margen Minorista:</dt><dd className="inline ml-1">Usa el margen minorista del producto (por defecto si no hay flag).</dd></div>
-                            <div><dt className="font-semibold inline">⚑ Margen Mayorista:</dt><dd className="inline ml-1">Usa el margen mayorista del producto en vez del minorista.</dd></div>
-                            <div><dt className="font-semibold inline">% post Ganancia:</dt><dd className="inline ml-1">Se aplica después de calcular ganancia, antes de impuestos.</dd></div>
+                            <div><dt className="font-semibold inline">{getAplicaSobreInfo("AJUSTE_MARGEN_PUNTOS").icon} Ajuste Margen (puntos):</dt><dd className="inline ml-1">Suma/resta puntos al margen. Ej: margen 60% + 25pts = 85%</dd></div>
+                            <div><dt className="font-semibold inline">{getAplicaSobreInfo("AJUSTE_MARGEN_PROPORCIONAL").icon} Ajuste Margen (%):</dt><dd className="inline ml-1">Ajusta proporcionalmente. Ej: margen 60% × (1 - 12/100) = 52.8%</dd></div>
+                            <div><dt className="font-semibold inline">{getAplicaSobreInfo("FLAG_USAR_MARGEN_MINORISTA").icon} Margen Minorista:</dt><dd className="inline ml-1">Usa el margen minorista del producto (por defecto si no hay flag).</dd></div>
+                            <div><dt className="font-semibold inline">{getAplicaSobreInfo("FLAG_USAR_MARGEN_MAYORISTA").icon} Margen Mayorista:</dt><dd className="inline ml-1">Usa el margen mayorista del producto en vez del minorista.</dd></div>
+                            <div><dt className="font-semibold inline">{getAplicaSobreInfo("GASTO_POST_GANANCIA").icon} % post Ganancia:</dt><dd className="inline ml-1">Se aplica después de calcular ganancia, antes de impuestos.</dd></div>
                         </dl>
                     </div>
 
                     <div className="rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-4 space-y-2">
-                        <h3 className="font-bold text-amber-900 dark:text-amber-300">3. Impuestos</h3>
+                        <h3 className="font-bold text-amber-900 dark:text-amber-300">{ETAPAS_INFO[2].icon} 3. Impuestos</h3>
                         <dl className="space-y-1.5 text-gray-700 dark:text-slate-300">
-                            <div><dt className="font-semibold inline">⚑ Aplicar IVA:</dt><dd className="inline ml-1">Habilita el IVA del producto para este canal. Sin este flag, IVA = 0%.</dd></div>
-                            <div><dt className="font-semibold inline">Impuesto Adicional:</dt><dd className="inline ml-1">Se suma al factor de impuestos. Ej: IIBB 5% → IMP = 1 + IVA/100 + 5/100</dd></div>
-                            <div><dt className="font-semibold inline">% post Impuestos:</dt><dd className="inline ml-1">Se aplica después de impuestos, antes de comisiones.</dd></div>
+                            <div><dt className="font-semibold inline">{getAplicaSobreInfo("FLAG_APLICAR_IVA").icon} Aplicar IVA:</dt><dd className="inline ml-1">Habilita el IVA del producto para este canal. Sin este flag, IVA = 0%.</dd></div>
+                            <div><dt className="font-semibold inline">{getAplicaSobreInfo("IMPUESTO_EN_FACTOR_IMP").icon} Impuesto en factor IMP:</dt><dd className="inline ml-1">Se suma al factor de impuestos junto al IVA. Ej: IIBB 5% → IMP = 1 + IVA/100 + 5/100</dd></div>
+                            <div><dt className="font-semibold inline">{getAplicaSobreInfo("GASTO_POST_IMPUESTOS").icon} % post Impuestos:</dt><dd className="inline ml-1">Se aplica después de impuestos, antes de comisiones.</dd></div>
                         </dl>
                     </div>
 
                     <div className="rounded-xl bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 p-4 space-y-2">
-                        <h3 className="font-bold text-purple-900 dark:text-purple-300">4. Precio</h3>
+                        <h3 className="font-bold text-purple-900 dark:text-purple-300">{ETAPAS_INFO[3].icon} 4. Precio</h3>
                         <dl className="space-y-1.5 text-gray-700 dark:text-slate-300">
-                            <div><dt className="font-semibold inline">⚑ Incluir Envío:</dt><dd className="inline ml-1">Suma el costo de envío del MLA al precio.</dd></div>
-                            <div><dt className="font-semibold inline">Comisión s/PVP:</dt><dd className="inline ml-1">Se aplica como divisor: PVP / (1 - %/100). Se combina con cuotas.</dd></div>
-                            <div><dt className="font-semibold inline">⚑ Comisión ML:</dt><dd className="inline ml-1">Usa la comisión del MLA como comisión sobre PVP. Se cuenta como costo de venta.</dd></div>
-                            <div><dt className="font-semibold inline">⚑ Inflación ML:</dt><dd className="inline ml-1">Igual que Comisión ML pero NO se cuenta como costo de venta (infla el PVP sin reducir ganancia).</dd></div>
-                            <div><dt className="font-semibold inline">Inflación s/PVP:</dt><dd className="inline ml-1">Variante con porcentaje propio de Inflación ML. Suma su % al divisor del PVP (igual que Comisión s/PVP en el cálculo de precio) pero NO se cuenta como costo de venta. Útil cuando querés inflar el PVP con un % fijo del canal sin que reduzca tu ganancia neta.</dd></div>
-                            <div><dt className="font-semibold inline">Canal Base (canal propio):</dt><dd className="inline ml-1">Calcula el PVP a partir del PVP de otro canal: PVP = PVP_base × (1 + %/100). El factor escala <em>tanto el PVP como el ingreso del dueño</em> — usalo cuando el canal hijo es del propio negocio.</dd></div>
-                            <div><dt className="font-semibold inline">Canal Base (reseller):</dt><dd className="inline ml-1">Variante para revendedores. El factor escala el PVP final, pero el ingreso del dueño se &quot;corta&quot; en este punto. Ej: <span className="font-mono">LIZZY GASTRO</span> compra a mayorista×0,72 (reseller) y vende ×1,5 (canal propio). El dueño solo cobra hasta el corte reseller.</dd></div>
+                            <div><dt className="font-semibold inline">{getAplicaSobreInfo("FLAG_INCLUIR_ENVIO").icon} Incluir Envío:</dt><dd className="inline ml-1">Suma el costo de envío del MLA al precio.</dd></div>
+                            <div><dt className="font-semibold inline">{getAplicaSobreInfo("COMISION_SOBRE_PVP").icon} Comisión s/PVP:</dt><dd className="inline ml-1">Se aplica como divisor: PVP / (1 - %/100). Se combina con cuotas. Por defecto cuenta como <em>costo de venta</em>; si querés que infle el PVP sin reducir ganancia (gasto que no asumís como costo del canal, ej: embalaje cosmético), <strong>sobreescribí la naturaleza a Inflación</strong> en el concepto.</dd></div>
+                            <div><dt className="font-semibold inline">{getAplicaSobreInfo("FLAG_COMISION_ML").icon} Comisión ML:</dt><dd className="inline ml-1">Variante de Comisión s/PVP que toma el porcentaje del MLA (<span className="font-mono">mla.comisionPorcentaje</span>) en vez de usar uno propio. Mismo divisor, misma lógica de naturaleza override.</dd></div>
+                            <div><dt className="font-semibold inline">{getAplicaSobreInfo("CALCULO_SOBRE_CANAL_BASE").icon} Canal Base (canal propio):</dt><dd className="inline ml-1">Calcula el PVP a partir del PVP de otro canal: PVP = PVP_base × (1 + %/100). El factor escala <em>tanto el PVP como el ingreso del dueño</em> — usalo cuando el canal hijo es del propio negocio.</dd></div>
+                            <div><dt className="font-semibold inline">{getAplicaSobreInfo("CALCULO_SOBRE_CANAL_BASE_RESELLER").icon} Canal Base (reseller):</dt><dd className="inline ml-1">Variante para revendedores. El factor escala el PVP final, pero el ingreso del dueño se &quot;corta&quot; en este punto. Ej: <span className="font-mono">LIZZY GASTRO</span> compra a mayorista×0,72 (reseller) y vende ×1,5 (canal propio). El dueño solo cobra hasta el corte reseller.</dd></div>
                         </dl>
                         <div className="mt-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700/60 dark:bg-amber-900/30 dark:text-amber-100">
                             <strong>⚠ Importante:</strong> cuando el canal tiene <em>canal base</em> configurado, <strong>solo los conceptos &quot;Canal Base&quot;</strong> del canal hijo (variantes <em>canal propio</em> y <em>reseller</em>) se aplican efectivamente. Los demás conceptos asignados (gastos, IVA, comisiones, márgenes, etc.), el margen del producto y los porcentajes de cuotas <strong>quedan ignorados</strong>. Los conceptos del canal padre tampoco se heredan al hijo.
@@ -488,13 +482,13 @@ export default function ConceptosGastoPage() {
                     </div>
 
                     <div className="rounded-xl bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 p-4 space-y-2">
-                        <h3 className="font-bold text-orange-900 dark:text-orange-300">5. Post-precio</h3>
+                        <h3 className="font-bold text-orange-900 dark:text-orange-300">{ETAPAS_INFO[4].icon} 5. Post-precio</h3>
                         <dl className="space-y-1.5 text-gray-700 dark:text-slate-300">
-                            <div><dt className="font-semibold inline">Recargo Cupón:</dt><dd className="inline ml-1">Divisor adicional: PVP / (1 - %/100). Para compensar cupones de descuento.</dd></div>
-                            <div><dt className="font-semibold inline">Descuento %:</dt><dd className="inline ml-1">Reduce el PVP: PVP × (1 - %/100). Ej: descuento máquinas.</dd></div>
-                            <div><dt className="font-semibold inline">Inflación Divisor:</dt><dd className="inline ml-1">Infla el PVP como divisor: PVP / (1 - %/100).</dd></div>
-                            <div><dt className="font-semibold inline">Gasto fuera de PVP:</dt><dd className="inline ml-1">Costo del dueño que NO se traslada al PVP (el precio al cliente no cambia) pero SÍ cuenta como costo de venta (reduce ingreso neto y ganancia). Ejemplo: comisión interna del vendedor que el dueño absorbe.</dd></div>
-                            <div><dt className="font-semibold inline">⚑ Precio Inflado:</dt><dd className="inline ml-1">Habilita la aplicación de reglas de precio inflado para este canal.</dd></div>
+                            <div><dt className="font-semibold inline">{getAplicaSobreInfo("COSTO_OCULTO_PVP").icon} Costo Oculto s/PVP:</dt><dd className="inline ml-1">Divisor adicional sobre el PVP: PVP / (1 - %/100). Representa una <em>retención adicional</em> de la plataforma que infla el precio y SÍ cuenta como costo de venta (reduce el ingreso del dueño). Ej: ML_CO_MAQCENV, KH_CO.</dd></div>
+                            <div><dt className="font-semibold inline">{getAplicaSobreInfo("DESCUENTO_PORCENTUAL").icon} Descuento %:</dt><dd className="inline ml-1">Reduce el PVP: PVP × (1 - %/100). Ej: descuento máquinas.</dd></div>
+                            <div><dt className="font-semibold inline">{getAplicaSobreInfo("INFLACION_DIVISOR_FINAL").icon} Inflación Divisor Final:</dt><dd className="inline ml-1">Bucket divisor independiente al final del cálculo: PVP / (1 - %/100). Infla el PVP pero NO se cuenta como costo (el dueño se queda con la plata extra). Ej: precio tachado cosmético, cupón visual.</dd></div>
+                            <div><dt className="font-semibold inline">{getAplicaSobreInfo("GASTO_SIN_INFLAR_PVP").icon} Gasto sin inflar PVP:</dt><dd className="inline ml-1">Costo del dueño que NO se traslada al PVP (el precio al cliente no cambia) pero SÍ cuenta como costo de venta (reduce ingreso neto y ganancia). Ejemplo: comisión interna del vendedor que el dueño absorbe.</dd></div>
+                            <div><dt className="font-semibold inline">{getAplicaSobreInfo("FLAG_APLICAR_PRECIO_INFLADO").icon} Precio Inflado:</dt><dd className="inline ml-1">Habilita la aplicación de reglas de precio inflado para este canal.</dd></div>
                         </dl>
                     </div>
 
@@ -502,6 +496,48 @@ export default function ConceptosGastoPage() {
                         <p className="text-xs text-gray-500 dark:text-slate-400 font-mono">
                             PVP = ((COSTO × gastos × (1 + GANANCIA/100) + ENVIO) × IMP) / (1 - COMISIONES/100) + PRECIO_INFLADO
                         </p>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Modal de ayuda: Naturaleza */}
+            <Modal isOpen={showNaturalezaHelp} onClose={() => setShowNaturalezaHelp(false)} title="Guía: Naturaleza" size="lg">
+                <div className="max-h-[65vh] overflow-y-auto space-y-5 text-sm">
+                    <p className="text-gray-500 dark:text-slate-400">
+                        La <strong>naturaleza</strong> define cómo cada concepto <em>impacta los indicadores contables</em>
+                        (costo de venta, ingreso neto, ganancia, markup). Es <strong>independiente de Aplica Sobre</strong>
+                        — éste último decide la <em>matemática del PVP</em>. Por defecto cada Aplica Sobre tiene su naturaleza
+                        coherente (<span className="font-mono">⚙ Auto</span>); podés sobreescribirla cuando dos conceptos
+                        comparten matemática pero deben tener distinto efecto contable.
+                    </p>
+
+                    <div className="rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-3 text-xs">
+                        <p className="font-semibold text-blue-900 dark:text-blue-200 mb-1">¿Cuándo sobreescribir el ⚙ Auto?</p>
+                        <p className="text-blue-900 dark:text-blue-100">
+                            Ejemplo típico: <span className="font-mono">LG_LOG</span> y <span className="font-mono">LG_MKT</span>{" "}
+                            usan <span className="font-mono">GASTO_POST_GANANCIA</span> (default naturaleza{" "}
+                            <span className="font-mono">Inflación</span>), pero son gastos reales del dueño (logística,
+                            marketing pagados al exterior). Se sobreescribe la naturaleza a{" "}
+                            <span className="font-mono">Costo de Venta</span> para que reduzcan la ganancia en los indicadores.
+                        </p>
+                    </div>
+
+                    {NATURALEZAS_INFO.map((n) => (
+                        <div key={n.id} className="rounded-xl border border-gray-200 dark:border-slate-700 p-4 space-y-2">
+                            <div className="flex items-center gap-2">
+                                <span className={`text-xs font-bold px-2 py-0.5 rounded ${n.badgeClass}`}>
+                                    {n.icon} {n.label}
+                                </span>
+                                <span className="font-mono text-xs text-gray-500 dark:text-slate-400">{n.id}</span>
+                            </div>
+                            <p className="text-gray-700 dark:text-slate-300 text-sm">{n.descripcion}</p>
+                        </div>
+                    ))}
+
+                    <div className="rounded-md border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900 dark:border-amber-700/60 dark:bg-amber-900/30 dark:text-amber-100">
+                        <strong>Recordá:</strong> Aplica Sobre = qué hace en la <em>fórmula del PVP</em>. Naturaleza ={" "}
+                        cómo se refleja en los <em>indicadores</em> (costo de venta, ganancia, markup, etc.). Un mismo
+                        concepto puede afectar el PVP de una forma y reportarse contablemente de otra.
                     </div>
                 </div>
             </Modal>

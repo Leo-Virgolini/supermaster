@@ -71,7 +71,7 @@ public enum AplicaSobre {
      * Impuesto que se suma al factor IMP: (IMP = 1 + IVA/100 + concepto/100)
      * Ejemplo: IIBB se suma directamente al factor IMP.
      */
-    IMPUESTO_ADICIONAL(Etapa.IMPUESTOS, NaturalezaConcepto.IMPUESTO),
+    IMPUESTO_EN_FACTOR_IMP(Etapa.IMPUESTOS, NaturalezaConcepto.IMPUESTO),
 
     /**
      * Gasto después de aplicar impuestos: costoConImp × (1 + %/100)
@@ -86,8 +86,14 @@ public enum AplicaSobre {
     FLAG_INCLUIR_ENVIO(Etapa.PRECIO, NaturalezaConcepto.COSTO_VENTA),
 
     /**
-     * Comisión que se aplica como divisor sobre el PVP: PVP / (1 - %/100)
-     * Ejemplo: Comisión ML -13%
+     * Concepto que se aplica como divisor sobre el PVP: PVP / (1 - %/100)
+     * Ejemplo: Comisión ML -13%, embalaje que infla el PVP, etc.
+     * <p>
+     * <b>Naturaleza override:</b> por defecto cuenta como COSTO_VENTA (reduce ganancia).
+     * Si el canal NO quiere contarlo como costo (gasto que infla el PVP pero el dueño
+     * no lo asume como costo neto del canal, ej: KG_MAQ_EMB en KT GASTRO), se
+     * sobreescribe la naturaleza a INFLACION en la columna {@code naturaleza}.
+     * <p>
      * NOTA: Para conceptos de cuotas (con campo cuotas != NULL), se procesan de manera especial.
      */
     COMISION_SOBRE_PVP(Etapa.PRECIO, NaturalezaConcepto.COSTO_VENTA),
@@ -96,27 +102,13 @@ public enum AplicaSobre {
      * Flag: usa mla.comisionPorcentaje como comisión sobre PVP.
      * El concepto actúa como marcador, el valor real viene de mlas.comision_porcentaje.
      * Se suma a COMISION_SOBRE_PVP y se aplica como divisor: PVP / (1 - %/100)
+     * <p>
+     * <b>Naturaleza override:</b> por defecto cuenta como COSTO_VENTA (reduce ganancia).
+     * Si el canal NO quiere contarla como costo (ej: KT GASTRO MAQUINA, donde el dueño
+     * usa la comisión ML solo para inflar el PVP sin atribuirla al canal hijo), se
+     * sobreescribe la naturaleza a INFLACION en la columna {@code naturaleza} del concepto.
      */
     FLAG_COMISION_ML(Etapa.PRECIO, NaturalezaConcepto.COSTO_VENTA),
-
-    /**
-     * Flag: usa mla.comisionPorcentaje como inflación sobre PVP.
-     * Funciona igual que FLAG_COMISION_ML en el cálculo del PVP (divisor),
-     * pero NO se cuenta como costo de venta en las métricas.
-     * Efecto: infla el PVP sin reducir la ganancia.
-     */
-    FLAG_INFLACION_ML(Etapa.PRECIO, NaturalezaConcepto.INFLACION),
-
-    /**
-     * Inflación sobre PVP usando el porcentaje del concepto.
-     * Se SUMA al mismo divisor que COMISION_SOBRE_PVP / FLAG_COMISION_ML /
-     * FLAG_INFLACION_ML (un solo bucket para todos los gastos sobre PVP),
-     * pero NO se cuenta como costo de venta en las métricas.
-     * Variante con porcentaje propio de FLAG_INFLACION_ML (que toma el % del MLA).
-     * Caso de uso: gasto que infla el precio para ML/marketplace pero
-     * que el dueño no considera costo neto del canal (ej: KG_MAQ_EMB en KT GASTRO).
-     */
-    INFLACION_SOBRE_PVP(Etapa.PRECIO, NaturalezaConcepto.INFLACION),
 
     /**
      * Calcula el PVP basándose en el PVP del canal base (canalBase).
@@ -148,10 +140,15 @@ public enum AplicaSobre {
 
     // ===== ETAPA: POST_PRECIO =====
     /**
-     * Recargo cupón: se aplica como divisor adicional después de GT3C.
-     * PVP / (1 - RECARGO_CUPON/100)
+     * Costo oculto que infla el PVP como divisor adicional y cuenta como
+     * costo de venta (retención que se descuenta del ingreso del dueño).
+     * PVP / (1 - COSTO_OCULTO_PVP/100)
+     * <p>
+     * Ejemplos: ML_CO_MAQCENV / ML_CO_REP / ML_CO_MENAJE en ML, KH_CO en NUBE.
+     * Originalmente llamado RECARGO_CUPON, pero el uso real es "costo oculto
+     * de la plataforma" (retención adicional que no figura en la comisión).
      */
-    RECARGO_CUPON(Etapa.POST_PRECIO, NaturalezaConcepto.COSTO_VENTA),
+    COSTO_OCULTO_PVP(Etapa.POST_PRECIO, NaturalezaConcepto.COSTO_VENTA),
 
     /**
      * Descuento porcentual que reduce el PVP al final del cálculo.
@@ -161,10 +158,15 @@ public enum AplicaSobre {
     DESCUENTO_PORCENTUAL(Etapa.POST_PRECIO, NaturalezaConcepto.DESCUENTO),
 
     /**
-     * Inflación aplicada como divisor sobre el PVP.
-     * PVP / (1 - INFLACION/100)
+     * Inflación aplicada como divisor separado sobre el PVP al final del cálculo.
+     * Bucket independiente de COMISION_SOBRE_PVP.
+     * PVP / (1 - INFLACION_DIVISOR_FINAL/100)
+     * <p>
+     * Caso de uso: precio tachado / cupón cosmético que infla el PVP sin
+     * contarse como costo (el dueño se queda con la plata extra).
+     * Ejemplos: ML_PRTACHADO, KH_CUPON, LG_INF.
      */
-    INFLACION_DIVISOR(Etapa.POST_PRECIO, NaturalezaConcepto.INFLACION),
+    INFLACION_DIVISOR_FINAL(Etapa.POST_PRECIO, NaturalezaConcepto.INFLACION),
 
     /**
      * Gasto del dueño que NO se traslada al PVP pero SÍ cuenta como costo de venta.
@@ -173,7 +175,7 @@ public enum AplicaSobre {
      * Caso de uso: comisión interna del vendedor que el dueño absorbe sin
      * inflar el precio al consumidor (Excel KT GASTRO: KG_COMVEND).
      */
-    GASTO_FUERA_PVP(Etapa.POST_PRECIO, NaturalezaConcepto.COSTO_VENTA),
+    GASTO_SIN_INFLAR_PVP(Etapa.POST_PRECIO, NaturalezaConcepto.COSTO_VENTA),
 
     /**
      * Flag: habilita la aplicación de precio inflado para el canal.

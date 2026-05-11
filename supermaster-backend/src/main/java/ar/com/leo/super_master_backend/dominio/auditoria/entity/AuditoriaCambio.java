@@ -23,7 +23,9 @@ public class AuditoriaCambio {
     @Column(name = "entidad", nullable = false, length = 40)
     private AuditoriaEntidad entidad;
 
-    @Column(name = "entidad_id", nullable = false)
+    // Nullable: hay eventos sin id especifico (login fallido, recalculo masivo,
+    // relaciones M:N donde el id es compuesto). Para esos casos se usa entidadCodigo.
+    @Column(name = "entidad_id")
     private Integer entidadId;
 
     @Column(name = "entidad_codigo", length = 150)

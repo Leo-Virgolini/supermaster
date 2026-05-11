@@ -20,6 +20,7 @@ import ar.com.leo.super_master_backend.dominio.producto.dto.*;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCanalPrecio;
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoMargen;
+import ar.com.leo.super_master_backend.dominio.producto.entity.Tag;
 import ar.com.leo.super_master_backend.dominio.producto.mapper.ProductoMapper;
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCanalPrecioInflado;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoCanalPrecioInfladoRepository;
@@ -127,6 +128,7 @@ public class ProductoServiceImpl implements ProductoService {
         Integer marcaIdAnterior = entity.getMarca() != null ? entity.getMarca().getId() : null;
         Integer clasifGralIdAnterior = entity.getClasifGral() != null ? entity.getClasifGral().getId() : null;
         Integer mlaIdAnterior = entity.getMla() != null ? entity.getMla().getId() : null;
+        Tag tagAnterior = entity.getTag();
 
         productoMapper.updateEntityFromDTO(dto, entity);
         productoRepository.save(entity);
@@ -141,10 +143,11 @@ public class ProductoServiceImpl implements ProductoService {
         boolean cambioMarca = dto.marcaId() != null && !Objects.equals(marcaIdAnterior, dto.marcaId());
         boolean cambioClasifGral = dto.clasifGralId() != null && !Objects.equals(clasifGralIdAnterior, dto.clasifGralId());
         boolean cambioMla = dto.mlaId() != null && !Objects.equals(mlaIdAnterior, dto.mlaId());
+        boolean cambioTag = dto.tag() != null && !Objects.equals(tagAnterior, dto.tag());
 
         if (cambioCosto || cambioIva || cambioClasifGastro || cambioProveedor
-                || cambioTipo || cambioMarca || cambioClasifGral || cambioMla) {
-            programarRecalculoPostCommit("Recálculo por cambio en producto", id);
+                || cambioTipo || cambioMarca || cambioClasifGral || cambioMla || cambioTag) {
+            programarRecalculoPostCommit("Cambio en producto", id);
         }
 
         return productoMapper.toDTO(entity);
@@ -170,6 +173,7 @@ public class ProductoServiceImpl implements ProductoService {
         Integer marcaIdAnterior = entity.getMarca() != null ? entity.getMarca().getId() : null;
         Integer clasifGralIdAnterior = entity.getClasifGral() != null ? entity.getClasifGral().getId() : null;
         Integer mlaIdAnterior = entity.getMla() != null ? entity.getMla().getId() : null;
+        Tag tagAnterior = entity.getTag();
 
         aplicarPatch(entity, patchDto);
         productoRepository.save(entity);
@@ -183,10 +187,11 @@ public class ProductoServiceImpl implements ProductoService {
         boolean cambioMarca = presente(patchDto.getMarcaId()) && !Objects.equals(marcaIdAnterior, entity.getMarca() != null ? entity.getMarca().getId() : null);
         boolean cambioClasifGral = presente(patchDto.getClasifGralId()) && !Objects.equals(clasifGralIdAnterior, entity.getClasifGral() != null ? entity.getClasifGral().getId() : null);
         boolean cambioMla = presente(patchDto.getMlaId()) && !Objects.equals(mlaIdAnterior, entity.getMla() != null ? entity.getMla().getId() : null);
+        boolean cambioTag = presente(patchDto.getTag()) && !Objects.equals(tagAnterior, entity.getTag());
 
         if (cambioCosto || cambioIva || cambioClasifGastro || cambioProveedor
-                || cambioTipo || cambioMarca || cambioClasifGral || cambioMla) {
-            programarRecalculoPostCommit("Recálculo por cambio en producto", id);
+                || cambioTipo || cambioMarca || cambioClasifGral || cambioMla || cambioTag) {
+            programarRecalculoPostCommit("Cambio en producto", id);
         }
 
         return productoMapper.toDTO(entity);
@@ -863,7 +868,7 @@ public class ProductoServiceImpl implements ProductoService {
         productoRepository.save(producto);
 
         // 2) Recalcular precios en todos los canales
-        programarRecalculoPostCommit("Recálculo por cambio en producto", productoId);
+        programarRecalculoPostCommit("Cambio en producto", productoId);
     }
 
     // ============================
@@ -915,6 +920,9 @@ public class ProductoServiceImpl implements ProductoService {
                         Collectors.mapping(pc -> pc.getCliente().getNombre(), Collectors.toList())
                 ));
 
+        Map<Integer, ProductoMargen> margenesPorProducto = productoMargenRepository.findByProductoIdIn(ids).stream()
+                .collect(Collectors.toMap(pm -> pm.getProducto().getId(), pm -> pm, (a, b) -> a));
+
         List<ProductoDTO> dtos = ids.stream()
                 .map(productosConRelaciones::get)
                 .filter(Objects::nonNull)
@@ -922,7 +930,8 @@ public class ProductoServiceImpl implements ProductoService {
                         producto,
                         aptosPorProducto.getOrDefault(producto.getId(), List.of()),
                         catalogosPorProducto.getOrDefault(producto.getId(), List.of()),
-                        clientesPorProducto.getOrDefault(producto.getId(), List.of())
+                        clientesPorProducto.getOrDefault(producto.getId(), List.of()),
+                        margenesPorProducto.get(producto.getId())
                 ))
                 .toList();
 

@@ -202,7 +202,7 @@ public class PrecioInfladoServiceImpl implements PrecioInfladoService {
         List<Integer> productoIds = asignacionRepository.findByPrecioInfladoId(precioInfladoId).stream()
                 .map(a -> a.getProducto().getId())
                 .toList();
-        recalculoPendienteService.marcarProductos("Cambio en precio inflado", productoIds);
+        recalculoPendienteService.marcarProductos("Cambio en regla de precio inflado", productoIds);
     }
 
 

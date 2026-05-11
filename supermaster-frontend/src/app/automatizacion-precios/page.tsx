@@ -38,6 +38,7 @@ import {
     SparklesIcon,
 } from "@heroicons/react/24/outline";
 import { toast } from "sonner";
+import { notificar } from "../utils/notificar";
 import Link from "next/link";
 import type { SyncRequest } from "./types";
 
@@ -258,7 +259,7 @@ function EditablePromoCard({ label, value, dbKey, onSaved }: { label: string; va
             onSaved();
             setEditing(false);
         } catch {
-            toast.error("Error guardando " + label);
+            notificar.error("Error guardando " + label);
         } finally {
             setSaving(false);
         }
@@ -320,7 +321,7 @@ function EditableSelectCell({ label, icon: Icon, value, options, isLoading, onSa
             await onSave(newVal);
             setEditing(false);
         } catch {
-            toast.error("Error guardando " + label);
+            notificar.error("Error guardando " + label);
         } finally {
             setSaving(false);
         }
@@ -414,7 +415,7 @@ function ChannelConfigCard({ label, canalField, cuotasField, listaField, sinIvaF
             await updateConfigByClave(sinIvaDbKey, sinIvaValue ? "false" : "true");
             onRefresh();
         } catch {
-            toast.error("Error guardando configuración");
+            notificar.error("Error guardando configuración");
         }
     };
 
@@ -489,7 +490,7 @@ function EditableValue({ label, icon: Icon, value, dbKey, onSaved }: { label: st
             onSaved();
             setEditing(false);
         } catch {
-            toast.error("Error guardando " + label);
+            notificar.error("Error guardando " + label);
         } finally {
             setSaving(false);
         }
@@ -627,7 +628,7 @@ function TopesPromocionPanel() {
     useEffect(() => {
         getTopesPromocion()
             .then(setTopes)
-            .catch(() => toast.error("Error cargando topes de promoción"))
+            .catch(() => notificar.error("Error cargando topes de promoción"))
             .finally(() => setLoading(false));
     }, []);
 
@@ -687,9 +688,9 @@ function TopesPromocionPanel() {
             const updated = await saveTopesPromocion(topes);
             setTopes(updated);
             setDirty(false);
-            toast.success("Topes de promoción guardados");
+            notificar.success("Topes de promoción guardados");
         } catch {
-            toast.error("Error guardando topes");
+            notificar.error("Error guardando topes");
         } finally {
             setSaving(false);
         }

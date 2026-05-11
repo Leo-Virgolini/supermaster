@@ -317,7 +317,7 @@ const sections: Section[] = [
                     <p className="font-bold text-blue-800 dark:text-blue-200 mb-3">Pasos para crear el producto</p>
                     <div className="flex flex-col gap-4">
                         <Step n={1} title="Abrir el formulario">
-                            Ir a <strong>Maestros &gt; Productos</strong> y presionar el botón <strong>&quot;Crear Producto&quot;</strong>
+                            Ir a <strong>Maestros &gt; Productos</strong> y presionar el botón <strong>&quot;Crear Producto&quot;</strong>{" "}
                             en la esquina superior derecha. Se abre un modal con el formulario dividido en secciones.
                         </Step>
 
@@ -583,7 +583,7 @@ const sections: Section[] = [
                 <Tip>
                     En la pestaña <strong>Conceptos</strong> del modal, los conceptos quedan agrupados por etapa
                     (Costo / Margen / Impuestos / Precio / Post-Precio). El selector de &quot;Agregar concepto&quot;
-                    los muestra organizados por etapa con sus porcentajes o ⚑ para flags. Un panel de
+                    los muestra organizados por etapa con sus porcentajes o 🚩 para flags. Un panel de
                     <strong> validaciones cruzadas</strong> alerta sobre flags duplicados o conceptos contradictorios
                     (ej: IIBB sin IVA, ambos flags de margen activos).
                 </Tip>
@@ -629,8 +629,52 @@ const sections: Section[] = [
                     <ul className="list-disc list-inside space-y-1 text-gray-600">
                         <li><strong>Nombre</strong>: Identificador descriptivo (ej: &quot;IVA&quot;, &quot;Comisión ML&quot;, &quot;Flete Local&quot;).</li>
                         <li><strong>Porcentaje</strong>: Default a usar (puede ir entre -100 y 100; negativo = descuento).</li>
-                        <li><strong>Aplica Sobre</strong>: Define en qué punto de la fórmula se calcula. Es lo más importante.</li>
+                        <li><strong>Aplica Sobre</strong>: Define en qué punto de la fórmula se calcula <em>el PVP</em>. Es la matemática.</li>
+                        <li>
+                            <strong>Naturaleza</strong>: Define cómo el concepto <em>impacta los indicadores</em>{" "}
+                            (ganancia, márgenes, markup) — independiente de Aplica Sobre. Dos conceptos pueden compartir
+                            la misma matemática del PVP pero distinta naturaleza (ej: una comisión real reduce ganancia,
+                            una inflación cosmética no).
+                        </li>
                         <li><strong>Descripción</strong>: Notas internas (no afecta el cálculo).</li>
+                    </ul>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                    <p className="font-semibold">Valores de Naturaleza:</p>
+                    <ul className="list-disc list-inside space-y-1 text-gray-600">
+                        <li>
+                            <strong>📦 Costo Producto</strong> — Forma parte del costo del producto (ej:
+                            financiación del proveedor). Reduce markup, no aparece como costo de venta.
+                        </li>
+                        <li>
+                            <strong>💸 Costo de Venta</strong> — Plata real que sale del negocio al vender
+                            (comisiones, fletes, marketing). Se resta del ingreso neto → reduce ganancia.
+                        </li>
+                        <li>
+                            <strong>📊 Impuesto</strong> — Se le paga al estado (IVA, IIBB). Se extrae del PVP
+                            y se resta del ingreso neto.
+                        </li>
+                        <li>
+                            <strong>💰 Markup</strong> — Define o ajusta el % de ganancia objetivo (margen
+                            minorista, mayorista, ajustes). Es la base sobre la que se calcula la ganancia.
+                        </li>
+                        <li>
+                            <strong>📈 Inflación</strong> — Sube el PVP sin ser plata que sale. El cliente paga
+                            el sobreprecio y queda como ganancia. Caso típico: precio tachado de marketing.
+                        </li>
+                        <li>
+                            <strong>🏷 Descuento</strong> — Reduce el PVP final. No es plata extra que salga,
+                            solo rebaja el precio.
+                        </li>
+                        <li>
+                            <strong>🔗 Canal Base</strong> — Cambia el punto de partida del cálculo (toma PVP
+                            del canal base en lugar del costo del producto).
+                        </li>
+                        <li>
+                            <strong>✨ Cosmético</strong> — Solo afecta el precio mostrado/tachado. No afecta
+                            el PVP que paga el cliente ni los indicadores.
+                        </li>
                     </ul>
                 </div>
 
@@ -638,44 +682,46 @@ const sections: Section[] = [
                     <p className="font-semibold">Las 5 etapas del cálculo (orden de aplicación):</p>
                     <p className="text-xs text-gray-500 dark:text-slate-400">
                         Cada concepto pertenece a una etapa según su <strong>Aplica Sobre</strong>. La fórmula
-                        avanza Costo → Margen → Impuestos → Precio → Post-Precio. Los flags (⚑) habilitan
+                        avanza Costo → Margen → Impuestos → Precio → Post-Precio. Los flags (🚩) habilitan
                         comportamiento sin usar el porcentaje.
                     </p>
                     <ul className="list-disc list-inside space-y-1 text-gray-600">
                         <li><strong>📦 Costo Base</strong> — punto de partida del cálculo:
                             <span className="font-mono text-xs"> GASTO_SOBRE_COSTO</span>,
-                            <span className="font-mono text-xs"> ⚑ FLAG_FINANCIACION_PROVEEDOR</span>.</li>
+                            <span className="font-mono text-xs"> 🚩 FLAG_FINANCIACION_PROVEEDOR</span>.</li>
                         <li><strong>💰 Margen</strong> — selección y ajuste de la ganancia objetivo:
                             <span className="font-mono text-xs"> AJUSTE_MARGEN_PUNTOS</span>,
                             <span className="font-mono text-xs"> AJUSTE_MARGEN_PROPORCIONAL</span>,
-                            <span className="font-mono text-xs"> ⚑ FLAG_USAR_MARGEN_MINORISTA</span>,
-                            <span className="font-mono text-xs"> ⚑ FLAG_USAR_MARGEN_MAYORISTA</span>,
+                            <span className="font-mono text-xs"> 🚩 FLAG_USAR_MARGEN_MINORISTA</span>,
+                            <span className="font-mono text-xs"> 🚩 FLAG_USAR_MARGEN_MAYORISTA</span>,
                             <span className="font-mono text-xs"> GASTO_POST_GANANCIA</span>.</li>
                         <li><strong>📊 Impuestos</strong> — IVA y otros impuestos:
-                            <span className="font-mono text-xs"> ⚑ FLAG_APLICAR_IVA</span>,
-                            <span className="font-mono text-xs"> IMPUESTO_ADICIONAL</span>,
+                            <span className="font-mono text-xs"> 🚩 FLAG_APLICAR_IVA</span>,
+                            <span className="font-mono text-xs"> IMPUESTO_EN_FACTOR_IMP</span>,
                             <span className="font-mono text-xs"> GASTO_POST_IMPUESTOS</span>.</li>
                         <li><strong>💲 Precio</strong> — comisiones, envíos y conversión a PVP:
-                            <span className="font-mono text-xs"> ⚑ FLAG_INCLUIR_ENVIO</span>,
+                            <span className="font-mono text-xs"> 🚩 FLAG_INCLUIR_ENVIO</span>,
                             <span className="font-mono text-xs"> COMISION_SOBRE_PVP</span>,
-                            <span className="font-mono text-xs"> ⚑ FLAG_COMISION_ML</span>,
-                            <span className="font-mono text-xs"> ⚑ FLAG_INFLACION_ML</span>,
-                            <span className="font-mono text-xs"> INFLACION_SOBRE_PVP</span>,
+                            <span className="font-mono text-xs"> 🚩 FLAG_COMISION_ML</span>,
                             <span className="font-mono text-xs"> CALCULO_SOBRE_CANAL_BASE</span> (propio o reseller).</li>
                         <li><strong>🏷 Post-Precio</strong> — recargos por cuotas, descuentos e inflados:
-                            <span className="font-mono text-xs"> RECARGO_CUPON</span>,
+                            <span className="font-mono text-xs"> COSTO_OCULTO_PVP</span>,
                             <span className="font-mono text-xs"> DESCUENTO_PORCENTUAL</span>,
-                            <span className="font-mono text-xs"> INFLACION_DIVISOR</span>,
-                            <span className="font-mono text-xs"> GASTO_FUERA_PVP</span>,
-                            <span className="font-mono text-xs"> ⚑ FLAG_APLICAR_PRECIO_INFLADO</span>.</li>
+                            <span className="font-mono text-xs"> INFLACION_DIVISOR_FINAL</span>,
+                            <span className="font-mono text-xs"> GASTO_SIN_INFLAR_PVP</span>,
+                            <span className="font-mono text-xs"> 🚩 FLAG_APLICAR_PRECIO_INFLADO</span>.</li>
                     </ul>
                 </div>
 
                 <div className="flex flex-col gap-2">
                     <p className="font-semibold">Aplica Sobre destacados:</p>
                     <ul className="list-disc list-inside space-y-1 text-gray-600">
-                        <li><strong>FLAG_INFLACION_ML / INFLACION_SOBRE_PVP</strong>: igual que <em>Comisión ML / Comisión sobre PVP</em> en el cálculo de PVP, pero <strong>no se cuentan como costo de venta</strong> (no reducen la ganancia neta). Útil para inflar el PVP de KT GASTRO MAQUINA sin tocar los conceptos de ML.</li>
-                        <li><strong>GASTO_FUERA_PVP</strong>: costo del dueño que <strong>NO se traslada al PVP</strong> (el cliente no lo ve) pero sí cuenta como costo de venta. Ej: comisión interna del vendedor que el dueño absorbe.</li>
+                        <li><strong>COMISION_SOBRE_PVP con naturaleza override "Inflación"</strong>: el concepto infla el PVP como divisor (igual que una comisión real), pero al cambiar la naturaleza a <span className="font-mono">Inflación</span> NO se cuenta como costo. Útil para gastos que inflan el precio pero el dueño no considera costo neto del canal (ej: embalaje cosmético).</li>
+                        <li><strong>FLAG_COMISION_ML con naturaleza override "Inflación"</strong>: misma idea pero el % viene del MLA en vez de ser propio. Útil para inflar el PVP de KT GASTRO MAQUINA con la comisión ML sin tocar los conceptos de ML.</li>
+                        <li><strong>COSTO_OCULTO_PVP</strong>: retención adicional de la plataforma que infla el PVP como divisor separado y sí cuenta como costo del dueño. Ej: <span className="font-mono">ML_CO_MAQCENV</span>, <span className="font-mono">KH_CO</span>.</li>
+                        <li><strong>INFLACION_DIVISOR_FINAL</strong>: bucket divisor independiente al final del cálculo. Infla el PVP pero <strong>no se cuenta como costo</strong> (el dueño se queda con la plata extra). Ej: precio tachado, cupón cosmético (<span className="font-mono">ML_PRTACHADO</span>, <span className="font-mono">KH_CUPON</span>).</li>
+                        <li><strong>GASTO_SIN_INFLAR_PVP</strong>: costo del dueño que <strong>NO se traslada al PVP</strong> (el cliente no lo ve) pero sí cuenta como costo de venta. Ej: comisión interna del vendedor que el dueño absorbe.</li>
+                        <li><strong>IMPUESTO_EN_FACTOR_IMP</strong>: impuesto que se suma al factor IMP junto al IVA (1 + IVA% + concepto%). Ej: IIBB.</li>
                         <li><strong>CALCULO_SOBRE_CANAL_BASE</strong> (canal propio): factor sobre el PVP del canal base. Escala <em>tanto el PVP como el ingreso del dueño</em>.</li>
                         <li><strong>CALCULO_SOBRE_CANAL_BASE_RESELLER</strong>: variante reseller. Escala el PVP, pero el ingreso del dueño se &quot;corta&quot; — el reseller agrega su markup encima. Ej: <span className="font-mono">LIZZY GASTRO</span> compra a mayorista×0,72 (reseller) y vende ×1,5 (canal propio).</li>
                     </ul>
@@ -688,7 +734,7 @@ const sections: Section[] = [
                 </Tip>
 
                 <Tip>
-                    En la tabla, los conceptos tipo <strong>flag</strong> muestran el icono <strong>⚑</strong> en
+                    En la tabla, los conceptos tipo <strong>flag</strong> muestran el icono <strong>🚩</strong> en
                     lugar del porcentaje. Los porcentajes están <strong>coloreados</strong>: verde para positivos
                     (recargos), rojo para negativos (descuentos).
                 </Tip>
@@ -744,7 +790,7 @@ const sections: Section[] = [
                         <li>Cada <strong>etapa</strong> de la fórmula es un bloque coloreado:
                             📦 Costo Base, 💰 Margen, 📊 Impuestos, 💲 Precio, 🏷 Post-Precio.</li>
                         <li>Dentro de cada etapa aparecen los conceptos asignados al canal con su porcentaje
-                            específico (o ⚑ si son flags).</li>
+                            específico (o 🚩 si son flags).</li>
                         <li>Las <strong>reglas de excepción</strong> aparecen como ramificaciones marcadas
                             con &quot;si X entonces&quot; al expandir un concepto con reglas.</li>
                         <li>Debajo del pipeline, una tarjeta <strong>Fórmula final</strong> muestra la
@@ -1092,7 +1138,7 @@ const sections: Section[] = [
 
                 <Warning>
                     Si apretás Aplicar mientras hay otro proceso del grupo BD corriendo (por ejemplo un
-                    Recálculo Masivo o una importación DUX), el sistema responde <strong>409 (conflicto)</strong>
+                    Recálculo Masivo o una importación DUX), el sistema responde <strong>409 (conflicto)</strong>{" "}
                     y muestra el toast &quot;Ya hay un recálculo en proceso&quot;. Los pendientes <strong>no se
                     pierden</strong>: quedan acumulados, esperá a que el otro proceso termine y volvé a apretar
                     Aplicar.
@@ -1172,7 +1218,7 @@ const sections: Section[] = [
 
                 <Warning>
                     Algunas reglas que apuntan a un producto específico por SKU no van a matchear en simulación
-                    (porque el producto no existe). Eso es esperado — la calculadora simula reglas <em>generales</em>
+                    (porque el producto no existe). Eso es esperado — la calculadora simula reglas <em>generales</em>{" "}
                     del canal, no reglas hiper-específicas.
                 </Warning>
             </div>
@@ -1642,7 +1688,7 @@ const sections: Section[] = [
             <div className="flex flex-col gap-4">
                 <p>
                     La pantalla de <strong>Auditoría</strong> muestra el historial global de cambios auditados del sistema.
-                    Sirve para ver <strong>qué cambió</strong>, <strong>cuándo</strong>, <strong>quién lo hizo</strong>
+                    Sirve para ver <strong>qué cambió</strong>, <strong>cuándo</strong>, <strong>quién lo hizo</strong>{" "}
                     y <strong>desde qué origen</strong> se realizó la modificación.
                 </p>
                 <div className="flex flex-col gap-2">

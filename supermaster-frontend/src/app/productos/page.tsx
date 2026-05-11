@@ -3,6 +3,7 @@ import dynamic from "next/dynamic";
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
+import { notificar } from "../utils/notificar";
 import { BookmarkIcon, CheckIcon, CubeIcon, PlusIcon, TrashIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { API_BASE_URL } from "../config/runtime";
 import { confirmDialog } from "../utils/confirmDialog";
@@ -209,7 +210,7 @@ export default function ProductosPage() {
         setPageIndex(0);
     }, [getSearchParamValue, searchParams]);
 
-    const { productos, totalRecords, isLoading, createProducto, deleteProducto, updateProducto } = useProductos(pageIndex, pageSize, filters, sorting);
+    const { productos, totalRecords, isLoading, createProducto, deleteProducto, updateProducto, updateProductoMargen } = useProductos(pageIndex, pageSize, filters, sorting);
     const pageCount = totalRecords > 0 ? Math.ceil(totalRecords / pageSize) : 1;
 
     const sortFieldMapping: Record<string, string> = {
@@ -369,7 +370,7 @@ export default function ProductosPage() {
         writeProductosViews(nextViews);
         setSelectedViewId(nextView.id);
         closeSaveView();
-        toast.success(`Vista "${trimmed}" guardada`);
+        notificar.success(`Vista "${trimmed}" guardada`);
     };
 
     const handleApplyView = (viewId: string) => {
@@ -383,7 +384,7 @@ export default function ProductosPage() {
         }
         setColumnVisibilityVersion((prev) => prev + 1);
         setSelectedViewId(view.id);
-        toast.success(`Vista "${view.name}" aplicada`);
+        notificar.success(`Vista "${view.name}" aplicada`);
     };
 
     const handleDeleteView = async () => {
@@ -395,7 +396,7 @@ export default function ProductosPage() {
         setSavedViews(nextViews);
         writeProductosViews(nextViews);
         setSelectedViewId("");
-        toast.success("Vista eliminada");
+        notificar.success("Vista eliminada");
     };
 
     useEffect(() => {
@@ -460,6 +461,8 @@ export default function ProductosPage() {
         try { await deleteProducto(selectedIds); setRowSelection({}); } catch (e) { /* hook already toasts */ }
     };
 
+    const MARGEN_FIELDS = new Set(["margenMinorista", "margenMayorista", "margenFijoMinorista", "margenFijoMayorista"]);
+
     const handleUpdate = async (rowIndex: number, columnId: string, value: unknown) => {
         const itemOriginal = productos[rowIndex];
         if (!itemOriginal) return;
@@ -469,7 +472,12 @@ export default function ProductosPage() {
         }
 
         try {
-            await updateProducto(itemOriginal.id, { [columnId]: value } as ProductoPatchDTO);
+            if (MARGEN_FIELDS.has(columnId)) {
+                const numValue = value === "" || value === null || value === undefined ? null : Number(value);
+                await updateProductoMargen(itemOriginal.id, { [columnId]: numValue });
+            } else {
+                await updateProducto(itemOriginal.id, { [columnId]: value } as ProductoPatchDTO);
+            }
         } catch {
             if (columnId === "activo") {
                 setActiveOverrides((prev) => {

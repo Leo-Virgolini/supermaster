@@ -1,6 +1,6 @@
 "use client";
 
-import { toast } from "sonner";
+import { notificar } from "../utils/notificar";
 import ErrorBanner from "../components/ErrorBanner/ErrorBanner";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -109,6 +109,11 @@ const fieldLabelMap: Record<string, string> = {
 
 const entityLabelMap: Record<string, string> = {
     PRODUCTO: "Producto",
+    PRODUCTO_MARGEN: "Margen de producto",
+    PRODUCTO_CANAL_PRECIO_INFLADO: "Precio inflado de producto",
+    PRODUCTO_APTO: "Apto de producto",
+    PRODUCTO_CATALOGO: "Catálogo de producto",
+    PRODUCTO_CLIENTE: "Cliente de producto",
     PROVEEDOR: "Proveedor",
     CLIENTE: "Cliente",
     CANAL: "Canal",
@@ -135,6 +140,8 @@ const entityLabelMap: Record<string, string> = {
     CONFIG_AUTOMATIZACION: "Config. automatización",
     CATALOGO_PDF_CONFIG: "Config. catálogo PDF",
     CATALOGO_PDF_GLOBAL_CONFIG: "Config. global catálogo PDF",
+    AUTH: "Autenticación",
+    RECALCULO: "Recálculo de precios",
 };
 
 const actionLabelMap: Record<string, string> = {
@@ -156,6 +163,11 @@ const originLabelMap: Record<string, string> = {
 const entidadOptions = [
     { value: "", label: "Todas las entidades" },
     { value: "PRODUCTO", label: "Productos" },
+    { value: "PRODUCTO_MARGEN", label: "Márgenes de producto" },
+    { value: "PRODUCTO_CANAL_PRECIO_INFLADO", label: "Precios inflados de producto" },
+    { value: "PRODUCTO_APTO", label: "Aptos de producto" },
+    { value: "PRODUCTO_CATALOGO", label: "Catálogos de producto" },
+    { value: "PRODUCTO_CLIENTE", label: "Clientes de producto" },
     { value: "PROVEEDOR", label: "Proveedores" },
     { value: "CLIENTE", label: "Clientes" },
     { value: "CANAL", label: "Canales" },
@@ -182,6 +194,8 @@ const entidadOptions = [
     { value: "CONFIG_AUTOMATIZACION", label: "Config. automatización" },
     { value: "CATALOGO_PDF_CONFIG", label: "Config. catálogo PDF" },
     { value: "CATALOGO_PDF_GLOBAL_CONFIG", label: "Config. global catálogo PDF" },
+    { value: "AUTH", label: "Autenticación" },
+    { value: "RECALCULO", label: "Recálculo de precios" },
 ];
 const accionOptions = [
     { value: "", label: "Todas las acciones" },
@@ -436,7 +450,7 @@ export default function AuditoriaPage() {
     };
 
     const renderEntityLink = (item: AuditoriaCambioDTO) => {
-        const code = item.entidadCodigo || String(item.entidadId);
+        const code = item.entidadCodigo || (item.entidadId != null ? String(item.entidadId) : "—");
 
         if (item.entidad === "PRODUCTO" && item.entidadCodigo && !item.entidadCodigo.startsWith("RECALCULO")) {
             return (
@@ -508,7 +522,7 @@ export default function AuditoriaPage() {
             const exportRows = (response.content ?? []).map((item) => ({
                 fecha: formatFechaAR(item.fechaHora),
                 entidad: entityLabelMap[item.entidad] || item.entidad,
-                codigo: item.entidadCodigo || `#${item.entidadId}`,
+                codigo: item.entidadCodigo || (item.entidadId != null ? `#${item.entidadId}` : "—"),
                 usuario: item.usuarioNombreCompleto || item.usuarioUsername || "Sistema",
                 accion: actionLabelMap[item.accion] || item.accion,
                 campo: fieldLabelMap[item.campo] || item.campo,
@@ -534,9 +548,9 @@ export default function AuditoriaPage() {
                 { header: "Origen", accessor: "origen" },
                 { header: "Registro", accessor: "registro" },
             ], "auditoria");
-            toast.success(`${exportRows.length} registro(s) exportados`);
+            notificar.success(`${exportRows.length} registro(s) exportados`);
         } catch {
-            toast.error("No se pudo exportar la auditoría.");
+            notificar.error("No se pudo exportar la auditoría.");
         }
     };
 
@@ -810,7 +824,7 @@ export default function AuditoriaPage() {
                                     <tr key={item.id} className={`${index % 2 === 0 ? "bg-white dark:bg-slate-800" : "bg-slate-50/60 dark:bg-slate-900/70"} border-b border-slate-100 last:border-b-0 dark:border-slate-700`}>
                                         <td className="whitespace-nowrap px-3 py-2 text-slate-600 dark:text-slate-300">{formatFechaAR(item.fechaHora)}</td>
                                         <td className="px-3 py-2 font-semibold text-slate-700 dark:text-slate-200">{entityLabelMap[item.entidad] || item.entidad}</td>
-                                        <td className="px-3 py-2 font-semibold text-slate-800 dark:text-slate-100">{item.entidadCodigo || `#${item.entidadId}`}</td>
+                                        <td className="px-3 py-2 font-semibold text-slate-800 dark:text-slate-100">{item.entidadCodigo || (item.entidadId != null ? `#${item.entidadId}` : "—")}</td>
                                         <td className="px-3 py-2">
                                             <div className="font-medium text-slate-700 dark:text-slate-200">{item.usuarioNombreCompleto || item.usuarioUsername || "Sistema"}</div>
                                             {item.usuarioNombreCompleto && item.usuarioUsername && (

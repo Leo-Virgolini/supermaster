@@ -210,7 +210,7 @@ public class CanalServiceImpl implements CanalService {
         productoMargenRepository.saveAll(margenes);
 
         // 3) Recalcular precios de todos los productos del canal (y subcanales).
-        recalculoPendienteService.marcarCanales("Recálculo de canal",
+        recalculoPendienteService.marcarCanales("Ajuste masivo de margen del canal",
                 canalScopeService.idsConSubcanales(canalId));
     }
 

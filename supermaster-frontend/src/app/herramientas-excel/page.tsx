@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect } from "react";
 import { toast } from "sonner";
+import { notificar } from "../utils/notificar";
 import Button from "../components/Button/Button";
 import AsyncSelect from "../components/AsyncSelect/AsyncSelect";
 import Modal from "../components/Modal/Modal";
@@ -652,12 +653,12 @@ export default function HerramientasExcelPage() {
             const result = await descargarExcel(`${API_BASE_URL}/api/excel/exportar-precios?${params.toString()}`);
             if (result.advertencias > 0) {
                 setAdvertenciasPrecios(result);
-                toast.warning(`Descargado con ${result.advertencias} advertencia${result.advertencias > 1 ? "s" : ""}.`);
+                notificar.warning(`Descargado con ${result.advertencias} advertencia${result.advertencias > 1 ? "s" : ""}.`);
             } else {
-                toast.success("Lista de precios descargada.");
+                notificar.success("Lista de precios descargada.");
             }
         } catch (err: any) {
-            toast.error(err?.message || "Error al exportar");
+            notificar.error(err?.message || "Error al exportar");
         } finally {
             setExportandoPrecios(null);
         }
@@ -679,9 +680,9 @@ export default function HerramientasExcelPage() {
         if (ordenarPor.length > 0) params.append("ordenarPor", ordenarPor.join(","));
         try {
             await descargarExcel(`${API_BASE_URL}/api/excel/exportar-catalogo?${params.toString()}`);
-            toast.success("Catálogo descargado.");
+            notificar.success("Catálogo descargado.");
         } catch (err: any) {
-            toast.error(err?.message || "Error al exportar catálogo");
+            notificar.error(err?.message || "Error al exportar catálogo");
         } finally {
             setExportandoCatalogo(false);
         }
@@ -704,9 +705,9 @@ export default function HerramientasExcelPage() {
         if (ordenarPor.length > 0) params.append("ordenarPor", ordenarPor.join(","));
         try {
             const productos = await descargarPdf(`${API_BASE_URL}/api/catalogos-pdf/exportar?${params.toString()}`);
-            toast.success(productos > 0 ? `Catálogo PDF descargado (${productos} productos).` : "Catálogo PDF descargado.");
+            notificar.success(productos > 0 ? `Catálogo PDF descargado (${productos} productos).` : "Catálogo PDF descargado.");
         } catch (err: any) {
-            toast.error(err?.message || "Error al exportar catálogo PDF");
+            notificar.error(err?.message || "Error al exportar catálogo PDF");
         } finally {
             setExportandoCatalogoPdf(false);
         }
@@ -723,7 +724,7 @@ export default function HerramientasExcelPage() {
             const data = await response.json() as PageResponse<CatalogoPdfConfigItem>;
             setConfigsPdf(data.content ?? []);
         } catch (err: any) {
-            toast.error(err?.message || "No se pudieron cargar las automatizaciones PDF.");
+            notificar.error(err?.message || "No se pudieron cargar las automatizaciones PDF.");
         } finally {
             setCargandoConfigsPdf(false);
         }
@@ -736,13 +737,13 @@ export default function HerramientasExcelPage() {
                 `${API_BASE_URL}/api/catalogos-pdf/generar-automatico/${config.id}`,
                 { method: "POST" },
             );
-            toast.success(
+            notificar.success(
                 productos > 0
                     ? `PDF generado para "${config.nombre}" (${productos} productos).`
                     : `PDF generado para "${config.nombre}".`,
             );
         } catch (err: any) {
-            toast.error(err?.message || `No se pudo generar el PDF para "${config.nombre}".`);
+            notificar.error(err?.message || `No se pudo generar el PDF para "${config.nombre}".`);
         } finally {
             setEjecutandoConfigSlug(null);
         }
@@ -803,11 +804,11 @@ export default function HerramientasExcelPage() {
                     body: JSON.stringify(payload),
                 },
             );
-            toast.success(editingConfigId ? "Automatización PDF actualizada." : "Automatización PDF creada.");
+            notificar.success(editingConfigId ? "Automatización PDF actualizada." : "Automatización PDF creada.");
             closeConfigModal();
             await cargarConfigsPdf();
         } catch (err: any) {
-            toast.error(err?.message || "No se pudo guardar la automatización PDF.");
+            notificar.error(err?.message || "No se pudo guardar la automatización PDF.");
         } finally {
             setGuardandoConfig(false);
         }
@@ -824,10 +825,10 @@ export default function HerramientasExcelPage() {
                 headers: withAuditOrigin("TABLE"),
                 allowedStatuses: [204],
             });
-            toast.success("Automatización PDF eliminada.");
+            notificar.success("Automatización PDF eliminada.");
             await cargarConfigsPdf();
         } catch (err: any) {
-            toast.error(err?.message || "No se pudo eliminar la automatización PDF.");
+            notificar.error(err?.message || "No se pudo eliminar la automatización PDF.");
         } finally {
             setEliminandoConfigId(null);
         }

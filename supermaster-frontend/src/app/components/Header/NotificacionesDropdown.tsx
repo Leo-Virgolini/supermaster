@@ -1,9 +1,10 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { BellIcon, CheckIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { BellIcon, CheckIcon, TrashIcon, ChevronDownIcon, ClipboardDocumentIcon } from "@heroicons/react/24/outline";
 import { BellAlertIcon } from "@heroicons/react/24/solid";
 import { useNotificaciones, type Notificacion } from "../../context/NotificacionContext";
+import { toast } from "sonner";
 
 function tiempoRelativo(iso: string): string {
     const diff = Date.now() - new Date(iso).getTime();
@@ -24,26 +25,68 @@ const TIPO_CONFIG: Record<string, { color: string; dot: string }> = {
     warning: { color: "text-amber-600 dark:text-amber-400", dot: "bg-amber-500" },
 };
 
-function NotificacionItem({ notif, onClick }: { notif: Notificacion; onClick: () => void }) {
+function NotificacionItem({ notif, onMarcarLeida }: { notif: Notificacion; onMarcarLeida: () => void }) {
     const config = TIPO_CONFIG[notif.tipo] || TIPO_CONFIG.info;
+    const tieneDetalle = !!(notif.detalle && notif.detalle.trim().length > 0);
+    const [detalleAbierto, setDetalleAbierto] = useState(false);
+
+    const handleClick = () => {
+        if (!notif.leida) onMarcarLeida();
+        if (tieneDetalle) setDetalleAbierto((v) => !v);
+    };
+
+    const handleCopiar = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!notif.detalle) return;
+        navigator.clipboard.writeText(notif.detalle)
+            .then(() => toast.success("Detalle copiado al portapapeles"))
+            .catch(() => toast.error("No se pudo copiar al portapapeles"));
+    };
 
     return (
-        <button
-            onClick={onClick}
-            className={`w-full text-left px-3 py-2.5 flex gap-3 items-start hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors ${!notif.leida ? "bg-blue-50/50 dark:bg-blue-500/5" : ""}`}
-        >
-            <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${config.dot} ${!notif.leida ? "opacity-100" : "opacity-30"}`} />
-            <div className="flex-1 min-w-0">
-                <p className={`text-sm leading-snug ${!notif.leida ? "font-medium text-gray-900 dark:text-slate-100" : "text-gray-600 dark:text-slate-400"}`}>
-                    {notif.mensaje}
-                </p>
-                <div className="mt-0.5 flex items-center gap-2 text-[11px] text-gray-400 dark:text-slate-500">
-                    <span>{tiempoRelativo(notif.timestamp)}</span>
-                    <span>·</span>
-                    <span>{notif.usuario}</span>
+        <div className={`${!notif.leida ? "bg-blue-50/50 dark:bg-blue-500/5" : ""}`}>
+            <button
+                onClick={handleClick}
+                className="w-full text-left px-3 py-2.5 flex gap-3 items-start hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
+            >
+                <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${config.dot} ${!notif.leida ? "opacity-100" : "opacity-30"}`} />
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-start gap-2">
+                        <p className={`flex-1 text-sm leading-snug ${!notif.leida ? "font-medium text-gray-900 dark:text-slate-100" : "text-gray-600 dark:text-slate-400"}`}>
+                            {notif.mensaje}
+                        </p>
+                        {tieneDetalle && (
+                            <ChevronDownIcon className={`mt-0.5 h-4 w-4 shrink-0 text-gray-400 dark:text-slate-500 transition-transform ${detalleAbierto ? "rotate-180" : ""}`} />
+                        )}
+                    </div>
+                    <div className="mt-0.5 flex items-center gap-2 text-[11px] text-gray-400 dark:text-slate-500">
+                        <span>{tiempoRelativo(notif.timestamp)}</span>
+                        <span>·</span>
+                        <span>{notif.usuario}</span>
+                    </div>
                 </div>
-            </div>
-        </button>
+            </button>
+            {tieneDetalle && detalleAbierto && (
+                <div className="px-3 pb-2.5 pl-8">
+                    <div className="rounded-md border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-900/40 overflow-hidden">
+                        <div className="flex items-center justify-between px-2 py-1 border-b border-gray-200 dark:border-slate-700">
+                            <span className="text-[10px] uppercase tracking-wide font-semibold text-gray-500 dark:text-slate-400">Detalle</span>
+                            <button
+                                onClick={handleCopiar}
+                                className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-500/10 transition-colors"
+                                title="Copiar al portapapeles"
+                            >
+                                <ClipboardDocumentIcon className="w-3.5 h-3.5" />
+                                Copiar
+                            </button>
+                        </div>
+                        <pre className="px-2 py-1.5 max-h-48 overflow-auto text-[11px] font-mono text-gray-700 dark:text-slate-300 whitespace-pre-wrap break-all">
+                            {notif.detalle}
+                        </pre>
+                    </div>
+                </div>
+            )}
+        </div>
     );
 }
 
@@ -126,7 +169,7 @@ export default function NotificacionesDropdown() {
                                 <NotificacionItem
                                     key={n.id}
                                     notif={n}
-                                    onClick={() => marcarLeida(n.id)}
+                                    onMarcarLeida={() => marcarLeida(n.id)}
                                 />
                             ))
                         )}

@@ -14,7 +14,12 @@ import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -36,6 +41,9 @@ class AplicadorPendientesServiceTest {
     @Mock
     private ProcesoGlobalService procesoGlobal;
 
+    @Mock
+    private RecalculoPendienteService recalculoPendienteService;
+
     @InjectMocks
     private AplicadorPendientesService service;
 
@@ -52,30 +60,32 @@ class AplicadorPendientesServiceTest {
         @Test
         @DisplayName("ambos locks libres → true")
         void ambosLocksLibres_ok() {
-            when(procesoGlobal.adquirir(PROCESO_ID, PROCESO_DESC)).thenReturn(true);
+            when(procesoGlobal.adquirir(eq(PROCESO_ID), eq(PROCESO_DESC), any())).thenReturn(true);
 
             assertThat(service.intentarAdquirir()).isTrue();
             assertThat(service.estaEjecutando()).isTrue();
         }
 
         @Test
-        @DisplayName("lock local ya tomado → false sin tocar el global")
+        @DisplayName("segundo intento mientras hay uno corriendo → false (single-flight)")
         void lockLocalTomado_rechaza() {
             // Primer adquirir toma ambos locks.
-            when(procesoGlobal.adquirir(PROCESO_ID, PROCESO_DESC)).thenReturn(true);
+            when(procesoGlobal.adquirir(eq(PROCESO_ID), eq(PROCESO_DESC), any())).thenReturn(true);
             assertThat(service.intentarAdquirir()).isTrue();
 
-            // Segundo adquirir: lock local ya está tomado → ni siquiera consulta el global.
+            // Segundo adquirir: el global lo deja entrar otra vez (mock devuelve true), pero el
+            // lock local del tracker rechaza y libera el global como rollback. Resultado: false.
             assertThat(service.intentarAdquirir()).isFalse();
+            assertThat(service.estaEjecutando()).isTrue();
 
-            // Solo se llamó a adquirir() una vez (la segunda no llegó al lock global).
-            verify(procesoGlobal, times(1)).adquirir(PROCESO_ID, PROCESO_DESC);
+            // El rollback del segundo intento dispara liberar(), pero el primer adquirir sigue activo.
+            verify(procesoGlobal, atLeastOnce()).liberar(PROCESO_ID);
         }
 
         @Test
         @DisplayName("lock global rechaza (otro proceso BD activo) → libera el local y false")
         void lockGlobalRechaza_liberaLocal() {
-            when(procesoGlobal.adquirir(PROCESO_ID, PROCESO_DESC)).thenReturn(false);
+            when(procesoGlobal.adquirir(eq(PROCESO_ID), eq(PROCESO_DESC), any())).thenReturn(false);
 
             assertThat(service.intentarAdquirir()).isFalse();
             assertThat(service.estaEjecutando())
@@ -83,7 +93,7 @@ class AplicadorPendientesServiceTest {
                     .isFalse();
 
             // Un nuevo intento debe poder pasar (el lock local se liberó correctamente).
-            when(procesoGlobal.adquirir(PROCESO_ID, PROCESO_DESC)).thenReturn(true);
+            when(procesoGlobal.adquirir(eq(PROCESO_ID), eq(PROCESO_DESC), any())).thenReturn(true);
             assertThat(service.intentarAdquirir()).isTrue();
         }
     }
@@ -99,7 +109,7 @@ class AplicadorPendientesServiceTest {
         @DisplayName("itera productos secuencialmente y libera ambos locks al final")
         void planConProductos() {
             // Setup: lock adquirido previamente.
-            when(procesoGlobal.adquirir(PROCESO_ID, PROCESO_DESC)).thenReturn(true);
+            when(procesoGlobal.adquirir(eq(PROCESO_ID), eq(PROCESO_DESC), any())).thenReturn(true);
             service.intentarAdquirir();
 
             PlanRecalculo plan = new PlanRecalculo(false, Set.of(1, 2, 3), Set.of());
@@ -120,7 +130,7 @@ class AplicadorPendientesServiceTest {
         @Test
         @DisplayName("despacha canales fire-and-forget vía recalcularCanalCompletoAsync")
         void planConCanales() {
-            when(procesoGlobal.adquirir(PROCESO_ID, PROCESO_DESC)).thenReturn(true);
+            when(procesoGlobal.adquirir(eq(PROCESO_ID), eq(PROCESO_DESC), any())).thenReturn(true);
             service.intentarAdquirir();
 
             PlanRecalculo plan = new PlanRecalculo(false, Set.of(), Set.of(10, 20));
@@ -134,7 +144,7 @@ class AplicadorPendientesServiceTest {
         @Test
         @DisplayName("plan mixto procesa productos primero y despacha canales después")
         void planMixto() {
-            when(procesoGlobal.adquirir(PROCESO_ID, PROCESO_DESC)).thenReturn(true);
+            when(procesoGlobal.adquirir(eq(PROCESO_ID), eq(PROCESO_DESC), any())).thenReturn(true);
             service.intentarAdquirir();
 
             PlanRecalculo plan = new PlanRecalculo(false, Set.of(1), Set.of(10));
@@ -148,7 +158,7 @@ class AplicadorPendientesServiceTest {
         @Test
         @DisplayName("error en un producto NO detiene el resto")
         void errorEnProducto_continua() {
-            when(procesoGlobal.adquirir(PROCESO_ID, PROCESO_DESC)).thenReturn(true);
+            when(procesoGlobal.adquirir(eq(PROCESO_ID), eq(PROCESO_DESC), any())).thenReturn(true);
             service.intentarAdquirir();
 
             doThrow(new RuntimeException("BD timeout"))
@@ -171,7 +181,7 @@ class AplicadorPendientesServiceTest {
         @Test
         @DisplayName("error en un canal NO detiene el resto del plan")
         void errorEnCanal_continua() {
-            when(procesoGlobal.adquirir(PROCESO_ID, PROCESO_DESC)).thenReturn(true);
+            when(procesoGlobal.adquirir(eq(PROCESO_ID), eq(PROCESO_DESC), any())).thenReturn(true);
             service.intentarAdquirir();
 
             doThrow(new RuntimeException("async pool full"))
@@ -191,7 +201,7 @@ class AplicadorPendientesServiceTest {
         @Test
         @DisplayName("plan vacío igualmente libera locks")
         void planVacio_liberaLocks() {
-            when(procesoGlobal.adquirir(PROCESO_ID, PROCESO_DESC)).thenReturn(true);
+            when(procesoGlobal.adquirir(eq(PROCESO_ID), eq(PROCESO_DESC), any())).thenReturn(true);
             service.intentarAdquirir();
 
             service.ejecutarPlanScopedAsync(new PlanRecalculo(false, Set.of(), Set.of()));
@@ -205,7 +215,7 @@ class AplicadorPendientesServiceTest {
         @Test
         @DisplayName("después de aplicar un plan, se puede arrancar otro (lock local liberado)")
         void permiteSegundoPlanTrasFinalizar() {
-            when(procesoGlobal.adquirir(PROCESO_ID, PROCESO_DESC)).thenReturn(true);
+            when(procesoGlobal.adquirir(eq(PROCESO_ID), eq(PROCESO_DESC), any())).thenReturn(true);
 
             // Primera ejecución.
             service.intentarAdquirir();
@@ -219,6 +229,72 @@ class AplicadorPendientesServiceTest {
             verify(recalculoFacade).recalcularProductoEnTodosLosCanales(1);
             verify(recalculoFacade).recalcularProductoEnTodosLosCanales(2);
             verify(procesoGlobal, times(2)).liberar(PROCESO_ID);
+        }
+    }
+
+    // ============================================
+    // ejecutarPlanScopedAsync — fallo fatal con restore
+    // ============================================
+    @Nested
+    @DisplayName("ejecutarPlanScopedAsync — fallo fatal con restore")
+    class FalloFatalConRestore {
+
+        @Test
+        @DisplayName("excepción ANTES del loop → re-marca productos y canales del plan + libera locks")
+        @SuppressWarnings("unchecked")
+        void falloFatal_restauraPlan() {
+            when(procesoGlobal.adquirir(eq(PROCESO_ID), eq(PROCESO_DESC), any())).thenReturn(true);
+            service.intentarAdquirir();
+
+            // Set malicioso: size() responde normal (para el log inicial), pero iterator()
+            // tira excepción al entrar al for. Esto simula un fallo fatal que escapa al
+            // catch interno por producto y va directo al catch general.
+            Set<Integer> productosMock = mock(Set.class);
+            when(productosMock.size()).thenReturn(5);
+            when(productosMock.iterator()).thenThrow(new RuntimeException("fallo fatal iterando"));
+
+            Set<Integer> canales = Set.of(10, 20);
+            PlanRecalculo plan = new PlanRecalculo(false, productosMock, canales);
+
+            service.ejecutarPlanScopedAsync(plan);
+
+            // El plan se restauró: productos y canales fueron re-marcados como pendientes
+            // para que el usuario pueda reintentar (limpiar() ya ocurrió en el controller).
+            verify(recalculoPendienteService).marcarProductos(anyString(), eq(productosMock));
+            verify(recalculoPendienteService).marcarCanales(anyString(), eq(canales));
+
+            // Nunca se procesó ningún producto/canal porque la iteración falló de inicio.
+            verify(recalculoFacade, never()).recalcularProductoEnTodosLosCanales(org.mockito.ArgumentMatchers.anyInt());
+            verify(recalculoFacade, never()).recalcularCanalCompletoAsync(org.mockito.ArgumentMatchers.anyInt());
+
+            // Locks liberados pese al fallo.
+            verify(procesoGlobal).liberar(PROCESO_ID);
+            assertThat(service.estaEjecutando()).isFalse();
+        }
+
+        @Test
+        @DisplayName("fallo en restore es tragado y los locks se liberan igual")
+        @SuppressWarnings("unchecked")
+        void falloEnRestore_locksSeLiberan() {
+            when(procesoGlobal.adquirir(eq(PROCESO_ID), eq(PROCESO_DESC), any())).thenReturn(true);
+            service.intentarAdquirir();
+
+            Set<Integer> productosMock = mock(Set.class);
+            when(productosMock.size()).thenReturn(1);
+            when(productosMock.iterator()).thenThrow(new RuntimeException("fallo fatal iterando"));
+
+            // El restore también falla.
+            doThrow(new RuntimeException("BD caída"))
+                    .when(recalculoPendienteService).marcarProductos(anyString(), eq(productosMock));
+
+            PlanRecalculo plan = new PlanRecalculo(false, productosMock, Set.of());
+
+            // No debe propagar la excepción del restore.
+            service.ejecutarPlanScopedAsync(plan);
+
+            // Locks liberados pese a doble fallo.
+            verify(procesoGlobal).liberar(PROCESO_ID);
+            assertThat(service.estaEjecutando()).isFalse();
         }
     }
 }

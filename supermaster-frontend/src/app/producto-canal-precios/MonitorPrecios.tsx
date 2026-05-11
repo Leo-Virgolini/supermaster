@@ -39,6 +39,7 @@ import Tooltip from "../components/Tooltip/Tooltip";
 import { getAllPreciosInfladosAPI } from "../productos/productoSubRecursosService";
 import { getCuotasAPI, getCuotasPorCanalAPI } from "../canal-concepto-cuotas/canalConceptoCuotaService";
 import { toast } from "sonner";
+import { notificar } from "../utils/notificar";
 import { useAuth } from "../context/AuthContext";
 import { exportToExcel } from "../utils/exportCSV";
 
@@ -1383,7 +1384,7 @@ export default function MonitorPrecios({
                 exportColumns.map((col) => ({ header: col.header, accessor: String(col.accessor) })),
                 "monitor-precios"
             );
-            toast.success(`${rows.length} registro(s) exportados`);
+            notificar.success(`${rows.length} registro(s) exportados`);
         } else if (onExportAll) {
             // Exportar todos via fetch
             try {
@@ -1393,9 +1394,9 @@ export default function MonitorPrecios({
                     exportColumns.map((col) => ({ header: col.header, accessor: String(col.accessor) })),
                     "monitor-precios"
                 );
-                toast.success(`${allData.length} registro(s) exportados`);
+                notificar.success(`${allData.length} registro(s) exportados`);
             } catch {
-                toast.error("Error al exportar");
+                notificar.error("Error al exportar");
             }
         } else {
             // Fallback: exportar página actual
@@ -1408,7 +1409,7 @@ export default function MonitorPrecios({
                 exportColumns.map((col) => ({ header: col.header, accessor: String(col.accessor) })),
                 "monitor-precios"
             );
-            toast.success(`${filas.length} registro(s) exportados`);
+            notificar.success(`${filas.length} registro(s) exportados`);
         }
     };
 

@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef, Fragment } from "react";
-import { toast } from "sonner";
+import { notificar } from "../utils/notificar";
 import { API_BASE_URL } from "../config/runtime";
 import { fetchAPI } from "../utils/fetchAPI";
 import Button from "../components/Button/Button";
@@ -522,7 +522,7 @@ export default function DuxDeudasPage() {
                 limpiarInterval();
                 setPanelEstado("COMPLETADO");
                 await cargarResultado();
-                toast.success("Deudas obtenidas correctamente.");
+                notificar.success("Deudas obtenidas correctamente.");
             } else if (data.estado === "cancelado") {
                 limpiarInterval();
                 setPanelEstado("IDLE");
@@ -531,7 +531,7 @@ export default function DuxDeudasPage() {
                 limpiarInterval();
                 setPanelEstado("ERROR");
                 setError(data.mensaje ?? "Error desconocido");
-                toast.error("Error al consultar deudas.");
+                notificar.error("Error al consultar deudas.");
             }
         } catch (err: any) {
             limpiarInterval();
@@ -687,12 +687,12 @@ export default function DuxDeudasPage() {
 
         try {
             await iniciarConsultaDeudas({ fechaDesde, fechaHasta, idEmpresa, idsSucursal, conCobro: conCobroValue, cliente: filtroCliente || undefined, anuladas: anuladasValue });
-            toast.info("Consulta de deudas iniciada. Puede tardar varios minutos.");
+            notificar.info("Consulta de deudas iniciada. Puede tardar varios minutos.");
             intervalRef.current = setInterval(consultarEstado, 3000);
         } catch (e: any) {
             setPanelEstado("ERROR");
             setError(e.message ?? "No se pudo iniciar la consulta");
-            toast.error("No se pudo iniciar la consulta: " + (e.message ?? "desconocido"));
+            notificar.error("No se pudo iniciar la consulta: " + (e.message ?? "desconocido"));
         }
     };
 

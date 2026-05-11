@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { toast } from "sonner";
+import { notificar } from "../utils/notificar";
 import { API_BASE_URL } from "../config/runtime";
 import { fetchAPI } from "../utils/fetchAPI";
 import { exportToExcel } from "../utils/exportCSV";
@@ -202,7 +202,7 @@ export default function DuxPage() {
                         <h1 className="flex items-center gap-3 text-3xl font-bold text-slate-800 dark:text-slate-100">
                             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-200">
                                 <ServerStackIcon className="h-7 w-7" />
-                            </span>
+                            </span>{" "}
                             DUX ERP
                         </h1>
                         <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">
@@ -245,8 +245,8 @@ export default function DuxPage() {
                                                 const d = await res.json();
                                                 setRateLimit(Math.round(d.segundos));
                                                 setRateLimitInput(Math.round(d.segundos));
-                                                toast.success(`Rate limit: ${Math.round(d.segundos)}s por request`);
-                                            } catch { toast.error("Error al guardar"); }
+                                                notificar.success(`Rate limit: ${Math.round(d.segundos)}s por request`);
+                                            } catch { notificar.error("Error al guardar"); }
                                             finally { setIsSavingRate(false); }
                                         }}
                                     >

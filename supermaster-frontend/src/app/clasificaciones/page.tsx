@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { toast } from "sonner";
 import ErrorBanner from "../components/ErrorBanner/ErrorBanner";
 import { Squares2X2Icon, PlusIcon, TrashIcon, CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
 

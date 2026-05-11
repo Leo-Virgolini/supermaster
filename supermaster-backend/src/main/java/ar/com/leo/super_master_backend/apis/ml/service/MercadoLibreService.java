@@ -54,6 +54,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 
 @Slf4j
 @Service
@@ -78,7 +79,9 @@ public class MercadoLibreService {
     private final RestClient restClient;
     private final MercadoLibreProperties properties;
     private final ProcesoGlobalService procesoGlobal;
-    private final Object tokenLock = new Object();
+    // ReentrantLock en lugar de synchronized: el bloque protegido hace I/O HTTP
+    // (refreshAccessToken) y synchronized pinea el carrier thread con virtual threads.
+    private final ReentrantLock tokenLock = new ReentrantLock();
 
     // Trackers reusables (estado + locks + supplier de progreso al SSE).
     private EstadoProcesoMasivo trackerCostoEnvio;
@@ -971,7 +974,8 @@ public class MercadoLibreService {
             return;
         }
 
-        synchronized (tokenLock) {
+        tokenLock.lock();
+        try {
             if (tokens == null || !tokens.isExpired()) {
                 return;
             }
@@ -996,6 +1000,8 @@ public class MercadoLibreService {
                         "Error al renovar el token: " + e.getMessage() + ". " +
                                 "Es posible que el refresh_token haya expirado y necesite re-autenticarse.");
             }
+        } finally {
+            tokenLock.unlock();
         }
     }
 

@@ -3386,6 +3386,7 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
      * Selecciona la base correcta para multiplicar el porcentaje del concepto
      * según la etapa donde actúa en el cálculo del PVP. Si la base resultante
      * es null/cero (canal sin contexto de cálculo, ej: tests), cae a PVP.
+     * Si pvp también es null/cero, retorna ZERO para evitar NPE en el caller.
      */
     private BigDecimal baseParaCostoVenta(AplicaSobre as, BigDecimal pvp, BasesCalculoCosto bases) {
         BigDecimal base = switch (as) {
@@ -3396,7 +3397,11 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
             // actuan como divisor sobre el PVP, asi que el costo del dueno es % × PVP.
             default -> pvp;
         };
-        return (base == null || base.compareTo(BigDecimal.ZERO) <= 0) ? pvp : base;
+        if (base != null && base.compareTo(BigDecimal.ZERO) > 0) {
+            return base;
+        }
+        // Fallback a PVP; si tampoco es válido, devolvemos ZERO para evitar NPE.
+        return (pvp != null && pvp.compareTo(BigDecimal.ZERO) > 0) ? pvp : BigDecimal.ZERO;
     }
 
     /**

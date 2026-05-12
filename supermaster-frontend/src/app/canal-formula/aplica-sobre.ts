@@ -4,7 +4,17 @@
 // Patrón paralelo a NATURALEZAS_INFO (ver naturaleza.ts).
 
 import type { EtapaId } from "./types";
-import { ETAPAS_INFO } from "./etapas";
+
+// Badge class por etapa. Mantenido aquí en vez de derivarlo de ETAPAS_INFO
+// para evitar la dependencia circular (etapas.ts re-exporta de este archivo).
+// Si cambia el color de una etapa en etapas.ts, sincronizar acá también.
+const BADGE_CLASS_POR_ETAPA: Record<EtapaId, string> = {
+    COSTO: "bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-200",
+    MARGEN: "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-200",
+    IMPUESTOS: "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200",
+    PRECIO: "bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-200",
+    POST_PRECIO: "bg-orange-100 text-orange-800 dark:bg-orange-500/20 dark:text-orange-200",
+};
 
 export type AplicaSobreId =
     // ===== ETAPA: COSTO =====
@@ -224,11 +234,6 @@ const APLICA_SOBRE_BY_ID: Record<string, AplicaSobreInfo> = APLICA_SOBRE_INFO.re
     {} as Record<string, AplicaSobreInfo>,
 );
 
-const ETAPAS_BY_ID = ETAPAS_INFO.reduce(
-    (acc, e) => { acc[e.id] = e; return acc; },
-    {} as Record<EtapaId, typeof ETAPAS_INFO[number]>,
-);
-
 /**
  * Devuelve la info visual del aplicaSobre. Si el valor es desconocido (caso
  * defensivo: backend agregó un valor nuevo), devuelve un fallback gris neutro
@@ -253,7 +258,7 @@ export function getAplicaSobreBadgeClass(id: string | null | undefined): string 
     if (info.id === "CALCULO_SOBRE_CANAL_BASE_RESELLER") {
         return "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-500/20 dark:text-fuchsia-200";
     }
-    return ETAPAS_BY_ID[info.etapa]?.badgeClass
+    return BADGE_CLASS_POR_ETAPA[info.etapa]
         ?? "bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-slate-300";
 }
 

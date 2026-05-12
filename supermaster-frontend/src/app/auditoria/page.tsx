@@ -4,7 +4,7 @@ import { notificar } from "../utils/notificar";
 import ErrorBanner from "../components/ErrorBanner/ErrorBanner";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     ClipboardDocumentIcon,
     ArrowPathIcon,
@@ -258,6 +258,17 @@ export default function AuditoriaPage() {
     const [items, setItems] = useState<AuditoriaCambioDTO[]>([]);
     const [pageIndex, setPageIndex] = useState(0);
     const [pageSize, setPageSize] = useState(20);
+    // Refs para preservar el scroll horizontal/vertical al paginar.
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const savedScrollPos = useRef<{ left: number; top: number } | null>(null);
+    const saveScrollPosition = () => {
+        if (scrollContainerRef.current) {
+            savedScrollPos.current = {
+                left: scrollContainerRef.current.scrollLeft,
+                top: scrollContainerRef.current.scrollTop,
+            };
+        }
+    };
     const [totalRecords, setTotalRecords] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -314,6 +325,16 @@ export default function AuditoriaPage() {
     useEffect(() => {
         void load();
     }, [load]);
+
+    // Restaurar la posición del scroll después de que los items cambien
+    // (cambio de página / pageSize). Solo restaura si saveScrollPosition() guardó algo.
+    useEffect(() => {
+        if (savedScrollPos.current !== null && scrollContainerRef.current) {
+            scrollContainerRef.current.scrollLeft = savedScrollPos.current.left;
+            scrollContainerRef.current.scrollTop = savedScrollPos.current.top;
+            savedScrollPos.current = null;
+        }
+    }, [items]);
 
     useEffect(() => {
         const nextSearch = searchParams.get("search") ?? "";
@@ -768,7 +789,7 @@ export default function AuditoriaPage() {
                 ) : items.length === 0 ? (
                     <div className="flex flex-1 items-center justify-center p-8 text-sm text-slate-500 dark:text-slate-400">No hay cambios para mostrar con los filtros actuales.</div>
                 ) : (
-                    <div className="min-h-0 flex-1 overflow-auto">
+                    <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-auto">
                         <table className="w-full min-w-[1280px] text-sm">
                             <thead className="sticky top-0 z-10 bg-slate-50 text-slate-600 dark:bg-slate-900 dark:text-slate-300">
                                 <tr>
@@ -852,8 +873,8 @@ export default function AuditoriaPage() {
                         pageIndex={pageIndex}
                         pageSize={pageSize}
                         pageCount={pageCount}
-                        onPageSizeChange={setPageSize}
-                        onPageChange={setPageIndex}
+                        onPageSizeChange={(s) => { saveScrollPosition(); setPageSize(s); }}
+                        onPageChange={(p) => { saveScrollPosition(); setPageIndex(p); }}
                     />
                 </div>
             </section>

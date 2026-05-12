@@ -33,7 +33,7 @@ import {
 import { searchMarcas, searchClasifGral, searchClasifGastro, searchTipos, searchCatalogos } from "../productos/productosService";
 import { confirmDialog } from "../utils/confirmDialog";
 
-type TabId = "conceptos" | "cuotas" | "reglas" | "descuentos";
+type TabId = "conceptos" | "cuotas" | "reglas-canal" | "reglas-conceptos" | "descuentos";
 
 interface CanalConceptosModalProps {
     isOpen: boolean;
@@ -616,6 +616,282 @@ function CuotasTab({ canalId }: { canalId: number }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Tab Reglas del Canal (CanalRegla) — define qué productos APLICAN al canal
+// según condiciones (tag, tipo, clasif, marca, producto específico, tiene_envio).
+// A diferencia de ReglasTab (CanalConceptoRegla), estas reglas filtran productos
+// a nivel del canal completo, no de un concepto individual.
+// ─────────────────────────────────────────────────────────────────────────────
+interface ReglaCanalForm {
+    tipoRegla: "INCLUIR" | "EXCLUIR";
+    tipoId: number | null;
+    tipoNombre: string;
+    clasifGralId: number | null;
+    clasifGralNombre: string;
+    clasifGastroId: number | null;
+    clasifGastroNombre: string;
+    marcaId: number | null;
+    marcaNombre: string;
+    productoId: number | null;
+    productoLabel: string;
+    tag: "" | "MAQUINA" | "REPUESTO" | "MENAJE";
+    tieneEnvio: boolean | null;
+}
+
+const REGLA_CANAL_FORM_INITIAL: ReglaCanalForm = {
+    tipoRegla: "EXCLUIR",
+    tipoId: null, tipoNombre: "",
+    clasifGralId: null, clasifGralNombre: "",
+    clasifGastroId: null, clasifGastroNombre: "",
+    marcaId: null, marcaNombre: "",
+    productoId: null, productoLabel: "",
+    tag: "", tieneEnvio: null,
+};
+
+function ReglasCanalTab({ canalId }: { canalId: number }) {
+    const [reglas, setReglas] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isAdding, setIsAdding] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [form, setForm] = useState<ReglaCanalForm>({ ...REGLA_CANAL_FORM_INITIAL });
+    const [showForm, setShowForm] = useState(false);
+
+    const [nameMaps, setNameMaps] = useState<{
+        tipos: NameMap; clasifGral: NameMap; clasifGastro: NameMap; marcas: NameMap;
+    }>({ tipos: {}, clasifGral: {}, clasifGastro: {}, marcas: {} });
+
+    const load = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const r = await fetchAPI(`${API_BASE_URL}/api/canal-reglas/canal/${canalId}`);
+            const data = await r.json();
+            setReglas(Array.isArray(data) ? data : (data.content || []));
+        } catch (e: any) {
+            setError(e.message);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [canalId]);
+
+    useEffect(() => {
+        load();
+        Promise.all([
+            loadNameMap("tipos", "nombre"),
+            loadNameMap("clasif-gral", "nombre"),
+            loadNameMap("clasif-gastro", "nombre"),
+            loadNameMap("marcas", "nombre"),
+        ]).then(([tipos, clasifGral, clasifGastro, marcas]) => {
+            setNameMaps({ tipos, clasifGral, clasifGastro, marcas });
+        }).catch(() => {
+            // loadNameMap ya tiene try/catch interno y devuelve {} en error,
+            // pero por defensa dejamos los mapas vacíos si algo inesperado falla.
+            // Los labels caerán a "#id" en filtersOf hasta que el usuario recargue.
+        });
+        setForm({ ...REGLA_CANAL_FORM_INITIAL });
+        setError(null);
+        setShowForm(false);
+    }, [canalId, load]);
+
+    const handleAgregar = async () => {
+        setIsAdding(true);
+        setError(null);
+        try {
+            const res = await fetchAPI(`${API_BASE_URL}/api/canal-reglas`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "X-Audit-Origin": "FORM" },
+                body: JSON.stringify({
+                    canalId,
+                    tipoRegla: form.tipoRegla,
+                    tipoId: form.tipoId,
+                    clasifGralId: form.clasifGralId,
+                    clasifGastroId: form.clasifGastroId,
+                    marcaId: form.marcaId,
+                    productoId: form.productoId,
+                    tag: form.tag || null,
+                    tieneEnvio: form.tieneEnvio,
+                }),
+            });
+            if (!res.ok) throw new Error("Error al agregar regla del canal");
+            await load();
+            setForm({ ...REGLA_CANAL_FORM_INITIAL });
+            setShowForm(false);
+        } catch (e: any) {
+            setError(e.message || "Error al agregar regla del canal");
+        } finally {
+            setIsAdding(false);
+        }
+    };
+
+    const handleEliminar = async (id: number) => {
+        if (!(await confirmDialog({ title: "Eliminar", message: "¿Eliminar esta regla del canal?", confirmText: "Eliminar", variant: "danger" }))) return;
+        try {
+            const res = await fetchAPI(`${API_BASE_URL}/api/canal-reglas/${id}`, {
+                method: "DELETE",
+                headers: { "X-Audit-Origin": "TABLE" },
+            });
+            if (!res.ok) throw new Error("Error al eliminar regla del canal");
+            await load();
+        } catch (e: any) { setError(e.message); }
+    };
+
+    const filtersOf = (item: any) => {
+        const parts: string[] = [];
+        if (item.productoId) parts.push(`Producto: ${item.productoLabel || `#${item.productoId}`}`);
+        if (item.tipoId) parts.push(`Tipo: ${nameMaps.tipos[item.tipoId] || `#${item.tipoId}`}`);
+        if (item.clasifGralId) parts.push(`Rubro: ${nameMaps.clasifGral[item.clasifGralId] || `#${item.clasifGralId}`}`);
+        if (item.clasifGastroId) parts.push(`Gastro: ${nameMaps.clasifGastro[item.clasifGastroId] || `#${item.clasifGastroId}`}`);
+        if (item.marcaId) parts.push(`Marca: ${nameMaps.marcas[item.marcaId] || `#${item.marcaId}`}`);
+        if (item.tag) parts.push(`Tag: ${item.tag}`);
+        if (item.tieneEnvio === true) parts.push("Con envío");
+        if (item.tieneEnvio === false) parts.push("Sin envío");
+        return parts.length > 0 ? parts.join(" | ") : "Sin filtros (aplica a todos los productos)";
+    };
+
+    return (
+        <div className="flex flex-col gap-4">
+            <div className="text-xs text-gray-500 italic">
+                Estas reglas filtran <strong>qué productos aplican al canal</strong>. Si un producto cumple una regla EXCLUIR, no se calcula su precio en este canal. Si hay reglas INCLUIR, solo se calculan los productos que cumplan alguna.
+            </div>
+            {error && <div className="p-2 bg-red-100 text-red-700 rounded text-sm">{error}</div>}
+
+            {!showForm ? (
+                <div className="flex justify-end">
+                    <Button variant="dark" onClick={() => setShowForm(true)}>
+                        + Crear Regla
+                    </Button>
+                </div>
+            ) : (
+                <div className="border border-gray-200 rounded p-3 bg-gray-50 flex flex-col gap-3">
+                    <label className="block">
+                        <span className="text-xs font-semibold text-gray-600">Acción <span className="text-red-500">*</span></span>
+                        <select
+                            className="w-full border rounded p-1.5 text-sm mt-0.5"
+                            value={form.tipoRegla}
+                            onChange={(e) => setForm({ ...form, tipoRegla: e.target.value as "INCLUIR" | "EXCLUIR" })}
+                        >
+                            <option value="EXCLUIR">EXCLUIR (No calcular precio para estos productos)</option>
+                            <option value="INCLUIR">INCLUIR (Solo calcular para estos productos)</option>
+                        </select>
+                    </label>
+
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Filtros opcionales (aplica solo a productos que coincidan)</p>
+
+                    <div className="grid grid-cols-2 gap-2">
+                        <AsyncSelect
+                            label="Tipo"
+                            placeholder="Todos los tipos..."
+                            loadOptions={async (q) => (await searchTipos(q)).map((o: any) => ({ id: o.id, label: o.label }))}
+                            onChange={(val, label) => setForm({ ...form, tipoId: val ? Number(val) : null, tipoNombre: label || "" })}
+                            displayValue={form.tipoId ? (form.tipoNombre || "Tipo seleccionado") : undefined}
+                        />
+                        <AsyncSelect
+                            label="Rubro (Clasif. Gral)"
+                            placeholder="Todos los rubros..."
+                            loadOptions={async (q) => (await searchClasifGral(q)).map((o: any) => ({ id: o.id, label: o.label }))}
+                            onChange={(val, label) => setForm({ ...form, clasifGralId: val ? Number(val) : null, clasifGralNombre: label || "" })}
+                            displayValue={form.clasifGralId ? (form.clasifGralNombre || "Rubro seleccionado") : undefined}
+                        />
+                        <AsyncSelect
+                            label="Gastro (Clasif. Gastro)"
+                            placeholder="Todas las categorías..."
+                            loadOptions={async (q) => (await searchClasifGastro(q)).map((o: any) => ({ id: o.id, label: o.label }))}
+                            onChange={(val, label) => setForm({ ...form, clasifGastroId: val ? Number(val) : null, clasifGastroNombre: label || "" })}
+                            displayValue={form.clasifGastroId ? (form.clasifGastroNombre || "Gastro seleccionado") : undefined}
+                        />
+                        <AsyncSelect
+                            label="Marca"
+                            placeholder="Todas las marcas..."
+                            loadOptions={async (q) => (await searchMarcas(q)).map((o: any) => ({ id: o.id, label: o.label }))}
+                            onChange={(val, label) => setForm({ ...form, marcaId: val ? Number(val) : null, marcaNombre: label || "" })}
+                            displayValue={form.marcaId ? (form.marcaNombre || "Marca seleccionada") : undefined}
+                        />
+                    </div>
+
+                    <AsyncSelect
+                        label="Producto específico (opcional)"
+                        placeholder="Buscar por SKU o descripción..."
+                        loadOptions={async (q) => {
+                            const r = await fetchAPI(`${API_BASE_URL}/api/productos?page=0&size=15&search=${encodeURIComponent(q)}`);
+                            const j = await r.json();
+                            return (j.content || []).map((item: any) => ({
+                                id: item.id,
+                                label: `[${item.sku}] ${item.tituloWeb || item.descripcion || ""}`.trim(),
+                            }));
+                        }}
+                        onChange={(val, label) => setForm({ ...form, productoId: val ? Number(val) : null, productoLabel: label || "" })}
+                        displayValue={form.productoId ? (form.productoLabel || "Producto seleccionado") : undefined}
+                    />
+
+                    <div className="grid grid-cols-2 gap-2">
+                        <label className="block">
+                            <span className="text-xs font-semibold text-gray-600">Tag</span>
+                            <select
+                                className="w-full border rounded p-1.5 text-sm mt-0.5 bg-white"
+                                value={form.tag}
+                                onChange={(e) => setForm({ ...form, tag: e.target.value as "" | "MAQUINA" | "REPUESTO" | "MENAJE" })}
+                            >
+                                <option value="">Sin filtro</option>
+                                <option value="MAQUINA">Máquina</option>
+                                <option value="REPUESTO">Repuesto</option>
+                                <option value="MENAJE">Menaje</option>
+                            </select>
+                        </label>
+                        <label className="block">
+                            <span className="text-xs font-semibold text-gray-600">Tiene Envío</span>
+                            <select
+                                className="w-full border rounded p-1.5 text-sm mt-0.5 bg-white"
+                                value={form.tieneEnvio === true ? "true" : form.tieneEnvio === false ? "false" : ""}
+                                onChange={(e) => {
+                                    const v = e.target.value;
+                                    setForm({ ...form, tieneEnvio: v === "true" ? true : v === "false" ? false : null });
+                                }}
+                            >
+                                <option value="">Sin filtro</option>
+                                <option value="true">Sí tiene envío</option>
+                                <option value="false">No tiene envío</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <div className="flex justify-end gap-2">
+                        <Button variant="light" onClick={() => { setShowForm(false); setForm({ ...REGLA_CANAL_FORM_INITIAL }); }}>
+                            Cancelar
+                        </Button>
+                        <Button variant="dark" onClick={handleAgregar} disabled={isAdding}>
+                            {isAdding ? "Agregando..." : "Agregar Regla"}
+                        </Button>
+                    </div>
+                </div>
+            )}
+
+            {isLoading ? (
+                <p className="text-sm text-gray-400 text-center py-4">Cargando...</p>
+            ) : reglas.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-4">No hay reglas a nivel del canal. Sin reglas, todos los productos aplican.</p>
+            ) : (
+                <SimpleTable headers={["Acción", "Filtros", ""]}>
+                    {reglas.map((item) => (
+                        <tr key={item.id} className="border-b last:border-0 hover:bg-gray-50">
+                            <td className="px-3 py-2 w-[100px]">
+                                <Badge
+                                    text={item.tipoRegla}
+                                    color={item.tipoRegla === "INCLUIR" ? "green" : "red"}
+                                />
+                            </td>
+                            <td className="px-3 py-2 text-gray-600 text-xs">
+                                {filtersOf(item)}
+                            </td>
+                            <td className="px-3 py-2 text-right w-[60px]">
+                                <QuitarBtn onClick={() => handleEliminar(item.id)} />
+                            </td>
+                        </tr>
+                    ))}
+                </SimpleTable>
+            )}
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Tab Reglas de Excepción
 // ─────────────────────────────────────────────────────────────────────────────
 interface ReglaForm {
@@ -679,6 +955,10 @@ function ReglasTab({ canalId }: { canalId: number }) {
             loadNameMap("marcas", "nombre"),
         ]).then(([tipos, clasifGral, clasifGastro, marcas]) => {
             setNameMaps({ tipos, clasifGral, clasifGastro, marcas });
+        }).catch(() => {
+            // loadNameMap ya tiene try/catch interno y devuelve {} en error,
+            // pero por defensa dejamos los mapas vacíos si algo inesperado falla.
+            // Los labels caerán a "#id" en filtersOf hasta que el usuario recargue.
         });
         setForm({ ...REGLA_FORM_INITIAL });
         setError(null);
@@ -934,7 +1214,7 @@ function DescuentosTab({ canalId }: { canalId: number }) {
             loadNameMap("clasif-gastro", "nombre"),
         ]).then(([catalogos, clasifGral, clasifGastro]) => {
             setNameMaps({ catalogos, clasifGral, clasifGastro });
-        });
+        }).catch(() => { /* defensivo: ver Tab Reglas para detalle */ });
         setForm({ ...DESCUENTO_FORM_INITIAL });
         setError(null);
         setShowForm(false);
@@ -1110,7 +1390,8 @@ function DescuentosTab({ canalId }: { canalId: number }) {
 const TABS: { id: TabId; label: string }[] = [
     { id: "conceptos", label: "Conceptos" },
     { id: "cuotas", label: "Cuotas" },
-    { id: "reglas", label: "Reglas" },
+    { id: "reglas-canal", label: "Reglas Canal" },
+    { id: "reglas-conceptos", label: "Reglas Conceptos" },
     { id: "descuentos", label: "Descuentos" },
 ];
 
@@ -1153,7 +1434,8 @@ export default function CanalConceptosModal({
                 <div className="min-h-[250px] max-h-[55vh] overflow-y-auto pr-1">
                     {activeTab === "conceptos" && <ConceptosTab canalId={canalId} canalBaseId={canalBaseId} />}
                     {activeTab === "cuotas" && <CuotasTab canalId={canalId} />}
-                    {activeTab === "reglas" && <ReglasTab canalId={canalId} />}
+                    {activeTab === "reglas-canal" && <ReglasCanalTab canalId={canalId} />}
+                    {activeTab === "reglas-conceptos" && <ReglasTab canalId={canalId} />}
                     {activeTab === "descuentos" && <DescuentosTab canalId={canalId} />}
                 </div>
             </div>

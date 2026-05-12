@@ -13,6 +13,7 @@ import { confirmDialog } from "../utils/confirmDialog";
 import { useProcesoActivo } from "../context/ProcesoActivoContext";
 import { type SortingState } from "@tanstack/react-table";
 import { notificar } from "../utils/notificar";
+import { toast } from "sonner";
 import { updateProductoAPI } from "../productos/productosService";
 import { getProductoMargenAPI, updateProductoMargenAPI } from "../productos/productoMargenService";
 import { asignarPrecioInfladoAPI } from "../productos/productoSubRecursosService";
@@ -39,7 +40,9 @@ export default function ProductoCanalPreciosPage() {
     });
 
     useEffect(() => {
-        localStorage.setItem("pageSize_monitor-precios", String(pageSize));
+        try {
+            localStorage.setItem("pageSize_monitor-precios", String(pageSize));
+        } catch { /* QuotaExceededError o modo privado — ignorar, no es crítico */ }
     }, [pageSize]);
     const [search, setSearch] = useState("");
     const [sorting, setSorting] = useState<SortingState>([]);
@@ -298,8 +301,33 @@ export default function ProductoCanalPreciosPage() {
                         const sortParam = mappedSorting.length > 0
                             ? mappedSorting.map(s => `${s.id},${s.desc ? "desc" : "asc"}`)
                             : ["id,desc"];
-                        const res = await getProductoCanalPreciosAPI(0, 99999, search, filters, sortParam);
-                        return res.content;
+
+                        // Paginamos por chunks razonables en vez de un fetch único con tope.
+                        // 5000 productos por página es un buen balance: pocas requests y
+                        // poca memoria por request (cada producto trae canales × cuotas anidados).
+                        const PAGE_SIZE = 5000;
+                        const toastId = toast.loading("Cargando datos para exportar…");
+                        try {
+                            const firstPage = await getProductoCanalPreciosAPI(0, PAGE_SIZE, search, filters, sortParam);
+                            const total = firstPage.page?.totalElements ?? firstPage.content.length;
+                            const totalPages = firstPage.page?.totalPages ?? Math.max(1, Math.ceil(total / PAGE_SIZE));
+                            const allData = [...firstPage.content];
+
+                            if (totalPages > 1) {
+                                toast.loading(`Cargando 1/${totalPages} (${allData.length.toLocaleString("es-AR")}/${total.toLocaleString("es-AR")} productos)…`, { id: toastId });
+                                for (let p = 1; p < totalPages; p++) {
+                                    const page = await getProductoCanalPreciosAPI(p, PAGE_SIZE, search, filters, sortParam);
+                                    allData.push(...page.content);
+                                    toast.loading(`Cargando ${p + 1}/${totalPages} (${allData.length.toLocaleString("es-AR")}/${total.toLocaleString("es-AR")} productos)…`, { id: toastId });
+                                }
+                            }
+
+                            toast.dismiss(toastId);
+                            return allData;
+                        } catch (err) {
+                            toast.error("Error al cargar datos para exportar", { id: toastId });
+                            throw err;
+                        }
                     }}
                     pageIndex={pageIndex}
                     pageSize={pageSize}

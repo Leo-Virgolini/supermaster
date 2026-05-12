@@ -75,9 +75,16 @@ public class AuditoriaServiceImpl implements AuditoriaService {
         }
 
         if (!registros.isEmpty()) {
-            auditoriaCambioRepository.saveAll(registros);
+            // Persistir en chunks para evitar OOM y latencias largas cuando una entidad
+            // dispara muchos cambios (ej: import masivo o reconciliaciones).
+            for (int i = 0; i < registros.size(); i += AUDIT_BATCH_SIZE) {
+                int end = Math.min(i + AUDIT_BATCH_SIZE, registros.size());
+                auditoriaCambioRepository.saveAll(registros.subList(i, end));
+            }
         }
     }
+
+    private static final int AUDIT_BATCH_SIZE = 500;
 
     @Override
     @Transactional(readOnly = true)

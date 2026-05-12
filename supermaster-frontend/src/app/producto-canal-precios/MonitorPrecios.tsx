@@ -139,6 +139,21 @@ const mrgColor = (val: number | null | undefined) => {
     return "text-red-600 font-semibold";
 };
 
+/**
+ * Devuelve el ícono de alerta para MRG S/IN: el indicador clave de rentabilidad
+ * real (post IVA + impuestos + costos venta). Si el dueño no se queda con suficiente
+ * de lo que cobra, el negocio no es viable aunque el PVP se vea alto.
+ *  - < 0%:  🔻 (rojo) — pierde plata, vende a pérdida
+ *  - < 15%: ⚠ (naranja) — rentabilidad ajustada, revisar
+ *  - ≥ 15%: sin ícono
+ */
+const mrgAlertIcon = (val: number | null | undefined): string | null => {
+    if (val == null) return null;
+    if (val < 0) return "🔻";
+    if (val < 15) return "⚠";
+    return null;
+};
+
 const markupColor = (val: number | null | undefined) => {
     if (val == null) return "text-gray-300";
     if (val >= 100) return "text-emerald-600 font-semibold";
@@ -147,6 +162,104 @@ const markupColor = (val: number | null | undefined) => {
     if (val >= 0) return "text-orange-500";
     return "text-red-600 font-semibold";
 };
+
+/**
+ * Aplana la respuesta jerárquica del backend (producto → canales → precios) a
+ * una lista plana de filas. Se usa tanto para renderizar la tabla como para
+ * exportar el Excel — antes el export pasaba los datos crudos sin aplanar y
+ * por eso las columnas anidadas aparecían vacías.
+ *
+ * El filtro por canal/cuotas se aplica acá si se pasa. Para el export "todo",
+ * el backend ya devuelve filtrado, así que pasar {canal:"all", cuotas:"all"}
+ * solo aplana sin filtrar de nuevo.
+ */
+function aplanarParaExport(
+    data: ProductoCanalPrecioDTO[],
+    margenesMap: Record<number, ProductoMargenDTO | null>,
+    filtro: { canal: number | "all"; cuotas: number | "all" | null },
+): FilaComparador[] {
+    const result: FilaComparador[] = [];
+    for (const prod of data) {
+        const canales = filtro.canal === "all"
+            ? (prod.canales ?? [])
+            : (prod.canales ?? []).filter((c) => c.canalId === filtro.canal);
+        const margen = margenesMap[prod.id];
+
+        const buildFila = (precio: PrecioCalculado, canalId: number, canalNombre: string, precioIdx: number): FilaComparador => ({
+            _rowKey: `${prod.id}-${canalId}-${precio.cuotas}-${precioIdx}`,
+            id: prod.id,
+            sku: prod.sku,
+            mla: prod.mla ?? null,
+            descripcion: prod.descripcion,
+            costo: prod.costo,
+            iva: prod.iva,
+            cuotas: precio.cuotas,
+            cuotasDescripcion: precio.descripcion,
+            canalId,
+            canalNombre,
+            pvp: precio.pvp,
+            pvpInflado: precio.pvpInflado ?? null,
+            precioInfladoCodigo: precio.precioInfladoCodigo ?? null,
+            precioInfladoTipo: precio.precioInfladoTipo ?? null,
+            precioInfladoValor: precio.precioInfladoValor ?? null,
+            ganancia: precio.ganancia,
+            margenSobrePvp: precio.margenSobrePvp,
+            margenSobreIngresoNeto: precio.margenSobreIngresoNeto ?? null,
+            markupPorcentaje: precio.markupPorcentaje ?? null,
+            costosVenta: precio.costosVenta ?? null,
+            ingresoNetoVendedor: precio.ingresoNetoVendedor ?? null,
+            margenMinorista: margen?.margenMinorista ?? null,
+            margenMayorista: margen?.margenMayorista ?? null,
+            margenFijoMinorista: margen?.margenFijoMinorista ?? null,
+            margenFijoMayorista: margen?.margenFijoMayorista ?? null,
+            descuentos: precio.descuentos ?? [],
+            descPorcentaje: precio.descuentos?.[0]?.descuentoPorcentaje ?? null,
+            descMontoMinimo: precio.descuentos?.[0]?.montoMinimo ?? null,
+            descPvp: precio.descuentos?.[0]?.pvpConDescuento ?? null,
+            descGanancia: precio.descuentos?.[0]?.gananciaConDescuento ?? null,
+            descCostosVenta: precio.descuentos?.[0]?.costosVentaConDescuento ?? null,
+            descIngresoNeto: precio.descuentos?.[0]?.ingresoNetoConDescuento ?? null,
+            descMargenSobreIN: precio.descuentos?.[0]?.margenSobreIngresoNetoConDescuento ?? null,
+            descMargenSobrePvp: precio.descuentos?.[0]?.margenSobrePvpConDescuento ?? null,
+            descMarkup: precio.descuentos?.[0]?.markupConDescuento ?? null,
+            fechaUltimoCosto: prod.fechaUltimoCosto ?? null,
+            fechaUltimoCalculo: precio.fechaUltimoCalculo ?? null,
+            tag: prod.tag ?? null,
+            _original: prod,
+        });
+
+        for (const canal of canales) {
+            if (!canal.precios?.length) continue;
+            if (filtro.cuotas != null && filtro.cuotas !== "all") {
+                const idx = canal.precios.findIndex((p) => p.cuotas === filtro.cuotas);
+                if (idx >= 0) result.push(buildFila(canal.precios[idx], canal.canalId, canal.canalNombre, idx));
+            } else {
+                canal.precios.forEach((precio, idx) => {
+                    result.push(buildFila(precio, canal.canalId, canal.canalNombre, idx));
+                });
+            }
+        }
+    }
+
+    // El backend pagina por (producto, canal, cuota) → cada DTO trae 1 sola cuota,
+    // así que las distintas cuotas del mismo producto+canal aparecen como filas
+    // separadas en el orden de id (no por cuotas). Reordenar las filas para que,
+    // dentro de cada grupo producto+canal, las cuotas queden ASC (transferencia
+    // -1, contado 0, 3, 6, 9, 12…) preservando el orden de grupos del backend.
+    const grupoRank = new Map<string, number>();
+    let nextRank = 0;
+    for (const row of result) {
+        const key = `${row.id}-${row.canalId}`;
+        if (!grupoRank.has(key)) grupoRank.set(key, nextRank++);
+    }
+    result.sort((a, b) => {
+        const rankA = grupoRank.get(`${a.id}-${a.canalId}`) ?? 0;
+        const rankB = grupoRank.get(`${b.id}-${b.canalId}`) ?? 0;
+        if (rankA !== rankB) return rankA - rankB;
+        return Number(a.cuotas ?? 0) - Number(b.cuotas ?? 0);
+    });
+    return result;
+}
 
 const ganColor = (val: number) =>
     val >= 0 ? "text-teal-600 font-semibold" : "text-red-500 font-semibold";
@@ -740,12 +853,25 @@ const getColumns = (
     {
         accessorKey: "margenSobreIngresoNeto",
         header: "Mrg s/IN",
-        size: 95,
+        size: 105,
         enableSorting: true,
         meta: { center: true },
         cell: ({ getValue }) => {
             const val = getValue() as number | null;
-            return <span className={mrgColor(val)}>{pctCell(val)}</span>;
+            const alerta = mrgAlertIcon(val);
+            return (
+                <span className={`inline-flex items-center gap-1 ${mrgColor(val)}`}
+                    title={
+                        val == null ? undefined
+                            : val < 0 ? "Vende a pérdida — el ingreso neto no cubre el costo del producto"
+                                : val < 15 ? "Rentabilidad ajustada — el dueño se queda con poco después de impuestos y costos"
+                                    : undefined
+                    }
+                >
+                    {alerta && <span aria-hidden>{alerta}</span>}
+                    <span>{pctCell(val)}</span>
+                </span>
+            );
         },
     },
     {
@@ -826,12 +952,25 @@ const getColumns = (
     {
         accessorKey: "descMargenSobreIN",
         header: "Mrg IN c/D",
-        size: 95,
+        size: 105,
         enableSorting: false,
         meta: { center: true, headerClassName: DISCOUNT_HEADER_CLASS },
         cell: ({ getValue }) => {
             const val = getValue() as number | null;
-            return <span className={mrgColor(val)}>{pctCell(val)}</span>;
+            const alerta = mrgAlertIcon(val);
+            return (
+                <span className={`inline-flex items-center gap-1 ${mrgColor(val)}`}
+                    title={
+                        val == null ? undefined
+                            : val < 0 ? "Con descuento se vende a pérdida"
+                                : val < 15 ? "Con descuento la rentabilidad queda ajustada"
+                                    : undefined
+                    }
+                >
+                    {alerta && <span aria-hidden>{alerta}</span>}
+                    <span>{pctCell(val)}</span>
+                </span>
+            );
         },
     },
     {
@@ -986,7 +1125,7 @@ export default function MonitorPrecios({
 }: Props) {
     const { hasPermiso } = useAuth();
     const canEdit = hasPermiso("PRECIOS_EDITAR");
-    const [sorting, setSorting] = useState<SortingState>([{ id: "margenSobrePvp", desc: true }]);
+    const [sorting, setSorting] = useState<SortingState>([]);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const savedScrollPos = useRef<{ left: number; top: number } | null>(null);
     const [lastEditedCell, setLastEditedCell] = useState<{ productoId: number; field: string } | null>(null);
@@ -1060,12 +1199,17 @@ export default function MonitorPrecios({
         if (selectedCanal == null) return;
         setEfectiveCuotas([]);
 
+        // Token de cancelación: si el canal cambia antes de que llegue la respuesta,
+        // marcamos esta request como obsoleta para no pisar los datos del nuevo canal.
+        let cancelado = false;
+
         const promise = selectedCanal === "all"
             ? getCuotasAPI(0, 200, "", {}, "cuotas,asc").then((res) => res.content ?? [])
             : getCuotasPorCanalAPI(selectedCanal as number);
 
         promise
             .then((items) => {
+                if (cancelado) return;
                 const cuotasMap = new Map<number, string>();
                 for (const item of items) {
                     if (!cuotasMap.has(item.cuotas)) {
@@ -1078,13 +1222,16 @@ export default function MonitorPrecios({
                         .sort((a, b) => a.cuotas - b.cuotas)
                 );
             })
-            .catch(() => setEfectiveCuotas([]));
+            .catch(() => { if (!cancelado) setEfectiveCuotas([]); });
+
+        return () => { cancelado = true; };
     }, [selectedCanal]);
 
     // Cargar márgenes configurados para los productos de la página
     const [margenesMap, setMargenesMap] = useState<Record<number, ProductoMargenDTO | null>>({});
     useEffect(() => {
         if (data.length === 0) return;
+        let cancelado = false;
         const ids = data.map((p) => p.id);
         Promise.all(
             ids.map((id) =>
@@ -1093,10 +1240,12 @@ export default function MonitorPrecios({
                     .catch(() => [id, null] as const)
             )
         ).then((results) => {
+            if (cancelado) return;
             const map: Record<number, ProductoMargenDTO | null> = {};
             for (const [id, m] of results) map[id] = m;
             setMargenesMap(map);
         });
+        return () => { cancelado = true; };
     }, [data]);
 
     // Auto-seleccionar "Todos" en cuotas cuando cambian
@@ -1117,73 +1266,14 @@ export default function MonitorPrecios({
         }
     }, [efectiveCuotas]);
 
-    // Aplanar datos: buscar precio según canal/cuotas seleccionados
+    // Aplanar datos: buscar precio según canal/cuotas seleccionados.
+    // Comparte la transformación con `aplanarParaExport` (ver helper externo).
     const filas: FilaComparador[] = useMemo(() => {
         if (selectedCanal == null) return [];
-        const result: FilaComparador[] = [];
-
-        for (const prod of data) {
-            const canales = selectedCanal === "all"
-                ? (prod.canales ?? [])
-                : (prod.canales ?? []).filter((c) => c.canalId === selectedCanal);
-            const margen = margenesMap[prod.id];
-
-            const buildFila = (precio: PrecioCalculado, canalId: number, canalNombre: string, precioIdx: number): FilaComparador => ({
-                _rowKey: `${prod.id}-${canalId}-${precio.cuotas}-${precioIdx}`,
-                id: prod.id,
-                sku: prod.sku,
-                mla: prod.mla ?? null,
-                descripcion: prod.descripcion,
-                costo: prod.costo,
-                iva: prod.iva,
-                cuotas: precio.cuotas,
-                cuotasDescripcion: precio.descripcion,
-                canalId,
-                canalNombre,
-                pvp: precio.pvp,
-                pvpInflado: precio.pvpInflado ?? null,
-                precioInfladoCodigo: precio.precioInfladoCodigo ?? null,
-                precioInfladoTipo: precio.precioInfladoTipo ?? null,
-                precioInfladoValor: precio.precioInfladoValor ?? null,
-                ganancia: precio.ganancia,
-                margenSobrePvp: precio.margenSobrePvp,
-                margenSobreIngresoNeto: precio.margenSobreIngresoNeto ?? null,
-                markupPorcentaje: precio.markupPorcentaje ?? null,
-                costosVenta: precio.costosVenta ?? null,
-                ingresoNetoVendedor: precio.ingresoNetoVendedor ?? null,
-                margenMinorista: margen?.margenMinorista ?? null,
-                margenMayorista: margen?.margenMayorista ?? null,
-                margenFijoMinorista: margen?.margenFijoMinorista ?? null,
-                margenFijoMayorista: margen?.margenFijoMayorista ?? null,
-                descuentos: precio.descuentos ?? [],
-                descPorcentaje: precio.descuentos?.[0]?.descuentoPorcentaje ?? null,
-                descMontoMinimo: precio.descuentos?.[0]?.montoMinimo ?? null,
-                descPvp: precio.descuentos?.[0]?.pvpConDescuento ?? null,
-                descGanancia: precio.descuentos?.[0]?.gananciaConDescuento ?? null,
-                descCostosVenta: precio.descuentos?.[0]?.costosVentaConDescuento ?? null,
-                descIngresoNeto: precio.descuentos?.[0]?.ingresoNetoConDescuento ?? null,
-                descMargenSobreIN: precio.descuentos?.[0]?.margenSobreIngresoNetoConDescuento ?? null,
-                descMargenSobrePvp: precio.descuentos?.[0]?.margenSobrePvpConDescuento ?? null,
-                descMarkup: precio.descuentos?.[0]?.markupConDescuento ?? null,
-                fechaUltimoCosto: prod.fechaUltimoCosto ?? null,
-                fechaUltimoCalculo: precio.fechaUltimoCalculo ?? null,
-                tag: prod.tag ?? null,
-                _original: prod,
-            });
-
-            for (const canal of canales) {
-                if (!canal.precios?.length) continue;
-                if (selectedCuotas != null && selectedCuotas !== "all") {
-                    const idx = canal.precios.findIndex((p) => p.cuotas === selectedCuotas);
-                    if (idx >= 0) result.push(buildFila(canal.precios[idx], canal.canalId, canal.canalNombre, idx));
-                } else {
-                    canal.precios.forEach((precio, idx) => {
-                        result.push(buildFila(precio, canal.canalId, canal.canalNombre, idx));
-                    });
-                }
-            }
-        }
-        return result;
+        return aplanarParaExport(data, margenesMap, {
+            canal: selectedCanal,
+            cuotas: selectedCuotas,
+        });
     }, [data, selectedCanal, selectedCuotas, margenesMap]);
 
     // Limpiar selección cuando cambian las filas
@@ -1204,12 +1294,16 @@ export default function MonitorPrecios({
 
     // Persistir columnas ocultas en localStorage (por canal)
     useEffect(() => {
-        localStorage.setItem(storageKey, JSON.stringify([...hiddenColumns]));
+        try {
+            localStorage.setItem(storageKey, JSON.stringify([...hiddenColumns]));
+        } catch { /* QuotaExceededError o modo privado — ignorar */ }
     }, [hiddenColumns, storageKey]);
 
     useEffect(() => {
         if (typeof window === "undefined") return;
-        localStorage.setItem(presetStorageKey, selectedPreset);
+        try {
+            localStorage.setItem(presetStorageKey, selectedPreset);
+        } catch { /* QuotaExceededError o modo privado — ignorar */ }
     }, [presetStorageKey, selectedPreset]);
 
     useEffect(() => {
@@ -1386,15 +1480,38 @@ export default function MonitorPrecios({
             );
             notificar.success(`${rows.length} registro(s) exportados`);
         } else if (onExportAll) {
-            // Exportar todos via fetch
+            // Exportar todos via fetch. Hay que APLANAR la respuesta jerárquica
+            // (producto → canales → precios) a filas, igual que para renderizar.
+            // Si no, los accessors anidados quedan vacíos en el Excel.
             try {
                 const allData = await onExportAll();
+                const filasExport = aplanarParaExport(allData, margenesMap, {
+                    canal: selectedCanal ?? "all",
+                    cuotas: selectedCuotas,
+                }).map((r) => ({
+                    ...r,
+                    descResumen: r.descPorcentaje != null
+                        ? `${r.descPorcentaje}% (mín ${formatARS(r.descMontoMinimo ?? 0)})`
+                        : "—",
+                }));
+
+                // Excel tiene un límite duro de 1.048.576 filas por hoja.
+                const EXCEL_ROW_LIMIT = 1_048_576 - 1; // -1 por el header
+                if (filasExport.length > EXCEL_ROW_LIMIT) {
+                    notificar.warning(
+                        `El resultado tiene ${filasExport.length.toLocaleString("es-AR")} filas, ` +
+                        `excede el límite de Excel (${EXCEL_ROW_LIMIT.toLocaleString("es-AR")}). ` +
+                        `Refiná filtros (canal, cuotas, búsqueda) y volvé a exportar.`
+                    );
+                    return;
+                }
+
                 exportToExcel(
-                    allData as unknown as Record<string, unknown>[],
+                    filasExport as unknown as Record<string, unknown>[],
                     exportColumns.map((col) => ({ header: col.header, accessor: String(col.accessor) })),
                     "monitor-precios"
                 );
-                notificar.success(`${allData.length} registro(s) exportados`);
+                notificar.success(`${filasExport.length.toLocaleString("es-AR")} registro(s) exportados`);
             } catch {
                 notificar.error("Error al exportar");
             }
@@ -1823,8 +1940,8 @@ export default function MonitorPrecios({
                     pageIndex={pageIndex}
                     pageSize={pageSize}
                     pageCount={Math.max(pageCount, 1)}
-                    onPageSizeChange={onPageSizeChange}
-                    onPageChange={onPageChange}
+                    onPageSizeChange={(s) => { saveScrollPosition(); onPageSizeChange(s); }}
+                    onPageChange={(p) => { saveScrollPosition(); onPageChange(p); }}
                 />
                 <div className="absolute right-4 flex items-center gap-4 text-[10px] text-gray-400 dark:text-slate-500">
                     <span>Margen/Markup:</span>

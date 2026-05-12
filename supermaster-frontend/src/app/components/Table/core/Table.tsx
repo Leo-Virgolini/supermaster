@@ -215,6 +215,12 @@ const Table = ({
                     ? updater({ pageIndex, pageSize })
                     : updater;
 
+            if (next.pageIndex !== pageIndex || next.pageSize !== pageSize) {
+                // Preservar la posición horizontal/vertical del scroll al cambiar
+                // de página o de pageSize — la tabla se vuelve a renderizar con
+                // datos nuevos y por defecto volvía al inicio.
+                saveScrollPosition();
+            }
             if (next.pageIndex !== pageIndex) {
                 onPageChange(next.pageIndex);
             }

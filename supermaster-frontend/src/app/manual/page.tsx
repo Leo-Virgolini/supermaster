@@ -575,9 +575,11 @@ const sections: Section[] = [
                 </div>
                 <Tip>
                     Desde la tabla de <strong>Canales</strong>, hacé clic en una fila para abrir el modal de detalle del canal,
-                    que tiene cuatro pestañas: <strong>Conceptos</strong> (gastos asignados, agrupados por etapa,
+                    que tiene cinco pestañas: <strong>Conceptos</strong> (gastos asignados, agrupados por etapa,
                     con búsqueda y validaciones cruzadas), <strong>Cuotas</strong> (planes de financiación),
-                    <strong> Reglas</strong> (excepciones de conceptos) y <strong>Descuentos</strong> (reglas de descuento por monto).
+                    <strong> Reglas Canal</strong> (qué productos aplican al canal),
+                    <strong> Reglas Conceptos</strong> (excepciones de conceptos por producto) y
+                    <strong> Descuentos</strong> (reglas de descuento por monto).
                     Cada pestaña permite gestionar las relaciones del canal sin salir de la pantalla.
                 </Tip>
                 <Tip>
@@ -728,9 +730,11 @@ const sections: Section[] = [
                 </div>
 
                 <Tip>
-                    El toolbar de la tabla incluye un botón de guía (<strong>ℹ</strong>) que abre un modal
-                    con la explicación visual de cada tipo de &quot;Aplica Sobre&quot; y dónde encaja en la fórmula.
-                    Útil para entender el orden de aplicación.
+                    El toolbar de la tabla incluye <strong>dos botones de guía</strong>:
+                    <strong> ℹ Aplica Sobre</strong> (azul) muestra cada uno de los 20 valores con su ícono, descripción
+                    y dónde encaja en la fórmula del PVP;
+                    <strong> ℹ Naturaleza</strong> (violeta) muestra los 8 valores de naturaleza contable
+                    (Costo de Venta, Inflación, Impuesto, Markup, etc.) y cuándo conviene sobreescribir el default ⚙ Auto.
                 </Tip>
 
                 <Tip>
@@ -925,10 +929,16 @@ const sections: Section[] = [
         content: (
             <div className="flex flex-col gap-4">
                 <p>
-                    Las <strong>Reglas de Canal</strong> deciden <em>qué productos pertenecen al canal</em>. Si un producto
+                    Las <strong>Reglas de Canal</strong> (también llamadas <strong>Reglas Canal</strong> en el modal del canal)
+                    deciden <em>qué productos pertenecen al canal</em>. Si un producto
                     no aplica al canal, no se le calculan precios para ese canal. Es distinto de las{" "}
-                    <strong>Reglas de Excepción</strong>, que controlan qué conceptos de cálculo se aplican a productos que
+                    <strong>Reglas de Excepción</strong> / <strong>Reglas Conceptos</strong>, que controlan qué conceptos de cálculo se aplican a productos que
                     ya están en el canal.
+                </p>
+                <p className="text-sm text-gray-500 italic">
+                    Se gestionan desde la pestaña <strong>Reglas Canal</strong> del modal de detalle de un canal
+                    (Canales → click en la fila → pestaña Reglas Canal), o desde el menú lateral
+                    <strong> Reglas de Canal</strong> para ver/editar todas las reglas globalmente.
                 </p>
                 <div className="flex flex-col gap-2">
                     <p className="font-semibold">Tipos de regla:</p>
@@ -1001,13 +1011,19 @@ const sections: Section[] = [
     },
     {
         id: "reglas-excepcion",
-        title: "Reglas de Excepción",
+        title: "Reglas de Excepción (Reglas Conceptos)",
         icon: ExclamationTriangleIcon,
         content: (
             <div className="flex flex-col gap-4">
                 <p>
-                    Las <strong>Reglas de Excepción</strong> permiten excluir o incluir conceptos de cálculo específicos
+                    Las <strong>Reglas de Excepción</strong> (también llamadas <strong>Reglas Conceptos</strong> en el
+                    modal del canal) permiten excluir o incluir conceptos de cálculo específicos
                     para combinaciones de canal, marca, clasificación, tipo o producto.
+                </p>
+                <p className="text-sm text-gray-500 italic">
+                    Se gestionan desde la pestaña <strong>Reglas Conceptos</strong> del modal de detalle de un canal
+                    (Canales → click en la fila → pestaña Reglas Conceptos), o desde el menú lateral
+                    <strong> Reglas de Excepción</strong> para ver/editar todas las reglas globalmente.
                 </p>
                 <div className="flex flex-col gap-2">
                     <p className="font-semibold">Tipos de regla:</p>
@@ -1272,6 +1288,21 @@ const sections: Section[] = [
                         <li className="text-emerald-600">&gt;40% — Margen/markup excelente.</li>
                     </ul>
                 </div>
+                <div className="flex flex-col gap-2">
+                    <p className="font-semibold">Íconos de alerta en MRG s/IN:</p>
+                    <ul className="list-disc list-inside space-y-1 text-gray-600">
+                        <li><strong>🔻</strong> — Margen sobre Ingreso Neto <strong>&lt; 0%</strong>: vende a pérdida (el ingreso neto no cubre el costo del producto).</li>
+                        <li><strong>⚠</strong> — Margen sobre Ingreso Neto <strong>&lt; 15%</strong>: rentabilidad ajustada, conviene revisar.</li>
+                    </ul>
+                    <p className="text-xs text-gray-500 italic">
+                        El ícono aparece solo en las columnas <strong>Mrg s/IN</strong> y <strong>Mrg IN c/D</strong> — es el
+                        indicador clave de rentabilidad real (post IVA + impuestos + costos de venta).
+                    </p>
+                </div>
+                <Tip>
+                    La tabla se muestra por defecto <strong>ordenada por cuotas ascendente</strong> (contado → 12 cuotas).
+                    Refleja el flujo natural del cliente: primero contado, después planes de pago.
+                </Tip>
                 <Tip>
                     Las ediciones inline (costo, IVA, márgenes, regla de inflado) <strong>marcan el cambio como
                     pendiente</strong> y aparecen en el banner ámbar del header. El recálculo corre cuando apretás
@@ -1283,6 +1314,12 @@ const sections: Section[] = [
                     &quot;Recalcular&quot; individual), la tabla del Monitor se <strong>actualiza
                     automáticamente</strong> apenas termina el procesamiento en background. No hace falta
                     refrescar la página manualmente.
+                </Tip>
+                <Tip>
+                    El botón <strong>Exportar Excel</strong> trae <strong>todos los registros</strong> que matchean los
+                    filtros activos (paginado en chunks de 5.000 productos en background). Si exportás muchos productos,
+                    aparece un toast con el progreso (&quot;Cargando 3/12&hellip;&quot;). Excel tiene un límite duro de
+                    1.048.575 filas — si lo superás, te avisa para que refines filtros.
                 </Tip>
                 <Tip>
                     El botón <strong>&quot;Recalcular Todos&quot;</strong> (rojo, en el encabezado) recalcula los precios de todos los productos

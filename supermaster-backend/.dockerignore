@@ -5,4 +5,10 @@ target/
 logs/
 temp/
 .idea/
+.vscode/
+.claude/
+.cursor/
 *.iml
+.env
+.env.*
+!.env.example

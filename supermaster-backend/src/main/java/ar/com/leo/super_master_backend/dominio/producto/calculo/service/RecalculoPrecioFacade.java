@@ -3,6 +3,7 @@ package ar.com.leo.super_master_backend.dominio.producto.calculo.service;
 import ar.com.leo.super_master_backend.dominio.canal.repository.CanalRepository;
 import ar.com.leo.super_master_backend.dominio.common.service.EstadoProcesoMasivo;
 import ar.com.leo.super_master_backend.dominio.common.service.ProcesoGlobalService;
+import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoCanalPrecioRepository;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoRepository;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -36,7 +37,9 @@ public class RecalculoPrecioFacade {
     private final CalculoPrecioService calculoPrecioService;
     private final ProductoRepository productoRepository;
     private final CanalRepository canalRepository;
+    private final ProductoCanalPrecioRepository pcpRepository;
     private final ProcesoGlobalService procesoGlobal;
+    private final ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService recalculoPendienteService;
 
     private EstadoProcesoMasivo trackerCanal;
 
@@ -52,6 +55,11 @@ public class RecalculoPrecioFacade {
      * un cambio de atributo (ej: tag, costo, iva, margen) puede hacer que el producto
      * pase a aplicar a canales de los que antes estaba excluido por canal_regla.
      * El Impl decide por combinación: crear / actualizar / borrar.
+     *
+     * <p>Tras éxito desmarca el flag {@code obsoleto} de las filas del producto, para
+     * que el banner del frontend refleje el estado real. Si el caller ya lo hace
+     * (ej: {@link ar.com.leo.super_master_backend.dominio.common.service.RecalculoBulkExecutor}),
+     * el desmarcado es idempotente y barato.
      */
     @Transactional
     public void recalcularProductoEnTodosLosCanales(Integer productoId) {
@@ -59,6 +67,7 @@ public class RecalculoPrecioFacade {
         var canales = canalRepository.findAll();
         canales.forEach(canal ->
                 calculoPrecioService.recalcularYGuardarPrecioCanalTodasCuotas(productoId, canal.getId()));
+        pcpRepository.desmarcarObsoletoPorProducto(productoId);
         log.info("Producto {} recalculado en {} canales", productoId, canales.size());
     }
 
@@ -118,6 +127,10 @@ public class RecalculoPrecioFacade {
             }
 
             log.info("Recálculo completo de canal {} finalizado: {} ok, {} errores", canalId, ok, errores);
+            // Desmarcar el canal y sus precios obsoletos: la iteración del catálogo completo
+            // ya corrió, los productos con error se loguearon. Quedaría marcado solo si crasheó
+            // entera (catch externo), no si fueron errores aislados por producto.
+            recalculoPendienteService.desmarcarCanalCompletado(canalId);
             trackerCanal.completar(total, ok, errores,
                     errores > 0
                             ? String.format("%s: %d productos OK, %d errores", nombreCanal, ok, errores)

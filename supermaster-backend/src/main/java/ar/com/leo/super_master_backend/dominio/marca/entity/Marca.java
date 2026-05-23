@@ -18,7 +18,8 @@ import java.util.Set;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "marcas", schema = "supermaster")
+@Table(name = "marcas", schema = "supermaster",
+        uniqueConstraints = @UniqueConstraint(name = "uk_marcas_nombre_padre", columnNames = {"nombre", "id_padre"}))
 public class Marca {
 
     @Id

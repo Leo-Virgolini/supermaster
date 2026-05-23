@@ -19,7 +19,8 @@ import java.util.Set;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "clasif_gral", schema = "supermaster")
+@Table(name = "clasif_gral", schema = "supermaster",
+        uniqueConstraints = @UniqueConstraint(name = "uk_clasif_gral_nombre_padre", columnNames = {"nombre", "id_padre"}))
 public class ClasifGral {
 
     @Id

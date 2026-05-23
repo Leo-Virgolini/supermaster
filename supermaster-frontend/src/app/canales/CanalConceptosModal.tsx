@@ -249,7 +249,7 @@ function ConceptosTab({ canalId, canalBaseId }: { canalId: number; canalBaseId: 
 
     useEffect(() => {
         load();
-        getAllConceptosCalculoAPI().then(setAllConceptos).catch(() => { });
+        getAllConceptosCalculoAPI().then(setAllConceptos).catch((e) => console.warn("No se pudieron cargar conceptos de cálculo:", e));
         setSelectedConceptoId("");
         setError(null);
     }, [canalId, load]);
@@ -947,7 +947,7 @@ function ReglasTab({ canalId }: { canalId: number }) {
 
     useEffect(() => {
         load();
-        getAllConceptosCalculoAPI().then(setAllConceptos).catch(() => { });
+        getAllConceptosCalculoAPI().then(setAllConceptos).catch((e) => console.warn("No se pudieron cargar conceptos de cálculo:", e));
         Promise.all([
             loadNameMap("tipos", "nombre"),
             loadNameMap("clasif-gral", "nombre"),

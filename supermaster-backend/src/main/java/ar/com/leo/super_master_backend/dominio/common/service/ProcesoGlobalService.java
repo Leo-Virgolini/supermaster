@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
 /**
@@ -45,6 +46,11 @@ public class ProcesoGlobalService {
 
     // Procesos activos: procesoId -> ProcesoInfo
     private final ConcurrentHashMap<String, ProcesoInfo> procesosActivos = new ConcurrentHashMap<>();
+
+    // ReentrantLock en lugar de synchronized: con virtual threads (Java 21+),
+    // synchronized pinea el carrier thread durante toda la sección crítica,
+    // degradando los virtual threads a kernel threads bajo contención.
+    private final ReentrantLock adquirirLock = new ReentrantLock();
 
     // Lazy para evitar ciclo si el SSE service algún día consume al ProcesoGlobalService.
     @Autowired
@@ -104,7 +110,8 @@ public class ProcesoGlobalService {
     public boolean adquirir(String procesoId, String descripcion,
                             Supplier<ProcesoMasivoEstadoDTO> progresoSupplier) {
         boolean adquirido;
-        synchronized (this) {
+        adquirirLock.lock();
+        try {
             Set<String> gruposNuevo = GRUPOS_POR_PROCESO.getOrDefault(procesoId, Set.of());
 
             // Verificar conflictos de grupo con procesos activos
@@ -126,6 +133,8 @@ public class ProcesoGlobalService {
                     usuario, LocalDateTime.now(), progresoSupplier));
             log.info("Proceso adquirido: {} ({}) por {} [grupos: {}]", procesoId, descripcion, usuario, gruposNuevo);
             adquirido = true;
+        } finally {
+            adquirirLock.unlock();
         }
         // Broadcast fuera del lock: si un emitter está lento, no queremos bloquear a
         // otros threads que intentan adquirir/liberar en paralelo.
@@ -229,7 +238,9 @@ public class ProcesoGlobalService {
             if (auth != null && auth.getPrincipal() != null) {
                 return String.valueOf(auth.getPrincipal()).trim();
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            log.trace("No se pudo obtener usuario actual del SecurityContext, usando 'sistema'", e);
+        }
         return "sistema";
     }
 

@@ -86,8 +86,12 @@ const Header = () => {
             setIsOpen(false);
             return;
         }
+        // AbortController evita que una response vieja pise una nueva si el usuario sigue tipeando.
+        const controller = new AbortController();
         setIsLoading(true);
-        fetchAPI(`${API_BASE_URL}/api/productos?search=${encodeURIComponent(debouncedQuery)}&page=0&size=6&sort=id,desc`)
+        fetchAPI(`${API_BASE_URL}/api/productos?search=${encodeURIComponent(debouncedQuery)}&page=0&size=6&sort=id,desc`, {
+            signal: controller.signal,
+        })
             .then((r) => r.json())
             .then((data) => {
                 const items: ProductoResult[] = (data?.content ?? []).map((p: any) => ({
@@ -101,8 +105,11 @@ const Header = () => {
                 setResults(items);
                 setIsOpen(items.length > 0);
             })
-            .catch(() => setResults([]))
+            .catch((e) => {
+                if (e?.name !== "AbortError") setResults([]);
+            })
             .finally(() => setIsLoading(false));
+        return () => controller.abort();
     }, [debouncedQuery]);
 
     useEffect(() => {

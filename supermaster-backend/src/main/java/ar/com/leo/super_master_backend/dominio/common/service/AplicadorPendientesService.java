@@ -1,7 +1,6 @@
 package ar.com.leo.super_master_backend.dominio.common.service;
 
 import ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService.PlanRecalculo;
-import ar.com.leo.super_master_backend.dominio.producto.calculo.service.RecalculoPrecioFacade;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -11,8 +10,13 @@ import org.springframework.stereotype.Service;
  * que la request HTTP retorne inmediatamente y el usuario no vea un spinner colgado
  * mientras el motor procesa N productos/canales.
  *
- * Single-flight: solo un plan a la vez. Si llega un segundo Apply mientras hay uno
+ * <p>Single-flight: solo un plan a la vez. Si llega un segundo Apply mientras hay uno
  * corriendo, el endpoint devuelve 409 y el usuario espera.
+ *
+ * <p>La iteración con bulk pre-load (que arregla el N+1) vive en
+ * {@link RecalculoBulkExecutor}; los flags de obsolescencia se desmarcan ahí mismo
+ * tras cada éxito (los items que fallan quedan marcados para reintento natural en
+ * el siguiente Apply, sin necesidad de restore explícito).
  */
 @Slf4j
 @Service
@@ -21,15 +25,12 @@ public class AplicadorPendientesService {
     private static final String PROCESO_ID = "recalculo-pendiente-scoped";
     private static final String PROCESO_DESC = "Aplicando recálculo pendiente";
 
-    private final RecalculoPrecioFacade recalculoFacade;
-    private final RecalculoPendienteService recalculoPendienteService;
+    private final RecalculoBulkExecutor bulkExecutor;
     private final EstadoProcesoMasivo tracker;
 
-    public AplicadorPendientesService(RecalculoPrecioFacade recalculoFacade,
-                                      ProcesoGlobalService procesoGlobal,
-                                      RecalculoPendienteService recalculoPendienteService) {
-        this.recalculoFacade = recalculoFacade;
-        this.recalculoPendienteService = recalculoPendienteService;
+    public AplicadorPendientesService(RecalculoBulkExecutor bulkExecutor,
+                                      ProcesoGlobalService procesoGlobal) {
+        this.bulkExecutor = bulkExecutor;
         this.tracker = new EstadoProcesoMasivo(PROCESO_ID, PROCESO_DESC, procesoGlobal);
     }
 
@@ -49,11 +50,11 @@ public class AplicadorPendientesService {
 
     /**
      * Ejecuta el plan en background. Asume que ya se llamó intentarAdquirir() y se
-     * obtuvo true. Libera locks al final y reporta contadores al frontend vía SSE
-     * para que el toast de cierre sea informativo (X productos OK, Y errores).
+     * obtuvo true. Libera locks al final.
      *
-     * Nota: itera secuencialmente, no en paralelo, para evitar conflictos de transacción
-     * en BD si dos productos comparten canales/cuotas.
+     * <p>Si el bulk executor crashea (excepción fatal), los flags de obsolescencia
+     * de los items NO procesados quedan {@code obsoleto = TRUE} naturalmente — el
+     * próximo Apply los va a ver. No hace falta restore explícito.
      */
     @Async
     public void ejecutarPlanScopedAsync(PlanRecalculo plan) {
@@ -63,57 +64,19 @@ public class AplicadorPendientesService {
         long t0 = System.currentTimeMillis();
         log.info("Aplicando plan scoped: productos={}, canales={}", totalProductos, totalCanales);
 
-        int procesados = 0;
-        int exitosos = 0;
-        int errores = 0;
         try {
             tracker.actualizar(total, 0, 0, 0, "Iniciando...");
 
-            for (Integer productoId : plan.productos()) {
-                try {
-                    recalculoFacade.recalcularProductoEnTodosLosCanales(productoId);
-                    exitosos++;
-                } catch (Exception e) {
-                    errores++;
-                    log.warn("Error recalculando producto {}: {}", productoId, e.getMessage());
-                }
-                procesados++;
-                tracker.actualizar(total, procesados, exitosos, errores,
-                        "Producto " + procesados + "/" + totalProductos);
-            }
-
-            // recalcularCanalCompletoAsync es @Async → fire-and-forget. El lock global del
-            // grupo BD se libera apenas se despachan, mientras los canales siguen procesándose
-            // en sus propios threads (registran "recalculo-canal" para verse en el header).
-            for (Integer canalId : plan.canales()) {
-                try {
-                    recalculoFacade.recalcularCanalCompletoAsync(canalId);
-                    exitosos++;
-                } catch (Exception e) {
-                    errores++;
-                    log.warn("Error despachando canal {}: {}", canalId, e.getMessage());
-                }
-                procesados++;
-                int canalesProcesados = procesados - totalProductos;
-                tracker.actualizar(total, procesados, exitosos, errores,
-                        "Canal " + canalesProcesados + "/" + totalCanales);
-            }
+            int[] resultado = bulkExecutor.ejecutar(plan, (procesados, ok, errs, descripcion) ->
+                    tracker.actualizar(total, procesados, ok, errs, descripcion));
+            int exitosos = resultado[0];
+            int errores = resultado[1];
 
             String mensaje = construirMensajeFinal(totalProductos, totalCanales, exitosos, errores);
             tracker.completar(total, exitosos, errores, mensaje);
             log.info("Plan scoped aplicado en {}ms — {}", System.currentTimeMillis() - t0, mensaje);
         } catch (Exception e) {
-            // Falla fatal antes/durante la iteración (ej. NPE, OOM): los pendientes ya se
-            // limpiaron en el controller antes de invocarnos, así que sin este restore se
-            // perderían silenciosamente. Re-marcamos el plan completo para reintento.
-            log.error("Error fatal en plan scoped — restaurando {} productos y {} canales para reintento",
-                    totalProductos, totalCanales, e);
-            try {
-                recalculoPendienteService.marcarProductos("Reintento por error en recálculo", plan.productos());
-                recalculoPendienteService.marcarCanales("Reintento por error en recálculo", plan.canales());
-            } catch (Exception restoreEx) {
-                log.error("No se pudo restaurar el plan scoped tras fallo", restoreEx);
-            }
+            log.error("Error fatal en plan scoped — items no procesados quedan marcados para reintento", e);
             tracker.completarConError(e.getMessage());
         } finally {
             // Idempotente: si completar/completarConError ya liberaron, esto es no-op.

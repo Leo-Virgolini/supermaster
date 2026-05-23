@@ -3,16 +3,17 @@ package ar.com.leo.super_master_backend.dominio.canal.entity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import jakarta.validation.constraints.NotNull;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.io.Serializable;
-import java.util.Objects;
 
 @Getter
 @Setter
 @NoArgsConstructor
+@EqualsAndHashCode
 @Embeddable
 public class CanalConceptoId implements Serializable {
 
@@ -29,20 +30,6 @@ public class CanalConceptoId implements Serializable {
     public CanalConceptoId(Integer canalId, Integer conceptoId) {
         this.canalId = canalId;
         this.conceptoId = conceptoId;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof CanalConceptoId)) return false;
-        CanalConceptoId that = (CanalConceptoId) o;
-        return Objects.equals(canalId, that.canalId) &&
-                Objects.equals(conceptoId, that.conceptoId);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(canalId, conceptoId);
     }
 
 }

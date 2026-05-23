@@ -119,7 +119,7 @@ export default function DuxPage() {
         fetchAPI(`${API_BASE_URL}/api/dux/config/rate-limit`)
             .then((r) => r.json())
             .then((d) => { setRateLimit(Math.round(d.segundos)); setRateLimitInput(Math.round(d.segundos)); })
-            .catch(() => {});
+            .catch((e) => console.warn("No se pudo cargar rate-limit de Dux:", e));
     }, []);
 
     const handleCargarEmpresas = async () => {

@@ -7,6 +7,7 @@ import ar.com.leo.super_master_backend.apis.dux.dto.ExportDuxResultDTO;
 import ar.com.leo.super_master_backend.apis.dux.dto.ImportDuxResultDTO;
 import ar.com.leo.super_master_backend.apis.dux.model.*;
 import ar.com.leo.super_master_backend.dominio.common.dto.ProcesoMasivoEstadoDTO;
+import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
 import ar.com.leo.super_master_backend.dominio.common.exception.ServiceNotConfiguredException;
 import ar.com.leo.super_master_backend.dominio.common.service.EstadoProcesoMasivo;
 import ar.com.leo.super_master_backend.dominio.common.service.ProcesoGlobalService;
@@ -16,7 +17,7 @@ import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoRepos
 import ar.com.leo.super_master_backend.dominio.proveedor.entity.Proveedor;
 import ar.com.leo.super_master_backend.dominio.proveedor.repository.ProveedorRepository;
 import jakarta.annotation.PostConstruct;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -696,7 +697,11 @@ public class DuxService {
      * @param logCallback callback para emitir líneas de log al proceso padre
      * @return resultado de la importación
      */
-    @Transactional
+    // noRollbackFor: el motor de cálculo (recalcularProductoEnTodosLosCanales) es @Transactional
+    // y puede tirar NotFoundException si el producto no tiene márgenes/canal/conceptos.
+    // El catch del loop atrapa la excepción pero sin noRollbackFor la tx outer quedaría
+    // marcada rollback-only y al commit se tiraría UnexpectedRollbackException.
+    @Transactional(noRollbackFor = NotFoundException.class)
     public ImportDuxResultDTO importarProductosSincrono(AtomicBoolean cancelFlag,
                                                         java.util.function.Consumer<String> logCallback,
                                                         LocalDateTime desde) {

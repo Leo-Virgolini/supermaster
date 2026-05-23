@@ -42,8 +42,8 @@ export function useAptos(
 			);
 			setAptos(json.content || []);
 			setTotalRecords(json.page?.totalElements || 0);
-		} catch (err: any) {
-			setError(err.message || "Error desconocido");
+		} catch (err: unknown) {
+			setError(err instanceof Error ? err.message : "Error desconocido");
 			setAptos([]);
 		} finally {
 			setIsLoading(false);
@@ -60,8 +60,8 @@ export function useAptos(
 			await getAptos();
 			notificar.success(`[Aptos] Registro #${result.id} creado`);
 			return true;
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al crear");
+		} catch (e: unknown) {
+			notificar.error(e instanceof Error ? e.message : "Error al crear");
 			throw e;
 		}
 	};
@@ -73,8 +73,8 @@ export function useAptos(
 			await getAptos();
 			notificar.success(ids.length === 1 ? `[Aptos] Registro #${ids[0]} eliminado` : `[Aptos] ${ids.length} registros eliminados`);
 			return true;
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al eliminar");
+		} catch (e: unknown) {
+			notificar.error(e instanceof Error ? e.message : "Error al eliminar");
 			throw e;
 		}
 	};
@@ -88,8 +88,8 @@ export function useAptos(
 			await getAptos();
 			notificar.success(`[Aptos] Registro #${id} actualizado`);
 			return true;
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al actualizar");
+		} catch (e: unknown) {
+			notificar.error(e instanceof Error ? e.message : "Error al actualizar");
 			throw e;
 		}
 	};

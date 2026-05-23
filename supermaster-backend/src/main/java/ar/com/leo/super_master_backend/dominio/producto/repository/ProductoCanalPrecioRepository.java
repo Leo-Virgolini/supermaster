@@ -3,10 +3,12 @@ package ar.com.leo.super_master_backend.dominio.producto.repository;
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCanalPrecio;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -55,8 +57,48 @@ public interface ProductoCanalPrecioRepository extends JpaRepository<ProductoCan
     List<ProductoCanalPrecio> findAllWithCanalAndProducto();
 
     @Query("DELETE FROM ProductoCanalPrecio p WHERE p.canal.id = :canalId AND ((:cuotas IS NULL AND p.cuotas IS NULL) OR p.cuotas = :cuotas)")
-    @org.springframework.data.jpa.repository.Modifying
+    @Modifying
     int deleteByCanalIdAndCuotas(@Param("canalId") Integer canalId, @Param("cuotas") Integer cuotas);
+
+    // =============================================
+    // OBSOLESCENCIA: marcado bulk de precios desactualizados
+    // =============================================
+
+    @Modifying
+    @Query("UPDATE ProductoCanalPrecio p SET p.obsoleto = TRUE, p.motivoObsoleto = :motivo, p.marcadoObsoletoAt = CURRENT_TIMESTAMP WHERE p.producto.id IN :productoIds")
+    int marcarObsoletoPorProductos(@Param("productoIds") Collection<Integer> productoIds, @Param("motivo") String motivo);
+
+    @Modifying
+    @Query("UPDATE ProductoCanalPrecio p SET p.obsoleto = TRUE, p.motivoObsoleto = :motivo, p.marcadoObsoletoAt = CURRENT_TIMESTAMP WHERE p.canal.id IN :canalIds")
+    int marcarObsoletoPorCanales(@Param("canalIds") Collection<Integer> canalIds, @Param("motivo") String motivo);
+
+    @Modifying
+    @Query("UPDATE ProductoCanalPrecio p SET p.obsoleto = TRUE, p.motivoObsoleto = :motivo, p.marcadoObsoletoAt = CURRENT_TIMESTAMP")
+    int marcarTodoObsoleto(@Param("motivo") String motivo);
+
+    @Modifying
+    @Query("UPDATE ProductoCanalPrecio p SET p.obsoleto = FALSE, p.motivoObsoleto = NULL, p.marcadoObsoletoAt = NULL WHERE p.producto.id = :productoId AND p.obsoleto = TRUE")
+    int desmarcarObsoletoPorProducto(@Param("productoId") Integer productoId);
+
+    @Modifying
+    @Query("UPDATE ProductoCanalPrecio p SET p.obsoleto = FALSE, p.motivoObsoleto = NULL, p.marcadoObsoletoAt = NULL WHERE p.canal.id = :canalId AND p.obsoleto = TRUE")
+    int desmarcarObsoletoPorCanal(@Param("canalId") Integer canalId);
+
+    @Modifying
+    @Query("UPDATE ProductoCanalPrecio p SET p.obsoleto = FALSE, p.motivoObsoleto = NULL, p.marcadoObsoletoAt = NULL WHERE p.obsoleto = TRUE")
+    int desmarcarTodosObsoletos();
+
+    @Query("SELECT DISTINCT p.producto.id FROM ProductoCanalPrecio p WHERE p.obsoleto = TRUE ORDER BY p.producto.id")
+    List<Integer> findDistinctProductoIdsObsoletos();
+
+    /**
+     * Resumen agrupado por motivo para construir el snapshot del banner.
+     * Devuelve filas con: motivo, cantidad, ultima_fecha.
+     */
+    @Query("SELECT p.motivoObsoleto, COUNT(p), MAX(p.marcadoObsoletoAt) FROM ProductoCanalPrecio p " +
+           "WHERE p.obsoleto = TRUE AND p.motivoObsoleto IS NOT NULL " +
+           "GROUP BY p.motivoObsoleto ORDER BY COUNT(p) DESC")
+    List<Object[]> resumenObsoletosPorMotivo();
 
     boolean existsByCanalIdAndCuotas(Integer canalId, Integer cuotas);
 

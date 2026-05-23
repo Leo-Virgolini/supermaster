@@ -108,6 +108,18 @@ public class ProductoCanalPrecio {
     private LocalDateTime fechaUltimoCalculo;
 
     // ---------------------------
+    // OBSOLESCENCIA (recálculo pendiente persistido)
+    // ---------------------------
+    @Column(name = "obsoleto", nullable = false)
+    private boolean obsoleto = false;
+
+    @Column(name = "motivo_obsoleto", length = 255)
+    private String motivoObsoleto;
+
+    @Column(name = "marcado_obsoleto_at")
+    private LocalDateTime marcadoObsoletoAt;
+
+    // ---------------------------
     // RELACIÓN CON PRECIO INFLADO (solo lectura, para sorting)
     // ---------------------------
     @ManyToOne(fetch = FetchType.LAZY)

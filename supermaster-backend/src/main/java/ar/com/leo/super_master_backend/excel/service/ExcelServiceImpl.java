@@ -1,10 +1,13 @@
 package ar.com.leo.super_master_backend.excel.service;
 
+import ar.com.leo.super_master_backend.dominio.apto.entity.Apto;
+import ar.com.leo.super_master_backend.dominio.apto.repository.AptoRepository;
 import ar.com.leo.super_master_backend.dominio.canal.entity.Canal;
 import ar.com.leo.super_master_backend.dominio.canal.entity.CanalConceptoCuota;
 import ar.com.leo.super_master_backend.dominio.canal.repository.CanalConceptoCuotaRepository;
 import ar.com.leo.super_master_backend.dominio.canal.repository.CanalConceptoRepository;
 import ar.com.leo.super_master_backend.dominio.canal.repository.CanalRepository;
+import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
 import ar.com.leo.super_master_backend.dominio.concepto_calculo.entity.AplicaSobre;
 import ar.com.leo.super_master_backend.dominio.catalogo.entity.Catalogo;
 import ar.com.leo.super_master_backend.dominio.catalogo.repository.CatalogoRepository;
@@ -105,6 +108,7 @@ public class ExcelServiceImpl implements ExcelService {
     private final CanalRepository canalRepository;
     private final CanalConceptoCuotaRepository canalConceptoCuotaRepository;
     private final MaterialRepository materialRepository;
+    private final AptoRepository aptoRepository;
     private final ProductoCatalogoRepository productoCatalogoRepository;
     private final ProductoMargenRepository productoMargenRepository;
     private final ReglaDescuentoRepository reglaDescuentoRepository;
@@ -112,6 +116,15 @@ public class ExcelServiceImpl implements ExcelService {
     private final ProductoCanalPrecioInfladoRepository productoCanalPrecioInfladoRepository;
     private final ProductoService productoService;
     private final RecalculoPrecioFacade recalculoPrecioFacade;
+
+    // Acumula valores referenciados en MASTER que no existen en las tablas auxiliares,
+    // agrupados por tipo de campo ("marca", "tipo", "origen", "material", "proveedor").
+    // Se reportan al final de la importación. Se resetea al inicio de cada corrida.
+    private final Map<String, Set<String>> valoresNoEncontradosMaster = new ConcurrentHashMap<>();
+
+    private void registrarValorNoEncontrado(String campo, String valor) {
+        valoresNoEncontradosMaster.computeIfAbsent(campo, k -> ConcurrentHashMap.newKeySet()).add(valor);
+    }
 
     // Caches en memoria para evitar consultas repetidas durante la importación
     private final Map<String, Marca> cacheMarcas = new ConcurrentHashMap<>();
@@ -1147,7 +1160,7 @@ public class ExcelServiceImpl implements ExcelService {
         }
 
         if (!isExcelFile(file)) {
-            throw new IllegalArgumentException("El archivo debe ser un Excel (.xls o .xlsx)");
+            throw new IllegalArgumentException("El archivo debe ser un Excel (.xls, .xlsx o .xlsm)");
         }
 
         log.info("========================================");
@@ -1163,6 +1176,7 @@ public class ExcelServiceImpl implements ExcelService {
         cacheCatalogos.clear();
         cacheCanales.clear();
         cacheMateriales.clear();
+        valoresNoEncontradosMaster.clear();
 
         try (Workbook workbook = abrirWorkbookEficiente(file)) {
             int totalHojas = workbook.getNumberOfSheets();
@@ -1266,12 +1280,21 @@ public class ExcelServiceImpl implements ExcelService {
             log.info("Hojas omitidas (no reconocidas): {}", hojasOmitidas);
             log.info("========================================\n");
 
+            // Snapshot de valores referenciados en MASTER que no existían en las
+            // tablas auxiliares (marca/tipo/origen/material/proveedor).
+            Map<String, List<String>> valoresNoEncontrados = new LinkedHashMap<>();
+            for (Map.Entry<String, Set<String>> e : valoresNoEncontradosMaster.entrySet()) {
+                List<String> ordenados = new ArrayList<>(e.getValue());
+                Collections.sort(ordenados, String.CASE_INSENSITIVE_ORDER);
+                valoresNoEncontrados.put(e.getKey(), ordenados);
+            }
+
             // Generar resultado final
             if (erroresGenerales.isEmpty() && hojasConErrores == 0) {
-                return ImportCompletoResultDTO.success(totalHojas, hojasProcesadas, resultadosPorHoja);
+                return ImportCompletoResultDTO.success(totalHojas, hojasProcesadas, resultadosPorHoja, valoresNoEncontrados);
             } else {
                 return ImportCompletoResultDTO.withErrors(
-                        totalHojas, hojasProcesadas, hojasConErrores, resultadosPorHoja, erroresGenerales);
+                        totalHojas, hojasProcesadas, hojasConErrores, resultadosPorHoja, erroresGenerales, valoresNoEncontrados);
             }
         }
     }
@@ -1392,86 +1415,99 @@ public class ExcelServiceImpl implements ExcelService {
                 }
             }
 
-            // MARCA
+            // MARCA / TIPO / ORIGEN / MATERIAL / PROVEEDOR (opcionales):
+            // Si el Excel trae un nombre y NO existe en la tabla auxiliar precargada,
+            // se setea el campo en NULL y se registra el valor en valoresNoEncontradosMaster
+            // para reportarlo al final (no falla la fila).
+
             if (columnasMap.containsKey("MARCA")) {
                 String marcaNombre = obtenerValorCelda(row, obtenerIndiceColumna(columnasMap, "MARCA"));
                 if (marcaNombre != null && !marcaNombre.isBlank()) {
-                    Marca marca = buscarOCrearMarca(marcaNombre.trim());
-                    producto.setMarca(marca);
-                }
-            }
-
-            // TIPO - Buscar o crear tipo
-            Tipo tipoProducto = null;
-            if (columnasMap.containsKey("TIPO")) {
-                String tipoNombre = obtenerValorCelda(row, obtenerIndiceColumna(columnasMap, "TIPO"));
-                if (tipoNombre != null && !tipoNombre.isBlank()) {
-                    tipoProducto = buscarOCrearTipo(tipoNombre.trim());
-                }
-            }
-            // Si no hay tipo del Excel, buscar o crear uno por defecto
-            if (tipoProducto == null) {
-                tipoProducto = buscarOCrearTipoPorId(0, "SIN TIPO");
-            }
-            producto.setTipo(tipoProducto);
-
-            // ORIGEN - Campo requerido @NotNull, establecer valor por defecto si no viene
-            if (columnasMap.containsKey("ORIGEN")) {
-                String origenNombre = obtenerValorCelda(row, obtenerIndiceColumna(columnasMap, "ORIGEN"));
-                if (origenNombre != null && !origenNombre.isBlank()) {
-                    Origen origen = buscarOCrearOrigen(origenNombre.trim());
-                    producto.setOrigen(origen);
-                }
-            }
-            // Si no tiene origen y es nuevo, establecer uno por defecto (requerido por
-            // @NotNull)
-            if (producto.getOrigen() == null) {
-                Origen origenDefault = buscarOCrearOrigen("SIN ORIGEN");
-                producto.setOrigen(origenDefault);
-            }
-
-            // MATERIAL
-            if (columnasMap.containsKey("MATERIAL")) {
-                String materialNombre = obtenerValorCelda(row, obtenerIndiceColumna(columnasMap, "MATERIAL"));
-                if (materialNombre != null && !materialNombre.isBlank()) {
-                    Material material = buscarOCrearMaterial(materialNombre.trim());
-                    producto.setMaterial(material);
-                }
-            }
-
-            // CLASIF1, CLASIF2, CLASIF3, CLASIF4 (clasificaciones jerárquicas)
-            // La última clasificación (CLASIF4 o la última disponible) se asigna al
-            // producto
-            ClasifGral padre = null;
-            ClasifGral ultimaClasif = null;
-            for (int i = 1; i <= 4; i++) {
-                String columna = "CLASIF" + i;
-                if (columnasMap.containsKey(columna)) {
-                    String clasifNombre = obtenerValorCelda(row, obtenerIndiceColumna(columnasMap, columna));
-                    if (clasifNombre != null && !clasifNombre.isBlank()) {
-                        ClasifGral clasif = buscarOCrearClasifGral(clasifNombre.trim(), padre);
-                        padre = clasif; // El siguiente nivel será hijo de este
-                        ultimaClasif = clasif; // Guardar la última clasificación procesada
+                    String mn = marcaNombre.trim();
+                    Marca marca = marcaRepository.findByNombreIgnoreCase(mn).orElse(null);
+                    if (marca == null) {
+                        registrarValorNoEncontrado("marca", mn);
+                        producto.setMarca(null);
+                    } else {
+                        producto.setMarca(marca);
                     }
                 }
             }
-            // Asignar la última clasificación al producto
-            // Campo requerido @NotNull, establecer valor por defecto si no viene
-            if (ultimaClasif != null) {
-                producto.setClasifGral(ultimaClasif);
-            } else if (producto.getClasifGral() == null) {
-                // Si no tiene clasificación, establecer una por defecto (requerido por
-                // @NotNull)
-                ClasifGral clasifDefault = buscarOCrearClasifGral("SIN CLASIFICACION");
-                producto.setClasifGral(clasifDefault);
+
+            if (columnasMap.containsKey("TIPO")) {
+                String tipoNombre = obtenerValorCelda(row, obtenerIndiceColumna(columnasMap, "TIPO"));
+                if (tipoNombre != null && !tipoNombre.isBlank()) {
+                    String tn = tipoNombre.trim();
+                    Tipo tipo = tipoRepository.findByNombreIgnoreCase(tn).orElse(null);
+                    if (tipo == null) {
+                        registrarValorNoEncontrado("tipo", tn);
+                        producto.setTipo(null);
+                    } else {
+                        producto.setTipo(tipo);
+                    }
+                }
             }
 
-            // PROVEEDOR - Crear si no existe
+            if (columnasMap.containsKey("ORIGEN")) {
+                String origenNombre = obtenerValorCelda(row, obtenerIndiceColumna(columnasMap, "ORIGEN"));
+                if (origenNombre != null && !origenNombre.isBlank()) {
+                    String on = origenNombre.trim();
+                    Origen origen = origenRepository.findByNombreIgnoreCase(on).orElse(null);
+                    if (origen == null) {
+                        registrarValorNoEncontrado("origen", on);
+                        producto.setOrigen(null);
+                    } else {
+                        producto.setOrigen(origen);
+                    }
+                }
+            }
+
+            if (columnasMap.containsKey("MATERIAL")) {
+                String materialNombre = obtenerValorCelda(row, obtenerIndiceColumna(columnasMap, "MATERIAL"));
+                if (materialNombre != null && !materialNombre.isBlank()) {
+                    String mn = materialNombre.trim();
+                    Material material = materialRepository.findByNombreIgnoreCase(mn).orElse(null);
+                    if (material == null) {
+                        registrarValorNoEncontrado("material", mn);
+                        producto.setMaterial(null);
+                    } else {
+                        producto.setMaterial(material);
+                    }
+                }
+            }
+
             if (columnasMap.containsKey("PROVEEDOR")) {
                 String proveedorNombre = obtenerValorCelda(row, obtenerIndiceColumna(columnasMap, "PROVEEDOR"));
                 if (proveedorNombre != null && !proveedorNombre.isBlank()) {
-                    Proveedor proveedor = buscarOCrearProveedor(proveedorNombre.trim());
-                    producto.setProveedor(proveedor);
+                    String pn = proveedorNombre.trim();
+                    Proveedor proveedor = proveedorRepository.findByNombreIgnoreCase(pn).orElse(null);
+                    if (proveedor == null) {
+                        registrarValorNoEncontrado("proveedor", pn);
+                        producto.setProveedor(null);
+                    } else {
+                        producto.setProveedor(proveedor);
+                    }
+                }
+            }
+
+            // CLASIF_GRAL y CLASIF_GASTRO: por decisión del flujo de importación,
+            // siempre se dejan en NULL. Se cargarán por otro proceso después.
+            producto.setClasifGral(null);
+            producto.setClasifGastro(null);
+
+            // TAG (enum): MAQUINA / REPUESTO / MENAJE
+            if (columnasMap.containsKey("TAG")) {
+                String tagStr = obtenerValorCelda(row, obtenerIndiceColumna(columnasMap, "TAG"));
+                if (tagStr != null && !tagStr.isBlank()) {
+                    String tu = tagStr.trim().toUpperCase();
+                    try {
+                        producto.setTag(ar.com.leo.super_master_backend.dominio.producto.entity.Tag.valueOf(tu));
+                    } catch (IllegalArgumentException e) {
+                        log.warn("Tag '{}' inválido para SKU {} - se deja en NULL", tagStr, skuFinal);
+                        producto.setTag(null);
+                    }
+                } else {
+                    producto.setTag(null);
                 }
             }
 
@@ -1584,37 +1620,41 @@ public class ExcelServiceImpl implements ExcelService {
 
             final Producto productoFinal = productoGuardado; // Variable final para usar en lambdas
 
-            // MIX DE PRODUCTOS - Catalogos (LG GASTRO, LG HOGAR, LG HUDSON, KT GASTRO,
-            // DEPTOS)
-            // Crear relaciones ProductoCatalogo si el valor de la columna es "VERDADERO" o "TRUE"
-            String[] nombresCatalogos = {"LG GASTRO", "LG HOGAR", "LG HUDSON", "KT GASTRO", "DEPTOS"};
-            for (String nombreCatalogo : nombresCatalogos) {
+            // MIX DE PRODUCTOS - Catalogos.
+            // Mapeo columnaExcel -> nombreCatálogoEnBD (las claves DEBEN existir en
+            // la BD; si no existen, se crean automáticamente vía buscarOCrearCatalogo).
+            // Solo se crea la relación si la celda dice "VERDADERO" o "TRUE".
+            Map<String, String> mapeoCatalogos = new LinkedHashMap<>();
+            mapeoCatalogos.put("LG GASTRO", "LG GASTRO");
+            mapeoCatalogos.put("LG HOGAR", "LG HOGAR");
+            mapeoCatalogos.put("LG HUDSON", "LG HUDSON");
+            mapeoCatalogos.put("KT HOGAR", "KT HOGAR");
+            mapeoCatalogos.put("KT GASTRO", "KT GASTRO (SIN IVA)");
+            mapeoCatalogos.put("DEPTOS", "DEPTOS");
+            for (Map.Entry<String, String> entry : mapeoCatalogos.entrySet()) {
+                String columnaExcel = entry.getKey();
+                String nombreCatalogoBd = entry.getValue();
                 try {
-                    if (columnasMap.containsKey(nombreCatalogo)) {
-                        String valor = obtenerValorCelda(row, obtenerIndiceColumna(columnasMap, nombreCatalogo));
-                        // Solo crear la relación si el valor es "VERDADERO" o "TRUE"
-                        if (valor != null && !valor.isBlank() &&
-                                (valor.equalsIgnoreCase("VERDADERO") || valor.equalsIgnoreCase("TRUE"))) {
-                            Catalogo catalogoTemp = buscarOCrearCatalogo(nombreCatalogo);
-                            // Asegurar que el catálogo tenga ID
-                            if (catalogoTemp.getId() == null) {
-                                catalogoTemp = catalogoRepository.save(catalogoTemp);
-                            }
-                            final Catalogo catalogo = catalogoTemp; // Variable final para usar en lambda
-                            // Verificar si la relación ya existe
-                            boolean existe = productoCatalogoRepository.findByProductoId(productoFinal.getId())
-                                    .stream()
-                                    .anyMatch(pc -> pc.getCatalogo().getId().equals(catalogo.getId()));
-                            if (!existe && productoFinal.getId() != null && catalogo.getId() != null) {
-                                ProductoCatalogo productoCatalogo = new ProductoCatalogo(productoFinal, catalogo);
-                                productoCatalogoRepository.save(productoCatalogo);
-                            }
-                        }
+                    if (!columnasMap.containsKey(columnaExcel)) continue;
+                    String valor = obtenerValorCelda(row, obtenerIndiceColumna(columnasMap, columnaExcel));
+                    if (valor == null || valor.isBlank()) continue;
+                    if (!valor.equalsIgnoreCase("VERDADERO") && !valor.equalsIgnoreCase("TRUE")) continue;
+
+                    Catalogo catalogoTemp = buscarOCrearCatalogo(nombreCatalogoBd);
+                    if (catalogoTemp.getId() == null) {
+                        catalogoTemp = catalogoRepository.save(catalogoTemp);
+                    }
+                    final Catalogo catalogo = catalogoTemp;
+                    boolean existe = productoCatalogoRepository.findByProductoId(productoFinal.getId())
+                            .stream()
+                            .anyMatch(pc -> pc.getCatalogo().getId().equals(catalogo.getId()));
+                    if (!existe && productoFinal.getId() != null && catalogo.getId() != null) {
+                        ProductoCatalogo productoCatalogo = new ProductoCatalogo(productoFinal, catalogo);
+                        productoCatalogoRepository.save(productoCatalogo);
                     }
                 } catch (Exception e) {
-                    log.warn("Error procesando catálogo '{}' para producto SKU {}: {}", nombreCatalogo, skuFinal,
-                            e.getMessage(), e);
-                    // Continuar con el siguiente catálogo sin fallar toda la fila
+                    log.warn("Error procesando catálogo '{}' -> '{}' para producto SKU {}: {}",
+                            columnaExcel, nombreCatalogoBd, skuFinal, e.getMessage(), e);
                 }
             }
 
@@ -1660,18 +1700,23 @@ public class ExcelServiceImpl implements ExcelService {
             // Canales (ML, KT HOGAR, KT GASTRO, LINEA GE, LIZZY)
             // Asociar TODOS los productos con TODOS los canales
             String[] nombresCanales = {"ML", "KT HOGAR", "KT GASTRO", "LINEA GE", "LIZZY"};
-            // Crear ProductoMargen solo si no existe (ahora es 1 por producto, no por producto+canal)
+            // ProductoMargen: 1 por producto.
+            //   margen_minorista <- columna GAN.MIN.ML
+            //   margen_mayorista <- columna %GAN
+            // Si ya existe, se actualiza; si no, se crea. Valores no leíbles -> 0.
             if (productoFinal.getId() != null) {
+                BigDecimal margenMin = leerPorcentajeDeColumna(row, columnasMap, "GAN.MIN.ML");
+                BigDecimal margenMay = leerPorcentajeDeColumna(row, columnasMap, "%GAN");
                 Optional<ProductoMargen> productoMargenOpt = productoMargenRepository
                         .findByProductoId(productoFinal.getId());
-                if (productoMargenOpt.isEmpty()) {
-                    ProductoMargen productoMargen = new ProductoMargen();
-                    productoMargen.setProducto(productoFinal);
-                    // Valores por defecto
-                    productoMargen.setMargenMinorista(BigDecimal.ZERO);
-                    productoMargen.setMargenMayorista(BigDecimal.ZERO);
-                    productoMargenRepository.save(productoMargen);
-                }
+                ProductoMargen productoMargen = productoMargenOpt.orElseGet(() -> {
+                    ProductoMargen nuevo = new ProductoMargen();
+                    nuevo.setProducto(productoFinal);
+                    return nuevo;
+                });
+                productoMargen.setMargenMinorista(margenMin != null ? margenMin : BigDecimal.ZERO);
+                productoMargen.setMargenMayorista(margenMay != null ? margenMay : BigDecimal.ZERO);
+                productoMargenRepository.save(productoMargen);
             }
             // Asegurar que los canales existen (sin crear ProductoMargen por cada uno)
             for (String nombreCanal : nombresCanales) {
@@ -2373,7 +2418,11 @@ public class ExcelServiceImpl implements ExcelService {
     // ============================================================
 
     @Override
-    @Transactional
+    // noRollbackFor: el motor de cálculo (recalcularProductoEnTodosLosCanales) es @Transactional
+    // y puede tirar NotFoundException si el producto no tiene márgenes/canal/conceptos.
+    // El catch del loop atrapa la excepción pero sin noRollbackFor la tx outer quedaría
+    // marcada rollback-only y al commit se tiraría UnexpectedRollbackException.
+    @Transactional(noRollbackFor = NotFoundException.class)
     public ImportCostosResultDTO importarCostos(MultipartFile file) throws IOException {
         log.info("Iniciando importación de costos desde archivo: {}", file.getOriginalFilename());
 
@@ -4179,6 +4228,953 @@ public class ExcelServiceImpl implements ExcelService {
         if (s1 == null) return 1;
         if (s2 == null) return -1;
         return s1.compareToIgnoreCase(s2);
+    }
+
+    // ============================================================
+    // IMPORTACIÓN DE TABLAS AUXILIARES
+    // ============================================================
+    //
+    // Importa el Excel "Plantilla_Tablas_SuperMaster.xlsx" que contiene una hoja
+    // por cada tabla pequeña: Marcas, Tipos, Materiales, Origenes,
+    // Clasif. Grales, Clasif. Gastro, Aptos, Proveedores.
+    //
+    // Estructura de cada hoja (offsets de fila):
+    //   0 -> título (ej: "MARCAS  —  Tabla: marcas")
+    //   1 -> tipos de datos por columna
+    //   2 -> nombres de columnas
+    //   3+ -> datos
+    //
+    // Para hojas jerárquicas (Marcas, Tipos, Clasif. Grales, Clasif. Gastro) se hacen
+    // dos pasadas: primero crear/actualizar la entidad sin padre y guardar un mapa
+    // idExcel -> entidad; luego asignar el padre resolviéndolo por idExcel.
+    // ============================================================
+
+    private static final int FILA_INICIO_DATOS_AUX = 3;
+    private static final int FILA_ENCABEZADOS_AUX = 2;
+
+    /**
+     * Tablas que limpia el endpoint /api/excel/limpiar-datos.
+     * El orden es: primero las hojas/dependientes y al final las maestras puras.
+     * Igualmente desactivo FOREIGN_KEY_CHECKS para no depender del orden y poder
+     * ejecutar los DELETE sin tener que preocuparme por ciclos.
+     */
+    private static final List<String> TABLAS_A_LIMPIAR = List.of(
+            "venta_diaria_cache",
+            "orden_compra_lineas",
+            "ordenes_compra",
+            "producto_apto",
+            "producto_catalogo",
+            "producto_cliente",
+            "producto_canal_precio_inflado",
+            "producto_canal_precios",
+            "producto_margen",
+            "mlas",
+            "productos",
+            "clientes",
+            "marcas",
+            "tipos",
+            "materiales",
+            "origenes",
+            "clasif_gral",
+            "clasif_gastro",
+            "proveedores"
+    );
+
+    @Override
+    @Transactional
+    public LimpiezaDatosResultDTO limpiarDatos() {
+        log.warn("===> Iniciando LIMPIEZA DESTRUCTIVA de datos: {} tablas", TABLAS_A_LIMPIAR.size());
+
+        List<String> tablasLimpiadas = new ArrayList<>();
+        List<String> errores = new ArrayList<>();
+
+        // Limpiar caches en memoria del service (referencias a entidades borradas)
+        cacheMarcas.clear();
+        cacheTipos.clear();
+        cacheMateriales.clear();
+        cacheOrigenes.clear();
+        cacheClasifGral.clear();
+        cacheClasifGastro.clear();
+        cacheProveedores.clear();
+        cacheCatalogos.clear();
+        cacheCanales.clear();
+
+        // Desactivar FK checks para evitar problemas con orden de borrado y ciclos
+        entityManager.createNativeQuery("SET FOREIGN_KEY_CHECKS = 0").executeUpdate();
+        try {
+            for (String tabla : TABLAS_A_LIMPIAR) {
+                try {
+                    entityManager.createNativeQuery("DELETE FROM supermaster." + tabla).executeUpdate();
+                    entityManager.createNativeQuery("ALTER TABLE supermaster." + tabla + " AUTO_INCREMENT = 1").executeUpdate();
+                    tablasLimpiadas.add(tabla);
+                    log.info("  ✓ Tabla supermaster.{} vaciada y AUTO_INCREMENT reseteado", tabla);
+                } catch (Exception e) {
+                    log.error("  ✗ Error limpiando supermaster.{}: {}", tabla, e.getMessage(), e);
+                    errores.add("supermaster." + tabla + ": " + e.getMessage());
+                }
+            }
+        } finally {
+            entityManager.createNativeQuery("SET FOREIGN_KEY_CHECKS = 1").executeUpdate();
+        }
+
+        // Forzar a Hibernate a vaciar el contexto de persistencia tras los DELETE nativos
+        entityManager.flush();
+        entityManager.clear();
+
+        log.warn("===> Limpieza terminada: {} tablas OK, {} errores", tablasLimpiadas.size(), errores.size());
+        return errores.isEmpty()
+                ? LimpiezaDatosResultDTO.success(tablasLimpiadas)
+                : LimpiezaDatosResultDTO.withErrors(tablasLimpiadas, errores);
+    }
+
+    @Override
+    @Transactional
+    public ImportCompletoResultDTO importarTablasAuxiliares(MultipartFile file) throws IOException {
+        log.info("Iniciando importación de tablas auxiliares desde archivo: {}", file.getOriginalFilename());
+
+        if (file.isEmpty()) {
+            throw new IllegalArgumentException("El archivo está vacío");
+        }
+        if (!isExcelFile(file)) {
+            throw new IllegalArgumentException("El archivo debe tener extensión .xls, .xlsx o .xlsm");
+        }
+
+        // Limpiar caches para evitar reutilizar referencias de importaciones previas
+        cacheMarcas.clear();
+        cacheTipos.clear();
+        cacheMateriales.clear();
+        cacheOrigenes.clear();
+        cacheClasifGral.clear();
+        cacheClasifGastro.clear();
+        cacheProveedores.clear();
+
+        try (Workbook workbook = abrirWorkbookEficiente(file)) {
+            // Recolectar las hojas reconocidas (en el orden del workbook)
+            Map<String, Sheet> sheetsPorTipo = new LinkedHashMap<>();
+            Map<String, String> nombreHojaPorTipo = new LinkedHashMap<>();
+            for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+                Sheet sh = workbook.getSheetAt(i);
+                String nm = sh.getSheetName();
+                String tipo = determinarTipoTablaAuxiliar(nm);
+                if (tipo == null) {
+                    log.info("Hoja '{}' no reconocida como tabla auxiliar, se omite", nm);
+                    continue;
+                }
+                sheetsPorTipo.put(tipo, sh);
+                nombreHojaPorTipo.put(tipo, nm);
+            }
+
+            int totalHojas = sheetsPorTipo.size();
+            List<String> erroresGenerales = new ArrayList<>();
+            Map<String, ImportResultDTO> resultadosPorHoja = new LinkedHashMap<>();
+
+            if (totalHojas == 0) {
+                erroresGenerales.add("No se encontró ninguna hoja reconocida (Marcas, Tipos, Materiales, Origenes, Clasif. Grales, Clasif. Gastro, Aptos, Proveedores)");
+                return ImportCompletoResultDTO.withErrors(0, 0, 0, resultadosPorHoja, erroresGenerales);
+            }
+
+            // PASO 1: Limpiar las tablas auxiliares que se van a importar.
+            // Si hay registros en tablas dependientes (productos, canal_concepto_regla,
+            // regla_descuento, producto_apto), el DELETE va a fallar por FK y la
+            // transacción se va a hacer rollback.
+            try {
+                limpiarTablasAuxiliares(sheetsPorTipo.keySet());
+            } catch (Exception e) {
+                log.error("No se pudo limpiar las tablas auxiliares: {}", e.getMessage(), e);
+                erroresGenerales.add("No se pudieron limpiar las tablas auxiliares antes de importar. "
+                        + "Verifique que no haya registros en productos, producto_apto, "
+                        + "canal_concepto_regla ni regla_descuento. Detalle: " + e.getMessage());
+                return ImportCompletoResultDTO.withErrors(totalHojas, 0, totalHojas,
+                        resultadosPorHoja, erroresGenerales);
+            }
+
+            // PASO 2: Importar cada hoja con IDs explícitos del Excel
+            int hojasProcesadas = 0;
+            int hojasConErrores = 0;
+            for (Map.Entry<String, Sheet> entry : sheetsPorTipo.entrySet()) {
+                String tipo = entry.getKey();
+                Sheet sheet = entry.getValue();
+                String nombreHoja = nombreHojaPorTipo.get(tipo);
+                log.info("Procesando hoja '{}' como tipo auxiliar '{}'", nombreHoja, tipo);
+                try {
+                    ImportResultDTO resultado = procesarHojaTablaAuxiliar(sheet, tipo, nombreHoja);
+                    resultadosPorHoja.put(nombreHoja, resultado);
+                    if (resultado.errorRows() == 0) {
+                        hojasProcesadas++;
+                    } else {
+                        hojasConErrores++;
+                    }
+                } catch (Exception e) {
+                    log.error("Error procesando hoja '{}': {}", nombreHoja, e.getMessage(), e);
+                    hojasConErrores++;
+                    resultadosPorHoja.put(nombreHoja, ImportResultDTO.withErrors(0, 0, 1,
+                            List.of("Error procesando hoja '" + nombreHoja + "': " + e.getMessage())));
+                }
+            }
+
+            if (hojasConErrores == 0 && erroresGenerales.isEmpty()) {
+                return ImportCompletoResultDTO.success(totalHojas, hojasProcesadas, resultadosPorHoja);
+            }
+            return ImportCompletoResultDTO.withErrors(totalHojas, hojasProcesadas, hojasConErrores,
+                    resultadosPorHoja, erroresGenerales);
+        }
+    }
+
+    /**
+     * Borra todos los registros de las tablas auxiliares que se van a importar y
+     * resetea su AUTO_INCREMENT. Falla con DataIntegrityViolationException si hay
+     * tablas dependientes (productos, producto_apto, canal_concepto_regla,
+     * regla_descuento) que referencien estos registros.
+     */
+    private void limpiarTablasAuxiliares(Set<String> tiposAImportar) {
+        // El orden de limpieza no importa entre estas tablas (no se referencian
+        // entre sí, salvo la auto-referencia padre que se borra junto con la tabla).
+        // Lo que sí importa es que se haga DENTRO de la misma transacción que los inserts.
+        Map<String, String> tablaPorTipo = Map.of(
+                "marcas", "marcas",
+                "tipos", "tipos",
+                "materiales", "materiales",
+                "origenes", "origenes",
+                "clasif_gral", "clasif_gral",
+                "clasif_gastro", "clasif_gastro",
+                "aptos", "aptos",
+                "proveedores", "proveedores"
+        );
+
+        for (String tipo : tiposAImportar) {
+            String tabla = tablaPorTipo.get(tipo);
+            if (tabla == null) continue;
+            log.info("Limpiando tabla supermaster.{} ...", tabla);
+            entityManager.createNativeQuery("DELETE FROM supermaster." + tabla).executeUpdate();
+            entityManager.createNativeQuery("ALTER TABLE supermaster." + tabla + " AUTO_INCREMENT = 1").executeUpdate();
+        }
+        entityManager.flush();
+    }
+
+    /**
+     * Mapea el nombre de la hoja al tipo de tabla auxiliar.
+     */
+    private String determinarTipoTablaAuxiliar(String nombreHoja) {
+        if (nombreHoja == null) return null;
+        String n = nombreHoja.trim().toUpperCase();
+        // Normalizamos quitando puntos y espacios para tolerar variantes
+        String compacto = n.replace(".", "").replace(" ", "");
+        return switch (compacto) {
+            case "MARCAS", "MARCA" -> "marcas";
+            case "TIPOS", "TIPO" -> "tipos";
+            case "MATERIALES", "MATERIAL" -> "materiales";
+            case "ORIGENES", "ORIGEN", "ORÍGENES" -> "origenes";
+            case "CLASIFGRALES", "CLASIFGRAL", "CLASIFGENERAL", "CLASIFGENERALES" -> "clasif_gral";
+            case "CLASIFGASTRO", "CLASIFGASTROS" -> "clasif_gastro";
+            case "APTOS", "APTO" -> "aptos";
+            case "PROVEEDORES", "PROVEEDOR" -> "proveedores";
+            default -> null;
+        };
+    }
+
+    private ImportResultDTO procesarHojaTablaAuxiliar(Sheet sheet, String tipo, String nombreHoja) {
+        Row headerRow = sheet.getRow(FILA_ENCABEZADOS_AUX);
+        if (headerRow == null) {
+            throw new IllegalArgumentException("La hoja '" + nombreHoja + "' no tiene encabezados en la fila " + (FILA_ENCABEZADOS_AUX + 1));
+        }
+        Map<String, Integer> columnas = mapearColumnasPorNombre(headerRow);
+        log.info("Columnas mapeadas para hoja auxiliar '{}': {}", nombreHoja, columnas.keySet());
+
+        return switch (tipo) {
+            case "marcas" -> importarHojaMarcas(sheet, columnas, nombreHoja);
+            case "tipos" -> importarHojaTipos(sheet, columnas, nombreHoja);
+            case "materiales" -> importarHojaMateriales(sheet, columnas, nombreHoja);
+            case "origenes" -> importarHojaOrigenes(sheet, columnas, nombreHoja);
+            case "clasif_gral" -> importarHojaClasifGral(sheet, columnas, nombreHoja);
+            case "clasif_gastro" -> importarHojaClasifGastro(sheet, columnas, nombreHoja);
+            case "aptos" -> importarHojaAptos(sheet, columnas, nombreHoja);
+            case "proveedores" -> importarHojaProveedores(sheet, columnas, nombreHoja);
+            default -> throw new IllegalArgumentException("Tipo de tabla auxiliar no soportado: " + tipo);
+        };
+    }
+
+    // -------------------- Helpers para hojas auxiliares ----------------------
+
+    private Integer leerEntero(Row row, Map<String, Integer> columnas, String nombreColumna) {
+        Integer idx = columnas.get(nombreColumna.trim().toUpperCase());
+        if (idx == null) return null;
+        String valor = obtenerValorCelda(row, idx);
+        if (valor == null || valor.isBlank()) return null;
+        try {
+            return Integer.parseInt(valor.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private String leerTexto(Row row, Map<String, Integer> columnas, String nombreColumna) {
+        Integer idx = columnas.get(nombreColumna.trim().toUpperCase());
+        if (idx == null) return null;
+        String valor = obtenerValorCelda(row, idx);
+        return (valor == null || valor.isBlank()) ? null : valor.trim();
+    }
+
+    private Boolean leerBooleano(Row row, Map<String, Integer> columnas, String nombreColumna) {
+        String valor = leerTexto(row, columnas, nombreColumna);
+        if (valor == null) return null;
+        String v = valor.toUpperCase();
+        if (v.equals("SI") || v.equals("SÍ") || v.equals("TRUE") || v.equals("1") || v.equals("X") || v.equals("VERDADERO")) return true;
+        if (v.equals("NO") || v.equals("FALSE") || v.equals("0") || v.equals("FALSO")) return false;
+        return null;
+    }
+
+    private BigDecimal leerDecimal(Row row, Map<String, Integer> columnas, String nombreColumna) {
+        String valor = leerTexto(row, columnas, nombreColumna);
+        if (valor == null) return null;
+        try {
+            // Permitir comas decimales (es-AR)
+            return new BigDecimal(valor.replace(",", "."));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Lee un valor porcentual desde una celda y lo normaliza a porcentaje (60% -> 60.000).
+     * Acepta:
+     *   - Texto con sufijo "%" (ej. "60%") -> 60
+     *   - Decimal entre -1 y 1 (ej. "0.6") -> 60 (Excel guarda los % como decimal)
+     *   - Entero o decimal sin sufijo y |valor| >= 1 (ej. "60") -> 60 tal cual
+     *   - Coma decimal (es-AR) -> reemplazada por punto
+     * Devuelve null si la columna no existe, la celda está vacía o no se puede parsear.
+     */
+    private BigDecimal leerPorcentajeDeColumna(Row row, Map<String, Integer> columnasMap, String nombreColumna) {
+        if (columnasMap == null || !columnasMap.containsKey(nombreColumna.toUpperCase())) return null;
+        Integer idx = columnasMap.get(nombreColumna.toUpperCase());
+        if (idx == null) return null;
+        String valor = obtenerValorCelda(row, idx);
+        if (valor == null || valor.isBlank()) return null;
+        boolean tieneSufijoPorcentaje = valor.contains("%");
+        String limpio = valor.replace("%", "").replace(",", ".").trim();
+        if (limpio.isEmpty()) return null;
+        try {
+            BigDecimal num = new BigDecimal(limpio);
+            if (tieneSufijoPorcentaje) return num;
+            // Si Excel guardó el valor como decimal de porcentaje (|x| < 1), multiplicamos.
+            if (num.abs().compareTo(BigDecimal.ONE) < 0) {
+                return num.multiply(BigDecimal.valueOf(100));
+            }
+            return num;
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    // -------------------- MARCAS ----------------------
+
+    private ImportResultDTO importarHojaMarcas(Sheet sheet, Map<String, Integer> columnas, String nombreHoja) {
+        int filaFin = sheet.getLastRowNum();
+        Map<Integer, Integer> padresPendientes = new LinkedHashMap<>();
+        Map<Integer, Integer> idVisto = new HashMap<>();
+        Map<String, Integer> nombreVisto = new HashMap<>();
+        int totalRows = 0;
+        int successRows = 0;
+        List<String> errores = new ArrayList<>();
+
+        // Pasada 1: INSERT con id_padre = NULL usando el ID del Excel
+        for (int i = FILA_INICIO_DATOS_AUX; i <= filaFin; i++) {
+            Row row = sheet.getRow(i);
+            if (row == null || esFilaVacia(row)) continue;
+            totalRows++;
+            try {
+                Integer idExcel = leerEntero(row, columnas, "ID");
+                String nombre = leerTexto(row, columnas, "Nombre");
+                Integer idPadre = leerEntero(row, columnas, "ID Padre");
+                if (idExcel == null) {
+                    errores.add("Fila " + (i + 1) + ": columna ID vacía");
+                    continue;
+                }
+                if (nombre == null) {
+                    errores.add("Fila " + (i + 1) + ": columna Nombre vacía");
+                    continue;
+                }
+                Integer filaIdPrev = idVisto.get(idExcel);
+                if (filaIdPrev != null) {
+                    errores.add("Fila " + (i + 1) + ": ID " + idExcel + " duplicado (ya estaba en fila " + filaIdPrev + ")");
+                    continue;
+                }
+                // Clave compuesta (nombre, id_padre): permite mismo nombre con padres distintos.
+                String claveNombre = nombre.toUpperCase() + "|PADRE:" + (idPadre == null ? "null" : idPadre);
+                Integer filaNombrePrev = nombreVisto.get(claveNombre);
+                if (filaNombrePrev != null) {
+                    errores.add("Fila " + (i + 1) + ": '" + nombre + "' (padre=" + idPadre + ") duplicado (ya estaba en fila " + filaNombrePrev + ")");
+                    continue;
+                }
+                String nombreTrunc = nombre.length() > 45 ? nombre.substring(0, 45) : nombre;
+                entityManager.createNativeQuery(
+                        "INSERT INTO supermaster.marcas (id_marca, nombre, id_padre) VALUES (?, ?, NULL)")
+                        .setParameter(1, idExcel)
+                        .setParameter(2, nombreTrunc)
+                        .executeUpdate();
+                idVisto.put(idExcel, i + 1);
+                nombreVisto.put(claveNombre, i + 1);
+                if (idPadre != null) padresPendientes.put(idExcel, idPadre);
+                successRows++;
+            } catch (Exception e) {
+                errores.add("Fila " + (i + 1) + ": " + e.getMessage());
+            }
+        }
+        entityManager.flush();
+
+        // Pasada 2: UPDATE id_padre (los ids del Excel = ids reales en la BD)
+        // Validar que el padre fue insertado: si no, reportar y saltar el UPDATE
+        // para no disparar una FK violation que marca la transacción rollback-only.
+        for (Map.Entry<Integer, Integer> entry : padresPendientes.entrySet()) {
+            Integer idHijo = entry.getKey();
+            Integer idPadre = entry.getValue();
+            if (!idVisto.containsKey(idPadre)) {
+                errores.add("Marca id=" + idHijo + ": padre id=" + idPadre + " no existe en la hoja (no se insertó)");
+                continue;
+            }
+            entityManager.createNativeQuery(
+                    "UPDATE supermaster.marcas SET id_padre = ? WHERE id_marca = ?")
+                    .setParameter(1, idPadre)
+                    .setParameter(2, idHijo)
+                    .executeUpdate();
+        }
+
+        log.info("Hoja '{}' (marcas): {}/{} filas procesadas, {} errores", nombreHoja, successRows, totalRows, errores.size());
+        return errores.isEmpty()
+                ? ImportResultDTO.success(totalRows, successRows)
+                : ImportResultDTO.withErrors(totalRows, successRows, errores.size(), errores);
+    }
+
+    // -------------------- TIPOS ----------------------
+
+    private ImportResultDTO importarHojaTipos(Sheet sheet, Map<String, Integer> columnas, String nombreHoja) {
+        int filaFin = sheet.getLastRowNum();
+        Map<Integer, Integer> padresPendientes = new LinkedHashMap<>();
+        Map<Integer, Integer> idVisto = new HashMap<>();
+        Map<String, Integer> nombreVisto = new HashMap<>();
+        int totalRows = 0;
+        int successRows = 0;
+        List<String> errores = new ArrayList<>();
+
+        for (int i = FILA_INICIO_DATOS_AUX; i <= filaFin; i++) {
+            Row row = sheet.getRow(i);
+            if (row == null || esFilaVacia(row)) continue;
+            totalRows++;
+            try {
+                Integer idExcel = leerEntero(row, columnas, "ID");
+                String nombre = leerTexto(row, columnas, "Nombre");
+                Integer idPadre = leerEntero(row, columnas, "ID Padre");
+                if (idExcel == null) {
+                    errores.add("Fila " + (i + 1) + ": columna ID vacía");
+                    continue;
+                }
+                if (nombre == null) {
+                    errores.add("Fila " + (i + 1) + ": columna Nombre vacía");
+                    continue;
+                }
+                Integer filaIdPrev = idVisto.get(idExcel);
+                if (filaIdPrev != null) {
+                    errores.add("Fila " + (i + 1) + ": ID " + idExcel + " duplicado (ya estaba en fila " + filaIdPrev + ")");
+                    continue;
+                }
+                // Clave compuesta (nombre, id_padre): permite mismo nombre con padres distintos.
+                String claveNombre = nombre.toUpperCase() + "|PADRE:" + (idPadre == null ? "null" : idPadre);
+                Integer filaNombrePrev = nombreVisto.get(claveNombre);
+                if (filaNombrePrev != null) {
+                    errores.add("Fila " + (i + 1) + ": '" + nombre + "' (padre=" + idPadre + ") duplicado (ya estaba en fila " + filaNombrePrev + ")");
+                    continue;
+                }
+                String nombreTrunc = nombre.length() > 45 ? nombre.substring(0, 45) : nombre;
+                entityManager.createNativeQuery(
+                        "INSERT INTO supermaster.tipos (id_tipo, nombre, id_padre) VALUES (?, ?, NULL)")
+                        .setParameter(1, idExcel)
+                        .setParameter(2, nombreTrunc)
+                        .executeUpdate();
+                idVisto.put(idExcel, i + 1);
+                nombreVisto.put(claveNombre, i + 1);
+                if (idPadre != null) padresPendientes.put(idExcel, idPadre);
+                successRows++;
+            } catch (Exception e) {
+                errores.add("Fila " + (i + 1) + ": " + e.getMessage());
+            }
+        }
+        entityManager.flush();
+
+        for (Map.Entry<Integer, Integer> entry : padresPendientes.entrySet()) {
+            Integer idHijo = entry.getKey();
+            Integer idPadre = entry.getValue();
+            if (!idVisto.containsKey(idPadre)) {
+                errores.add("Tipo id=" + idHijo + ": padre id=" + idPadre + " no existe en la hoja (no se insertó)");
+                continue;
+            }
+            entityManager.createNativeQuery(
+                    "UPDATE supermaster.tipos SET id_padre = ? WHERE id_tipo = ?")
+                    .setParameter(1, idPadre)
+                    .setParameter(2, idHijo)
+                    .executeUpdate();
+        }
+
+        log.info("Hoja '{}' (tipos): {}/{} filas procesadas, {} errores", nombreHoja, successRows, totalRows, errores.size());
+        return errores.isEmpty()
+                ? ImportResultDTO.success(totalRows, successRows)
+                : ImportResultDTO.withErrors(totalRows, successRows, errores.size(), errores);
+    }
+
+    // -------------------- MATERIALES ----------------------
+
+    private ImportResultDTO importarHojaMateriales(Sheet sheet, Map<String, Integer> columnas, String nombreHoja) {
+        int filaFin = sheet.getLastRowNum();
+        Map<Integer, Integer> idVisto = new HashMap<>();
+        Map<String, Integer> nombreVisto = new HashMap<>();
+        int totalRows = 0;
+        int successRows = 0;
+        List<String> errores = new ArrayList<>();
+
+        for (int i = FILA_INICIO_DATOS_AUX; i <= filaFin; i++) {
+            Row row = sheet.getRow(i);
+            if (row == null || esFilaVacia(row)) continue;
+            totalRows++;
+            try {
+                Integer idExcel = leerEntero(row, columnas, "ID");
+                String nombre = leerTexto(row, columnas, "Material");
+                if (idExcel == null) {
+                    errores.add("Fila " + (i + 1) + ": columna ID vacía");
+                    continue;
+                }
+                if (nombre == null) {
+                    errores.add("Fila " + (i + 1) + ": columna Material vacía");
+                    continue;
+                }
+                Integer filaIdPrev = idVisto.get(idExcel);
+                if (filaIdPrev != null) {
+                    errores.add("Fila " + (i + 1) + ": ID " + idExcel + " duplicado (ya estaba en fila " + filaIdPrev + ")");
+                    continue;
+                }
+                String claveNombre = nombre.toUpperCase();
+                Integer filaNombrePrev = nombreVisto.get(claveNombre);
+                if (filaNombrePrev != null) {
+                    errores.add("Fila " + (i + 1) + ": material '" + nombre + "' duplicado (ya estaba en fila " + filaNombrePrev + ")");
+                    continue;
+                }
+                String nombreTrunc = nombre.length() > 45 ? nombre.substring(0, 45) : nombre;
+                entityManager.createNativeQuery(
+                        "INSERT INTO supermaster.materiales (id_material, nombre) VALUES (?, ?)")
+                        .setParameter(1, idExcel)
+                        .setParameter(2, nombreTrunc)
+                        .executeUpdate();
+                idVisto.put(idExcel, i + 1);
+                nombreVisto.put(claveNombre, i + 1);
+                successRows++;
+            } catch (Exception e) {
+                errores.add("Fila " + (i + 1) + ": " + e.getMessage());
+            }
+        }
+        entityManager.flush();
+
+        log.info("Hoja '{}' (materiales): {}/{} filas procesadas, {} errores", nombreHoja, successRows, totalRows, errores.size());
+        return errores.isEmpty()
+                ? ImportResultDTO.success(totalRows, successRows)
+                : ImportResultDTO.withErrors(totalRows, successRows, errores.size(), errores);
+    }
+
+    // -------------------- ORIGENES ----------------------
+
+    private ImportResultDTO importarHojaOrigenes(Sheet sheet, Map<String, Integer> columnas, String nombreHoja) {
+        int filaFin = sheet.getLastRowNum();
+        Map<Integer, Integer> idVisto = new HashMap<>();
+        Map<String, Integer> nombreVisto = new HashMap<>();
+        int totalRows = 0;
+        int successRows = 0;
+        List<String> errores = new ArrayList<>();
+
+        for (int i = FILA_INICIO_DATOS_AUX; i <= filaFin; i++) {
+            Row row = sheet.getRow(i);
+            if (row == null || esFilaVacia(row)) continue;
+            totalRows++;
+            try {
+                Integer idExcel = leerEntero(row, columnas, "ID");
+                String nombre = leerTexto(row, columnas, "Origen");
+                if (idExcel == null) {
+                    errores.add("Fila " + (i + 1) + ": columna ID vacía");
+                    continue;
+                }
+                if (nombre == null) {
+                    errores.add("Fila " + (i + 1) + ": columna Origen vacía");
+                    continue;
+                }
+                Integer filaIdPrev = idVisto.get(idExcel);
+                if (filaIdPrev != null) {
+                    errores.add("Fila " + (i + 1) + ": ID " + idExcel + " duplicado (ya estaba en fila " + filaIdPrev + ")");
+                    continue;
+                }
+                String claveNombre = nombre.toUpperCase();
+                Integer filaNombrePrev = nombreVisto.get(claveNombre);
+                if (filaNombrePrev != null) {
+                    errores.add("Fila " + (i + 1) + ": origen '" + nombre + "' duplicado (ya estaba en fila " + filaNombrePrev + ")");
+                    continue;
+                }
+                String nombreTrunc = nombre.length() > 45 ? nombre.substring(0, 45) : nombre;
+                entityManager.createNativeQuery(
+                        "INSERT INTO supermaster.origenes (id_origen, nombre) VALUES (?, ?)")
+                        .setParameter(1, idExcel)
+                        .setParameter(2, nombreTrunc)
+                        .executeUpdate();
+                idVisto.put(idExcel, i + 1);
+                nombreVisto.put(claveNombre, i + 1);
+                successRows++;
+            } catch (Exception e) {
+                errores.add("Fila " + (i + 1) + ": " + e.getMessage());
+            }
+        }
+        entityManager.flush();
+
+        log.info("Hoja '{}' (origenes): {}/{} filas procesadas, {} errores", nombreHoja, successRows, totalRows, errores.size());
+        return errores.isEmpty()
+                ? ImportResultDTO.success(totalRows, successRows)
+                : ImportResultDTO.withErrors(totalRows, successRows, errores.size(), errores);
+    }
+
+    // -------------------- CLASIF GRAL ----------------------
+
+    private ImportResultDTO importarHojaClasifGral(Sheet sheet, Map<String, Integer> columnas, String nombreHoja) {
+        int filaFin = sheet.getLastRowNum();
+        Map<Integer, Integer> padresPendientes = new LinkedHashMap<>();
+        Map<Integer, Integer> idVisto = new HashMap<>();
+        Map<String, Integer> nombreVisto = new HashMap<>();
+        int totalRows = 0;
+        int successRows = 0;
+        List<String> errores = new ArrayList<>();
+
+        for (int i = FILA_INICIO_DATOS_AUX; i <= filaFin; i++) {
+            Row row = sheet.getRow(i);
+            if (row == null || esFilaVacia(row)) continue;
+            totalRows++;
+            try {
+                Integer idExcel = leerEntero(row, columnas, "ID");
+                String nombre = leerTexto(row, columnas, "Nombre");
+                Integer idPadre = leerEntero(row, columnas, "ID Padre");
+                if (idExcel == null) {
+                    errores.add("Fila " + (i + 1) + ": columna ID vacía");
+                    continue;
+                }
+                if (nombre == null) {
+                    errores.add("Fila " + (i + 1) + ": columna Nombre vacía");
+                    continue;
+                }
+                Integer filaIdPrev = idVisto.get(idExcel);
+                if (filaIdPrev != null) {
+                    errores.add("Fila " + (i + 1) + ": ID " + idExcel + " duplicado (ya estaba en fila " + filaIdPrev + ")");
+                    continue;
+                }
+                // Clave compuesta (nombre, id_padre): permite mismo nombre con padres distintos.
+                String claveNombre = nombre.toUpperCase() + "|PADRE:" + (idPadre == null ? "null" : idPadre);
+                Integer filaNombrePrev = nombreVisto.get(claveNombre);
+                if (filaNombrePrev != null) {
+                    errores.add("Fila " + (i + 1) + ": '" + nombre + "' (padre=" + idPadre + ") duplicado (ya estaba en fila " + filaNombrePrev + ")");
+                    continue;
+                }
+                String nombreTrunc = nombre.length() > 45 ? nombre.substring(0, 45) : nombre;
+                entityManager.createNativeQuery(
+                        "INSERT INTO supermaster.clasif_gral (id_clasif_gral, nombre, id_padre) VALUES (?, ?, NULL)")
+                        .setParameter(1, idExcel)
+                        .setParameter(2, nombreTrunc)
+                        .executeUpdate();
+                idVisto.put(idExcel, i + 1);
+                nombreVisto.put(claveNombre, i + 1);
+                if (idPadre != null) padresPendientes.put(idExcel, idPadre);
+                successRows++;
+            } catch (Exception e) {
+                errores.add("Fila " + (i + 1) + ": " + e.getMessage());
+            }
+        }
+        entityManager.flush();
+
+        for (Map.Entry<Integer, Integer> entry : padresPendientes.entrySet()) {
+            Integer idHijo = entry.getKey();
+            Integer idPadre = entry.getValue();
+            if (!idVisto.containsKey(idPadre)) {
+                errores.add("Clasif. Gral id=" + idHijo + ": padre id=" + idPadre + " no existe en la hoja (no se insertó)");
+                continue;
+            }
+            entityManager.createNativeQuery(
+                    "UPDATE supermaster.clasif_gral SET id_padre = ? WHERE id_clasif_gral = ?")
+                    .setParameter(1, idPadre)
+                    .setParameter(2, idHijo)
+                    .executeUpdate();
+        }
+
+        log.info("Hoja '{}' (clasif_gral): {}/{} filas procesadas, {} errores", nombreHoja, successRows, totalRows, errores.size());
+        return errores.isEmpty()
+                ? ImportResultDTO.success(totalRows, successRows)
+                : ImportResultDTO.withErrors(totalRows, successRows, errores.size(), errores);
+    }
+
+    // -------------------- CLASIF GASTRO ----------------------
+
+    private ImportResultDTO importarHojaClasifGastro(Sheet sheet, Map<String, Integer> columnas, String nombreHoja) {
+        int filaFin = sheet.getLastRowNum();
+        Map<Integer, Integer> padresPendientes = new LinkedHashMap<>();
+        Map<Integer, Integer> idVisto = new HashMap<>();
+        Map<String, Integer> nombreVisto = new HashMap<>();
+        int totalRows = 0;
+        int successRows = 0;
+        List<String> errores = new ArrayList<>();
+
+        for (int i = FILA_INICIO_DATOS_AUX; i <= filaFin; i++) {
+            Row row = sheet.getRow(i);
+            if (row == null || esFilaVacia(row)) continue;
+            totalRows++;
+            try {
+                Integer idExcel = leerEntero(row, columnas, "ID");
+                String nombre = leerTexto(row, columnas, "Nombre");
+                Boolean esMaquina = leerBooleano(row, columnas, "Es Maquina");
+                Integer idPadre = leerEntero(row, columnas, "ID Padre");
+                if (idExcel == null) {
+                    errores.add("Fila " + (i + 1) + ": columna ID vacía");
+                    continue;
+                }
+                if (nombre == null) {
+                    errores.add("Fila " + (i + 1) + ": columna Nombre vacía");
+                    continue;
+                }
+                Integer filaIdPrev = idVisto.get(idExcel);
+                if (filaIdPrev != null) {
+                    errores.add("Fila " + (i + 1) + ": ID " + idExcel + " duplicado (ya estaba en fila " + filaIdPrev + ")");
+                    continue;
+                }
+                // Clave compuesta (nombre, id_padre): permite mismo nombre con padres distintos.
+                String claveNombre = nombre.toUpperCase() + "|PADRE:" + (idPadre == null ? "null" : idPadre);
+                Integer filaNombrePrev = nombreVisto.get(claveNombre);
+                if (filaNombrePrev != null) {
+                    errores.add("Fila " + (i + 1) + ": '" + nombre + "' (padre=" + idPadre + ") duplicado (ya estaba en fila " + filaNombrePrev + ")");
+                    continue;
+                }
+                String nombreTrunc = nombre.length() > 45 ? nombre.substring(0, 45) : nombre;
+                boolean esMaquinaFinal = esMaquina != null ? esMaquina : Boolean.FALSE;
+                entityManager.createNativeQuery(
+                        "INSERT INTO supermaster.clasif_gastro (id_clasif_gastro, nombre, es_maquina, id_padre) VALUES (?, ?, ?, NULL)")
+                        .setParameter(1, idExcel)
+                        .setParameter(2, nombreTrunc)
+                        .setParameter(3, esMaquinaFinal)
+                        .executeUpdate();
+                idVisto.put(idExcel, i + 1);
+                nombreVisto.put(claveNombre, i + 1);
+                if (idPadre != null) padresPendientes.put(idExcel, idPadre);
+                successRows++;
+            } catch (Exception e) {
+                errores.add("Fila " + (i + 1) + ": " + e.getMessage());
+            }
+        }
+        entityManager.flush();
+
+        for (Map.Entry<Integer, Integer> entry : padresPendientes.entrySet()) {
+            Integer idHijo = entry.getKey();
+            Integer idPadre = entry.getValue();
+            if (!idVisto.containsKey(idPadre)) {
+                errores.add("Clasif. Gastro id=" + idHijo + ": padre id=" + idPadre + " no existe en la hoja (no se insertó)");
+                continue;
+            }
+            entityManager.createNativeQuery(
+                    "UPDATE supermaster.clasif_gastro SET id_padre = ? WHERE id_clasif_gastro = ?")
+                    .setParameter(1, idPadre)
+                    .setParameter(2, idHijo)
+                    .executeUpdate();
+        }
+
+        log.info("Hoja '{}' (clasif_gastro): {}/{} filas procesadas, {} errores", nombreHoja, successRows, totalRows, errores.size());
+        return errores.isEmpty()
+                ? ImportResultDTO.success(totalRows, successRows)
+                : ImportResultDTO.withErrors(totalRows, successRows, errores.size(), errores);
+    }
+
+    // -------------------- APTOS ----------------------
+
+    private ImportResultDTO importarHojaAptos(Sheet sheet, Map<String, Integer> columnas, String nombreHoja) {
+        int filaFin = sheet.getLastRowNum();
+        Map<Integer, Integer> idVisto = new HashMap<>();
+        Map<String, Integer> nombreVisto = new HashMap<>();
+        int totalRows = 0;
+        int successRows = 0;
+        List<String> errores = new ArrayList<>();
+
+        for (int i = FILA_INICIO_DATOS_AUX; i <= filaFin; i++) {
+            Row row = sheet.getRow(i);
+            if (row == null || esFilaVacia(row)) continue;
+            totalRows++;
+            try {
+                Integer idExcel = leerEntero(row, columnas, "ID");
+                String nombre = leerTexto(row, columnas, "Apto");
+                if (idExcel == null) {
+                    errores.add("Fila " + (i + 1) + ": columna ID vacía");
+                    continue;
+                }
+                if (nombre == null) {
+                    errores.add("Fila " + (i + 1) + ": columna Apto vacía");
+                    continue;
+                }
+                Integer filaIdPrev = idVisto.get(idExcel);
+                if (filaIdPrev != null) {
+                    errores.add("Fila " + (i + 1) + ": ID " + idExcel + " duplicado (ya estaba en fila " + filaIdPrev + ")");
+                    continue;
+                }
+                String claveNombre = nombre.toUpperCase();
+                Integer filaNombrePrev = nombreVisto.get(claveNombre);
+                if (filaNombrePrev != null) {
+                    errores.add("Fila " + (i + 1) + ": apto '" + nombre + "' duplicado (ya estaba en fila " + filaNombrePrev + ")");
+                    continue;
+                }
+                String nombreTrunc = nombre.length() > 45 ? nombre.substring(0, 45) : nombre;
+                entityManager.createNativeQuery(
+                        "INSERT INTO supermaster.aptos (id_apto, nombre) VALUES (?, ?)")
+                        .setParameter(1, idExcel)
+                        .setParameter(2, nombreTrunc)
+                        .executeUpdate();
+                idVisto.put(idExcel, i + 1);
+                nombreVisto.put(claveNombre, i + 1);
+                successRows++;
+            } catch (Exception e) {
+                errores.add("Fila " + (i + 1) + ": " + e.getMessage());
+            }
+        }
+        entityManager.flush();
+
+        log.info("Hoja '{}' (aptos): {}/{} filas procesadas, {} errores", nombreHoja, successRows, totalRows, errores.size());
+        return errores.isEmpty()
+                ? ImportResultDTO.success(totalRows, successRows)
+                : ImportResultDTO.withErrors(totalRows, successRows, errores.size(), errores);
+    }
+
+    /**
+     * Variante de buscarOCrearClasifGastro usada solo por la importación de tablas
+     * auxiliares: setea es_maquina al crear (la columna es NOT NULL en la BD). Si la
+     * celda viene vacía, se crea con es_maquina = false.
+     */
+    private ClasifGastro buscarOCrearClasifGastroImport(String nombre, Boolean esMaquina) {
+        if (nombre == null || nombre.trim().isEmpty()) return null;
+        String nombreNormalizado = nombre.trim();
+        Optional<ClasifGastro> existente = clasifGastroRepository.findByNombreIgnoreCase(nombreNormalizado);
+        if (existente.isPresent()) return existente.get();
+
+        ClasifGastro nueva = new ClasifGastro();
+        nueva.setNombre(nombreNormalizado.length() > 45 ? nombreNormalizado.substring(0, 45) : nombreNormalizado);
+        nueva.setEsMaquina(esMaquina != null ? esMaquina : Boolean.FALSE);
+        return clasifGastroRepository.save(nueva);
+    }
+
+    /**
+     * Variante de buscarOCrearProveedor usada solo por la importación de tablas
+     * auxiliares: si el apodo viene vacío en el Excel, el proveedor se crea con
+     * apodo "" en lugar de copiar el nombre como fallback.
+     */
+    private Proveedor buscarOCrearProveedorImport(String nombre, String apodo) {
+        if (nombre == null || nombre.trim().isEmpty()) return null;
+        String nombreNormalizado = nombre.trim();
+        Optional<Proveedor> existente = proveedorRepository.findByNombreIgnoreCase(nombreNormalizado);
+        if (existente.isPresent()) return existente.get();
+
+        Proveedor nuevo = new Proveedor();
+        nuevo.setNombre(nombreNormalizado.length() > 100 ? nombreNormalizado.substring(0, 100) : nombreNormalizado);
+        if (apodo != null && !apodo.isBlank()) {
+            String apodoTrim = apodo.trim();
+            nuevo.setApodo(apodoTrim.length() > 50 ? apodoTrim.substring(0, 50) : apodoTrim);
+        } else {
+            nuevo.setApodo("");
+        }
+        return proveedorRepository.save(nuevo);
+    }
+
+    private Apto buscarOCrearApto(String nombre) {
+        String nombreNormalizado = nombre.trim();
+        // No hay findByNombreIgnoreCase en AptoRepository; usamos findAll en memoria
+        // (la tabla es muy chica, < 20 filas).
+        Optional<Apto> existente = aptoRepository.findAll().stream()
+                .filter(a -> nombreNormalizado.equalsIgnoreCase(a.getNombre()))
+                .findFirst();
+        if (existente.isPresent()) return existente.get();
+
+        Apto nuevo = new Apto();
+        nuevo.setNombre(nombreNormalizado.length() > 45 ? nombreNormalizado.substring(0, 45) : nombreNormalizado);
+        return aptoRepository.save(nuevo);
+    }
+
+    // -------------------- PROVEEDORES ----------------------
+
+    private ImportResultDTO importarHojaProveedores(Sheet sheet, Map<String, Integer> columnas, String nombreHoja) {
+        int filaFin = sheet.getLastRowNum();
+        Map<Integer, Integer> idVisto = new HashMap<>();
+        Map<String, Integer> nombreVisto = new HashMap<>();
+        int totalRows = 0;
+        int successRows = 0;
+        List<String> errores = new ArrayList<>();
+
+        for (int i = FILA_INICIO_DATOS_AUX; i <= filaFin; i++) {
+            Row row = sheet.getRow(i);
+            if (row == null || esFilaVacia(row)) continue;
+            totalRows++;
+            try {
+                Integer idExcel = leerEntero(row, columnas, "ID");
+                String nombre = leerTexto(row, columnas, "Proveedor");
+                if (idExcel == null) {
+                    errores.add("Fila " + (i + 1) + ": columna ID vacía");
+                    continue;
+                }
+                if (nombre == null) {
+                    errores.add("Fila " + (i + 1) + ": columna Proveedor vacía");
+                    continue;
+                }
+                Integer filaIdPrev = idVisto.get(idExcel);
+                if (filaIdPrev != null) {
+                    errores.add("Fila " + (i + 1) + ": ID " + idExcel + " duplicado (ya estaba en fila " + filaIdPrev + ")");
+                    continue;
+                }
+                String claveNombre = nombre.toUpperCase();
+                Integer filaNombrePrev = nombreVisto.get(claveNombre);
+                if (filaNombrePrev != null) {
+                    errores.add("Fila " + (i + 1) + ": proveedor '" + nombre + "' duplicado (ya estaba en fila " + filaNombrePrev + ")");
+                    continue;
+                }
+                String apodo = leerTexto(row, columnas, "Apodo");
+                String plazoPago = leerTexto(row, columnas, "Plazo Pago");
+                Boolean entrega = leerBooleano(row, columnas, "Entrega");
+                BigDecimal financiacion = leerDecimal(row, columnas, "Financiación %");
+                if (financiacion == null) financiacion = leerDecimal(row, columnas, "Financiacion %");
+                Integer leadTime = leerEntero(row, columnas, "Lead Time (días)");
+                if (leadTime == null) leadTime = leerEntero(row, columnas, "Lead Time (dias)");
+
+                String nombreTrunc = nombre.length() > 100 ? nombre.substring(0, 100) : nombre;
+                String apodoFinal;
+                if (apodo != null && !apodo.isBlank()) {
+                    apodoFinal = apodo.length() > 50 ? apodo.substring(0, 50) : apodo;
+                } else {
+                    apodoFinal = "";
+                }
+                String plazoTrunc = plazoPago == null ? null
+                        : (plazoPago.length() > 45 ? plazoPago.substring(0, 45) : plazoPago);
+
+                entityManager.createNativeQuery(
+                        "INSERT INTO supermaster.proveedores "
+                                + "(id_proveedor, nombre, apodo, plazo_pago, entrega, financiacion_porcentaje, lead_time_dias) "
+                                + "VALUES (?, ?, ?, ?, ?, ?, ?)")
+                        .setParameter(1, idExcel)
+                        .setParameter(2, nombreTrunc)
+                        .setParameter(3, apodoFinal)
+                        .setParameter(4, plazoTrunc)
+                        .setParameter(5, entrega)
+                        .setParameter(6, financiacion)
+                        .setParameter(7, leadTime)
+                        .executeUpdate();
+                idVisto.put(idExcel, i + 1);
+                nombreVisto.put(claveNombre, i + 1);
+                successRows++;
+            } catch (Exception e) {
+                errores.add("Fila " + (i + 1) + ": " + e.getMessage());
+            }
+        }
+        entityManager.flush();
+
+        log.info("Hoja '{}' (proveedores): {}/{} filas procesadas, {} errores", nombreHoja, successRows, totalRows, errores.size());
+        return errores.isEmpty()
+                ? ImportResultDTO.success(totalRows, successRows)
+                : ImportResultDTO.withErrors(totalRows, successRows, errores.size(), errores);
     }
 
     private int compararPorCampo(Producto p1, Producto p2, String campo) {

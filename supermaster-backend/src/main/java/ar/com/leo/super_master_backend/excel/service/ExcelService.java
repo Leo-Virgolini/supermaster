@@ -4,6 +4,7 @@ import ar.com.leo.super_master_backend.excel.dto.ExportCatalogoResultDTO;
 import ar.com.leo.super_master_backend.excel.dto.ExportResultDTO;
 import ar.com.leo.super_master_backend.excel.dto.ImportCompletoResultDTO;
 import ar.com.leo.super_master_backend.excel.dto.ImportCostosResultDTO;
+import ar.com.leo.super_master_backend.excel.dto.LimpiezaDatosResultDTO;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoFilter;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.multipart.MultipartFile;
@@ -20,6 +21,36 @@ public interface ExcelService {
      * @throws IOException Si hay error leyendo el archivo
      */
     ImportCompletoResultDTO importarMigracionCompleta(MultipartFile file) throws IOException;
+
+    /**
+     * Importa las tablas auxiliares (marcas, tipos, materiales, origenes, clasif_gral,
+     * clasif_gastro, aptos, proveedores) desde el Excel "Plantilla_Tablas_SuperMaster.xlsx".
+     * <p>
+     * Cada hoja del Excel corresponde a una tabla. Estructura esperada de cada hoja:
+     * - Fila 1: título (ej: "MARCAS  —  Tabla: marcas")
+     * - Fila 2: tipos de datos
+     * - Fila 3: nombres de columnas
+     * - Fila 4+: datos
+     * <p>
+     * Para hojas con jerarquía (Marcas, Tipos, Clasif. Grales, Clasif. Gastro) se procesa
+     * en dos pasadas: primero se crean todas las entidades sin padre y se mantiene un mapa
+     * id_excel → entidad creada; luego se resuelven los padres usando ese mapa.
+     *
+     * @param file Archivo Excel con las tablas auxiliares
+     * @return Resultado de la importación con estadísticas por hoja
+     * @throws IOException Si hay error leyendo el archivo
+     */
+    ImportCompletoResultDTO importarTablasAuxiliares(MultipartFile file) throws IOException;
+
+    /**
+     * Vacía las tablas de datos (productos, mlas, márgenes, precios calculados,
+     * tablas relacionales y maestros: marcas, tipos, materiales, orígenes, clasif,
+     * clientes, proveedores, ventas y órdenes de compra) y resetea sus AUTO_INCREMENT.
+     * Es una operación destructiva — usar SOLO durante setup inicial.
+     *
+     * @return Detalle de las tablas limpiadas y errores si los hubo
+     */
+    LimpiezaDatosResultDTO limpiarDatos();
 
     /**
      * Importa costos desde un archivo Excel (.xls/.xlsx) actualizando productos existentes.

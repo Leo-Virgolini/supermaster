@@ -1,181 +1,114 @@
 package ar.com.leo.super_master_backend.dominio.common.service;
 
+import ar.com.leo.super_master_backend.dominio.canal.repository.CanalRepository;
 import ar.com.leo.super_master_backend.dominio.common.dto.RecalculoPendienteDTO;
+import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoCanalPrecioRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * Tracker en memoria de cambios que requieren recálculo de precios.
+ * Tracker de precios que requieren recálculo. Persiste el estado en BD para sobrevivir
+ * reinicios y poder mostrar "precio desactualizado" por fila en el frontend.
  *
- * Mantiene el SCOPE de cada cambio (producto/canal/todo) para que al aplicar el
- * recálculo se ejecute el plan más eficiente: si solo se tocó un producto, recalcula
- * ese producto; si solo un canal, ese canal; si algo amplio (ej: concepto), todo.
+ * <p>Dos fuentes de obsolescencia:
+ * <ul>
+ *   <li>{@code producto_canal_precios.obsoleto = TRUE} — un precio existente que está
+ *       desactualizado. El aplicador recalcula esa combinación (producto, canal).</li>
+ *   <li>{@code canales.requiere_reevaluar_catalogo = TRUE} — cambio en el canal que puede
+ *       agregar/quitar productos (regla, concepto, cuota, descuento, canal base).
+ *       El aplicador itera TODO el catálogo contra ese canal.</li>
+ * </ul>
  *
- * Estado en memoria: si se reinicia el servidor el flag se pierde. Aceptable.
+ * <p>La API pública se mantiene igual que la versión legacy (in-memory) para no impactar
+ * a los ~14 services que la consumen. Internamente, cada {@code marcarX(...)} se traduce
+ * a un UPDATE bulk.
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class RecalculoPendienteService {
 
-    // ReentrantLock en lugar de synchronized: evita pinning de carrier threads
-    // cuando hay muchos virtual threads concurrentes apuntando a este punto caliente.
-    private final ReentrantLock lock = new ReentrantLock();
-
-    private final AtomicInteger cantidad = new AtomicInteger(0);
-    private final AtomicReference<LocalDateTime> ultimaModificacion = new AtomicReference<>(null);
-    // Contador por motivo (descripción del trigger) para mostrar el detalle al usuario.
-    private final ConcurrentHashMap<String, AtomicInteger> contadorPorMotivo = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, AtomicReference<LocalDateTime>> fechaPorMotivo = new ConcurrentHashMap<>();
-
-    // Scopes: qué hay que recalcular cuando el usuario aprete "Aplicar".
-    private final AtomicBoolean recalcularTodo = new AtomicBoolean(false);
-    private final Set<Integer> productosPendientes = ConcurrentHashMap.newKeySet();
-    private final Set<Integer> canalesPendientes = ConcurrentHashMap.newKeySet();
-
-    // Snapshot del estado actualizado dentro del lock en cada mutación.
-    // Permite que estado() y broadcast() lean sin tomar el lock — evita que un
-    // cliente SSE lento o un endpoint /estado lento bloqueen a marcar*.
-    private final AtomicReference<RecalculoPendienteDTO> snapshot = new AtomicReference<>(RecalculoPendienteDTO.vacio());
+    private final ProductoCanalPrecioRepository pcpRepository;
+    private final CanalRepository canalRepository;
 
     @Autowired
     @Lazy
     private RecalculoPendienteSseService sseService;
 
     /**
-     * Marca un cambio que afecta a TODOS los productos/canales (ej: cambio de un concepto
-     * de cálculo, una clasificación gastro, un proveedor con muchos productos, etc.).
-     * Cuando se aplique, se ejecutará el recálculo masivo completo.
+     * Marca un cambio que afecta a TODOS los productos en TODOS los canales. Usado por el
+     * fallback de seguridad cuando no se sabe el scope. La consecuencia es severa: el
+     * aplicador hará un recálculo masivo completo.
      */
+    @Transactional
     public void marcarTodo(String motivo) {
-        lock.lock();
-        try {
-            recalcularTodo.set(true);
-            registrarComunInterno(motivo);
-            actualizarSnapshot();
-        } finally {
-            lock.unlock();
-        }
+        int filas = pcpRepository.marcarTodoObsoleto(motivo);
+        int canales = canalRepository.marcarTodosRequiereReevaluar(motivo);
+        log.debug("Marcar TODO obsoleto [{}]: {} filas, {} canales", motivo, filas, canales);
         broadcast();
     }
 
     /**
-     * Marca un cambio scoped a un producto específico (ej: editar margen, costo, IVA,
-     * relación de un solo producto). Al aplicar, se recalcula SOLO ese producto.
+     * Marca obsoletos los precios de un producto en todos los canales donde tiene
+     * fila en {@code producto_canal_precios}.
      */
+    @Transactional
     public void marcarProducto(String motivo, Integer productoId) {
-        lock.lock();
-        try {
-            if (productoId != null) productosPendientes.add(productoId);
-            registrarComunInterno(motivo);
-            actualizarSnapshot();
-        } finally {
-            lock.unlock();
-        }
-        broadcast();
+        if (productoId == null) return;
+        marcarProductos(motivo, List.of(productoId));
     }
 
     /**
-     * Marca un cambio scoped a un canal específico (ej: cuotas del canal, regla de canal,
-     * regla de excepción de un concepto en ese canal). Al aplicar, se recalcula SOLO ese canal.
+     * Marca obsoletos los precios de varios productos. Más eficiente que llamar
+     * {@link #marcarProducto} N veces: un solo UPDATE y un solo broadcast.
      */
-    public void marcarCanal(String motivo, Integer canalId) {
-        lock.lock();
-        try {
-            if (canalId != null) canalesPendientes.add(canalId);
-            registrarComunInterno(motivo);
-            actualizarSnapshot();
-        } finally {
-            lock.unlock();
-        }
-        broadcast();
-    }
-
-    /**
-     * Marca un cambio que afecta a un conjunto acotado de productos (ej: cambio en MLA con
-     * N SKUs asociados, cambio de financiación de un proveedor con N productos). Es equivalente
-     * a llamar {@link #marcarProducto} N veces, pero registra el motivo una sola vez y emite
-     * un único broadcast SSE — más eficiente y menos ruidoso en el banner.
-     *
-     * Si la lista está vacía no marca nada.
-     */
+    @Transactional
     public void marcarProductos(String motivo, Iterable<Integer> productoIds) {
-        boolean huboCambios = false;
-        lock.lock();
-        try {
-            int agregados = 0;
-            for (Integer pid : productoIds) {
-                if (pid != null) {
-                    productosPendientes.add(pid);
-                    agregados++;
-                }
-            }
-            if (agregados == 0) return;
-            registrarComunInterno(motivo);
-            actualizarSnapshot();
-            huboCambios = true;
-        } finally {
-            lock.unlock();
-        }
-        if (huboCambios) broadcast();
+        List<Integer> ids = sanitize(productoIds);
+        if (ids.isEmpty()) return;
+        int filas = pcpRepository.marcarObsoletoPorProductos(ids, motivo);
+        log.debug("Marcar {} productos obsoletos [{}]: {} filas afectadas", ids.size(), motivo, filas);
+        broadcast();
     }
 
     /**
-     * Marca un cambio que afecta a un conjunto acotado de canales (ej: cambio en concepto de
-     * cálculo asignado a N canales). Mismo patrón que {@link #marcarProductos}: motivo único,
-     * un solo broadcast.
+     * Marca un canal para reevaluación de catálogo + obsoletos sus precios actuales.
+     * Es el caso típico cuando cambia algo del canal que puede agregar/quitar productos
+     * (regla, concepto, cuota, descuento, canal base).
      */
+    @Transactional
+    public void marcarCanal(String motivo, Integer canalId) {
+        if (canalId == null) return;
+        marcarCanales(motivo, List.of(canalId));
+    }
+
+    /**
+     * Marca varios canales para reevaluación del catálogo. Un solo UPDATE y un solo
+     * broadcast.
+     */
+    @Transactional
     public void marcarCanales(String motivo, Iterable<Integer> canalIds) {
-        boolean huboCambios = false;
-        lock.lock();
-        try {
-            int agregados = 0;
-            for (Integer cid : canalIds) {
-                if (cid != null) {
-                    canalesPendientes.add(cid);
-                    agregados++;
-                }
-            }
-            if (agregados == 0) return;
-            registrarComunInterno(motivo);
-            actualizarSnapshot();
-            huboCambios = true;
-        } finally {
-            lock.unlock();
-        }
-        if (huboCambios) broadcast();
+        List<Integer> ids = sanitize(canalIds);
+        if (ids.isEmpty()) return;
+        int canales = canalRepository.marcarRequiereReevaluarPorIds(ids, motivo);
+        int filas = pcpRepository.marcarObsoletoPorCanales(ids, motivo);
+        log.debug("Marcar {} canales para reevaluar [{}]: {} canales, {} filas obsoletas",
+                ids.size(), motivo, canales, filas);
+        broadcast();
     }
 
     /**
-     * Compatibilidad con código legacy: si no se pasa scope, asumimos que afecta todo.
-     * Los services nuevos deberían usar marcarTodo/marcarProducto/marcarCanal explícitos.
-     */
-    public void marcarPendiente(String motivo) {
-        marcarTodo(motivo);
-    }
-
-    // Asume que el caller tiene el lock tomado.
-    private void registrarComunInterno(String motivo) {
-        cantidad.incrementAndGet();
-        ultimaModificacion.set(LocalDateTime.now());
-        contadorPorMotivo.computeIfAbsent(motivo, k -> new AtomicInteger(0)).incrementAndGet();
-        fechaPorMotivo.computeIfAbsent(motivo, k -> new AtomicReference<>()).set(LocalDateTime.now());
-        log.debug("Recálculo pendiente registrado: {} (total: {})", motivo, cantidad.get());
-    }
-
-    /**
-     * Plan de recálculo a ejecutar al aplicar los pendientes.
-     * Snapshot inmutable del estado actual (no se ve afectado por modificaciones posteriores).
+     * Plan de recálculo a ejecutar. Se construye on-demand leyendo BD para tener
+     * una foto coherente del estado actual.
      */
     public record PlanRecalculo(boolean recalcularTodo, Set<Integer> productos, Set<Integer> canales) {
         public boolean estaVacio() {
@@ -183,98 +116,105 @@ public class RecalculoPendienteService {
         }
     }
 
+    /**
+     * Construye el plan leyendo BD. Si todos los canales activos requieren reevaluar,
+     * se interpreta como "recalcular todo". Si solo algunos, se devuelven en {@code canales}.
+     * Los productos obsoletos cuyo canal NO está en el set anterior se devuelven en {@code productos}.
+     */
+    @Transactional(readOnly = true)
     public PlanRecalculo plan() {
-        lock.lock();
-        try {
-            return new PlanRecalculo(
-                    recalcularTodo.get(),
-                    Set.copyOf(productosPendientes),
-                    Set.copyOf(canalesPendientes)
-            );
-        } finally {
-            lock.unlock();
+        List<Integer> canalesReevaluar = canalRepository.findIdsRequierenReevaluar();
+        long canalesTotal = canalRepository.count();
+        boolean todo = !canalesReevaluar.isEmpty() && canalesReevaluar.size() == canalesTotal;
+        if (todo) {
+            return new PlanRecalculo(true, Set.of(), Set.of());
         }
+        List<Integer> productos = pcpRepository.findDistinctProductoIdsObsoletos();
+        return new PlanRecalculo(false, Set.copyOf(productos), Set.copyOf(canalesReevaluar));
     }
 
     /**
-     * Limpia el contador y los scopes. Usa el mismo lock que las operaciones marcar / plan
-     * para evitar race conditions: si un nuevo cambio intenta entrar mientras se limpia,
-     * espera al lock y queda registrado para el siguiente ciclo.
+     * Desmarca el flag {@code requiere_reevaluar_catalogo} del canal y los flags
+     * {@code obsoleto} de sus precios. Usado tras un recálculo de canal completo exitoso.
+     * Va en su propia transacción porque el caller (recalculoCanalCompletoAsync) corre
+     * en un thread @Async sin transacción abierta.
      */
+    @Transactional
+    public void desmarcarCanalCompletado(Integer canalId) {
+        if (canalId == null) return;
+        canalRepository.desmarcarRequiereReevaluarPorIds(List.of(canalId));
+        pcpRepository.desmarcarObsoletoPorCanal(canalId);
+        broadcast();
+    }
+
+    /**
+     * Limpia todos los marcadores. Usado por el controller al despachar el Apply
+     * para que nuevos cambios queden registrados para el siguiente ciclo.
+     */
+    @Transactional
     public void limpiar() {
-        int previo;
-        lock.lock();
-        try {
-            previo = cantidad.getAndSet(0);
-            ultimaModificacion.set(null);
-            contadorPorMotivo.clear();
-            fechaPorMotivo.clear();
-            recalcularTodo.set(false);
-            productosPendientes.clear();
-            canalesPendientes.clear();
-            actualizarSnapshot();
-        } finally {
-            lock.unlock();
-        }
-        if (previo > 0) {
-            log.info("Recálculo pendiente limpiado (había {} cambios pendientes)", previo);
+        int filas = pcpRepository.desmarcarTodosObsoletos();
+        int canales = canalRepository.desmarcarTodosRequiereReevaluar();
+        if (filas > 0 || canales > 0) {
+            log.info("Recálculo pendiente limpiado ({} filas, {} canales)", filas, canales);
         }
         broadcast();
     }
 
     /**
-     * Broadcast SSE FUERA del lock para no bloquear a otros threads que
-     * intentan marcar pendientes mientras un cliente lento procesa el evento.
-     * Mismo patrón que ProcesoGlobalService.adquirir/liberar.
+     * Snapshot actual del estado para el banner del frontend. Construido on-demand
+     * con queries de agregación; barato porque el conteo va por índice {@code idx_pcp_obsoleto}.
      */
-    private void broadcast() {
-        if (sseService != null) {
-            try {
-                sseService.broadcast(snapshot.get());
-            } catch (Exception e) {
-                log.warn("Error al broadcast de recálculo pendiente por SSE: {}", e.getMessage());
-            }
-        }
-    }
-
-    /**
-     * Devuelve el snapshot pre-construido. Lectura sin lock — siempre consistente
-     * porque el DTO es inmutable y se reemplaza atómicamente desde dentro del lock.
-     */
+    @Transactional(readOnly = true)
     public RecalculoPendienteDTO estado() {
-        return snapshot.get();
+        List<Integer> productoIds = pcpRepository.findDistinctProductoIdsObsoletos();
+        List<Integer> canalIdsReevaluar = canalRepository.findIdsRequierenReevaluar();
+        long canalesTotal = canalRepository.count();
+        boolean todo = !canalIdsReevaluar.isEmpty() && canalIdsReevaluar.size() == canalesTotal;
+
+        int productosCount = productoIds.size();
+        int canalesCount = canalIdsReevaluar.size();
+        int totalScope = (todo ? 1 : 0) + productosCount + canalesCount;
+        if (totalScope == 0) {
+            return RecalculoPendienteDTO.vacio();
+        }
+
+        List<RecalculoPendienteDTO.MotivoPendiente> motivos = new ArrayList<>();
+        for (Object[] row : pcpRepository.resumenObsoletosPorMotivo()) {
+            motivos.add(new RecalculoPendienteDTO.MotivoPendiente(
+                    (String) row[0], ((Number) row[1]).intValue(), (LocalDateTime) row[2]));
+        }
+        for (Object[] row : canalRepository.resumenReevaluarPorMotivo()) {
+            motivos.add(new RecalculoPendienteDTO.MotivoPendiente(
+                    (String) row[0], ((Number) row[1]).intValue(), (LocalDateTime) row[2]));
+        }
+        motivos.sort((a, b) -> b.cantidad() - a.cantidad());
+
+        LocalDateTime ultima = motivos.stream()
+                .map(RecalculoPendienteDTO.MotivoPendiente::ultimoCambio)
+                .filter(d -> d != null)
+                .max(LocalDateTime::compareTo)
+                .orElse(null);
+
+        return new RecalculoPendienteDTO(
+                true, totalScope, todo, productosCount, canalesCount,
+                productoIds, canalIdsReevaluar, ultima, motivos);
     }
 
-    // Asume que el caller tiene el lock tomado. Construye el DTO actual y lo guarda
-    // en la AtomicReference para que estado()/broadcast() puedan leerlo sin tomar el lock.
-    //
-    // Cantidad: cardinalidad del scope (productos+canales únicos). Si recalcularTodo=true,
-    // se cuenta como 1 (representa "todo"). Esto evita que "3 edits al mismo producto"
-    // se reporte como 3 cambios — son 3 calls pero 1 producto pendiente.
-    private void actualizarSnapshot() {
-        boolean todo = recalcularTodo.get();
-        int productos = productosPendientes.size();
-        int canales = canalesPendientes.size();
-        int totalScope = (todo ? 1 : 0) + productos + canales;
-        if (totalScope == 0) {
-            snapshot.set(RecalculoPendienteDTO.vacio());
-            return;
+    private void broadcast() {
+        if (sseService == null) return;
+        try {
+            sseService.broadcast(estado());
+        } catch (Exception e) {
+            log.warn("Error al broadcast de recálculo pendiente por SSE: {}", e.getMessage());
         }
-        List<RecalculoPendienteDTO.MotivoPendiente> motivos = contadorPorMotivo.entrySet().stream()
-                .map(e -> {
-                    var fechaRef = fechaPorMotivo.get(e.getKey());
-                    return new RecalculoPendienteDTO.MotivoPendiente(
-                            e.getKey(),
-                            e.getValue().get(),
-                            fechaRef != null ? fechaRef.get() : null
-                    );
-                })
-                .sorted((a, b) -> b.cantidad() - a.cantidad())
-                .toList();
-        snapshot.set(new RecalculoPendienteDTO(
-                true, totalScope, todo, productos, canales,
-                List.copyOf(productosPendientes),
-                List.copyOf(canalesPendientes),
-                ultimaModificacion.get(), motivos));
+    }
+
+    private static List<Integer> sanitize(Iterable<Integer> ids) {
+        List<Integer> out = new ArrayList<>();
+        for (Integer id : ids) {
+            if (id != null) out.add(id);
+        }
+        return out;
     }
 }

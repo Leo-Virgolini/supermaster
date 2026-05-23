@@ -5,6 +5,7 @@ import ar.com.leo.super_master_backend.excel.dto.ExportCatalogoResultDTO;
 import ar.com.leo.super_master_backend.excel.dto.ExportResultDTO;
 import ar.com.leo.super_master_backend.excel.dto.ImportCompletoResultDTO;
 import ar.com.leo.super_master_backend.excel.dto.ImportCostosResultDTO;
+import ar.com.leo.super_master_backend.excel.dto.LimpiezaDatosResultDTO;
 import ar.com.leo.super_master_backend.excel.service.ExcelService;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoFilter;
 import ar.com.leo.super_master_backend.dominio.reposicion.entity.TagReposicion;
@@ -69,6 +70,67 @@ public class ExcelController {
             log.error("Error inesperado al importar migración: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ErrorResponse.of("Error interno del servidor: " + e.getMessage(), "/api/excel/importar-migracion"));
+        }
+    }
+
+    /**
+     * Limpia datos de la BD (operación destructiva). Vacía las siguientes tablas y
+     * resetea sus AUTO_INCREMENT:
+     * venta_diaria_cache, orden_compra_lineas, ordenes_compra, producto_apto,
+     * producto_catalogo, producto_cliente, producto_canal_precio_inflado,
+     * producto_canal_precios, producto_margen, mlas, productos, clientes,
+     * marcas, tipos, materiales, origenes, clasif_gral, clasif_gastro, proveedores.
+     * Usar SOLO durante setup inicial.
+     */
+    @PostMapping("/limpiar-datos")
+    @PreAuthorize(Permisos.EXCEL_EDITAR)
+    public ResponseEntity<?> limpiarDatos() {
+        try {
+            LimpiezaDatosResultDTO resultado = excelService.limpiarDatos();
+            return ResponseEntity.ok(resultado);
+        } catch (Exception e) {
+            log.error("Error al limpiar datos: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ErrorResponse.of("Error interno del servidor: " + e.getMessage(), "/api/excel/limpiar-datos"));
+        }
+    }
+
+    /**
+     * Importa las tablas auxiliares (marcas, tipos, materiales, origenes, clasif_gral,
+     * clasif_gastro, aptos, proveedores) desde el Excel "Plantilla_Tablas_SuperMaster.xlsx".
+     * <p>
+     * Cada hoja del Excel corresponde a una tabla y debe respetar la estructura:
+     * fila 1 título, fila 2 tipos de datos, fila 3 encabezados, fila 4+ datos.
+     * <p>
+     * Las hojas con jerarquía (Marcas, Tipos, Clasif. Grales, Clasif. Gastro) usan la
+     * columna "ID Padre" que referencia el ID del Excel dentro de la misma hoja.
+     *
+     * @param file Archivo Excel con las tablas auxiliares
+     * @return Resultado de la importación con estadísticas por hoja
+     */
+    @PostMapping("/importar-tablas-auxiliares")
+    @PreAuthorize(Permisos.EXCEL_EDITAR)
+    public ResponseEntity<?> importarTablasAuxiliares(
+            @RequestParam("archivo") MultipartFile file
+    ) {
+        try {
+            ImportCompletoResultDTO resultado = excelService.importarTablasAuxiliares(file);
+            return ResponseEntity.ok(resultado);
+        } catch (IllegalArgumentException e) {
+            log.error("Error de validación al importar tablas auxiliares: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body(
+                    ImportCompletoResultDTO.withErrors(0, 0, 1,
+                            new HashMap<>(),
+                            List.of(e.getMessage()))
+            );
+        } catch (IOException e) {
+            log.error("Error de I/O al importar tablas auxiliares: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ErrorResponse.of("Error al procesar el archivo Excel: " + e.getMessage(), "/api/excel/importar-tablas-auxiliares"));
+        } catch (Exception e) {
+            log.error("Error inesperado al importar tablas auxiliares: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ErrorResponse.of("Error interno del servidor: " + e.getMessage(), "/api/excel/importar-tablas-auxiliares"));
         }
     }
 

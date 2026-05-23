@@ -465,7 +465,7 @@ export default function DuxDeudasPage() {
         setIsLoadingEmpresas(true);
         fetchEmpresas()
             .then(setEmpresas)
-            .catch(() => {})
+            .catch((e) => console.warn("No se pudieron cargar empresas Dux:", e))
             .finally(() => setIsLoadingEmpresas(false));
     }, []);
 
@@ -496,7 +496,7 @@ export default function DuxDeudasPage() {
         setIsLoadingSucursales(true);
         fetchSucursales(Number(selectedEmpresa))
             .then(setSucursales)
-            .catch(() => {})
+            .catch((e) => console.warn("No se pudieron cargar sucursales Dux:", e))
             .finally(() => setIsLoadingSucursales(false));
     }, [selectedEmpresa]);
 

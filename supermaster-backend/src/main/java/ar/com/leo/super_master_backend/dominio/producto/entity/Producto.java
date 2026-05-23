@@ -86,18 +86,16 @@ public class Producto {
     @JoinColumn(name = "id_origen")
     private Origen origen;
 
-    @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "id_clasif_gral", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_clasif_gral")
     private ClasifGral clasifGral;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_clasif_gastro")
     private ClasifGastro clasifGastro;
 
-    @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "id_tipo", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_tipo")
     private Tipo tipo;
 
     @ManyToOne(fetch = FetchType.LAZY)

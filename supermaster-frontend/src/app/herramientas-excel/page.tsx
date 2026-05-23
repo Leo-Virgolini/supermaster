@@ -13,6 +13,7 @@ import {
     TableCellsIcon, ArrowUpTrayIcon, ArrowDownTrayIcon,
     ChevronDownIcon, ChevronUpIcon,
     PlusIcon, PencilSquareIcon, TrashIcon,
+    ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 import { useAuth } from "../context/AuthContext";
 
@@ -201,6 +202,7 @@ interface MigracionResult {
     hojasConErrores?: number;
     resultadosPorHoja?: Record<string, MigracionHoja>;
     erroresGenerales?: string[];
+    valoresNoEncontrados?: Record<string, string[]>;
     message?: string;
 }
 
@@ -243,9 +245,8 @@ function ResultadoMigracion({ data }: { data: MigracionResult }) {
                                 <div className="px-3 py-2 bg-white dark:bg-slate-800 text-xs space-y-1 border-t border-gray-100 dark:border-slate-600">
                                     {hoja.message && <p className="text-gray-600">{hoja.message}</p>}
                                     {hoja.errors && hoja.errors.length > 0 && (
-                                        <ul className="list-disc list-inside text-red-600 space-y-0.5 mt-1">
-                                            {hoja.errors.slice(0, 10).map((e, i) => <li key={i}>{e}</li>)}
-                                            {hoja.errors.length > 10 && <li className="text-red-400">...y {hoja.errors.length - 10} más</li>}
+                                        <ul className="list-disc list-inside text-red-600 space-y-0.5 mt-1 max-h-96 overflow-y-auto">
+                                            {hoja.errors.map((e, i) => <li key={i}>{e}</li>)}
                                         </ul>
                                     )}
                                 </div>
@@ -263,6 +264,29 @@ function ResultadoMigracion({ data }: { data: MigracionResult }) {
                     </ul>
                 </div>
             )}
+
+            {data.valoresNoEncontrados && Object.keys(data.valoresNoEncontrados).length > 0 && (
+                <div className="text-xs bg-amber-50 border border-amber-300 rounded p-2 dark:bg-amber-950/30 dark:border-amber-700">
+                    <div className="font-semibold text-amber-800 dark:text-amber-300 mb-1">
+                        Valores referenciados pero no encontrados en tablas auxiliares (se guardaron como NULL):
+                    </div>
+                    <div className="space-y-1.5">
+                        {Object.entries(data.valoresNoEncontrados).map(([campo, valores]) => (
+                            <div key={campo}>
+                                <span className="font-medium text-amber-900 dark:text-amber-200 capitalize">{campo}</span>
+                                <span className="text-amber-700 dark:text-amber-400"> ({valores.length}):</span>
+                                <div className="mt-0.5 flex flex-wrap gap-1">
+                                    {valores.map((v) => (
+                                        <span key={v} className="bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300 font-mono px-1.5 py-0.5 rounded">
+                                            {v}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -275,7 +299,7 @@ interface ImportCardProps {
     titulo: string;
     descripcion: string;
     endpoint: string;
-    tipo?: "costos" | "migracion";
+    tipo?: "costos" | "migracion" | "tablas-auxiliares";
     columnas?: string[];
     advertencia?: string;
     badge?: string;
@@ -297,7 +321,7 @@ function ImportCard({ titulo, descripcion, endpoint, tipo = "costos", columnas, 
             const res = await fetchAPI(`${API_BASE_URL}${endpoint}`, { method: "POST", body: formData });
             const data = await res.json().catch(() => ({}));
             let mensaje: string;
-            if (tipo === "migracion") {
+            if (tipo === "migracion" || tipo === "tablas-auxiliares") {
                 const d = data as MigracionResult;
                 mensaje = d.message ?? `Importación completada. ${d.hojasProcesadas ?? 0}/${d.totalHojas ?? 0} hojas procesadas.`;
             } else {
@@ -345,7 +369,7 @@ function ImportCard({ titulo, descripcion, endpoint, tipo = "costos", columnas, 
             )}
 
             <input
-                ref={fileRef} type="file" accept=".xlsx,.xls"
+                ref={fileRef} type="file" accept=".xlsx,.xls,.xlsm"
                 className="block w-full text-sm text-gray-600 dark:text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border file:border-gray-300 dark:file:border-slate-500 file:text-sm file:bg-gray-50 dark:file:bg-slate-700 file:text-gray-700 dark:file:text-slate-200 hover:file:bg-gray-100 dark:hover:file:bg-slate-600 cursor-pointer"
             />
 
@@ -356,8 +380,137 @@ function ImportCard({ titulo, descripcion, endpoint, tipo = "costos", columnas, 
             {resultado && (
                 <div className={`text-sm rounded p-3 border ${resultado.ok ? "text-green-700 bg-green-50 border-green-200" : "text-red-700 bg-red-50 border-red-200"}`}>
                     {resultado.mensaje}
-                    {resultado.ok && resultado.data && tipo === "migracion" && <ResultadoMigracion data={resultado.data} />}
+                    {resultado.ok && resultado.data && (tipo === "migracion" || tipo === "tablas-auxiliares") && <ResultadoMigracion data={resultado.data} />}
                     {resultado.ok && resultado.data && tipo === "costos" && <ResultadoImport data={resultado.data} />}
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ---------------------------------------------------------------------------
+// LimpiarDatosCard — operación destructiva con doble confirmación
+// ---------------------------------------------------------------------------
+
+interface LimpiezaResult {
+    tablasLimpiadas?: string[];
+    errores?: string[];
+    message?: string;
+}
+
+function LimpiarDatosCard() {
+    const TABLAS = [
+        "venta_diaria_cache", "orden_compra_lineas", "ordenes_compra",
+        "producto_apto", "producto_catalogo", "producto_cliente",
+        "producto_canal_precio_inflado", "producto_canal_precios", "producto_margen",
+        "mlas", "productos", "clientes",
+        "marcas", "tipos", "materiales", "origenes",
+        "clasif_gral", "clasif_gastro", "proveedores",
+    ];
+    const FRASE_CONFIRMACION = "BORRAR DATOS";
+
+    const [cargando, setCargando] = useState(false);
+    const [confirmacion, setConfirmacion] = useState("");
+    const [resultado, setResultado] = useState<LimpiezaResult | null>(null);
+    const [error, setError] = useState<string | null>(null);
+
+    const handleLimpiar = async () => {
+        if (confirmacion !== FRASE_CONFIRMACION) {
+            toast.error(`Escribí "${FRASE_CONFIRMACION}" para confirmar.`);
+            return;
+        }
+        setCargando(true);
+        setResultado(null);
+        setError(null);
+        try {
+            const res = await fetchAPI(`${API_BASE_URL}/api/excel/limpiar-datos`, { method: "POST" });
+            const data = await res.json().catch(() => ({})) as LimpiezaResult;
+            setResultado(data);
+            setConfirmacion("");
+            if ((data.errores?.length ?? 0) > 0) {
+                notificar.warning(data.message ?? "Limpieza con errores.");
+            } else {
+                notificar.success(data.message ?? "Tablas vaciadas.");
+            }
+        } catch (err: any) {
+            const msg = err?.message ?? "Error desconocido";
+            setError(msg);
+            notificar.error(msg);
+        } finally {
+            setCargando(false);
+        }
+    };
+
+    return (
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-red-300 dark:border-red-900 p-5 flex flex-col gap-3">
+            <div>
+                <h3 className="font-semibold text-gray-800 dark:text-slate-100 flex items-center gap-2">
+                    <ExclamationTriangleIcon className="w-5 h-5 text-red-600" />
+                    Limpiar Datos de la BD
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                    Borra TODO el contenido de las tablas de datos y maestros (productos, mlas, precios, marcas, tipos, etc.) y resetea sus IDs a 1. Operación irreversible.
+                </p>
+            </div>
+
+            <details className="text-xs">
+                <summary className="cursor-pointer text-gray-600 dark:text-slate-300 hover:text-gray-800 dark:hover:text-slate-100">
+                    Ver las {TABLAS.length} tablas afectadas
+                </summary>
+                <div className="mt-2 bg-gray-50 dark:bg-slate-700/50 border border-gray-200 dark:border-slate-600 rounded p-2 flex flex-wrap gap-1">
+                    {TABLAS.map((t) => (
+                        <span key={t} className="bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-500 rounded px-1.5 py-0.5 font-mono text-gray-700 dark:text-slate-200">
+                            {t}
+                        </span>
+                    ))}
+                </div>
+            </details>
+
+            <div className="text-xs text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded p-2">
+                ⚠️ <strong>Acción destructiva.</strong> Para habilitar el botón, escribí <code className="font-mono bg-red-100 dark:bg-red-900/50 px-1 rounded">{FRASE_CONFIRMACION}</code> abajo.
+            </div>
+
+            <input
+                type="text"
+                value={confirmacion}
+                onChange={(e) => setConfirmacion(e.target.value)}
+                placeholder={`Escribí "${FRASE_CONFIRMACION}" para confirmar`}
+                className="border border-gray-300 dark:border-slate-600 rounded p-2 text-sm bg-white dark:bg-slate-700 text-gray-700 dark:text-slate-200 font-mono"
+                disabled={cargando}
+            />
+
+            <Button
+                text={cargando ? "Borrando..." : "Borrar todo"}
+                variant="dark"
+                onClick={handleLimpiar}
+                disabled={cargando || confirmacion !== FRASE_CONFIRMACION}
+            >
+                <TrashIcon className="w-4 h-4" />
+            </Button>
+
+            {error && (
+                <div className="text-sm rounded p-3 border text-red-700 bg-red-50 border-red-200">
+                    {error}
+                </div>
+            )}
+
+            {resultado && (
+                <div className={`text-sm rounded p-3 border ${(resultado.errores?.length ?? 0) > 0 ? "text-amber-800 bg-amber-50 border-amber-300" : "text-green-700 bg-green-50 border-green-200"}`}>
+                    <div className="font-medium">{resultado.message}</div>
+                    {resultado.tablasLimpiadas && resultado.tablasLimpiadas.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                            {resultado.tablasLimpiadas.map((t) => (
+                                <span key={t} className="bg-white border border-gray-300 text-gray-700 text-xs font-mono px-1.5 py-0.5 rounded">
+                                    {t}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                    {resultado.errores && resultado.errores.length > 0 && (
+                        <ul className="list-disc list-inside text-red-600 space-y-0.5 mt-2 text-xs">
+                            {resultado.errores.map((e, i) => <li key={i}>{e}</li>)}
+                        </ul>
+                    )}
                 </div>
             )}
         </div>
@@ -836,8 +989,12 @@ export default function HerramientasExcelPage() {
 
     // Cargar catálogos y canales al montar
     useEffect(() => {
-        searchCatalogos("").then((res) => setCatalogos(res.map((r: any) => ({ id: Number(r.id), label: r.label }))));
-        searchCanales("").then((res) => setCanales(res.map((r: any) => ({ id: Number(r.id), label: r.label }))));
+        searchCatalogos("")
+            .then((res) => setCatalogos(res.map((r: any) => ({ id: Number(r.id), label: r.label }))))
+            .catch((e) => console.warn("No se pudieron cargar catálogos:", e));
+        searchCanales("")
+            .then((res) => setCanales(res.map((r: any) => ({ id: Number(r.id), label: r.label }))))
+            .catch((e) => console.warn("No se pudieron cargar canales:", e));
         cargarConfigsPdf();
     }, []);
 
@@ -901,9 +1058,17 @@ export default function HerramientasExcelPage() {
                     <ArrowUpTrayIcon className="w-5 h-5" />
                     Importar desde Excel
                 </h2>
-                <p className="text-sm text-blue-700 dark:text-blue-400 mb-5">Sube un archivo .xlsx o .xls para cargar datos al sistema.</p>
+                <p className="text-sm text-blue-700 dark:text-blue-400 mb-5">Sube un archivo .xlsx, .xls o .xlsm para cargar datos al sistema.</p>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    <ImportCard
+                        titulo="Importar Tablas Auxiliares"
+                        descripcion="Carga las tablas pequeñas usadas como atributos de producto: marcas, tipos, materiales, orígenes, clasif. grales, clasif. gastro, aptos y proveedores."
+                        endpoint="/api/excel/importar-tablas-auxiliares"
+                        tipo="tablas-auxiliares"
+                        columnas={["Marcas", "Tipos", "Materiales", "Origenes", "Clasif. Grales", "Clasif. Gastro", "Aptos", "Proveedores"]}
+                        advertencia="Usar la plantilla Plantilla_Tablas_SuperMaster.xlsx. Las entidades se buscan/crean por nombre (no se duplican)."
+                    />
                     <ImportCard
                         titulo="Importar Costos"
                         descripcion="Actualiza costos, IVA y proveedor de productos. Dispara recálculo automático de precios si alguno cambia."
@@ -912,13 +1077,27 @@ export default function HerramientasExcelPage() {
                         advertencia="Si el costo, IVA o proveedor cambia, los precios se recalculan automáticamente."
                     />
                     <ImportCard
-                        titulo="Importar Migración"
-                        descripcion="Migración completa de datos. Crea o actualiza productos, relaciones y datos maestros en bulk."
+                        titulo="Importar Productos (MASTER)"
+                        descripcion="Importa la hoja MASTER del Excel SUPER MASTER. Crea o actualiza productos por SKU. Las tablas auxiliares (marcas, tipos, etc.) deben estar ya cargadas."
                         endpoint="/api/excel/importar-migracion"
                         tipo="migracion"
-                        advertencia="Solo usar durante migración inicial. Puede sobrescribir datos existentes de forma masiva."
-                        badge="En desarrollo"
+                        advertencia="Marcas, tipos, materiales, orígenes, clasificaciones y proveedores deben existir previamente. Las filas que referencien valores inexistentes se reportan como error."
                     />
+                </div>
+            </section>
+
+            {/* ── Limpieza de Datos (destructiva) ──────────────────────── */}
+            <section className="bg-red-50 dark:bg-red-950/20 rounded-xl border border-red-200 dark:border-red-900 p-6">
+                <h2 className="text-lg font-bold text-red-900 dark:text-red-300 mb-1 flex items-center gap-2">
+                    <ExclamationTriangleIcon className="w-5 h-5" />
+                    Limpieza de Datos
+                </h2>
+                <p className="text-sm text-red-700 dark:text-red-400 mb-5">
+                    Vacía las tablas de datos y resetea los IDs a 1. Usar solo durante setup inicial — esta acción es irreversible.
+                </p>
+
+                <div className="grid grid-cols-1 max-w-2xl">
+                    <LimpiarDatosCard />
                 </div>
             </section>
 

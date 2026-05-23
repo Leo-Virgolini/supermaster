@@ -73,6 +73,9 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
     @Lazy @Autowired
     private CalculoPrecioServiceImpl self;
 
+    @Lazy @Autowired
+    private ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService recalculoPendienteService;
+
     // Control de recálculo masivo async (estado + locks vía tracker reusable)
     private static final String PROCESO_ID = "recalculo-precios";
     private static final String PROCESO_DESC = "Recálculo masivo de precios";
@@ -2667,6 +2670,13 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
                 if (resultado.productosIgnoradosSinMargen() > 0)
                     sb.append(", ").append(resultado.productosIgnoradosSinMargen()).append(" sin margen");
                 mensaje = sb.toString();
+            }
+            // El masivo recalcula TODO el catálogo: tras éxito, todos los flags de obsolescencia
+            // quedan obsoletos en sentido inverso. Limpiar acá (en lugar del controller, ANTES
+            // del async) cierra la ventana donde el frontend leería precios "frescos" sin
+            // haberse recalculado. Si el masivo crashea, queda marcado para reintento.
+            if (!tracker.estaCancelado()) {
+                recalculoPendienteService.limpiar();
             }
             tracker.completar(0, resultado.totalPreciosCalculados(), resultado.errores(), mensaje);
         } catch (Exception e) {

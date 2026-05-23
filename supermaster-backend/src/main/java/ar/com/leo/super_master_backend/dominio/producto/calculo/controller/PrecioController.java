@@ -303,7 +303,8 @@ public class PrecioController {
     public ResponseEntity<Void> iniciarRecalculoMasivo() {
         boolean started = calculoPrecioService.iniciarRecalculoMasivo();
         if (started) {
-            recalculoPendienteService.limpiar();
+            // limpiar() ya NO se llama acá: el masivo limpia los flags al finalizar
+            // con éxito, evitando la ventana donde el frontend leería precios sin recalcular.
             auditoriaService.registrarCambios(
                     AuditoriaEntidad.RECALCULO,
                     null,
@@ -355,7 +356,7 @@ public class PrecioController {
         if (plan.recalcularTodo()) {
             boolean started = calculoPrecioService.iniciarRecalculoMasivo();
             if (started) {
-                recalculoPendienteService.limpiar();
+                // limpiar() ya NO se llama acá: el masivo limpia al final con éxito.
                 auditoriaService.registrarCambios(
                         AuditoriaEntidad.RECALCULO,
                         null,
@@ -366,7 +367,6 @@ public class PrecioController {
                 );
                 return ResponseEntity.ok().build();
             }
-            // No arrancó (otro proceso corriendo): NO limpiar, devolver 409.
             return ResponseEntity.status(409).build();
         }
 
@@ -375,9 +375,9 @@ public class PrecioController {
         if (!aplicadorPendientesService.intentarAdquirir()) {
             return ResponseEntity.status(409).build();
         }
-        // Limpiamos los pendientes ANTES del async para que cambios nuevos que lleguen
-        // mientras corre se acumulen para el siguiente Apply (no se pierden).
-        recalculoPendienteService.limpiar();
+        // limpiar() ya NO se llama acá: el bulk executor desmarca producto-por-producto
+        // y canal-por-canal tras cada recálculo exitoso. Cambios nuevos que entren durante
+        // el async quedan marcados y se aplican en el próximo ciclo de forma natural.
         auditoriaService.registrarCambios(
                 AuditoriaEntidad.RECALCULO,
                 null,

@@ -66,7 +66,7 @@ public class ProcesosActivosSseService {
                 emitter.send(SseEmitter.event().name("procesos").data(snapshot));
             } catch (IOException | IllegalStateException e) {
                 emitters.remove(emitter);
-                try { emitter.complete(); } catch (Exception ignored) {}
+                try { emitter.complete(); } catch (Exception completeEx) { log.trace("emitter.complete() falló (ya cerrado)", completeEx); }
             }
         }
     }
@@ -101,7 +101,7 @@ public class ProcesosActivosSseService {
                 emitter.send(SseEmitter.event().comment("keepalive"));
             } catch (IOException | IllegalStateException e) {
                 emitters.remove(emitter);
-                try { emitter.complete(); } catch (Exception ignored) {}
+                try { emitter.complete(); } catch (Exception completeEx) { log.trace("emitter.complete() falló (ya cerrado)", completeEx); }
             }
         }
     }

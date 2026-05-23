@@ -51,7 +51,7 @@ public class RecalculoPendienteSseService {
                 emitter.send(SseEmitter.event().name("pendiente").data(snapshot));
             } catch (IOException | IllegalStateException e) {
                 emitters.remove(emitter);
-                try { emitter.complete(); } catch (Exception ignored) {}
+                try { emitter.complete(); } catch (Exception completeEx) { log.trace("emitter.complete() falló (ya cerrado)", completeEx); }
             }
         }
     }
@@ -67,7 +67,7 @@ public class RecalculoPendienteSseService {
                 emitter.send(SseEmitter.event().comment("keepalive"));
             } catch (IOException | IllegalStateException e) {
                 emitters.remove(emitter);
-                try { emitter.complete(); } catch (Exception ignored) {}
+                try { emitter.complete(); } catch (Exception completeEx) { log.trace("emitter.complete() falló (ya cerrado)", completeEx); }
             }
         }
     }

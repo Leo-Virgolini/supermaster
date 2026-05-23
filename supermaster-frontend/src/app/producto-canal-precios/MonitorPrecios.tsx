@@ -1188,7 +1188,7 @@ export default function MonitorPrecios({
                     onCanalChange?.("all");
                 }
             })
-            .catch(() => {});
+            .catch((e) => console.warn("No se pudieron cargar canales:", e));
     }, []);
 
     // Cargar cuotas disponibles — solo se actualiza cuando cuotas="all" (datos completos del canal)

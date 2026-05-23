@@ -26,6 +26,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -68,6 +70,20 @@ public class Canal {
 
     @OneToMany(mappedBy = "canal")
     private Set<ProductoCanalPrecioInflado> productoCanalPreciosInflados = new LinkedHashSet<>();
+
+    // ---------------------------
+    // REEVALUACIÓN PENDIENTE (recálculo de catálogo completo contra este canal)
+    // Cuando cambia algo que puede agregar/quitar productos del canal
+    // (regla, concepto, cuota, descuento, canalBase) este flag se prende.
+    // ---------------------------
+    @Column(name = "requiere_reevaluar_catalogo", nullable = false)
+    private boolean requiereReevaluarCatalogo = false;
+
+    @Column(name = "motivo_reevaluar", length = 255)
+    private String motivoReevaluar;
+
+    @Column(name = "marcado_reevaluar_at")
+    private LocalDateTime marcadoReevaluarAt;
 
     public Canal(Integer canalId) {
         this.id = canalId;

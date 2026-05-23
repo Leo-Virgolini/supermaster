@@ -18,6 +18,7 @@ import ar.com.leo.super_master_backend.dominio.auditoria.service.AuditoriaServic
 import ar.com.leo.super_master_backend.dominio.canal.entity.Canal;
 import ar.com.leo.super_master_backend.dominio.canal.repository.CanalRepository;
 import ar.com.leo.super_master_backend.dominio.common.dto.ProcesoMasivoEstadoDTO;
+import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
 import ar.com.leo.super_master_backend.dominio.common.exception.ServiceNotConfiguredException;
 import ar.com.leo.super_master_backend.dominio.producto.calculo.dto.PrecioCalculadoDTO;
 import ar.com.leo.super_master_backend.dominio.producto.calculo.service.CalculoPrecioService;
@@ -156,8 +157,15 @@ public class MercadoLibreService {
      * <p>
      * El cálculo es iterativo: al agregar el costo de envío, el PVP puede cambiar
      * de tier, requiriendo recalcular hasta estabilizar.
+     *
+     * <p>{@code noRollbackFor = NotFoundException.class}: el motor de cálculo
+     * ({@code calcularPrecioCanalConEnvio} es {@code @Transactional(readOnly=true)})
+     * puede tirar {@link NotFoundException} si el producto no tiene márgenes / canal
+     * / conceptos configurados. Atrapamos la excepción y la transformamos en un DTO
+     * con error, pero sin {@code noRollbackFor} la transacción quedaría marcada
+     * rollback-only y Spring tiraría {@code UnexpectedRollbackException} al commit.
      */
-    @Transactional
+    @Transactional(noRollbackFor = NotFoundException.class)
     public CostoEnvioResponseDTO calcularCostoEnvioGratis(String mlaCode) {
         final int MAX_ITERACIONES = 10;
 
@@ -822,7 +830,21 @@ public class MercadoLibreService {
     }
 
     /**
-     * Calcula el costo de envío gratis usando la API de ML.
+     * Calcula el costo de envío gratis usando el endpoint
+     * {@code GET /users/{userId}/shipping_options/free} de la API de Mercado Libre.
+     *
+     * <p>Doc oficial: <a href="https://developers.mercadolibre.com.ar/es_ar/costos-de-envio">
+     * Costos de envío</a> (rev. 13/02/2026).
+     *
+     * <p>Solo aplica para modo {@code me2}. Si el ítem no ofrece envío gratis
+     * ({@code shipping.free_shipping = false}), no tiene sentido pedir el costo —
+     * en ese caso el comprador paga el envío y no afecta al vendedor.
+     *
+     * <p>Envía siempre {@code free_shipping=true}: el contexto del negocio es calcular
+     * cuánto le cuesta al vendedor ofrecer envío gratis. La opción {@code free_shipping=false}
+     * (costo a cargo del comprador) no es relevante para nuestro cálculo de PVP.
+     *
+     * <p>Fallback: si la consulta con {@code item_id} falla, reintenta con {@code dimensions}.
      */
     private ResultadoEnvio calcularCostoEnvioInterno(String userId, Producto producto, BigDecimal precioEnvioGratis) {
         verificarTokens();
@@ -835,10 +857,20 @@ public class MercadoLibreService {
         final String logisticType = producto.shipping != null ? producto.shipping.logisticType : null;
         final String zipCode = producto.sellerAddress != null ? producto.sellerAddress.zipCode : null;
         final String categoryId = producto.categoryId;
+        final Boolean freeShippingHabilitado = producto.shipping != null ? producto.shipping.freeShipping : null;
+        final List<String> shippingTags = producto.shipping != null ? producto.shipping.tags : null;
 
         if (!"me2".equals(mode)) {
             String motivo = String.format("modo de envío no es ME2 (mode='%s')", mode);
             log.warn("ML - No se puede calcular costo de envío para {}: {}", itemId, motivo);
+            return ResultadoEnvio.fallo(motivo);
+        }
+
+        // Si el ítem explícitamente NO ofrece envío gratis, el costo lo paga el comprador
+        // y no impacta al vendedor: no tiene sentido consultar la API.
+        if (Boolean.FALSE.equals(freeShippingHabilitado)) {
+            String motivo = "el ítem no ofrece envío gratis (shipping.free_shipping=false)";
+            log.info("ML - No se calcula envío para {}: {}", itemId, motivo);
             return ResultadoEnvio.fallo(motivo);
         }
 
@@ -850,6 +882,13 @@ public class MercadoLibreService {
                     zipCode, logisticType, condition, listingType);
             log.warn("ML - No se puede calcular envío para {}: {}", itemId, motivo);
             return ResultadoEnvio.fallo(motivo);
+        }
+
+        // Log informativo: si el ítem tiene mandatory_free_shipping, el vendedor está OBLIGADO
+        // a ofrecer envío gratis (PVP por encima del umbral de ML).
+        boolean mandatorio = shippingTags != null && shippingTags.contains("mandatory_free_shipping");
+        if (mandatorio) {
+            log.debug("ML - Ítem {} tiene mandatory_free_shipping (envío gratis obligatorio)", itemId);
         }
 
         String baseParams = String.format("&item_price=%s&listing_type_id=%s&mode=%s&condition=%s&logistic_type=%s&zip_code=%s&verbose=true&free_shipping=true",
@@ -881,7 +920,8 @@ public class MercadoLibreService {
 
         try {
             JsonNode json = objectMapper.readTree(responseBody);
-            double cost = json.path("coverage").path("all_country").path("list_cost").asDouble(0);
+            JsonNode allCountry = json.path("coverage").path("all_country");
+            double cost = allCountry.path("list_cost").asDouble(0);
 
             JsonNode discount = json.path("coverage").path("discount");
             if (!discount.isMissingNode() && discount.path("rate").asDouble(0) > 0) {

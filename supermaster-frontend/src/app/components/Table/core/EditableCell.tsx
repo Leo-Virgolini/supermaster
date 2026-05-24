@@ -234,14 +234,18 @@ const EditableCell = ({
     };
 
     if (isEditing) {
+        // Texto para el spacer (mantener altura) y para calcular ancho del editor flotante.
+        // Usamos toRawText para evitar "null"/"undefined" cuando initialValue es nulo.
+        const spacerText = toRawText(initialValue) || "—";
+        const widthBaseText = toRawText(value);
         return (
             <div className="relative">
                 {/* spacer para mantener la altura de fila */}
-                <div className={`invisible px-2 py-1 text-sm ${className}`}>{String(initialValue) || "—"}</div>
+                <div className={`invisible px-2 py-1 text-sm ${className}`}>{spacerText}</div>
                 {/* editor flotante */}
                 <div
                     className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 z-20 flex items-center gap-1 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded shadow-lg px-1 py-0.5"
-                    style={{ width: type === "number" ? 200 : Math.min(Math.max(String(value).length * 9 + 80, 260), 500) }}
+                    style={{ width: type === "number" ? 200 : Math.min(Math.max(widthBaseText.length * 9 + 80, 260), 500) }}
                 >
                     <input
                         type="text"

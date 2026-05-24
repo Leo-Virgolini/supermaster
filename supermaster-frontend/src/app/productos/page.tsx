@@ -41,27 +41,39 @@ function ImagePickerModal({ onSelect, onClose }: { onSelect: (name: string) => v
     const [files, setFiles] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
 
-    const load = useCallback(async (q: string) => {
+    const load = useCallback(async (q: string, signal?: AbortSignal) => {
         setLoading(true);
         try {
             const params = q ? `?search=${encodeURIComponent(q)}` : "";
-            const res = await fetch(`${API_BASE_URL}/api/imagenes/listar${params}`);
+            const res = await fetch(`${API_BASE_URL}/api/imagenes/listar${params}`, { signal });
+            if (!res.ok) {
+                if (!signal?.aborted) {
+                    notificar.error(`Error cargando imágenes (HTTP ${res.status})`);
+                    setFiles([]);
+                }
+                return;
+            }
             const data = await res.json();
-            setFiles(Array.isArray(data) ? data : []);
-        } catch {
+            if (!signal?.aborted) {
+                setFiles(Array.isArray(data) ? data : []);
+            }
+        } catch (e) {
+            if ((e as { name?: string })?.name === "AbortError") return;
             setFiles([]);
         } finally {
-            setLoading(false);
+            if (!signal?.aborted) setLoading(false);
         }
     }, []);
 
+    // Debounce + AbortController: si el usuario tipea rápido, cancelamos la
+    // request anterior para que respuestas viejas no pisen el state nuevo.
     useEffect(() => {
-        void load("");
-    }, [load]);
-
-    useEffect(() => {
-        const t = setTimeout(() => { void load(search); }, 300);
-        return () => clearTimeout(t);
+        const controller = new AbortController();
+        const t = setTimeout(() => { void load(search, controller.signal); }, 300);
+        return () => {
+            clearTimeout(t);
+            controller.abort();
+        };
     }, [search, load]);
 
     return (
@@ -623,6 +635,8 @@ export default function ProductosPage() {
                     onExportAll={handleExportAll}
                     exportFilename="productos"
                     columnVisibilityStorageVersion={columnVisibilityVersion}
+                    hasFiltersActive={hasActiveFilters}
+                    onClearAllFilters={clearAllFilters}
                     getRowClassName={(row) => (activeOverrides[row.original.id] ?? row.original.activo) === false
                         ? "bg-rose-50/70 dark:bg-rose-950/20 text-slate-500 dark:text-slate-400"
                         : ""}

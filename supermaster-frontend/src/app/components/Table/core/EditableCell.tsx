@@ -34,8 +34,18 @@ const EditableCell = ({
     const { editingId, setEditingId } = useEditingCell();
     const isEditing = editingId === myId;
 
+    // Convierte un valor a lo que debe mostrarse en el input.
+    // Devuelve "" para nulos/undefined/vacíos y para el 0 numérico (mostrar "0"
+    // es ruido visual y dispara el bug "Tab → error" en celdas con valor 0).
+    // `String(null) === "null"`, etc., así que NO basta con `String(v)`.
+    const toRawText = (v: string | number | null | undefined): string => {
+        if (v === null || v === undefined || v === "") return "";
+        if (type === "number" && v === 0) return "";
+        return String(v);
+    };
+
     const [value, setValue] = useState(initialValue);
-    const [rawText, setRawText] = useState(String(initialValue));
+    const [rawText, setRawText] = useState(() => toRawText(initialValue));
     const [saveState, setSaveState] = useState<"idle" | "saving" | "success" | "error">("idle");
     const [saveError, setSaveError] = useState<string | null>(null);
     const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -62,8 +72,10 @@ const EditableCell = ({
     useEffect(() => {
         setValue(initialValue);
         if (!isEditingRef.current) {
-            setRawText(String(initialValue));
+            setRawText(toRawText(initialValue));
         }
+        // toRawText cierra sobre `type` que es estable durante la vida del componente.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initialValue]);
 
     useEffect(() => () => {
@@ -81,16 +93,34 @@ const EditableCell = ({
 
     const openEditing = () => {
         if (disabled) return;
-        setRawText(value === "" || value === 0 ? "" : String(value));
+        setRawText(toRawText(value));
         setSaveState("idle");
         setSaveError(null);
         setEditingId(myId);
     };
 
-    const handleConfirm = async () => {
-        if (saveState === "saving") return;
+    // Devuelve true si la edición se cerró OK (sin cambios, o guardado exitoso) — útil
+    // para que el caller (Tab) decida si avanzar a la siguiente celda. False si quedó
+    // en error y conviene mantener al usuario en el input.
+    const handleConfirm = async (): Promise<boolean> => {
+        if (saveState === "saving") return false;
         const isEmpty = rawText.trim() === "";
         const normalizedInitial = initialValue === "" || initialValue === undefined ? null : initialValue;
+
+        // Caso "abrir y salir sin tocar nada": si el input se dejó vacío y el valor
+        // original también era efectivamente vacío (0 en números, "" en texto), no
+        // hay cambio real → cerrar como "sin cambios" en lugar de tirar error.
+        // Antes pasaba con Tab/Enter sobre una celda numérica que mostraba 0.
+        if (isEmpty && !nullable) {
+            const initialEsVacio = normalizedInitial === null
+                || (type === "number" && Number(initialValue) === 0);
+            if (initialEsVacio) {
+                setEditingId(null);
+                setSaveState("idle");
+                setSaveError(null);
+                return true;
+            }
+        }
 
         if (nullable && isEmpty) {
             if (normalizedInitial === null) {
@@ -98,7 +128,7 @@ const EditableCell = ({
                 setEditingId(null);
                 setSaveState("idle");
                 setSaveError(null);
-                return;
+                return true;
             }
 
             try {
@@ -108,11 +138,12 @@ const EditableCell = ({
                 setValue("");
                 setEditingId(null);
                 markSuccess();
+                return true;
             } catch (error) {
                 setSaveState("error");
                 setSaveError(error instanceof Error ? error.message : "No se pudo guardar");
+                return false;
             }
-            return;
         }
 
         let finalValue: string | number;
@@ -122,7 +153,7 @@ const EditableCell = ({
             if (parsed === null) {
                 setSaveState("error");
                 setSaveError("Valor numérico inválido");
-                return;
+                return false;
             }
             finalValue = parsed;
             // Comparar numéricamente: initialValue puede venir como string ("100.5") o número (100.5).
@@ -138,7 +169,7 @@ const EditableCell = ({
             setEditingId(null);
             setSaveState("idle");
             setSaveError(null);
-            return;
+            return true;
         }
 
         try {
@@ -148,23 +179,58 @@ const EditableCell = ({
             setValue(finalValue);
             setEditingId(null);
             markSuccess();
+            return true;
         } catch (error) {
             setSaveState("error");
             setSaveError(error instanceof Error ? error.message : "No se pudo guardar");
+            return false;
         }
     };
 
     const handleCancel = () => {
         setValue(initialValue);
-        setRawText(String(initialValue));
+        setRawText(toRawText(initialValue));
         setEditingId(null);
         setSaveState("idle");
         setSaveError(null);
     };
 
+    /**
+     * Busca la siguiente celda editable (en orden DOM: izq→der, arriba→abajo) y
+     * dispara click para abrirla. Si no encuentra, no hace nada. Pequeño delay
+     * para esperar a que el editor actual se desmonte y devuelva el atributo
+     * `data-editable-cell="display"` al wrapper.
+     */
+    const moverASiguienteEditable = (direccion: 1 | -1) => {
+        // Doble RAF: uno espera el re-render que vuelve la celda a modo display,
+        // el segundo asegura que el DOM esté pintado antes de querySelectorAll.
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            const todas = Array.from(document.querySelectorAll<HTMLElement>('[data-editable-cell="display"]'));
+            const idx = todas.findIndex((el) => el.getAttribute("data-editable-cell-id") === myId);
+            if (idx === -1) return;
+            const objetivo = todas[idx + direccion];
+            if (objetivo) objetivo.click();
+        }));
+    };
+
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === "Enter") void handleConfirm();
-        if (e.key === "Escape") handleCancel();
+        if (e.key === "Enter") {
+            e.preventDefault();
+            void handleConfirm();
+            return;
+        }
+        if (e.key === "Escape") {
+            e.preventDefault();
+            handleCancel();
+            return;
+        }
+        if (e.key === "Tab") {
+            e.preventDefault();
+            const direccion: 1 | -1 = e.shiftKey ? -1 : 1;
+            void handleConfirm().then((ok) => {
+                if (ok) moverASiguienteEditable(direccion);
+            });
+        }
     };
 
     if (isEditing) {
@@ -219,11 +285,17 @@ const EditableCell = ({
 
     if (renderDisplay && value !== "" && value !== null && value !== undefined) {
         return (
-            <div className="relative">
+            <div
+                className={`relative transition-colors ${
+                    saveState === "success"
+                        ? "bg-emerald-100 ring-2 ring-emerald-400 dark:bg-emerald-500/20 dark:ring-emerald-400"
+                        : ""
+                }`}
+                data-editable-cell={disabled ? undefined : "display"}
+                data-editable-cell-id={myId}
+                onClick={disabled ? undefined : openEditing}
+            >
                 {renderDisplay(value, openEditing)}
-                {saveState === "success" && (
-                    <span className="absolute left-1 top-1 inline-flex h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.15)]" title="Celda actualizada" />
-                )}
             </div>
         );
     }
@@ -231,11 +303,13 @@ const EditableCell = ({
     return (
         <div
             onClick={openEditing}
+            data-editable-cell={disabled ? undefined : "display"}
+            data-editable-cell-id={myId}
             className={`relative px-2 py-1 rounded text-sm text-center transition-colors ${
                 disabled ? "cursor-default" : "cursor-text hover:bg-gray-100 dark:hover:bg-slate-700"
             } ${
                 saveState === "success"
-                    ? "bg-emerald-50 ring-1 ring-emerald-200 dark:bg-emerald-500/10 dark:ring-emerald-500/30"
+                    ? "bg-emerald-100 ring-2 ring-emerald-400 dark:bg-emerald-500/20 dark:ring-emerald-400"
                     : ""
             } ${className}`}
         >
@@ -243,9 +317,6 @@ const EditableCell = ({
                 <>{prefix}{resolvedFormatter ? resolvedFormatter(value) : value}{suffix}</>
             ) : (
                 <span className="text-gray-400 dark:text-slate-500">—</span>
-            )}
-            {saveState === "success" && (
-                <span className="absolute left-1 top-1 inline-flex h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.15)]" title="Celda actualizada" />
             )}
             {saveState === "saving" && (
                 <ArrowPathIcon className="absolute right-1 top-1 h-3.5 w-3.5 animate-spin text-blue-500" title="Guardando..." />

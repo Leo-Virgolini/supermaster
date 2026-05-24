@@ -145,7 +145,7 @@ public class UsuarioServiceImpl implements UsuarioService {
     @Override
     @Transactional(readOnly = true)
     public List<RolDTO> listarRoles() {
-        return rolRepository.findAll().stream()
+        return rolRepository.findAllConPermisos().stream()
                 .map(usuarioMapper::toRolDTO)
                 .toList();
     }

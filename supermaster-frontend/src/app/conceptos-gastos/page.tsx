@@ -179,6 +179,20 @@ export default function ConceptosGastoPage() {
         setPageIndex(0);
     };
 
+    // `hasActiveFilters`: hay filtros por columna activos (no contamos search,
+    // porque eso ya lo detecta el Table vía globalFilter).
+    const hasActiveFilters = Object.entries(filters).some(([key, value]) => {
+        if (key === "search") return false;
+        if (value === undefined || value === null || value === "") return false;
+        if (Array.isArray(value) && value.length === 0) return false;
+        return true;
+    });
+
+    const clearAllFilters = () => {
+        setFilters({});
+        setPageIndex(0);
+    };
+
     const hasSelection = selectedIds.length > 0;
 
     return (
@@ -306,6 +320,8 @@ export default function ConceptosGastoPage() {
                     setRowSelection={setRowSelection}
                     updateData={handleUpdate}
                     onColumnFilterChange={handleColumnFilterChange}
+                    hasFiltersActive={hasActiveFilters}
+                    onClearAllFilters={clearAllFilters}
                     getActiveFilter={(columnId) => filters[apiMapping[columnId] || columnId]}
                     onExportAll={handleExportAll}
                     exportFilename="conceptos-gastos"

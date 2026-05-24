@@ -342,6 +342,20 @@ export default function UsuariosPage() {
         setPageIndex(0);
     };
 
+    // `hasActiveFilters`: hay filtros por columna activos (no contamos search,
+    // porque eso ya lo detecta el Table vía globalFilter).
+    const hasActiveFilters = Object.entries(filters).some(([key, value]) => {
+        if (key === "search") return false;
+        if (value === undefined || value === null || value === "") return false;
+        if (Array.isArray(value) && value.length === 0) return false;
+        return true;
+    });
+
+    const clearAllFilters = () => {
+        setFilters({});
+        setPageIndex(0);
+    };
+
     const columns = useMemo(() => getColumns(openEdit, openPassword, canEdit), [canEdit]);
 
     if (!canView) {
@@ -394,6 +408,8 @@ export default function UsuariosPage() {
                             rowSelection={rowSelection}
                             setRowSelection={setRowSelection}
                             onColumnFilterChange={() => {}}
+                            hasFiltersActive={hasActiveFilters}
+                            onClearAllFilters={clearAllFilters}
                             getActiveFilter={() => undefined}
                             onExportAll={handleExportAll}
                             exportFilename="usuarios"

@@ -32,7 +32,7 @@ public class RolServiceImpl implements RolService {
     @Override
     @Transactional(readOnly = true)
     public List<RolDTO> listarRoles() {
-        return rolRepository.findAll().stream()
+        return rolRepository.findAllConPermisos().stream()
                 .map(this::toRolDTO)
                 .toList();
     }

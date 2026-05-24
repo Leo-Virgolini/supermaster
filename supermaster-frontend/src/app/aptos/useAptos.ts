@@ -84,8 +84,11 @@ export function useAptos(
 		payload: Partial<AptoDTO>,
 	) => {
 		try {
-			await updateAptoAPI(id, payload, "INLINE");
-			await getAptos();
+			// El PATCH devuelve el objeto actualizado. Reemplazamos solo esa fila
+			// en lugar de refetchar toda la página: evita el skeleton de loading
+			// y mantiene scroll / selección intactos.
+			const actualizado: AptoDTO = await updateAptoAPI(id, payload, "INLINE");
+			setAptos((prev) => prev.map((a) => (a.id === id ? { ...a, ...actualizado } : a)));
 			notificar.success(`[Aptos] Registro #${id} actualizado`);
 			return true;
 		} catch (e: unknown) {

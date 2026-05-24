@@ -67,8 +67,11 @@ export function useConfigAutomatizacion(
 
 	const updateConfig = async (id: number, payload: Partial<ConfigAutomatizacionDTO>) => {
 		try {
-			await updateConfigAutomatizacionAPI(id, payload, "INLINE");
-			await fetchData();
+			// El PATCH devuelve el objeto actualizado. Reemplazamos solo esa fila
+			// en lugar de refetchar toda la página: evita el skeleton de loading
+			// y mantiene scroll / selección intactos.
+			const actualizado: ConfigAutomatizacionDTO = await updateConfigAutomatizacionAPI(id, payload, "INLINE");
+			setData((prev) => prev.map((d) => (d.id === id ? { ...d, ...actualizado } : d)));
 			notificar.success(`[Config. Automatización] Registro #${id} actualizado`);
 			return true;
 		} catch (e: any) {

@@ -101,9 +101,9 @@ public class RecalculoPrecioFacade {
         }
 
         try {
-            List<Integer> productoIds = productoRepository.findAll().stream()
-                    .map(p -> p.getId())
-                    .toList();
+            // Evitar findAll() — cargar todas las entidades + relaciones lazy solo
+            // para tomar el id es caro y memoria-pesado en catálogos grandes.
+            List<Integer> productoIds = productoRepository.findAllIds();
 
             int total = productoIds.size();
             String mensaje = "Recalculando " + nombreCanal + " (catálogo completo)";

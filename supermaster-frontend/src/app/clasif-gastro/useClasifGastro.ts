@@ -81,8 +81,11 @@ export function useClasifGastro(
 
 	const updateClasifGastro = async (id: number, data: Partial<ClasifGastroDTO>) => {
 		try {
-			await updateClasifGastroAPI(id, data, "INLINE");
-			await getClasifGastros();
+			// El PATCH devuelve el objeto actualizado. Reemplazamos solo esa fila
+			// en lugar de refetchar toda la página: evita el skeleton de loading
+			// y mantiene scroll / selección intactos.
+			const actualizado: ClasifGastroDTO = await updateClasifGastroAPI(id, data, "INLINE");
+			setClasifGastros((prev) => prev.map((c) => (c.id === id ? { ...c, ...actualizado } : c)));
 			notificar.success(`[Clasif. Gastro] Registro #${id} actualizado`);
 			return true;
 		} catch (e: any) {

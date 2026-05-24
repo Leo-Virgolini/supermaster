@@ -85,8 +85,11 @@ export function useCatalogos(
 
 	const updateCatalogo = async (id: number, data: Partial<CatalogoDTO>) => {
 		try {
-			await updateCatalogoAPI(id, data);
-			await getCatalogos();
+			// El PATCH devuelve el objeto actualizado. Reemplazamos solo esa fila
+			// en lugar de refetchar toda la página: evita el skeleton de loading
+			// y mantiene scroll / selección intactos.
+			const actualizado: CatalogoDTO = await updateCatalogoAPI(id, data);
+			setCatalogos((prev) => prev.map((c) => (c.id === id ? { ...c, ...actualizado } : c)));
 			notificar.success(`[Catálogos] Registro #${id} actualizado`);
 			return true;
 		} catch (e: any) {

@@ -94,9 +94,11 @@ export function useOrigenes(
 		payload: Partial<OrigenDTO>,
 	) => {
 		try {
-			await updateOrigenAPI(id, payload, "INLINE");
-
-			await getOrigenes(); // Refresca la tabla solo
+			// El PATCH devuelve el objeto actualizado. Reemplazamos solo esa fila
+			// en lugar de refetchar toda la página: evita el skeleton de loading
+			// y mantiene scroll / selección intactos.
+			const actualizado: OrigenDTO = await updateOrigenAPI(id, payload, "INLINE");
+			setOrigenes((prev) => prev.map((o) => (o.id === id ? { ...o, ...actualizado } : o)));
 			notificar.success(`[Orígenes] Registro #${id} actualizado`);
 			return true;
 		} catch (e: any) {

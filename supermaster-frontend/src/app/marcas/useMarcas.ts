@@ -85,9 +85,11 @@ export function useMarcas(
 		data: Partial<Pick<MarcaDTO, "nombre" | "padreId">>,
 	) => {
 		try {
-			await updateMarcaAPI(id, data, "INLINE");
-
-			await getMarcas(); // Refresca la tabla solo
+			// El PATCH devuelve el objeto actualizado. Reemplazamos solo esa fila
+			// en lugar de refetchar toda la página: evita el skeleton de loading
+			// y mantiene scroll / selección intactos.
+			const actualizado: MarcaDTO = await updateMarcaAPI(id, data, "INLINE");
+			setMarcas((prev) => prev.map((m) => (m.id === id ? { ...m, ...actualizado } : m)));
 			notificar.success(`[Marcas] Registro #${id} actualizado`);
 			return true;
 		} catch (e: any) {

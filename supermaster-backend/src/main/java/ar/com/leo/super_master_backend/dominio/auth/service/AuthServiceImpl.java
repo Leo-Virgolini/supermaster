@@ -50,7 +50,9 @@ public class AuthServiceImpl implements AuthService {
             throw new BadRequestException("Error de autenticación");
         }
 
-        Usuario usuario = usuarioRepository.findByUsername(request.username())
+        // Fetch con rol+permisos: el JWT incluye los permisos como claim y buildUsuarioInfo
+        // los itera. Sin esto se disparan queries adicionales en cada login.
+        Usuario usuario = usuarioRepository.findByUsernameConRolYPermisos(request.username())
                 .orElseThrow(() -> new NotFoundException("Usuario no encontrado"));
 
         usuario.setUltimoLogin(java.time.LocalDateTime.now());
@@ -92,7 +94,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional(readOnly = true)
     public LoginResponseDTO.UsuarioInfoDTO me(String username) {
-        Usuario usuario = usuarioRepository.findByUsername(username)
+        Usuario usuario = usuarioRepository.findByUsernameConRolYPermisos(username)
                 .orElseThrow(() -> new NotFoundException("Usuario no encontrado"));
         return buildUsuarioInfo(usuario);
     }

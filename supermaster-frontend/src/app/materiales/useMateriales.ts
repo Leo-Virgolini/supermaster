@@ -84,8 +84,11 @@ export function useMateriales(
 		payload: Partial<MaterialDTO>,
 	) => {
 		try {
-			await updateMaterialAPI(id, payload, "INLINE");
-			await getMateriales();
+			// El PATCH devuelve el objeto actualizado. Reemplazamos solo esa fila
+			// en lugar de refetchar toda la página: evita el skeleton de loading
+			// y mantiene scroll / selección intactos.
+			const actualizado: MaterialDTO = await updateMaterialAPI(id, payload, "INLINE");
+			setMateriales((prev) => prev.map((m) => (m.id === id ? { ...m, ...actualizado } : m)));
 			notificar.success(`[Materiales] Registro #${id} actualizado`);
 			return true;
 		} catch (e: any) {

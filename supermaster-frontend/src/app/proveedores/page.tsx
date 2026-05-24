@@ -109,6 +109,20 @@ export default function ProveedoresPage() {
         setPageIndex(0);
     };
 
+    // `hasActiveFilters`: hay filtros por columna activos (no contamos search,
+    // porque eso ya lo detecta el Table vía globalFilter).
+    const hasActiveFilters = Object.entries(filters).some(([key, value]) => {
+        if (key === "search") return false;
+        if (value === undefined || value === null || value === "") return false;
+        if (Array.isArray(value) && value.length === 0) return false;
+        return true;
+    });
+
+    const clearAllFilters = () => {
+        setFilters({});
+        setPageIndex(0);
+    };
+
     return (
         <main className="p-4 bg-gray-50 min-h-0 flex flex-col overflow-hidden">
             <div className="flex justify-between items-center mb-3">
@@ -154,6 +168,8 @@ export default function ProveedoresPage() {
                     setRowSelection={setRowSelection}
                     updateData={handleUpdate}
                     onColumnFilterChange={handleColumnFilterChange}
+                    hasFiltersActive={hasActiveFilters}
+                    onClearAllFilters={clearAllFilters}
                     getActiveFilter={(columnId) => filters[apiMapping[columnId] || columnId]}
                     onExportAll={handleExportAll}
                     exportFilename="proveedores"

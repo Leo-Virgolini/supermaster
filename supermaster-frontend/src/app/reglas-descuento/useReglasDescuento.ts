@@ -49,8 +49,11 @@ export function useReglasDescuento(pageIndex: number, pageSize: number, filters:
 
 	const updateRegla = async (id: number, data: Partial<ReglaDescuentoDTO>) => {
 		try {
-			await updateReglaAPI(id, data);
-			await getReglas();
+			// El PATCH devuelve el objeto actualizado. Reemplazamos solo esa fila
+			// en lugar de refetchar toda la página: evita el skeleton de loading
+			// y mantiene scroll / selección intactos.
+			const actualizado: ReglaDescuentoDTO = await updateReglaAPI(id, data);
+			setReglas((prev) => prev.map((r) => (r.id === id ? { ...r, ...actualizado } : r)));
 			notificar.success(`[Reglas Descuento] Registro #${id} actualizado`);
 			notificar.info("Los precios del canal se están recalculando en segundo plano...");
 		} catch (e: any) {

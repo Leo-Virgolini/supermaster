@@ -90,10 +90,13 @@ export function useUsuarios(
 
     const updateUsuario = async (id: number, data: UsuarioUpdateDTO) => {
         try {
-            const result = await updateUsuarioAPI(id, data);
-            await getUsuarios();
+            // El PATCH devuelve el objeto actualizado. Reemplazamos solo esa fila
+            // en lugar de refetchar toda la página: evita el skeleton de loading
+            // y mantiene scroll / selección intactos.
+            const actualizado: UsuarioDTO = await updateUsuarioAPI(id, data);
+            setUsuarios((prev) => prev.map((u) => (u.id === id ? { ...u, ...actualizado } : u)));
             notificar.success(`Usuario #${id} actualizado`);
-            return result;
+            return actualizado;
         } catch (e: unknown) {
             notificar.error(e instanceof Error ? e.message : "Error al actualizar usuario");
             throw e;

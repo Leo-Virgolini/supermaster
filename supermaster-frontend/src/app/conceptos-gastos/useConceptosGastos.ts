@@ -63,8 +63,11 @@ export function useConceptosGasto(
 		data: Partial<ConceptoGastoDTO>,
 	) => {
 		try {
-			await updateConceptoGastoAPI(id, data, "INLINE");
-			await getConceptos();
+			// El PATCH devuelve el objeto actualizado. Reemplazamos solo esa fila
+			// en lugar de refetchar toda la página: evita el skeleton de loading
+			// y mantiene scroll / selección intactos.
+			const actualizado: ConceptoGastoDTO = await updateConceptoGastoAPI(id, data, "INLINE");
+			setConceptos((prev) => prev.map((c) => (c.id === id ? { ...c, ...actualizado } : c)));
 			notificar.success(`[Conceptos Cálculo] Registro #${id} actualizado`);
 		} catch (e: any) {
 			notificar.error(e?.message || "Error al actualizar");

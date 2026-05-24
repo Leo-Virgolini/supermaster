@@ -81,8 +81,11 @@ export function useMlas(
 
 	const updateMla = async (id: number, data: Partial<Omit<MlaDTO, "id" | "fechaCalculoEnvio" | "fechaCalculoComision">>) => {
 		try {
-			await updateMlaAPI(id, data);
-			await getMlas(true);
+			// El PATCH devuelve el objeto actualizado. Reemplazamos solo esa fila
+			// en lugar de refetchar toda la página: evita el skeleton de loading
+			// y mantiene scroll / selección intactos.
+			const actualizado: MlaDTO = await updateMlaAPI(id, data);
+			setMlas((prev) => prev.map((m) => (m.id === id ? { ...m, ...actualizado } : m)));
 			notificar.success(`[MLAs] Registro #${id} actualizado`);
 			return true;
 		} catch (e: any) {

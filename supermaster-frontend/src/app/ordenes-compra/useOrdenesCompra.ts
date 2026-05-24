@@ -75,8 +75,11 @@ export function useOrdenesCompra(
 
   const updateOrden = async (id: number, dto: OrdenCompraPatchDTO) => {
     try {
-      await updateOrdenCompraAPI(id, dto);
-      await getOrdenes();
+      // El PATCH devuelve el objeto actualizado. Reemplazamos solo esa fila
+      // en lugar de refetchar toda la página: evita el skeleton de loading
+      // y mantiene scroll / selección intactos.
+      const actualizado: OrdenCompraDTO = await updateOrdenCompraAPI(id, dto);
+      setOrdenes((prev) => prev.map((o) => (o.id === id ? { ...o, ...actualizado } : o)));
       notificar.success(`[Órdenes de Compra] Registro #${id} actualizado`);
     } catch (e: unknown) {
       notificar.error(e instanceof Error ? e.message : "Error al actualizar");

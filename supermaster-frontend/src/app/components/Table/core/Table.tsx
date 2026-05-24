@@ -53,6 +53,11 @@ type Props = {
     onColumnFilterChange?: (columnId: string, value: any, labels?: Record<string, string>) => void;
     getActiveFilter?: (columnId: string) => any;
     filterSlot?: React.ReactNode;
+    /** Indica si la página tiene filtros por columna activos (además del globalFilter).
+     * Si es true y la tabla está vacía, mostramos un empty state contextual. */
+    hasFiltersActive?: boolean;
+    /** Callback para limpiar filtros desde el empty state. Si viene, aparece un botón. */
+    onClearAllFilters?: () => void;
     emptyMessage?: string;
     isLoading?: boolean;
     renderSubRow?: (row: Row<any>) => React.ReactNode | null;
@@ -84,6 +89,8 @@ const Table = ({
     onColumnFilterChange,
     getActiveFilter,
     filterSlot,
+    hasFiltersActive = false,
+    onClearAllFilters,
     emptyMessage = "No hay registros para mostrar.",
     isLoading = false,
     searchSlot,
@@ -114,6 +121,12 @@ const Table = ({
 
     const setSortingPreservingScroll: typeof setSorting = (updater) => {
         saveScrollPosition();
+        // Cambiar el sort reordena el dataset entero: quedarse en página 5 con un
+        // orden distinto da resultados confusos (filas que el usuario no esperaba).
+        // Volvemos siempre a la página 0 y limpiamos la selección porque los ids
+        // ya elegidos pueden no representar lo mismo en el nuevo orden.
+        if (pageIndex !== 0) onPageChange(0);
+        if (Object.keys(rowSelection).length > 0) setRowSelection({});
         setSorting((prev) => {
             let next = typeof updater === "function" ? updater(prev) : updater;
             // Forzar ciclo ASC → DESC → quitar (TanStack por defecto hace ASC → quitar en click simple)
@@ -126,6 +139,23 @@ const Table = ({
             return next;
         });
     };
+
+    // Limpiar IDs de selección que ya no están en data (típicamente porque cambió
+    // un filtro o se paginó). El `rowSelection` de TanStack se indexa por id global
+    // (gracias a getRowId), así que conservar ids que no están visibles lleva a
+    // bugs sutiles: bulk delete sobre filas que el usuario no está viendo.
+    useEffect(() => {
+        const seleccionados = Object.keys(rowSelection);
+        if (seleccionados.length === 0) return;
+        const visibles = new Set(data.map((r) => String((r as { id: number | string }).id)));
+        const stale = seleccionados.filter((id) => !visibles.has(id));
+        if (stale.length === 0) return;
+        const limpia: Record<string, boolean> = {};
+        for (const id of seleccionados) {
+            if (visibles.has(id)) limpia[id] = rowSelection[id];
+        }
+        setRowSelection(limpia);
+    }, [data, rowSelection, setRowSelection]);
 
     useEffect(() => {
         if (savedScrollPos.current !== null && scrollContainerRef.current) {
@@ -496,18 +526,40 @@ const Table = ({
                                 </tr>
                             ))
                         ) : table.getRowModel().rows.length === 0 ? (
-                            <tr>
-                                <td colSpan={table.getVisibleLeafColumns().length} className="p-0">
-                                    <div className="sticky left-0 w-screen max-w-full">
-                                        <div className="flex flex-col items-center justify-center gap-3 text-gray-300 dark:text-slate-600 min-h-[300px]">
-                                            <svg className="w-14 h-14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                            </svg>
-                                            <span className="text-sm font-medium text-gray-400 dark:text-slate-500">{emptyMessage}</span>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
+                            (() => {
+                                // Empty state contextual: si hay búsqueda o filtros activos, el problema
+                                // es probable que sea el filtro y no que la tabla esté vacía. Distinguimos
+                                // para que el usuario sepa qué acción tomar.
+                                const hayFiltros = (globalFilter?.trim().length ?? 0) > 0 || hasFiltersActive;
+                                return (
+                                    <tr>
+                                        <td colSpan={table.getVisibleLeafColumns().length} className="p-0">
+                                            <div className="sticky left-0 w-screen max-w-full">
+                                                <div className="flex flex-col items-center justify-center gap-3 text-gray-300 dark:text-slate-600 min-h-[300px]">
+                                                    <svg className="w-14 h-14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                                    </svg>
+                                                    <span className="text-sm font-medium text-gray-400 dark:text-slate-500">
+                                                        {hayFiltros ? "No hay resultados para los filtros actuales." : emptyMessage}
+                                                    </span>
+                                                    {hayFiltros && onClearAllFilters && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                onClearAllFilters();
+                                                                if (globalFilter) setGlobalFilter("");
+                                                            }}
+                                                            className="rounded-md border border-gray-300 bg-white px-3 py-1 text-xs font-medium text-gray-600 shadow-sm hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                                                        >
+                                                            Limpiar filtros
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })()
                         ) : (
                             <>
                                 {table.getRowModel().rows.map((row) => {

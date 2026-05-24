@@ -297,6 +297,10 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
         boolean tieneCanalBase = canalActual != null && canalActual.getCanalBase() != null;
 
         if (tieneCanalBase) {
+            // Defensivo: si la cadena canal→canalBase tiene ciclos, evita StackOverflow en
+            // la recursión de calcularPrecioSobrePvpBase. Validar al inicio falla rápido
+            // con un mensaje claro en lugar de colgar el thread.
+            validarCadenaCanalSinCiclos(canalActual);
             // Pasar todos los conceptos para verificar PROVEEDOR_FIN y ENVIO
             return calcularPrecioSobrePvpBase(producto, productoMargen, conceptos, canalId, numeroCuotas);
         }
@@ -1679,14 +1683,14 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
         for (CanalConcepto cc : conceptos) {
             if (cc.getConcepto() != null) {
                 if (cc.getConcepto().getAplicaSobre() == AplicaSobre.FLAG_USAR_MARGEN_MAYORISTA) {
-                    BigDecimal margen = productoMargen.getMargenMayorista();
+                    BigDecimal margen = productoMargen != null ? productoMargen.getMargenMayorista() : null;
                     if (margen == null || margen.compareTo(BigDecimal.ZERO) <= 0) {
                         throw new BadRequestException("El producto no tiene margen mayorista cargado");
                     }
                     return;
                 }
                 if (cc.getConcepto().getAplicaSobre() == AplicaSobre.FLAG_USAR_MARGEN_MINORISTA) {
-                    BigDecimal margen = productoMargen.getMargenMinorista();
+                    BigDecimal margen = productoMargen != null ? productoMargen.getMargenMinorista() : null;
                     if (margen == null || margen.compareTo(BigDecimal.ZERO) <= 0) {
                         throw new BadRequestException("El producto no tiene margen minorista cargado");
                     }
@@ -1704,6 +1708,25 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
      */
     private boolean tieneMargenParaCadenaCanal(ProductoMargen productoMargen, Integer canalId) {
         return tieneMargenParaCadenaCanal(productoMargen, canalId, new java.util.HashSet<>());
+    }
+
+    /**
+     * Recorre la cadena canal → canalBase → canalBase... y lanza BadRequestException
+     * si detecta un ciclo. Sin esta verificación, la recursión en
+     * calcularPrecioSobrePvpBase causaría StackOverflowError.
+     */
+    private void validarCadenaCanalSinCiclos(Canal canal) {
+        java.util.Set<Integer> visitados = new java.util.HashSet<>();
+        Canal actual = canal;
+        while (actual != null && actual.getCanalBase() != null) {
+            if (!visitados.add(actual.getId())) {
+                throw new BadRequestException(
+                        "Ciclo detectado en la cadena de canales (canalBase). Revise la configuración del canal '"
+                                + canal.getNombre() + "'");
+            }
+            Integer baseId = actual.getCanalBase().getId();
+            actual = canalRepository.findById(baseId).orElse(null);
+        }
     }
 
     private boolean tieneMargenParaCadenaCanal(ProductoMargen productoMargen, Integer canalId, java.util.Set<Integer> visitados) {
@@ -2640,7 +2663,11 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
         }
         log.info("Iniciando recálculo masivo optimizado (sincrónico)...");
         long inicio = System.currentTimeMillis();
-        return ejecutarRecalculoMasivo(inicio);
+        try {
+            return ejecutarRecalculoMasivo(inicio);
+        } finally {
+            limpiarCachesRecalculoMasivo();
+        }
     }
 
     @Override
@@ -2649,6 +2676,17 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
         resultadoRecalculo = null;
         self.ejecutarRecalculoMasivoAsync();
         return true;
+    }
+
+    /**
+     * Limpia las ThreadLocals que se setean al inicio de ejecutarRecalculoMasivo.
+     * Necesario llamarla SIEMPRE en finally porque el thread (pool @Async o el del
+     * request sincrónico) puede reusarse y arrastrar caches stale o memoria viva.
+     */
+    private void limpiarCachesRecalculoMasivo() {
+        CACHE_PORCENTAJE_CUOTAS.remove();
+        CACHE_PRECIOS_BASE.remove();
+        CACHE_PRECIOS_INFLADOS.remove();
     }
 
     @Async
@@ -2683,6 +2721,9 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
             log.error("Error fatal en recálculo masivo async", e);
             tracker.completarConError(e.getMessage());
         } finally {
+            // Limpiar ThreadLocals SIEMPRE: el pool @Async reusa threads y dejarlos
+            // contaminados arrastra caches stale al próximo recálculo en este thread.
+            limpiarCachesRecalculoMasivo();
             // Safety: idempotente. completar/completarConError ya liberaron.
             tracker.liberar();
         }
@@ -3184,10 +3225,8 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
             preciosParaBorrar.clear();
         }
 
-        // Limpiar ThreadLocals
-        CACHE_PORCENTAJE_CUOTAS.remove();
-        CACHE_PRECIOS_BASE.remove();
-        CACHE_PRECIOS_INFLADOS.remove();
+        // ThreadLocals se limpian en finally del caller (recalcularTodos / ejecutarRecalculoMasivoAsync)
+        // para que también queden limpias ante excepciones.
 
         long tiempoTotal = (System.currentTimeMillis() - inicio) / 1000;
         log.info("Recálculo masivo completado en {}s: {}/{} productos, {} precios calculados, {} errores, {} sin costo, {} sin margen",
@@ -3439,8 +3478,9 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
 
         // Calcular el monto de impuestos usando la fórmula para extraer impuestos incluidos
         // montoImp = PVP × (IMP% / (100 + IVA% + IMP%))
-        if (porcentajeImpuestos.compareTo(BigDecimal.ZERO) > 0) {
-            BigDecimal divisor = CIEN.add(iva).add(porcentajeImpuestos);
+        if (porcentajeImpuestos.compareTo(BigDecimal.ZERO) > 0 && pvp != null) {
+            BigDecimal ivaSeguro = iva != null ? iva : BigDecimal.ZERO;
+            BigDecimal divisor = CIEN.add(ivaSeguro).add(porcentajeImpuestos);
             if (divisor.compareTo(BigDecimal.ZERO) > 0) {
                 total = pvp.multiply(porcentajeImpuestos)
                         .divide(divisor, PRECISION_CALCULO, RoundingMode.HALF_UP);

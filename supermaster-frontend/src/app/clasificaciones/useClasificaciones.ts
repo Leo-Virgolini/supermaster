@@ -95,9 +95,11 @@ export function useClasificaciones(
 		data: Partial<Pick<ClasificacionDTO, "nombre" | "padreId">>,
 	) => {
 		try {
-			await updateClasificacionAPI(id, data, "INLINE");
-
-			await getClasificaciones(); // Refresca la tabla solo
+			// El PATCH devuelve el objeto actualizado. Reemplazamos solo esa fila
+			// en lugar de refetchar toda la página: evita el skeleton de loading
+			// y mantiene scroll / selección intactos.
+			const actualizado: ClasificacionDTO = await updateClasificacionAPI(id, data, "INLINE");
+			setClasificaciones((prev) => prev.map((c) => (c.id === id ? { ...c, ...actualizado } : c)));
 			notificar.success(`[Clasificaciones] Registro #${id} actualizado`);
 			return true;
 		} catch (e: any) {

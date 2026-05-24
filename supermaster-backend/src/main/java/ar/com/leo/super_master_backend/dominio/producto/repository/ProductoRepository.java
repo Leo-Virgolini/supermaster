@@ -73,6 +73,25 @@ public interface ProductoRepository extends JpaRepository<Producto, Integer>, Jp
     @Query("SELECT p FROM Producto p LEFT JOIN FETCH p.proveedor")
     List<Producto> findAllWithProveedor();
 
+    /**
+     * Como {@link #findAllWithProveedor()} pero además hace fetch de la colección
+     * productoCatalogos + catalogo. Usado por las estadísticas que agrupan por
+     * catálogo: sin esto, iterar producto.getProductoCatalogos() dispara fetches
+     * por batches (BatchSize=50) en lugar de una sola query.
+     */
+    @Query("SELECT DISTINCT p FROM Producto p " +
+           "LEFT JOIN FETCH p.proveedor " +
+           "LEFT JOIN FETCH p.productoCatalogos pc " +
+           "LEFT JOIN FETCH pc.catalogo")
+    List<Producto> findAllWithProveedorYCatalogos();
+
+    /**
+     * Devuelve solo los IDs de productos. Usado por recálculos masivos que solo
+     * necesitan el ID para iterar (evita cargar entidades completas + sus relaciones).
+     */
+    @Query("SELECT p.id FROM Producto p")
+    List<Integer> findAllIds();
+
     @Modifying
     @Query("UPDATE Producto p SET p.stock = :stock WHERE p.sku = :sku")
     int updateStockBySku(@Param("sku") String sku, @Param("stock") Integer stock);

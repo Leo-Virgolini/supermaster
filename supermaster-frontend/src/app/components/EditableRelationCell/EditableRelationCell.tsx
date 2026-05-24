@@ -108,9 +108,39 @@ export const EditableRelationCell = ({
         setPendingVal(null);
     };
 
+    /**
+     * Busca la siguiente celda editable (en orden DOM) y dispara click para abrirla.
+     * Doble requestAnimationFrame para esperar a que el editor actual se desmonte
+     * y devuelva el atributo `data-editable-cell="display"` al wrapper.
+     */
+    const moverASiguienteEditable = (direccion: 1 | -1) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            const todas = Array.from(document.querySelectorAll<HTMLElement>('[data-editable-cell="display"]'));
+            const idx = todas.findIndex((el) => el.getAttribute("data-editable-cell-id") === myId);
+            if (idx === -1) return;
+            const objetivo = todas[idx + direccion];
+            if (objetivo) objetivo.click();
+        }));
+    };
+
+    /**
+     * Capturamos Tab/Shift+Tab en fase de captura para que el AsyncSelect no
+     * mueva el foco a los botones de confirmar/cancelar internos: guardamos y
+     * saltamos a la siguiente celda editable de la tabla.
+     */
+    const handleEditorKeyDownCapture = (e: React.KeyboardEvent<HTMLDivElement>) => {
+        if (e.key === "Tab") {
+            e.preventDefault();
+            e.stopPropagation();
+            const direccion: 1 | -1 = e.shiftKey ? -1 : 1;
+            handleConfirm();
+            moverASiguienteEditable(direccion);
+        }
+    };
+
     if (isEditing) {
         return (
-            <div className="relative">
+            <div className="relative" onKeyDownCapture={handleEditorKeyDownCapture}>
                 <div className="invisible px-2 py-1 text-sm">{currentName}</div>
                 <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 flex items-center gap-1 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded shadow-lg px-1 py-0.5 min-w-[280px]">
                     <div className="flex-1 min-w-0">
@@ -154,24 +184,39 @@ export const EditableRelationCell = ({
     }
 
     if (renderDisplay) {
-        return <>{renderDisplay(currentName, () => { if (!disabled) setEditingId(myId); })}</>;
+        // Envolvemos en un div con data-* para que Tab desde otra celda editable
+        // pueda saltar acá. El renderDisplay interno mantiene su propio onClick
+        // (idempotente con el del wrapper, ambos abren la edición).
+        return (
+            <div
+                className={`relative transition-colors ${
+                    saveState === "success"
+                        ? "bg-emerald-100 ring-2 ring-emerald-400 dark:bg-emerald-500/20 dark:ring-emerald-400"
+                        : ""
+                }`}
+                data-editable-cell={disabled ? undefined : "display"}
+                data-editable-cell-id={myId}
+                onClick={disabled ? undefined : () => setEditingId(myId)}
+            >
+                {renderDisplay(currentName, () => { if (!disabled) setEditingId(myId); })}
+            </div>
+        );
     }
 
     return (
         <div
             onClick={() => { if (!disabled) setEditingId(myId); }}
+            data-editable-cell={disabled ? undefined : "display"}
+            data-editable-cell-id={myId}
             className={`relative px-2 py-1 rounded border min-h-[24px] flex items-center justify-center text-sm truncate transition-colors ${
                 saveState === "success"
-                    ? "border-emerald-200 bg-emerald-50 ring-1 ring-emerald-200 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:ring-emerald-500/30"
+                    ? "border-emerald-400 bg-emerald-100 ring-2 ring-emerald-400 dark:border-emerald-400 dark:bg-emerald-500/20 dark:ring-emerald-400"
                     : "border-transparent"
             } ${
                 disabled ? "cursor-default" : "cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-200 dark:hover:border-blue-800"
             } ${displayClassName}`}
             title={disabled ? `ID: ${initialId || "N/A"}` : `ID: ${initialId || "N/A"} - Click para editar`}
         >
-            {saveState === "success" && (
-                <span className="absolute left-1 top-1 inline-flex h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.15)]" title="Celda actualizada" />
-            )}
             {currentName}
         </div>
     );

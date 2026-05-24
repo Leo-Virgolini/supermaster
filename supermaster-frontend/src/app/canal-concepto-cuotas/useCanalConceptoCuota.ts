@@ -60,8 +60,11 @@ export function useCanalConceptoCuota(
 
 	const updateCuota = async (id: number, item: CanalConceptoCuotaPatchDTO) => {
 		try {
-			await updateCuotaAPI(id, item, "INLINE");
-			await fetchData();
+			// El PATCH devuelve el objeto actualizado. Reemplazamos solo esa fila
+			// en lugar de refetchar toda la página: evita el skeleton de loading
+			// y mantiene scroll / selección intactos.
+			const actualizado: CanalConceptoCuotaDTO = await updateCuotaAPI(id, item, "INLINE");
+			setData((prev) => prev.map((d) => (d.id === id ? { ...d, ...actualizado } : d)));
 			notificar.success(`[Cuotas por Canal] Registro #${id} actualizado`);
 			notificar.info("Los precios del canal se están recalculando en segundo plano...");
 		} catch (e: any) {

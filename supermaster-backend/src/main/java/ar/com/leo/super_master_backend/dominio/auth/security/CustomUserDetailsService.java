@@ -20,7 +20,10 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        Usuario usuario = usuarioRepository.findByUsername(username)
+        // Fetch con rol+permisos: este método corre desde el filtro de Spring Security,
+        // potencialmente fuera de @Transactional. Rol.permisos es LAZY, así que sin
+        // el JOIN FETCH la iteración tira LazyInitializationException.
+        Usuario usuario = usuarioRepository.findByUsernameConRolYPermisos(username)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado: " + username));
 
         List<SimpleGrantedAuthority> authorities = usuario.getRol().getPermisos().stream()

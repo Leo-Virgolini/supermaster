@@ -84,8 +84,11 @@ export function useCanales(
 
 	const updateCanal = async (id: number, data: Partial<CanalDTO>) => {
 		try {
-			await updateCanalAPI(id, data, "INLINE");
-			await getCanales();
+			// El PATCH devuelve el objeto actualizado. Reemplazamos solo esa fila
+			// en lugar de refetchar toda la página: evita el skeleton de loading
+			// y mantiene scroll / selección intactos.
+			const actualizado: CanalDTO = await updateCanalAPI(id, data, "INLINE");
+			setCanales((prev) => prev.map((c) => (c.id === id ? { ...c, ...actualizado } : c)));
 			notificar.success(`[Canales] Registro #${id} actualizado`);
 			return true;
 		} catch (e: any) {

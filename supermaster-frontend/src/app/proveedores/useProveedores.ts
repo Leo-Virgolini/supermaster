@@ -62,8 +62,11 @@ export function useProveedores(
 
 	const updateProveedor = async (id: number, data: Partial<Omit<ProveedorDTO, "id">>) => {
 		try {
-			await updateProveedorAPI(id, data, "INLINE");
-			await getProveedores();
+			// El PATCH devuelve el objeto actualizado. Reemplazamos solo esa fila
+			// en lugar de refetchar toda la página: evita el skeleton de loading
+			// y mantiene scroll / selección intactos.
+			const actualizado: ProveedorDTO = await updateProveedorAPI(id, data, "INLINE");
+			setProveedores((prev) => prev.map((p) => (p.id === id ? { ...p, ...actualizado } : p)));
 			notificar.success(`[Proveedores] Registro #${id} actualizado`);
 		} catch (e: any) {
 			notificar.error(e?.message || "Error al actualizar");

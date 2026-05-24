@@ -50,8 +50,11 @@ export function usePreciosInflados(pageIndex: number, pageSize: number, search: 
 	};
 	const updateItem = async (id: number, item: Partial<PrecioInfladoDTO>) => {
 		try {
-			await updatePrecioInfladoAPI(id, item);
-			await fetchData();
+			// El PATCH devuelve el objeto actualizado. Reemplazamos solo esa fila
+			// en lugar de refetchar toda la página: evita el skeleton de loading
+			// y mantiene scroll / selección intactos.
+			const actualizado: PrecioInfladoDTO = await updatePrecioInfladoAPI(id, item);
+			setData((prev) => prev.map((d) => (d.id === id ? { ...d, ...actualizado } : d)));
 			notificar.success(`[Precios Inflados] Registro #${id} actualizado`);
 		} catch (e: any) {
 			notificar.error(e?.message || "Error al actualizar");

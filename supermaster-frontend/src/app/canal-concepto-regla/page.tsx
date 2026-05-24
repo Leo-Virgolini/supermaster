@@ -127,6 +127,20 @@ export default function CanalConceptoReglaPage() {
         setPageIndex(0);
     };
 
+    // `hasActiveFilters`: hay filtros por columna activos (no contamos search,
+    // porque eso ya lo detecta el Table vía globalFilter).
+    const hasActiveFilters = Object.entries(columnFilters).some(([key, value]) => {
+        if (key === "search") return false;
+        if (value === undefined || value === null || value === "") return false;
+        if (Array.isArray(value) && value.length === 0) return false;
+        return true;
+    });
+
+    const clearAllFilters = () => {
+        setColumnFilters({});
+        setPageIndex(0);
+    };
+
     const columns = useMemo(() => getColumns({ onEdit: handleEdit, canEdit }), [canEdit]);
 
     return (
@@ -269,6 +283,8 @@ export default function CanalConceptoReglaPage() {
                         setGlobalFilter={(value) => { setSearch(String(value)); setPageIndex(0); }}
                         setRowSelection={setRowSelection}
                         onColumnFilterChange={handleColumnFilterChange}
+                        hasFiltersActive={hasActiveFilters}
+                        onClearAllFilters={clearAllFilters}
                         getActiveFilter={(id) => columnFilters[id]}
                         onExportAll={handleExportAll}
                         exportFilename="canal-concepto-regla"

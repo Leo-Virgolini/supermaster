@@ -26,7 +26,7 @@ public class Rol {
     @Column(name = "descripcion", length = 255)
     private String descripcion;
 
-    @ManyToMany(fetch = FetchType.EAGER)
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "rol_permiso",
             schema = "supermaster",
@@ -37,5 +37,19 @@ public class Rol {
 
     public Rol(Integer id) {
         this.id = id;
+    }
+
+    // Identidad por id. Sin esto, Set<Rol> usa Object.equals (referencia) y los
+    // contains/remove de Set rompen tras detach/merge.
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Rol other)) return false;
+        return id != null && id.equals(other.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
     }
 }

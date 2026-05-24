@@ -22,4 +22,18 @@ public class Permiso {
 
     @Column(name = "descripcion", length = 255)
     private String descripcion;
+
+    // Identidad por id. Crucial porque Permiso vive en un Set<Permiso> dentro de Rol:
+    // sin equals/hashCode estables, los contains/remove rompen post-merge.
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Permiso other)) return false;
+        return id != null && id.equals(other.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
 }

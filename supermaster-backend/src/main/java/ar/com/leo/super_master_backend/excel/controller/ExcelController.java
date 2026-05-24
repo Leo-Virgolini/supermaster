@@ -53,6 +53,7 @@ public class ExcelController {
             @RequestParam("archivo") MultipartFile file
     ) {
         try {
+            validarArchivoExcel(file);
             ImportCompletoResultDTO resultado = excelService.importarMigracionCompleta(file);
             return ResponseEntity.ok(resultado);
         } catch (IllegalArgumentException e) {
@@ -114,6 +115,7 @@ public class ExcelController {
             @RequestParam("archivo") MultipartFile file
     ) {
         try {
+            validarArchivoExcel(file);
             ImportCompletoResultDTO resultado = excelService.importarTablasAuxiliares(file);
             return ResponseEntity.ok(resultado);
         } catch (IllegalArgumentException e) {
@@ -157,6 +159,7 @@ public class ExcelController {
             @RequestParam("archivo") MultipartFile file
     ) {
         try {
+            validarArchivoExcel(file);
             ImportCostosResultDTO resultado = excelService.importarCostos(file);
             return ResponseEntity.ok(resultado);
         } catch (IllegalArgumentException e) {
@@ -540,6 +543,27 @@ public class ExcelController {
             log.error("Error inesperado al exportar para KT GASTRO: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ErrorResponse.of("Error interno del servidor: " + e.getMessage(), "/api/excel/exportar-precios?formato=kt-gastro"));
+        }
+    }
+
+    /**
+     * Valida que el archivo subido sea un Excel reconocible por extensión.
+     * Evita procesar archivos arbitrarios cuyo parseo posterior gastaría memoria
+     * y daría un error mucho menos claro. No es una validación de seguridad
+     * (en LAN), sino una validación de input para fallar rápido y claro.
+     */
+    private void validarArchivoExcel(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("El archivo está vacío");
+        }
+        String nombre = file.getOriginalFilename();
+        if (nombre == null) {
+            throw new IllegalArgumentException("El archivo no tiene nombre");
+        }
+        String lower = nombre.toLowerCase();
+        if (!(lower.endsWith(".xlsx") || lower.endsWith(".xls") || lower.endsWith(".xlsm"))) {
+            throw new IllegalArgumentException(
+                    "Formato de archivo no soportado. Se esperaba .xlsx, .xls o .xlsm. Recibido: " + nombre);
         }
     }
 

@@ -62,8 +62,11 @@ export function useClientes(
 
 	const updateCliente = async (id: number, data: Partial<Omit<ClienteDTO, "id">>) => {
 		try {
-			await updateClienteAPI(id, data, "INLINE");
-			await getClientes();
+			// El PATCH devuelve el objeto actualizado. Reemplazamos solo esa fila
+			// en lugar de refetchar toda la página: evita el skeleton de loading
+			// y mantiene scroll / selección intactos.
+			const actualizado: ClienteDTO = await updateClienteAPI(id, data, "INLINE");
+			setClientes((prev) => prev.map((c) => (c.id === id ? { ...c, ...actualizado } : c)));
 			notificar.success(`[Clientes] Registro #${id} actualizado`);
 		} catch (e: any) {
 			notificar.error(e?.message || "Error al actualizar");

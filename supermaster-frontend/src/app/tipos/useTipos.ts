@@ -82,8 +82,11 @@ export function useTipos(
 
 	const updateTipo = async (id: number, data: Partial<Pick<TipoDTO, "nombre" | "padreId">>) => {
 		try {
-			await updateTipoAPI(id, data, "INLINE");
-			await getTipos();
+			// El PATCH devuelve el objeto actualizado. Reemplazamos solo esa fila
+			// en lugar de refetchar toda la página: evita el skeleton de loading
+			// y mantiene scroll / selección intactos.
+			const actualizado: TipoDTO = await updateTipoAPI(id, data, "INLINE");
+			setTipos((prev) => prev.map((t) => (t.id === id ? { ...t, ...actualizado } : t)));
 			notificar.success(`[Tipos] Registro #${id} actualizado`);
 			return true;
 		} catch (e: any) {

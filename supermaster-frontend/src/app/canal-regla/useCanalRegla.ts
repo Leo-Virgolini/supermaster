@@ -131,8 +131,11 @@ export function useCanalRegla(
 
 	const updateRegla = async (id: number, item: CanalReglaPatchDTO) => {
 		try {
-			await updateCanalReglaAPI(id, item);
-			await fetchData();
+			// El PATCH devuelve el objeto actualizado. Reemplazamos solo esa fila
+			// en lugar de refetchar toda la página: evita el skeleton de loading
+			// y mantiene scroll / selección intactos.
+			const actualizado: CanalReglaDTO = await updateCanalReglaAPI(id, item);
+			setData((prev) => prev.map((d) => (d.id === id ? { ...d, ...actualizado } : d)));
 			notificar.success(`[Reglas de Canal] Registro #${id} actualizado`);
 			notificar.info("Los precios del canal se están recalculando en segundo plano...");
 		} catch (e: any) {

@@ -111,6 +111,20 @@ export default function ConfigAutomatizacionPage() {
         setPageIndex(0);
     };
 
+    // `hasActiveFilters`: hay filtros por columna activos (no contamos search,
+    // porque eso ya lo detecta el Table vía globalFilter).
+    const hasActiveFilters = Object.entries(filters).some(([key, value]) => {
+        if (key === "search") return false;
+        if (value === undefined || value === null || value === "") return false;
+        if (Array.isArray(value) && value.length === 0) return false;
+        return true;
+    });
+
+    const clearAllFilters = () => {
+        setFilters({});
+        setPageIndex(0);
+    };
+
     if (!isAdmin) {
         return (
             <main className="p-4 bg-gray-50 min-h-0 flex flex-col overflow-hidden dark:bg-slate-900">
@@ -171,6 +185,8 @@ export default function ConfigAutomatizacionPage() {
                         setRowSelection={setRowSelection}
                         updateData={handleUpdate}
                         onColumnFilterChange={handleColumnFilterChange}
+                        hasFiltersActive={hasActiveFilters}
+                        onClearAllFilters={clearAllFilters}
                         getActiveFilter={(columnId) => filters[apiMapping[columnId] || columnId]}
                         onExportAll={handleExportAll}
                         exportFilename="config-automatizacion"

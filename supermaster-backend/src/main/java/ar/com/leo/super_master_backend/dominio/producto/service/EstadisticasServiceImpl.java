@@ -28,7 +28,9 @@ public class EstadisticasServiceImpl implements EstadisticasService {
     @Override
     @Transactional(readOnly = true)
     public EstadisticasDTO obtenerEstadisticas() {
-        List<Producto> productos = productoRepository.findAllWithProveedor();
+        // Trae proveedor + productoCatalogos en una sola query: necesario porque
+        // calcularProductosPorCatalogo itera producto.getProductoCatalogos().
+        List<Producto> productos = productoRepository.findAllWithProveedorYCatalogos();
         List<ProductoCanalPrecio> precios = precioRepository.findAllWithCanalAndProducto();
         ResumenDTO resumen = construirResumen(productos, precios);
         List<ProductosPorCatalogo> productosPorCatalogo = calcularProductosPorCatalogo(productos);
@@ -82,7 +84,7 @@ public class EstadisticasServiceImpl implements EstadisticasService {
     @Override
     @Transactional(readOnly = true)
     public List<ProductosPorCatalogo> obtenerProductosPorCatalogo() {
-        List<Producto> productos = productoRepository.findAllWithProveedor();
+        List<Producto> productos = productoRepository.findAllWithProveedorYCatalogos();
         return calcularProductosPorCatalogo(productos);
     }
 

@@ -72,8 +72,11 @@ export function useProductos(pageIndex: number, pageSize: number, filters: Recor
 
 	const updateProducto = async (id: number, data: ProductoPatchDTO) => {
 		try {
-			await updateProductoAPI(id, data, "INLINE");
-			await getProductos();
+			// El PATCH devuelve el producto actualizado. Reemplazamos solo esa fila
+			// en lugar de refetchar toda la página: evita el skeleton de loading
+			// y mantiene scroll / selección intactos.
+			const actualizado: ProductoDTO = await updateProductoAPI(id, data, "INLINE");
+			setProductos((prev) => prev.map((p) => (p.id === id ? { ...p, ...actualizado } : p)));
 			notificar.success(`[Productos] Registro #${id} actualizado`);
 		} catch (e: unknown) {
 			notificar.error(e instanceof Error ? e.message : "Error al actualizar");
@@ -86,8 +89,17 @@ export function useProductos(pageIndex: number, pageSize: number, filters: Recor
 		data: Partial<Omit<ProductoMargenDTO, "id" | "productoId">>
 	) => {
 		try {
-			await updateProductoMargenAPI(id, data);
-			await getProductos();
+			// El PATCH del margen devuelve ProductoMargenDTO con los 4 campos de
+			// margen. Mergeamos solo esos campos en la fila local — el resto del
+			// producto no cambia.
+			const margenActualizado = await updateProductoMargenAPI(id, data);
+			setProductos((prev) => prev.map((p) => (p.id === id ? {
+				...p,
+				margenMinorista: margenActualizado.margenMinorista,
+				margenMayorista: margenActualizado.margenMayorista,
+				margenFijoMinorista: margenActualizado.margenFijoMinorista,
+				margenFijoMayorista: margenActualizado.margenFijoMayorista,
+			} : p)));
 			notificar.success(`[Productos] Margen #${id} actualizado`);
 		} catch (e: unknown) {
 			notificar.error(e instanceof Error ? e.message : "Error al actualizar margen");

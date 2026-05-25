@@ -45,13 +45,11 @@ public class RecalculoPendienteSseService {
     }
 
     public void broadcast(RecalculoPendienteDTO snapshot) {
-        List<SseEmitter> snapshotEmitters = List.copyOf(emitters);
-        for (SseEmitter emitter : snapshotEmitters) {
+        for (SseEmitter emitter : List.copyOf(emitters)) {
             try {
                 emitter.send(SseEmitter.event().name("pendiente").data(snapshot));
             } catch (IOException | IllegalStateException e) {
-                emitters.remove(emitter);
-                try { emitter.complete(); } catch (Exception completeEx) { log.trace("emitter.complete() falló (ya cerrado)", completeEx); }
+                descartar(emitter);
             }
         }
     }
@@ -61,14 +59,21 @@ public class RecalculoPendienteSseService {
      */
     @Scheduled(fixedDelay = 25_000)
     public void heartbeat() {
-        List<SseEmitter> snapshotEmitters = List.copyOf(emitters);
-        for (SseEmitter emitter : snapshotEmitters) {
+        for (SseEmitter emitter : List.copyOf(emitters)) {
             try {
                 emitter.send(SseEmitter.event().comment("keepalive"));
             } catch (IOException | IllegalStateException e) {
-                emitters.remove(emitter);
-                try { emitter.complete(); } catch (Exception completeEx) { log.trace("emitter.complete() falló (ya cerrado)", completeEx); }
+                descartar(emitter);
             }
+        }
+    }
+
+    private void descartar(SseEmitter emitter) {
+        emitters.remove(emitter);
+        try {
+            emitter.complete();
+        } catch (Exception completeEx) {
+            log.trace("emitter.complete() falló (ya cerrado)", completeEx);
         }
     }
 }

@@ -15,6 +15,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
+import ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService;
+import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoMargenDTO;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoMargenPatchDTO;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
@@ -31,7 +33,7 @@ public class ProductoMargenServiceImpl implements ProductoMargenService {
     private final ProductoMargenRepository repo;
     private final ProductoMargenMapper mapper;
     private final ProductoRepository productoRepository;
-    private final ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService recalculoPendienteService;
+    private final RecalculoPendienteService recalculoPendienteService;
     private final AuditoriaService auditoriaService;
 
     @Override
@@ -101,7 +103,8 @@ public class ProductoMargenServiceImpl implements ProductoMargenService {
         boolean cambioMargenFijoMayorista = !Objects.equals(margenFijoMayoristaAnterior, pm.getMargenFijoMayorista());
 
         if (cambioMargenMinorista || cambioMargenMayorista || cambioMargenFijoMinorista || cambioMargenFijoMayorista) {
-            programarRecalculoPostCommit("Cambio en margen del producto", dto.productoId());
+            recalculoPendienteService.marcarProductoOCalcularInicial(
+                    "Cambio en margen del producto", dto.productoId());
         }
 
         return mapper.toDTO(pm);
@@ -137,16 +140,19 @@ public class ProductoMargenServiceImpl implements ProductoMargenService {
         BigDecimal margenFijoMinoristaAnterior = pm.getMargenFijoMinorista();
         BigDecimal margenFijoMayoristaAnterior = pm.getMargenFijoMayorista();
 
+        // Si se está creando el ProductoMargen (no existe aún) y el patch trae solo uno
+        // de los dos márgenes, el otro se defaultea a 0 para permitir la edición inline
+        // en la tabla. La BD exige ambos NOT NULL; 0% es semánticamente válido.
         if (presente(patchDto.getMargenMinorista())) {
             pm.setMargenMinorista(leerMargenRequerido(patchDto.getMargenMinorista(), "margenMinorista"));
         } else if (pm.getMargenMinorista() == null) {
-            throw new BadRequestException("El campo 'margenMinorista' es requerido para crear el margen");
+            pm.setMargenMinorista(BigDecimal.ZERO);
         }
 
         if (presente(patchDto.getMargenMayorista())) {
             pm.setMargenMayorista(leerMargenRequerido(patchDto.getMargenMayorista(), "margenMayorista"));
         } else if (pm.getMargenMayorista() == null) {
-            throw new BadRequestException("El campo 'margenMayorista' es requerido para crear el margen");
+            pm.setMargenMayorista(BigDecimal.ZERO);
         }
 
         if (presente(patchDto.getMargenFijoMinorista())) {
@@ -176,7 +182,8 @@ public class ProductoMargenServiceImpl implements ProductoMargenService {
         boolean cambioMargenFijoMayorista = !Objects.equals(margenFijoMayoristaAnterior, pm.getMargenFijoMayorista());
 
         if (cambioMargenMinorista || cambioMargenMayorista || cambioMargenFijoMinorista || cambioMargenFijoMayorista) {
-            programarRecalculoPostCommit("Cambio en margen del producto", productoId);
+            recalculoPendienteService.marcarProductoOCalcularInicial(
+                    "Cambio en margen del producto", productoId);
         }
 
         return mapper.toDTO(pm);
@@ -214,6 +221,7 @@ public class ProductoMargenServiceImpl implements ProductoMargenService {
     }
 
 
+    /** Específico: rango [0, 100) — el margen NO admite 100, a diferencia del porcentaje genérico. */
     private BigDecimal leerMargenRequerido(JsonNullable<BigDecimal> campo, String field) {
         BigDecimal decimal = leerDecimalRequerido(campo, field);
         if (decimal.compareTo(BigDecimal.ZERO) < 0 || decimal.compareTo(BigDecimal.valueOf(100)) >= 0) {
@@ -222,56 +230,6 @@ public class ProductoMargenServiceImpl implements ProductoMargenService {
         return decimal;
     }
 
-    private BigDecimal leerDecimalRequerido(JsonNullable<BigDecimal> campo, String field) {
-        Object value = valor(campo);
-        if (!(value instanceof Number number)) {
-            throw new BadRequestException("El campo '" + field + "' es requerido y debe ser numérico");
-        }
-        return new BigDecimal(number.toString());
-    }
-
-    private BigDecimal leerDecimalNoNegativoOpcional(JsonNullable<BigDecimal> campo, String field) {
-        Object value = valor(campo);
-        if (value == null) {
-            return null;
-        }
-        if (!(value instanceof Number number)) {
-            throw new BadRequestException("El campo '" + field + "' debe ser numérico");
-        }
-        BigDecimal decimal = new BigDecimal(number.toString());
-        if (decimal.compareTo(BigDecimal.ZERO) < 0) {
-            throw new BadRequestException("El campo '" + field + "' debe ser mayor o igual a 0");
-        }
-        return decimal;
-    }
-
-    private String leerStringOpcional(JsonNullable<String> campo, String field, int maxLength) {
-        Object value = valor(campo);
-        if (value == null) {
-            return null;
-        }
-        if (!(value instanceof String text)) {
-            throw new BadRequestException("El campo '" + field + "' debe ser texto");
-        }
-        if (text.length() > maxLength) {
-            throw new BadRequestException("El campo '" + field + "' no puede exceder " + maxLength + " caracteres");
-        }
-        return text;
-    }
-
-
-    private boolean presente(JsonNullable<?> campo) {
-        return campo == null || campo.isPresent();
-    }
-
-    private Object valor(JsonNullable<?> campo) {
-        return campo == null ? null : campo.orElse(null);
-    }
-
-    private void programarRecalculoPostCommit(String descripcion, Integer productoId) {
-        // Cambio en el margen de UN producto → recalcular SOLO ese producto.
-        recalculoPendienteService.marcarProducto(descripcion, productoId);
-    }
 }
 
 

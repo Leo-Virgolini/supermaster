@@ -1,4 +1,5 @@
 "use client";
+import { getErrorMessage } from "@/lib/errors";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { notificar } from "../utils/notificar";
@@ -52,7 +53,7 @@ export default function ClientesPage() {
             await createCliente({ nombre: cliente });
             setCliente(""); setFormTouched(false);
             setIsModalOpen(false);
-        } catch (e: any) { notificar.error("Error: " + e.message); } finally { setIsSaving(false); }
+        } catch (e: unknown) { notificar.error("Error: " + getErrorMessage(e)); } finally { setIsSaving(false); }
     };
 
     const handleDelete = async () => {

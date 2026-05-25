@@ -1,4 +1,5 @@
 "use client";
+import { getErrorMessage } from "@/lib/errors";
 import { useState, useMemo } from "react";
 import { notificar } from "../utils/notificar";
 import Table, { getInitialPageSize } from "../components/Table/core/Table";
@@ -81,7 +82,7 @@ export default function ReglasDescuentoPage() {
             setCanalId(null); setCatalogoId(null); setClasifGralId(null); setClasifGastroId(null);
             setMontoMinimo(0); setDescuentoPorcentaje(0); setPrioridad(1); setActivo(true); setDescripcion("");
             setIsModalOpen(false);
-        } catch (e: any) { notificar.error("Error: " + e.message); } finally { setIsSaving(false); }
+        } catch (e: unknown) { notificar.error("Error: " + getErrorMessage(e)); } finally { setIsSaving(false); }
     };
 
     const handleDelete = async () => {

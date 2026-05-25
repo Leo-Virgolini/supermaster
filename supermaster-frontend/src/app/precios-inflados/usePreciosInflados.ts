@@ -1,4 +1,5 @@
 "use client";
+import { getErrorMessage } from "@/lib/errors";
 import { useState, useEffect, useCallback } from "react";
 import { notificar } from "../utils/notificar";
 import {
@@ -27,8 +28,8 @@ export function usePreciosInflados(pageIndex: number, pageSize: number, search: 
 			setData(res.content || []);
 			setTotalRecords(res.page?.totalElements || 0);
 			setPageCount(res.page?.totalPages || 0);
-		} catch (e: any) {
-			setError(e.message);
+		} catch (e: unknown) {
+			setError(getErrorMessage(e));
 		} finally {
 			setIsLoading(false);
 		}
@@ -43,8 +44,8 @@ export function usePreciosInflados(pageIndex: number, pageSize: number, search: 
 			const result = await createPrecioInfladoAPI(item);
 			await fetchData();
 			notificar.success(`[Precios Inflados] Registro #${result.id} creado`);
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al crear");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al crear"));
 			throw e;
 		}
 	};
@@ -56,8 +57,8 @@ export function usePreciosInflados(pageIndex: number, pageSize: number, search: 
 			const actualizado: PrecioInfladoDTO = await updatePrecioInfladoAPI(id, item);
 			setData((prev) => prev.map((d) => (d.id === id ? { ...d, ...actualizado } : d)));
 			notificar.success(`[Precios Inflados] Registro #${id} actualizado`);
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al actualizar");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al actualizar"));
 			throw e;
 		}
 	};
@@ -66,8 +67,8 @@ export function usePreciosInflados(pageIndex: number, pageSize: number, search: 
 			await Promise.all(ids.map((id) => deletePrecioInfladoAPI(id)));
 			await fetchData();
 			notificar.success(ids.length === 1 ? `[Precios Inflados] Registro #${ids[0]} eliminado` : `[Precios Inflados] ${ids.length} registros eliminados`);
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al eliminar");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al eliminar"));
 			throw e;
 		}
 	};

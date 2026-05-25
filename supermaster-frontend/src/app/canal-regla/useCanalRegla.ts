@@ -1,4 +1,5 @@
 "use client";
+import { getErrorMessage } from "@/lib/errors";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { notificar } from "../utils/notificar";
 import {
@@ -108,8 +109,8 @@ export function useCanalRegla(
 			setData(enriched);
 			setTotalRecords(res.page?.totalElements || 0);
 			setPageCount(res.page?.totalPages || 0);
-		} catch (e: any) {
-			setError(e.message);
+		} catch (e: unknown) {
+			setError(getErrorMessage(e));
 		} finally {
 			setIsLoading(false);
 		}
@@ -123,8 +124,8 @@ export function useCanalRegla(
 			await fetchData();
 			notificar.success(`[Reglas de Canal] Registro #${result.id} creado`);
 			notificar.info("Los precios del canal se están recalculando en segundo plano...");
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al crear");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al crear"));
 			throw e;
 		}
 	};
@@ -138,8 +139,8 @@ export function useCanalRegla(
 			setData((prev) => prev.map((d) => (d.id === id ? { ...d, ...actualizado } : d)));
 			notificar.success(`[Reglas de Canal] Registro #${id} actualizado`);
 			notificar.info("Los precios del canal se están recalculando en segundo plano...");
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al actualizar");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al actualizar"));
 			throw e;
 		}
 	};
@@ -152,8 +153,8 @@ export function useCanalRegla(
 				? `[Reglas de Canal] Registro #${ids[0]} eliminado`
 				: `[Reglas de Canal] ${ids.length} registros eliminados`);
 			notificar.info("Los precios del canal se están recalculando en segundo plano...");
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al eliminar");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al eliminar"));
 			throw e;
 		}
 	};

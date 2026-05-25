@@ -1,9 +1,10 @@
 package ar.com.leo.super_master_backend.dominio.producto.calculo.service;
 
+import ar.com.leo.super_master_backend.dominio.canal.entity.Canal;
 import ar.com.leo.super_master_backend.dominio.canal.repository.CanalRepository;
 import ar.com.leo.super_master_backend.dominio.common.service.EstadoProcesoMasivo;
 import ar.com.leo.super_master_backend.dominio.common.service.ProcesoGlobalService;
-import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoCanalPrecioRepository;
+import ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoRepository;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -37,9 +38,8 @@ public class RecalculoPrecioFacade {
     private final CalculoPrecioService calculoPrecioService;
     private final ProductoRepository productoRepository;
     private final CanalRepository canalRepository;
-    private final ProductoCanalPrecioRepository pcpRepository;
     private final ProcesoGlobalService procesoGlobal;
-    private final ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService recalculoPendienteService;
+    private final RecalculoPendienteService recalculoPendienteService;
 
     private EstadoProcesoMasivo trackerCanal;
 
@@ -56,10 +56,9 @@ public class RecalculoPrecioFacade {
      * pase a aplicar a canales de los que antes estaba excluido por canal_regla.
      * El Impl decide por combinación: crear / actualizar / borrar.
      *
-     * <p>Tras éxito desmarca el flag {@code obsoleto} de las filas del producto, para
-     * que el banner del frontend refleje el estado real. Si el caller ya lo hace
-     * (ej: {@link ar.com.leo.super_master_backend.dominio.common.service.RecalculoBulkExecutor}),
-     * el desmarcado es idempotente y barato.
+     * <p>Tras éxito desmarca el flag {@code obsoleto} de las filas del producto vía
+     * {@link RecalculoPendienteService#desmarcarProductoCompletado}, que además emite
+     * broadcast SSE para que el banner del frontend se actualice en tiempo real.
      */
     @Transactional
     public void recalcularProductoEnTodosLosCanales(Integer productoId) {
@@ -67,7 +66,7 @@ public class RecalculoPrecioFacade {
         var canales = canalRepository.findAll();
         canales.forEach(canal ->
                 calculoPrecioService.recalcularYGuardarPrecioCanalTodasCuotas(productoId, canal.getId()));
-        pcpRepository.desmarcarObsoletoPorProducto(productoId);
+        recalculoPendienteService.desmarcarProductoCompletado(productoId);
         log.info("Producto {} recalculado en {} canales", productoId, canales.size());
     }
 
@@ -92,7 +91,7 @@ public class RecalculoPrecioFacade {
     @Async
     public void recalcularCanalCompletoAsync(Integer canalId) {
         String nombreCanal = canalRepository.findById(canalId)
-                .map(c -> c.getNombre())
+                .map(Canal::getNombre)
                 .orElse("ID " + canalId);
 
         if (!trackerCanal.adquirir("Recalculando todos los productos del canal " + nombreCanal)) {

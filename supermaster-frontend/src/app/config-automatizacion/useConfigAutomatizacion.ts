@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useState, useEffect, useCallback } from "react";
 import { notificar } from "../utils/notificar";
 import { ConfigAutomatizacionDTO } from "./types";
@@ -37,8 +38,8 @@ export function useConfigAutomatizacion(
 				await getConfigAutomatizacionAPI(pageIndex, pageSize, filters, sortParam);
 			setData(json.content || []);
 			setTotalRecords(json.page?.totalElements || 0);
-		} catch (err: any) {
-			setError(err.message || "Error desconocido");
+		} catch (err: unknown) {
+			setError(getErrorMessage(err, "Error desconocido"));
 			setData([]);
 		} finally {
 			setIsLoading(false);
@@ -59,8 +60,8 @@ export function useConfigAutomatizacion(
 			await fetchData();
 			notificar.success(`[Config. Automatización] Registro #${result.id} creado`);
 			return true;
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al crear");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al crear"));
 			throw e;
 		}
 	};
@@ -74,8 +75,8 @@ export function useConfigAutomatizacion(
 			setData((prev) => prev.map((d) => (d.id === id ? { ...d, ...actualizado } : d)));
 			notificar.success(`[Config. Automatización] Registro #${id} actualizado`);
 			return true;
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al actualizar");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al actualizar"));
 			throw e;
 		}
 	};
@@ -86,8 +87,8 @@ export function useConfigAutomatizacion(
 			await fetchData();
 			notificar.success(ids.length === 1 ? `[Config. Automatización] Registro #${ids[0]} eliminado` : `[Config. Automatización] ${ids.length} registros eliminados`);
 			return true;
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al eliminar");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al eliminar"));
 			throw e;
 		}
 	};

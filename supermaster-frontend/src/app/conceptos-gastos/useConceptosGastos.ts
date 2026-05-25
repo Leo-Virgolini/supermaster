@@ -1,4 +1,5 @@
 "use client";
+import { getErrorMessage } from "@/lib/errors";
 import { useState, useEffect, useCallback } from "react";
 import { notificar } from "../utils/notificar";
 import {
@@ -52,8 +53,8 @@ export function useConceptosGasto(
 			const result = await createConceptoGastoAPI(data, "FORM");
 			await getConceptos();
 			notificar.success(`[Conceptos Cálculo] Registro #${result.id} creado`);
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al crear");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al crear"));
 			throw e;
 		}
 	};
@@ -69,8 +70,8 @@ export function useConceptosGasto(
 			const actualizado: ConceptoGastoDTO = await updateConceptoGastoAPI(id, data, "INLINE");
 			setConceptos((prev) => prev.map((c) => (c.id === id ? { ...c, ...actualizado } : c)));
 			notificar.success(`[Conceptos Cálculo] Registro #${id} actualizado`);
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al actualizar");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al actualizar"));
 			throw e;
 		}
 	};
@@ -80,8 +81,8 @@ export function useConceptosGasto(
 			await Promise.all(ids.map((id) => deleteConceptoGastoAPI(id, "TABLE")));
 			await getConceptos();
 			notificar.success(ids.length === 1 ? `[Conceptos Cálculo] Registro #${ids[0]} eliminado` : `[Conceptos Cálculo] ${ids.length} registros eliminados`);
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al eliminar");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al eliminar"));
 			throw e;
 		}
 	};

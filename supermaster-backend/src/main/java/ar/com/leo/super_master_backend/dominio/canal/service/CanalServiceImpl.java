@@ -28,12 +28,13 @@ import ar.com.leo.super_master_backend.dominio.concepto_calculo.entity.AplicaSob
 import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
 import ar.com.leo.super_master_backend.dominio.common.exception.ConflictException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
+import ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService;
+import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCanalPrecio;
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoMargen;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoCanalPrecioRepository;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoMargenRepository;
 import lombok.RequiredArgsConstructor;
-import org.openapitools.jackson.nullable.JsonNullable;
 
 @Service
 @RequiredArgsConstructor
@@ -47,7 +48,7 @@ public class CanalServiceImpl implements CanalService {
 
     private final ProductoMargenRepository productoMargenRepository;
     private final ProductoCanalPrecioRepository productoCanalPrecioRepository;
-    private final ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService recalculoPendienteService;
+    private final RecalculoPendienteService recalculoPendienteService;
     private final CanalScopeService canalScopeService;
 
     // =======================================
@@ -102,7 +103,7 @@ public class CanalServiceImpl implements CanalService {
                 ? entity.getCanalBase().getId()
                 : null;
 
-        if (!java.util.Objects.equals(canalBaseIdAnterior, canalBaseIdNuevo)) {
+        if (!Objects.equals(canalBaseIdAnterior, canalBaseIdNuevo)) {
             // El canal cambió de canalBase → su PVP cambia, y los subcanales que dependían
             // del canal modificado también se ven afectados vía la cadena.
             recalculoPendienteService.marcarCanales("Cambio en canal base",
@@ -153,7 +154,6 @@ public class CanalServiceImpl implements CanalService {
         Canal entity = canalRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Canal no encontrado"));
         Map<String, String> estadoAnterior = capturarSnapshot(entity);
-        String codigo = entity.getNombre();
 
         if (productoCanalPrecioRepository.existsByCanalId(id)) {
             throw new ConflictException("No se puede eliminar porque tiene precios calculados. Elimine los precios del canal primero.");
@@ -163,7 +163,7 @@ public class CanalServiceImpl implements CanalService {
         }
 
         canalRepository.delete(entity);
-        auditoriaService.registrarCambios(AuditoriaEntidad.CANAL, id, codigo, AuditoriaAccion.DELETE, estadoAnterior, Map.of());
+        auditoriaService.registrarCambios(AuditoriaEntidad.CANAL, id, entity.getNombre(), AuditoriaAccion.DELETE, estadoAnterior, Map.of());
     }
 
     // ===================================================
@@ -215,41 +215,6 @@ public class CanalServiceImpl implements CanalService {
     }
 
 
-    private String leerStringRequerido(JsonNullable<String> campo, String field, int maxLength) {
-        Object value = valor(campo);
-        if (!(value instanceof String text)) {
-            throw new BadRequestException("El campo '" + field + "' es requerido y debe ser texto");
-        }
-        if (text.length() > maxLength) {
-            throw new BadRequestException("El campo '" + field + "' no puede exceder " + maxLength + " caracteres");
-        }
-        return text;
-    }
-
-    private Integer leerIdOpcional(JsonNullable<Integer> campo, String field) {
-        Object value = valor(campo);
-        if (value == null) {
-            return null;
-        }
-        if (!(value instanceof Number number)) {
-            throw new BadRequestException("El campo '" + field + "' debe ser numérico");
-        }
-        int id = number.intValue();
-        if (id <= 0) {
-            throw new BadRequestException("El campo '" + field + "' debe ser positivo");
-        }
-        return id;
-    }
-
-
-    private boolean presente(JsonNullable<?> campo) {
-        return campo == null || campo.isPresent();
-    }
-
-    private Object valor(JsonNullable<?> campo) {
-        return campo == null ? null : campo.orElse(null);
-    }
-
     private Map<String, String> capturarSnapshot(Canal canal) {
         LinkedHashMap<String, String> snapshot = new LinkedHashMap<>();
         snapshot.put("nombre", normalizar(canal.getNombre()));
@@ -261,11 +226,6 @@ public class CanalServiceImpl implements CanalService {
         );
         return snapshot;
     }
-
-    private String normalizar(Object value) {
-        return value == null ? null : String.valueOf(value);
-    }
-
 }
 
 

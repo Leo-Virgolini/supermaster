@@ -1,4 +1,5 @@
 "use client";
+import { getErrorMessage } from "@/lib/errors";
 import { useState, useEffect, useCallback } from "react";
 import { notificar } from "../utils/notificar";
 import {
@@ -54,8 +55,8 @@ export function useProveedores(
 			const result = await createProveedorAPI(data, "FORM");
 			await getProveedores();
 			notificar.success(`[Proveedores] Registro #${result.id} creado`);
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al crear");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al crear"));
 			throw e;
 		}
 	};
@@ -68,8 +69,8 @@ export function useProveedores(
 			const actualizado: ProveedorDTO = await updateProveedorAPI(id, data, "INLINE");
 			setProveedores((prev) => prev.map((p) => (p.id === id ? { ...p, ...actualizado } : p)));
 			notificar.success(`[Proveedores] Registro #${id} actualizado`);
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al actualizar");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al actualizar"));
 			throw e;
 		}
 	};
@@ -79,8 +80,8 @@ export function useProveedores(
 			await Promise.all(ids.map((id) => deleteProveedorAPI(id, "TABLE")));
 			await getProveedores();
 			notificar.success(ids.length === 1 ? `[Proveedores] Registro #${ids[0]} eliminado` : `[Proveedores] ${ids.length} registros eliminados`);
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al eliminar");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al eliminar"));
 			throw e;
 		}
 	};

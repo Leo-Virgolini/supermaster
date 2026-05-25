@@ -3,6 +3,8 @@ package ar.com.leo.super_master_backend.dominio.precio_inflado.service;
 import ar.com.leo.super_master_backend.dominio.common.exception.ConflictException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
 import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
+import ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService;
+import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaAccion;
 import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaEntidad;
 import ar.com.leo.super_master_backend.dominio.auditoria.service.AuditoriaService;
@@ -17,7 +19,6 @@ import ar.com.leo.super_master_backend.dominio.precio_inflado.repository.PrecioI
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCanalPrecioInflado;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoCanalPrecioInfladoRepository;
 import lombok.RequiredArgsConstructor;
-import org.openapitools.jackson.nullable.JsonNullable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -35,7 +36,7 @@ public class PrecioInfladoServiceImpl implements PrecioInfladoService {
     private final PrecioInfladoRepository repository;
     private final PrecioInfladoMapper mapper;
     private final ProductoCanalPrecioInfladoRepository asignacionRepository;
-    private final ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService recalculoPendienteService;
+    private final RecalculoPendienteService recalculoPendienteService;
     private final AuditoriaService auditoriaService;
 
     @Override
@@ -206,58 +207,12 @@ public class PrecioInfladoServiceImpl implements PrecioInfladoService {
     }
 
 
-    private String leerStringRequerido(JsonNullable<String> campo, String field, int maxLength) {
-        Object value = valor(campo);
-        if (!(value instanceof String text)) {
-            throw new BadRequestException("El campo '" + field + "' es requerido y debe ser texto");
-        }
-        if (text.length() > maxLength) {
-            throw new BadRequestException("El campo '" + field + "' no puede exceder " + maxLength + " caracteres");
-        }
-        return text;
-    }
-
-    private BigDecimal leerDecimalNoNegativoRequerido(JsonNullable<BigDecimal> campo, String field) {
-        Object value = valor(campo);
-        if (!(value instanceof Number number)) {
-            throw new BadRequestException("El campo '" + field + "' es requerido y debe ser numérico");
-        }
-        BigDecimal decimal = new BigDecimal(number.toString());
-        if (decimal.compareTo(BigDecimal.ZERO) < 0) {
-            throw new BadRequestException("El campo '" + field + "' debe ser mayor o igual a 0");
-        }
-        return decimal;
-    }
-
-    private <E extends Enum<E>> E leerEnumRequerido(JsonNullable<E> campo, String field, Class<E> enumClass) {
-        Object value = valor(campo);
-        if (value == null) {
-            throw new BadRequestException("El campo '" + field + "' es requerido");
-        }
-        if (!enumClass.isInstance(value)) {
-            throw new BadRequestException("Valor inválido para '" + field + "'");
-        }
-        return enumClass.cast(value);
-    }
-
-    private boolean presente(JsonNullable<?> campo) {
-        return campo == null || campo.isPresent();
-    }
-
-    private Object valor(JsonNullable<?> campo) {
-        return campo == null ? null : campo.orElse(null);
-    }
-
     private Map<String, String> capturarSnapshot(PrecioInflado entity) {
         LinkedHashMap<String, String> snapshot = new LinkedHashMap<>();
         snapshot.put("codigo", normalizar(entity.getCodigo()));
         snapshot.put("tipo", normalizar(entity.getTipo()));
         snapshot.put("valor", normalizar(entity.getValor()));
         return snapshot;
-    }
-
-    private String normalizar(Object value) {
-        return value == null ? null : String.valueOf(value);
     }
 }
 

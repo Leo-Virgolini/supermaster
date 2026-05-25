@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useState, useEffect, useRef } from "react";
 import Button from "../Button/Button";
 import { API_BASE_URL } from "../../config/runtime";
@@ -202,10 +203,10 @@ export function OperacionPanel({
                 limpiarInterval();
                 setPanelEstado("IDLE");
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             limpiarInterval();
             setPanelEstado("ERROR");
-            setMensaje("Error al consultar el estado: " + (err?.message ?? "desconocido"));
+            setMensaje("Error al consultar el estado: " + (getErrorMessage(err, "desconocido")));
         }
     };
 
@@ -226,9 +227,9 @@ export function OperacionPanel({
             }
             await fetchAPI(`${API_BASE_URL}${endpointIniciar}`, fetchOpts);
             intervalRef.current = setInterval(consultarEstado, 5000);
-        } catch (err: any) {
+        } catch (err: unknown) {
             setPanelEstado("ERROR");
-            setMensaje("No se pudo iniciar la operación: " + (err?.message ?? "desconocido"));
+            setMensaje("No se pudo iniciar la operación: " + (getErrorMessage(err, "desconocido")));
         }
     };
 

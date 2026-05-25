@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useState, useEffect, useCallback } from "react";
 import Modal from "../components/Modal/Modal";
 import Button from "../components/Button/Button";
@@ -240,8 +241,8 @@ function ConceptosTab({ canalId, canalBaseId }: { canalId: number; canalBaseId: 
         try {
             const result = await getConceptosPorCanalAPI(canalId);
             setConceptosAsignados(result);
-        } catch (e: any) {
-            setError(e.message || "Error al cargar conceptos");
+        } catch (e: unknown) {
+            setError(getErrorMessage(e, "Error al cargar conceptos"));
         } finally {
             setIsLoading(false);
         }
@@ -261,8 +262,8 @@ function ConceptosTab({ canalId, canalBaseId }: { canalId: number; canalBaseId: 
             await asignarConceptoAPI(canalId, Number(selectedConceptoId), "FORM");
             await load();
             setSelectedConceptoId("");
-        } catch (e: any) {
-            setError(e.message || "Error al asignar concepto");
+        } catch (e: unknown) {
+            setError(getErrorMessage(e, "Error al asignar concepto"));
         } finally {
             setIsAdding(false);
         }
@@ -273,8 +274,8 @@ function ConceptosTab({ canalId, canalBaseId }: { canalId: number; canalBaseId: 
         try {
             await eliminarConceptoDelCanalAPI(canalId, conceptoId, "FORM");
             await load();
-        } catch (e: any) {
-            setError(e.message || "Error al eliminar concepto");
+        } catch (e: unknown) {
+            setError(getErrorMessage(e, "Error al eliminar concepto"));
         }
     };
 
@@ -511,8 +512,8 @@ function CuotasTab({ canalId }: { canalId: number }) {
             const r = await fetchAPI(`${API_BASE_URL}/api/canal-concepto-cuotas/canal/${canalId}`);
             const data = await r.json();
             setCuotas(Array.isArray(data) ? data : (data.content || []));
-        } catch (e: any) {
-            setError(e.message);
+        } catch (e: unknown) {
+            setError(getErrorMessage(e));
         } finally {
             setIsLoading(false);
         }
@@ -532,8 +533,8 @@ function CuotasTab({ canalId }: { canalId: number }) {
             await createCuotaAPI({ canalId, ...form });
             await load();
             setForm({ descripcion: "", cuotas: 0, porcentaje: 0 });
-        } catch (e: any) {
-            setError(e.message || "Error al agregar cuota");
+        } catch (e: unknown) {
+            setError(getErrorMessage(e, "Error al agregar cuota"));
         } finally {
             setIsAdding(false);
         }
@@ -542,7 +543,7 @@ function CuotasTab({ canalId }: { canalId: number }) {
     const handleEliminar = async (id: number) => {
         if (!(await confirmDialog({ title: "Eliminar", message: "¿Eliminar esta cuota?", confirmText: "Eliminar", variant: "danger" }))) return;
         try { await deleteCuotaAPI(id); await load(); }
-        catch (e: any) { setError(e.message); }
+        catch (e: unknown) { setError(getErrorMessage(e)); }
     };
 
     const formatCuotas = (n: number) => String(n);
@@ -665,8 +666,8 @@ function ReglasCanalTab({ canalId }: { canalId: number }) {
             const r = await fetchAPI(`${API_BASE_URL}/api/canal-reglas/canal/${canalId}`);
             const data = await r.json();
             setReglas(Array.isArray(data) ? data : (data.content || []));
-        } catch (e: any) {
-            setError(e.message);
+        } catch (e: unknown) {
+            setError(getErrorMessage(e));
         } finally {
             setIsLoading(false);
         }
@@ -714,8 +715,8 @@ function ReglasCanalTab({ canalId }: { canalId: number }) {
             await load();
             setForm({ ...REGLA_CANAL_FORM_INITIAL });
             setShowForm(false);
-        } catch (e: any) {
-            setError(e.message || "Error al agregar regla del canal");
+        } catch (e: unknown) {
+            setError(getErrorMessage(e, "Error al agregar regla del canal"));
         } finally {
             setIsAdding(false);
         }
@@ -730,7 +731,7 @@ function ReglasCanalTab({ canalId }: { canalId: number }) {
             });
             if (!res.ok) throw new Error("Error al eliminar regla del canal");
             await load();
-        } catch (e: any) { setError(e.message); }
+        } catch (e: unknown) { setError(getErrorMessage(e)); }
     };
 
     const filtersOf = (item: any) => {
@@ -938,8 +939,8 @@ function ReglasTab({ canalId }: { canalId: number }) {
             const r = await fetchAPI(`${API_BASE_URL}/api/canal-concepto-reglas/canal/${canalId}`);
             const data = await r.json();
             setReglas(Array.isArray(data) ? data : (data.content || []));
-        } catch (e: any) {
-            setError(e.message);
+        } catch (e: unknown) {
+            setError(getErrorMessage(e));
         } finally {
             setIsLoading(false);
         }
@@ -984,8 +985,8 @@ function ReglasTab({ canalId }: { canalId: number }) {
             await load();
             setForm({ ...REGLA_FORM_INITIAL });
             setShowForm(false);
-        } catch (e: any) {
-            setError(e.message || "Error al agregar regla");
+        } catch (e: unknown) {
+            setError(getErrorMessage(e, "Error al agregar regla"));
         } finally {
             setIsAdding(false);
         }
@@ -994,7 +995,7 @@ function ReglasTab({ canalId }: { canalId: number }) {
     const handleEliminar = async (id: number) => {
         if (!(await confirmDialog({ title: "Eliminar", message: "¿Eliminar esta regla?", confirmText: "Eliminar", variant: "danger" }))) return;
         try { await deleteReglaExcepcionAPI(id); await load(); }
-        catch (e: any) { setError(e.message); }
+        catch (e: unknown) { setError(getErrorMessage(e)); }
     };
 
     const resolveConcepto = (id: number) => allConceptos.find((c) => c.id === id)?.label ?? `#${id}`;
@@ -1199,8 +1200,8 @@ function DescuentosTab({ canalId }: { canalId: number }) {
             const r = await fetchAPI(`${API_BASE_URL}/api/reglas-descuento/canal/${canalId}`);
             const data = await r.json();
             setDescuentos(Array.isArray(data) ? data : (data.content || []));
-        } catch (e: any) {
-            setError(e.message);
+        } catch (e: unknown) {
+            setError(getErrorMessage(e));
         } finally {
             setIsLoading(false);
         }
@@ -1239,8 +1240,8 @@ function DescuentosTab({ canalId }: { canalId: number }) {
             await load();
             setForm({ ...DESCUENTO_FORM_INITIAL });
             setShowForm(false);
-        } catch (e: any) {
-            setError(e.message || "Error al agregar descuento");
+        } catch (e: unknown) {
+            setError(getErrorMessage(e, "Error al agregar descuento"));
         } finally {
             setIsAdding(false);
         }
@@ -1249,7 +1250,7 @@ function DescuentosTab({ canalId }: { canalId: number }) {
     const handleEliminar = async (id: number) => {
         if (!(await confirmDialog({ title: "Eliminar", message: "¿Eliminar este descuento?", confirmText: "Eliminar", variant: "danger" }))) return;
         try { await deleteDescuentoAPI(id); await load(); }
-        catch (e: any) { setError(e.message); }
+        catch (e: unknown) { setError(getErrorMessage(e)); }
     };
 
     const scopeOf = (item: any) => {

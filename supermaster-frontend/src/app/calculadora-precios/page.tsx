@@ -1,4 +1,5 @@
 "use client";
+import { getErrorMessage } from "@/lib/errors";
 import { useEffect, useMemo, useState } from "react";
 import { CalculatorIcon, InformationCircleIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
 import { notificar } from "../utils/notificar";
@@ -32,8 +33,8 @@ export default function CalculadoraPreciosPage() {
                 if (cancelled) return;
                 setCanales(data);
                 if (data.length > 0) setCanalIdSel(data[0].id);
-            } catch (e: any) {
-                notificar.error(e?.message || "Error al cargar canales");
+            } catch (e: unknown) {
+                notificar.error(getErrorMessage(e, "Error al cargar canales"));
             } finally {
                 if (!cancelled) setIsLoadingCanales(false);
             }

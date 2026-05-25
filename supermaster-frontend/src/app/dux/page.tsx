@@ -1,4 +1,5 @@
 "use client";
+import { getErrorMessage } from "@/lib/errors";
 import { useState, useEffect, useRef } from "react";
 import { notificar } from "../utils/notificar";
 import { API_BASE_URL } from "../config/runtime";
@@ -114,7 +115,7 @@ export default function DuxPage() {
     useEffect(() => {
         fetchStatus()
             .then(setStatus)
-            .catch((e) => setStatusError(e.message))
+            .catch((e) => setStatusError(getErrorMessage(e)))
             .finally(() => setIsLoadingStatus(false));
         fetchAPI(`${API_BASE_URL}/api/dux/config/rate-limit`)
             .then((r) => r.json())
@@ -129,8 +130,8 @@ export default function DuxPage() {
             const data = await fetchEmpresas();
             setEmpresas(data);
             setEmpresasLoaded(true);
-        } catch (e: any) {
-            setEmpresasError(e.message);
+        } catch (e: unknown) {
+            setEmpresasError(getErrorMessage(e));
         } finally {
             setIsLoadingEmpresas(false);
         }
@@ -143,8 +144,8 @@ export default function DuxPage() {
             const data = await fetchListasPrecios();
             setListas(data);
             setListasLoaded(true);
-        } catch (e: any) {
-            setListasError(e.message);
+        } catch (e: unknown) {
+            setListasError(getErrorMessage(e));
         } finally {
             setIsLoadingListas(false);
         }
@@ -158,8 +159,8 @@ export default function DuxPage() {
         try {
             const data = await fetchProducto(codItem.trim());
             setProducto(data);
-        } catch (e: any) {
-            setProductoError(e.message);
+        } catch (e: unknown) {
+            setProductoError(getErrorMessage(e));
         } finally {
             setIsBuscando(false);
         }

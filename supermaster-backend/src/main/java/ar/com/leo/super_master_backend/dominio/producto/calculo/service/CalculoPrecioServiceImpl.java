@@ -12,6 +12,7 @@ import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestExcept
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
 import ar.com.leo.super_master_backend.dominio.common.service.EstadoProcesoMasivo;
 import ar.com.leo.super_master_backend.dominio.common.service.ProcesoGlobalService;
+import ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService;
 import ar.com.leo.super_master_backend.dominio.concepto_calculo.entity.AplicaSobre;
 import ar.com.leo.super_master_backend.dominio.concepto_calculo.entity.ConceptoCalculo;
 import ar.com.leo.super_master_backend.dominio.concepto_calculo.entity.NaturalezaConcepto;
@@ -74,7 +75,7 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
     private CalculoPrecioServiceImpl self;
 
     @Lazy @Autowired
-    private ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService recalculoPendienteService;
+    private RecalculoPendienteService recalculoPendienteService;
 
     // Control de recálculo masivo async (estado + locks vía tracker reusable)
     private static final String PROCESO_ID = "recalculo-precios";
@@ -106,6 +107,34 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
     // ====================================================
     // API PÚBLICA
     // ====================================================
+
+    /**
+     * Contexto cargado una sola vez para alimentar {@link #calcularPrecioUnificado}.
+     * Si {@code canal} tiene canalBase o algún concepto aplica SOBRE_PVP_BASE,
+     * {@code productoMargen} queda null porque ese flujo no lo necesita.
+     */
+    private record ContextoCalculo(
+            Producto producto,
+            Canal canal,
+            List<CanalConcepto> conceptosCanal,
+            ProductoMargen productoMargen) {}
+
+    private ContextoCalculo prepararContexto(Producto producto, Integer canalId, Integer numeroCuotas) {
+        List<ConceptoCalculo> conceptos = obtenerConceptosAplicables(canalId, numeroCuotas, producto);
+        List<CanalConcepto> conceptosCanal = convertirConceptosACanalConcepto(conceptos, canalId);
+
+        Canal canal = canalRepository.findById(canalId).orElse(null);
+        boolean tieneCanalBase = canal != null && canal.getCanalBase() != null;
+        boolean usaSobrePvpBase = tieneCanalBase || conceptos.stream()
+                .anyMatch(c -> c.getAplicaSobre() != null && c.getAplicaSobre().esCalculoSobreCanalBase());
+
+        ProductoMargen productoMargen = usaSobrePvpBase
+                ? null
+                : obtenerProductoMargen(producto.getId());
+
+        return new ContextoCalculo(producto, canal, conceptosCanal, productoMargen);
+    }
+
     @Override
     @Transactional(readOnly = true)
     public PrecioCalculadoDTO calcularPrecioCanal(Integer productoId, Integer canalId, Integer numeroCuotas) {
@@ -115,25 +144,21 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
             throw new BadRequestException("El producto no aplica al canal según sus reglas de exclusión");
         }
 
-        // Obtener todos los conceptos que aplican al canal según los filtros
-        List<ConceptoCalculo> conceptos = obtenerConceptosAplicables(canalId, numeroCuotas, producto);
-        List<CanalConcepto> conceptosCanal = convertirConceptosACanalConcepto(conceptos, canalId);
-
-        // Si el canal tiene canalBase o usa SOBRE_PVP_BASE, no requiere ProductoCanal
-        Canal canal = canalRepository.findById(canalId).orElse(null);
-        boolean tieneCanalBase = canal != null && canal.getCanalBase() != null;
-        boolean usaSobrePvpBase = tieneCanalBase || conceptos.stream()
-                .anyMatch(c -> c.getAplicaSobre() != null && c.getAplicaSobre().esCalculoSobreCanalBase());
-
-        ProductoMargen productoMargen = usaSobrePvpBase
-                ? null
-                : obtenerProductoMargen(productoId);
-
-        return calcularPrecioUnificado(producto, productoMargen, conceptosCanal, numeroCuotas, canalId, canal, null);
+        ContextoCalculo ctx = prepararContexto(producto, canalId, numeroCuotas);
+        return calcularPrecioUnificado(ctx.producto(), ctx.productoMargen(), ctx.conceptosCanal(),
+                numeroCuotas, canalId, ctx.canal(), null);
     }
 
+    /**
+     * {@code noRollbackFor}: callers como {@code MercadoLibreService.calcularCostoEnvioGratis}
+     * iteran este método en un bucle dentro de su propia @Transactional y atrapan estas
+     * excepciones esperadas (producto sin margen, sin costo, excluido por canal_regla) para
+     * traducirlas a un DTO con mensaje legible. Sin {@code noRollbackFor}, esta TX interna
+     * marcaría la TX compartida como rollback-only y el commit del método externo tiraría
+     * UnexpectedRollbackException, opacando el mensaje original.
+     */
     @Override
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, noRollbackFor = {NotFoundException.class, BadRequestException.class})
     public PrecioCalculadoDTO calcularPrecioCanalConEnvio(Integer productoId, Integer canalId, Integer numeroCuotas, BigDecimal precioEnvioOverride) {
         Producto producto = obtenerProducto(productoId);
 
@@ -141,25 +166,20 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
             throw new BadRequestException("El producto no aplica al canal según sus reglas de exclusión");
         }
 
-        // Obtener todos los conceptos que aplican al canal según los filtros
-        List<ConceptoCalculo> conceptos = obtenerConceptosAplicables(canalId, numeroCuotas, producto);
-        List<CanalConcepto> conceptosCanal = convertirConceptosACanalConcepto(conceptos, canalId);
-
-        // Si el canal tiene canalBase o usa SOBRE_PVP_BASE, no requiere ProductoCanal
-        Canal canal = canalRepository.findById(canalId).orElse(null);
-        boolean tieneCanalBase = canal != null && canal.getCanalBase() != null;
-        boolean usaSobrePvpBase = tieneCanalBase || conceptos.stream()
-                .anyMatch(c -> c.getAplicaSobre() != null && c.getAplicaSobre().esCalculoSobreCanalBase());
-
-        ProductoMargen productoMargen = usaSobrePvpBase
-                ? null
-                : obtenerProductoMargen(productoId);
-
-        return calcularPrecioUnificado(producto, productoMargen, conceptosCanal, numeroCuotas, canalId, canal, precioEnvioOverride);
+        ContextoCalculo ctx = prepararContexto(producto, canalId, numeroCuotas);
+        return calcularPrecioUnificado(ctx.producto(), ctx.productoMargen(), ctx.conceptosCanal(),
+                numeroCuotas, canalId, ctx.canal(), precioEnvioOverride);
     }
 
+    /**
+     * {@code noRollbackFor}: las validaciones esperadas (producto sin costo/iva/margen,
+     * canal sin conceptos) tiran estas excepciones ANTES de cualquier escritura crítica.
+     * Sin {@code noRollbackFor}, callers en bulk (ExcelImport, DuxImport, MercadoLibre,
+     * RecalculoBulkExecutor) que atrapan la excepción y continúan al siguiente item
+     * reciben {@code UnexpectedRollbackException} al commit, opacando el motivo real.
+     */
     @Override
-    @Transactional
+    @Transactional(noRollbackFor = {NotFoundException.class, BadRequestException.class})
     public PrecioCalculadoDTO recalcularYGuardarPrecioCanal(Integer productoId, Integer canalId, Integer numeroCuotas) {
         Producto producto = obtenerProducto(productoId);
 
@@ -180,22 +200,9 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
             return null;
         }
 
-        // Obtener todos los conceptos que aplican al canal según los filtros
-        List<ConceptoCalculo> conceptos = obtenerConceptosAplicables(canalId, numeroCuotas, producto);
-        List<CanalConcepto> conceptosCanal = convertirConceptosACanalConcepto(conceptos, canalId);
-
-        // Si el canal tiene canalBase o usa SOBRE_PVP_BASE, no requiere ProductoCanal
-        Canal canal = canalRepository.findById(canalId).orElse(null);
-        boolean tieneCanalBase = canal != null && canal.getCanalBase() != null;
-        boolean usaSobrePvpBase = tieneCanalBase || conceptos.stream()
-                .anyMatch(c -> c.getAplicaSobre() != null && c.getAplicaSobre().esCalculoSobreCanalBase());
-
-        ProductoMargen productoMargen = usaSobrePvpBase
-                ? null
-                : obtenerProductoMargen(productoId);
-
-        PrecioCalculadoDTO dto = calcularPrecioUnificado(producto, productoMargen, conceptosCanal, numeroCuotas,
-                canalId, canal, null);
+        ContextoCalculo ctx = prepararContexto(producto, canalId, numeroCuotas);
+        PrecioCalculadoDTO dto = calcularPrecioUnificado(ctx.producto(), ctx.productoMargen(),
+                ctx.conceptosCanal(), numeroCuotas, canalId, ctx.canal(), null);
 
         // Persistimos/actualizamos en producto_canal_precios (por producto, canal y cuotas)
         ProductoCanalPrecio pcp = productoCanalPrecioRepository
@@ -204,7 +211,7 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
 
         if (pcp.getId() == null) {
             pcp.setProducto(producto);
-            Canal canalEntity = canal != null ? canal : canalRepository.findById(canalId)
+            Canal canalEntity = ctx.canal() != null ? ctx.canal() : canalRepository.findById(canalId)
                     .orElseThrow(() -> new NotFoundException("Canal no encontrado"));
             pcp.setCanal(canalEntity);
             pcp.setCuotas(numeroCuotas);
@@ -2455,8 +2462,9 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
     // CÁLCULO PARA TODAS LAS CUOTAS
     // ====================================================
 
+    /** Misma justificación que {@link #recalcularYGuardarPrecioCanal} — ver javadoc allí. */
     @Override
-    @Transactional
+    @Transactional(noRollbackFor = {NotFoundException.class, BadRequestException.class})
     public CanalPreciosDTO recalcularYGuardarPrecioCanalTodasCuotas(Integer productoId, Integer canalId) {
         // Excluir el canal cuando: (a) el producto no aplica por canal_regla, o
         // (b) el canal requiere margen mayorista/minorista y el producto no lo tiene

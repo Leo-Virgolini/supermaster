@@ -1,4 +1,5 @@
 "use client";
+import { getErrorMessage } from "@/lib/errors";
 import { useCallback, useEffect, useState } from "react";
 import { API_BASE_URL } from "../../config/runtime";
 import { fetchAPI } from "../../utils/fetchAPI";
@@ -86,8 +87,8 @@ export function useRecalculoPendiente() {
             }
             // El backend limpia el contador y broadcast por SSE: el banner desaparece solo.
             return { ok: true };
-        } catch (e: any) {
-            const msg = e?.message ?? "Error al iniciar el recálculo";
+        } catch (e: unknown) {
+            const msg = getErrorMessage(e, "Error al iniciar el recálculo");
             setError(msg);
             return { ok: false, error: msg };
         } finally {

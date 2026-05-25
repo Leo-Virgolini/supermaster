@@ -13,18 +13,17 @@ import ar.com.leo.super_master_backend.dominio.catalogo.repository.CatalogoRepos
 import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
 import ar.com.leo.super_master_backend.dominio.common.exception.ConflictException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
+import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 import ar.com.leo.super_master_backend.dominio.regla_descuento.repository.ReglaDescuentoRepository;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoResumenDTO;
 import ar.com.leo.super_master_backend.dominio.producto.mapper.ProductoMapper;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoCatalogoRepository;
 import lombok.RequiredArgsConstructor;
-import org.openapitools.jackson.nullable.JsonNullable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -139,7 +138,6 @@ public class CatalogoServiceImpl implements CatalogoService {
         Catalogo entity = repo.findById(id)
                 .orElseThrow(() -> new NotFoundException("Catálogo no encontrado"));
         Map<String, String> estadoAnterior = capturarSnapshot(entity);
-        String codigo = entity.getNombre();
 
         if (productoCatalogoRepository.existsByCatalogoId(id)) {
             throw new ConflictException("No se puede eliminar porque tiene productos asignados.");
@@ -152,7 +150,7 @@ public class CatalogoServiceImpl implements CatalogoService {
         auditoriaService.registrarCambios(
                 AuditoriaEntidad.CATALOGO,
                 id,
-                codigo,
+                entity.getNombre(),
                 AuditoriaAccion.DELETE,
                 estadoAnterior,
                 Map.of()
@@ -172,62 +170,12 @@ public class CatalogoServiceImpl implements CatalogoService {
     }
 
 
-    private String leerStringRequerido(JsonNullable<String> campo, String field, int maxLength) {
-        Object value = valor(campo);
-        if (!(value instanceof String text)) {
-            throw new BadRequestException("El campo '" + field + "' es requerido y debe ser texto");
-        }
-        if (text.length() > maxLength) {
-            throw new BadRequestException("El campo '" + field + "' no puede exceder " + maxLength + " caracteres");
-        }
-        return text;
-    }
-
-    private Boolean leerBooleanOpcional(JsonNullable<Boolean> campo, String field) {
-        Object value = valor(campo);
-        if (value == null) {
-            return null;
-        }
-        if (!(value instanceof Boolean bool)) {
-            throw new BadRequestException("El campo '" + field + "' debe ser booleano");
-        }
-        return bool;
-    }
-
-    private BigDecimal leerPorcentajeOpcional(JsonNullable<BigDecimal> campo, String field) {
-        Object value = valor(campo);
-        if (value == null) {
-            return null;
-        }
-        if (!(value instanceof Number number)) {
-            throw new BadRequestException("El campo '" + field + "' debe ser numérico");
-        }
-        BigDecimal decimal = new BigDecimal(number.toString());
-        if (decimal.compareTo(BigDecimal.ZERO) < 0 || decimal.compareTo(BigDecimal.valueOf(100)) > 0) {
-            throw new BadRequestException("El campo '" + field + "' debe estar entre 0 y 100");
-        }
-        return decimal;
-    }
-
-
-    private boolean presente(JsonNullable<?> campo) {
-        return campo == null || campo.isPresent();
-    }
-
-    private Object valor(JsonNullable<?> campo) {
-        return campo == null ? null : campo.orElse(null);
-    }
-
     private Map<String, String> capturarSnapshot(Catalogo entity) {
         LinkedHashMap<String, String> snapshot = new LinkedHashMap<>();
         snapshot.put("nombre", normalizar(entity.getNombre()));
         snapshot.put("exportarConIva", normalizar(entity.getExportarConIva()));
         snapshot.put("recargoPorcentaje", normalizar(entity.getRecargoPorcentaje()));
         return snapshot;
-    }
-
-    private String normalizar(Object value) {
-        return value == null ? null : String.valueOf(value);
     }
 }
 

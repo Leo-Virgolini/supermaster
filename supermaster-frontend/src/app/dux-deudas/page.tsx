@@ -1,4 +1,5 @@
 "use client";
+import { getErrorMessage } from "@/lib/errors";
 import { useState, useEffect, useRef, Fragment } from "react";
 import { notificar } from "../utils/notificar";
 import { API_BASE_URL } from "../config/runtime";
@@ -533,10 +534,10 @@ export default function DuxDeudasPage() {
                 setError(data.mensaje ?? "Error desconocido");
                 notificar.error("Error al consultar deudas.");
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             limpiarInterval();
             setPanelEstado("ERROR");
-            setError("Error al consultar el estado: " + (err?.message ?? "desconocido"));
+            setError("Error al consultar el estado: " + (getErrorMessage(err, "desconocido")));
         } finally {
             pollingRef.current = false;
         }
@@ -689,10 +690,10 @@ export default function DuxDeudasPage() {
             await iniciarConsultaDeudas({ fechaDesde, fechaHasta, idEmpresa, idsSucursal, conCobro: conCobroValue, cliente: filtroCliente || undefined, anuladas: anuladasValue });
             notificar.info("Consulta de deudas iniciada. Puede tardar varios minutos.");
             intervalRef.current = setInterval(consultarEstado, 3000);
-        } catch (e: any) {
+        } catch (e: unknown) {
             setPanelEstado("ERROR");
-            setError(e.message ?? "No se pudo iniciar la consulta");
-            notificar.error("No se pudo iniciar la consulta: " + (e.message ?? "desconocido"));
+            setError(getErrorMessage(e, "No se pudo iniciar la consulta"));
+            notificar.error("No se pudo iniciar la consulta: " + (getErrorMessage(e, "desconocido")));
         }
     };
 

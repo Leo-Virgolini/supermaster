@@ -1,4 +1,5 @@
 "use client";
+import { getErrorMessage } from "@/lib/errors";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { ComputerDesktopIcon, ArrowPathIcon, XMarkIcon, InformationCircleIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
@@ -137,8 +138,8 @@ export default function ProductoCanalPreciosPage() {
             await calcularPreciosAPI(productoId);
             await refetch();
             notificar.success(`Precios recalculados para ${sku}`);
-        } catch (e: any) {
-            notificar.error(e?.message || "Error al recalcular");
+        } catch (e: unknown) {
+            notificar.error(getErrorMessage(e, "Error al recalcular"));
         } finally {
             setCalcLoading((prev) => ({ ...prev, [productoId]: false }));
         }
@@ -151,8 +152,8 @@ export default function ProductoCanalPreciosPage() {
         try {
             const formula = await getFormulaAPI(productoId, canalId, cuotas);
             setFormulaModal({ isOpen: true, loading: false, data: formula });
-        } catch (e: any) {
-            notificar.error(e?.message || "Error al obtener la fórmula");
+        } catch (e: unknown) {
+            notificar.error(getErrorMessage(e, "Error al obtener la fórmula"));
             setFormulaModal({ isOpen: false, loading: false, data: null });
         }
     }, []);
@@ -179,8 +180,8 @@ export default function ProductoCanalPreciosPage() {
                 });
             }
             notificar.success(`SKU ${sku} actualizado`);
-        } catch (e: any) {
-            notificar.error(e?.message || "Error al actualizar");
+        } catch (e: unknown) {
+            notificar.error(getErrorMessage(e, "Error al actualizar"));
             throw e;
         }
         // El PATCH solo MARCA el cambio como pendiente — el recálculo no corre hasta que
@@ -188,7 +189,7 @@ export default function ProductoCanalPreciosPage() {
         // costo/iva/margen recién editado se vea, aunque los precios calculados sigan
         // siendo los viejos hasta el próximo Apply (el banner avisa con cardinal).
         refreshRowLocal(productoId).catch((e: any) => {
-            notificar.error(`Error refrescando SKU ${sku}: ${e?.message ?? ""}`);
+            notificar.error(`Error refrescando SKU ${sku}: ${getErrorMessage(e, "")}`);
         });
     }, [refreshRowLocal]);
 
@@ -203,8 +204,8 @@ export default function ProductoCanalPreciosPage() {
             await refreshRowLocal(productoId);
             const sku = dataRef.current.find((p) => p.id === productoId)?.sku ?? productoId;
             notificar.success(precioInfladoId ? `SKU ${sku}: regla inflada actualizada` : `SKU ${sku}: regla inflada quitada`);
-        } catch (e: any) {
-            notificar.error(e?.message || "Error al actualizar");
+        } catch (e: unknown) {
+            notificar.error(getErrorMessage(e, "Error al actualizar"));
         }
     }, [refreshRowLocal]);
 
@@ -458,7 +459,7 @@ function RecalculoMasivoButton({ disabled }: { disabled: boolean }) {
             // El badge del header se enciende al instante (ProcesoGlobalService
             // hace broadcast cuando se adquiere el lock). No hace falta poll.
         } catch (e: unknown) {
-            notificar.error(e instanceof Error ? e.message : "Error al iniciar recálculo");
+            notificar.error(e instanceof Error ? getErrorMessage(e) : "Error al iniciar recálculo");
         }
     };
 
@@ -470,7 +471,7 @@ function RecalculoMasivoButton({ disabled }: { disabled: boolean }) {
             notificar.info("Cancelación solicitada. Esperando que termine el batch en curso...");
         } catch (e: unknown) {
             setCancelando(false);
-            notificar.error(e instanceof Error ? e.message : "Error al cancelar el recálculo");
+            notificar.error(e instanceof Error ? getErrorMessage(e) : "Error al cancelar el recálculo");
         }
     };
 

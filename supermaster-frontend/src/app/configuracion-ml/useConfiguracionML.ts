@@ -1,4 +1,5 @@
 "use client";
+import { getErrorMessage } from "@/lib/errors";
 import { useState, useEffect, useCallback } from "react";
 import { notificar } from "../utils/notificar";
 import { getConfigMLAPI, updateConfigMLAPI } from "./configuracionMLService";
@@ -17,8 +18,8 @@ export function useConfiguracionML() {
 		try {
 			const res = await getConfigMLAPI();
 			setData(res);
-		} catch (e: any) {
-			setError(e.message);
+		} catch (e: unknown) {
+			setError(getErrorMessage(e));
 		} finally {
 			setIsLoading(false);
 		}
@@ -37,9 +38,9 @@ export function useConfiguracionML() {
 			setData(updated);
 			notificar.success("Configuración guardada correctamente.");
 			setSuccessMsg("Configuración guardada correctamente.");
-		} catch (e: any) {
-			notificar.error(e.message || "Error al guardar");
-			setError(e.message);
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al guardar"));
+			setError(getErrorMessage(e));
 		} finally {
 			setIsSaving(false);
 		}

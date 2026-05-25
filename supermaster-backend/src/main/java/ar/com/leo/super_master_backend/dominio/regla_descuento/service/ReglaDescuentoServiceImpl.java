@@ -4,10 +4,13 @@ import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaAccion;
 import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaEntidad;
 import ar.com.leo.super_master_backend.dominio.auditoria.service.AuditoriaService;
 import ar.com.leo.super_master_backend.dominio.canal.entity.Canal;
+import ar.com.leo.super_master_backend.dominio.canal.service.CanalScopeService;
 import ar.com.leo.super_master_backend.dominio.catalogo.entity.Catalogo;
 import ar.com.leo.super_master_backend.dominio.clasif_gastro.entity.ClasifGastro;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.entity.ClasifGral;
 import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
+import ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService;
+import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 import ar.com.leo.super_master_backend.dominio.regla_descuento.dto.ReglaDescuentoCreateDTO;
 import ar.com.leo.super_master_backend.dominio.regla_descuento.dto.ReglaDescuentoDTO;
 import ar.com.leo.super_master_backend.dominio.regla_descuento.dto.ReglaDescuentoUpdateDTO;
@@ -17,7 +20,6 @@ import ar.com.leo.super_master_backend.dominio.regla_descuento.mapper.ReglaDescu
 import ar.com.leo.super_master_backend.dominio.regla_descuento.repository.ReglaDescuentoRepository;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
-import org.openapitools.jackson.nullable.JsonNullable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -34,9 +36,9 @@ public class ReglaDescuentoServiceImpl implements ReglaDescuentoService {
 
     private final ReglaDescuentoRepository repo;
     private final ReglaDescuentoMapper mapper;
-    private final ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService recalculoPendienteService;
+    private final RecalculoPendienteService recalculoPendienteService;
     private final AuditoriaService auditoriaService;
-    private final ar.com.leo.super_master_backend.dominio.canal.service.CanalScopeService canalScopeService;
+    private final CanalScopeService canalScopeService;
 
     @Override
     @Transactional(readOnly = true)
@@ -204,103 +206,6 @@ public class ReglaDescuentoServiceImpl implements ReglaDescuentoService {
                 && !presente(patchDto.getDescripcion());
     }
 
-    private Integer leerIdRequerido(JsonNullable<Integer> campo, String field) {
-        Integer value = leerIntegerRequerido(campo, field);
-        if (value <= 0) {
-            throw new BadRequestException("El campo '" + field + "' debe ser positivo");
-        }
-        return value;
-    }
-
-    private Integer leerIdOpcional(JsonNullable<Integer> campo, String field) {
-        Integer value = leerIntegerOpcional(campo, field);
-        if (value != null && value <= 0) {
-            throw new BadRequestException("El campo '" + field + "' debe ser positivo");
-        }
-        return value;
-    }
-
-    private Integer leerIntegerRequerido(JsonNullable<Integer> campo, String field) {
-        Object value = valor(campo);
-        if (!(value instanceof Number number)) {
-            throw new BadRequestException("El campo '" + field + "' es requerido y debe ser numérico");
-        }
-        return number.intValue();
-    }
-
-    private Integer leerIntegerOpcional(JsonNullable<Integer> campo, String field) {
-        Object value = valor(campo);
-        if (value == null) {
-            return null;
-        }
-        if (!(value instanceof Number number)) {
-            throw new BadRequestException("El campo '" + field + "' debe ser numérico");
-        }
-        return number.intValue();
-    }
-
-    private Integer leerIntegerNoNegativoOpcional(JsonNullable<Integer> campo, String field) {
-        Integer value = leerIntegerOpcional(campo, field);
-        if (value != null && value < 0) {
-            throw new BadRequestException("El campo '" + field + "' debe ser mayor o igual a 0");
-        }
-        return value;
-    }
-
-    private BigDecimal leerDecimalNoNegativoRequerido(JsonNullable<BigDecimal> campo, String field) {
-        Object value = valor(campo);
-        if (!(value instanceof Number number)) {
-            throw new BadRequestException("El campo '" + field + "' es requerido y debe ser numérico");
-        }
-        BigDecimal decimal = new BigDecimal(number.toString());
-        if (decimal.compareTo(BigDecimal.ZERO) < 0) {
-            throw new BadRequestException("El campo '" + field + "' debe ser mayor o igual a 0");
-        }
-        return decimal;
-    }
-
-    private BigDecimal leerPorcentajeRequerido(JsonNullable<BigDecimal> campo, String field) {
-        BigDecimal decimal = leerDecimalNoNegativoRequerido(campo, field);
-        if (decimal.compareTo(BigDecimal.valueOf(100)) > 0) {
-            throw new BadRequestException("El campo '" + field + "' debe estar entre 0 y 100");
-        }
-        return decimal;
-    }
-
-    private Boolean leerBooleanOpcional(JsonNullable<Boolean> campo, String field) {
-        Object value = valor(campo);
-        if (value == null) {
-            return null;
-        }
-        if (!(value instanceof Boolean bool)) {
-            throw new BadRequestException("El campo '" + field + "' debe ser booleano");
-        }
-        return bool;
-    }
-
-    private String leerStringOpcional(JsonNullable<String> campo, String field, int maxLength) {
-        Object value = valor(campo);
-        if (value == null) {
-            return null;
-        }
-        if (!(value instanceof String text)) {
-            throw new BadRequestException("El campo '" + field + "' debe ser texto");
-        }
-        if (text.length() > maxLength) {
-            throw new BadRequestException("El campo '" + field + "' no puede exceder " + maxLength + " caracteres");
-        }
-        return text;
-    }
-
-
-    private boolean presente(JsonNullable<?> campo) {
-        return campo == null || campo.isPresent();
-    }
-
-    private Object valor(JsonNullable<?> campo) {
-        return campo == null ? null : campo.orElse(null);
-    }
-
     private Map<String, String> capturarSnapshot(ReglaDescuento entity) {
         LinkedHashMap<String, String> snapshot = new LinkedHashMap<>();
         snapshot.put("canal", describirCanal(entity.getCanal()));
@@ -335,10 +240,6 @@ public class ReglaDescuentoServiceImpl implements ReglaDescuentoService {
 
     private String describirClasifGastro(ClasifGastro clasifGastro) {
         return clasifGastro == null ? null : clasifGastro.getId() + " - " + clasifGastro.getNombre();
-    }
-
-    private String normalizar(Object value) {
-        return value == null ? null : String.valueOf(value);
     }
 
     private void programarRecalculoPostCommit(Integer canalId) {

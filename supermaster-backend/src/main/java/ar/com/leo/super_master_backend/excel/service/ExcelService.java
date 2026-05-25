@@ -6,6 +6,7 @@ import ar.com.leo.super_master_backend.excel.dto.ImportCompletoResultDTO;
 import ar.com.leo.super_master_backend.excel.dto.ImportCostosResultDTO;
 import ar.com.leo.super_master_backend.excel.dto.LimpiezaDatosResultDTO;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoFilter;
+import ar.com.leo.super_master_backend.dominio.producto.entity.Tag;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -109,7 +110,7 @@ public interface ExcelService {
      */
     ExportCatalogoResultDTO exportarCatalogo(Integer catalogoId, Integer canalId, Integer cuotas,
                             Integer clasifGralId, Integer clasifGastroId, Integer tipoId, Integer marcaId,
-                            ar.com.leo.super_master_backend.dominio.producto.entity.Tag tag, String ordenarPor) throws IOException;
+                            Tag tag, String ordenarPor) throws IOException;
 
     /**
      * Exporta datos para subir a Mercado Libre.

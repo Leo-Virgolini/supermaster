@@ -6,6 +6,7 @@ import ar.com.leo.super_master_backend.dominio.auditoria.service.AuditoriaServic
 import ar.com.leo.super_master_backend.dominio.canal.repository.CanalRepository;
 import ar.com.leo.super_master_backend.dominio.common.exception.ConflictException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
+import ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoCanalPrecioInfladoCreateDTO;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoCanalPrecioInfladoDTO;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoCanalPrecioInfladoUpdateDTO;
@@ -34,7 +35,7 @@ public class ProductoCanalPrecioInfladoServiceImpl implements ProductoCanalPreci
     private final ProductoRepository productoRepository;
     private final CanalRepository canalRepository;
     private final PrecioInfladoRepository precioInfladoRepository;
-    private final ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService recalculoPendienteService;
+    private final RecalculoPendienteService recalculoPendienteService;
     private final AuditoriaService auditoriaService;
 
     @PersistenceContext

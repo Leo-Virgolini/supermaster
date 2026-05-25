@@ -7,6 +7,7 @@ import ar.com.leo.super_master_backend.dominio.canal.entity.CanalConceptoCuota;
 import ar.com.leo.super_master_backend.dominio.canal.repository.CanalConceptoCuotaRepository;
 import ar.com.leo.super_master_backend.dominio.canal.repository.CanalConceptoRepository;
 import ar.com.leo.super_master_backend.dominio.canal.repository.CanalRepository;
+import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
 import ar.com.leo.super_master_backend.dominio.concepto_calculo.entity.AplicaSobre;
 import ar.com.leo.super_master_backend.dominio.catalogo.entity.Catalogo;
@@ -33,6 +34,7 @@ import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCanalPrec
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCanalPrecioInflado;
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCatalogo;
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoMargen;
+import ar.com.leo.super_master_backend.dominio.producto.entity.Tag;
 import ar.com.leo.super_master_backend.dominio.producto.mla.entity.Mla;
 import ar.com.leo.super_master_backend.dominio.producto.mla.repository.MlaRepository;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoCanalPrecioRepository;
@@ -1501,7 +1503,7 @@ public class ExcelServiceImpl implements ExcelService {
                 if (tagStr != null && !tagStr.isBlank()) {
                     String tu = tagStr.trim().toUpperCase();
                     try {
-                        producto.setTag(ar.com.leo.super_master_backend.dominio.producto.entity.Tag.valueOf(tu));
+                        producto.setTag(Tag.valueOf(tu));
                     } catch (IllegalArgumentException e) {
                         log.warn("Tag '{}' inválido para SKU {} - se deja en NULL", tagStr, skuFinal);
                         producto.setTag(null);
@@ -2419,10 +2421,10 @@ public class ExcelServiceImpl implements ExcelService {
 
     @Override
     // noRollbackFor: el motor de cálculo (recalcularProductoEnTodosLosCanales) es @Transactional
-    // y puede tirar NotFoundException si el producto no tiene márgenes/canal/conceptos.
+    // y puede tirar NotFoundException (sin márgenes/canal) o BadRequestException (sin costo/iva).
     // El catch del loop atrapa la excepción pero sin noRollbackFor la tx outer quedaría
     // marcada rollback-only y al commit se tiraría UnexpectedRollbackException.
-    @Transactional(noRollbackFor = NotFoundException.class)
+    @Transactional(noRollbackFor = {NotFoundException.class, BadRequestException.class})
     public ImportCostosResultDTO importarCostos(MultipartFile file) throws IOException {
         log.info("Iniciando importación de costos desde archivo: {}", file.getOriginalFilename());
 
@@ -3700,7 +3702,7 @@ public class ExcelServiceImpl implements ExcelService {
     @Transactional(readOnly = true)
     public ExportCatalogoResultDTO exportarCatalogo(Integer catalogoId, Integer canalId, Integer cuotas,
                                                     Integer clasifGralId, Integer clasifGastroId, Integer tipoId, Integer marcaId,
-                                                    ar.com.leo.super_master_backend.dominio.producto.entity.Tag tag, String ordenarPor) throws IOException {
+                                                    Tag tag, String ordenarPor) throws IOException {
         log.info("Iniciando exportación de catálogo {} con canal {}, cuotas {}, clasifGralId {}, clasifGastroId {}, tipoId {}, marcaId {}, tag {}, ordenarPor {}",
                 catalogoId, canalId, cuotas, clasifGralId, clasifGastroId, tipoId, marcaId, tag, ordenarPor);
 

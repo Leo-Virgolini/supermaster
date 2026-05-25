@@ -1,4 +1,5 @@
 "use client";
+import { getErrorMessage } from "@/lib/errors";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
@@ -39,7 +40,7 @@ import { confirmDialog } from "../utils/confirmDialog";
 type LookupMaps = Awaited<ReturnType<typeof loadLookupMaps>>;
 
 const errorMessage = (e: unknown): string | null =>
-    e instanceof Error ? e.message : null;
+    e instanceof Error ? getErrorMessage(e) : null;
 
 function formatPorcentaje(p: number): string {
     if (p === 0) return "0%";
@@ -586,8 +587,8 @@ export default function CanalFormulaPage() {
                         : canalesData[0].id;
                     setCanalIdSel(desde);
                 }
-            } catch (e: any) {
-                notificar.error(e?.message || "Error al cargar canales");
+            } catch (e: unknown) {
+                notificar.error(getErrorMessage(e, "Error al cargar canales"));
             } finally {
                 if (!cancelled) setIsLoadingCanales(false);
             }
@@ -611,8 +612,8 @@ export default function CanalFormulaPage() {
                 if (cancelled) return;
                 setView(data);
                 setCuotaSel(null);
-            } catch (e: any) {
-                notificar.error(e?.message || "Error al cargar la fórmula del canal");
+            } catch (e: unknown) {
+                notificar.error(getErrorMessage(e, "Error al cargar la fórmula del canal"));
                 setView(null);
             } finally {
                 if (!cancelled) setIsLoadingView(false);

@@ -1,4 +1,5 @@
 "use client";
+import { getErrorMessage } from "@/lib/errors";
 import { useState, useEffect, useCallback } from "react";
 import { notificar } from "../utils/notificar";
 import { getReglasAPI, createReglaAPI, updateReglaAPI, deleteReglaAPI } from "./reglasDescuentoService";
@@ -41,8 +42,8 @@ export function useReglasDescuento(pageIndex: number, pageSize: number, filters:
 			await getReglas();
 			notificar.success(`[Reglas Descuento] Registro #${result.id} creado`);
 			notificar.info("Los precios del canal se están recalculando en segundo plano...");
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al crear");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al crear"));
 			throw e;
 		}
 	};
@@ -56,8 +57,8 @@ export function useReglasDescuento(pageIndex: number, pageSize: number, filters:
 			setReglas((prev) => prev.map((r) => (r.id === id ? { ...r, ...actualizado } : r)));
 			notificar.success(`[Reglas Descuento] Registro #${id} actualizado`);
 			notificar.info("Los precios del canal se están recalculando en segundo plano...");
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al actualizar");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al actualizar"));
 			throw e;
 		}
 	};
@@ -68,8 +69,8 @@ export function useReglasDescuento(pageIndex: number, pageSize: number, filters:
 			await getReglas();
 			notificar.success(ids.length === 1 ? `[Reglas Descuento] Registro #${ids[0]} eliminado` : `[Reglas Descuento] ${ids.length} registros eliminados`);
 			notificar.info("Los precios del canal se están recalculando en segundo plano...");
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al eliminar");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al eliminar"));
 			throw e;
 		}
 	};

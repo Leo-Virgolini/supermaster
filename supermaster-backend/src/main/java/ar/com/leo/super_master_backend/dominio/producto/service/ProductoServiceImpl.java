@@ -10,6 +10,8 @@ import ar.com.leo.super_master_backend.dominio.clasif_gral.entity.ClasifGral;
 import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
 import ar.com.leo.super_master_backend.dominio.common.exception.ConflictException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
+import ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService;
+import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 import ar.com.leo.super_master_backend.dominio.marca.entity.Marca;
 import ar.com.leo.super_master_backend.dominio.material.entity.Material;
 import ar.com.leo.super_master_backend.dominio.origen.entity.Origen;
@@ -60,7 +62,7 @@ public class ProductoServiceImpl implements ProductoService {
     private final ProductoCanalPrecioRepository productoCanalPrecioRepository;
     private final ProductoMargenRepository productoMargenRepository;
     private final ProductoCanalPrecioInfladoRepository productoCanalPrecioInfladoRepository;
-    private final ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService recalculoPendienteService;
+    private final RecalculoPendienteService recalculoPendienteService;
     private final CanalRepository canalRepository;
     private final CanalConceptoCuotaRepository canalConceptoCuotaRepository;
     private final ReglaDescuentoRepository reglaDescuentoRepository;
@@ -938,14 +940,6 @@ public class ProductoServiceImpl implements ProductoService {
         return new PageImpl<>(dtos, pageable, page.getTotalElements());
     }
 
-    private boolean presente(JsonNullable<?> campo) {
-        return campo == null || campo.isPresent();
-    }
-
-    private Object valor(JsonNullable<?> campo) {
-        return campo == null ? null : campo.orElse(null);
-    }
-
     private boolean isPatchVacio(ProductoPatchDTO patchDto) {
         return !presente(patchDto.getSku())
                 && !presente(patchDto.getCodExt())
@@ -1083,137 +1077,9 @@ public class ProductoServiceImpl implements ProductoService {
         return mla;
     }
 
-    private String leerStringRequerido(JsonNullable<String> campo, String field, int maxLength) {
-        Object value = valor(campo);
-        if (!(value instanceof String text)) {
-            throw new BadRequestException("El campo '" + field + "' es requerido y debe ser texto");
-        }
-        if (text.length() > maxLength) {
-            throw new BadRequestException("El campo '" + field + "' no puede exceder " + maxLength + " caracteres");
-        }
-        return text;
-    }
-
-    private String leerStringOpcional(JsonNullable<String> campo, String field, int maxLength) {
-        Object value = valor(campo);
-        if (value == null) {
-            return null;
-        }
-        if (!(value instanceof String text)) {
-            throw new BadRequestException("El campo '" + field + "' debe ser texto");
-        }
-        if (text.length() > maxLength) {
-            throw new BadRequestException("El campo '" + field + "' no puede exceder " + maxLength + " caracteres");
-        }
-        return text;
-    }
-
-    private Boolean leerBooleanRequerido(JsonNullable<Boolean> campo, String field) {
-        Object value = valor(campo);
-        if (!(value instanceof Boolean bool)) {
-            throw new BadRequestException("El campo '" + field + "' es requerido y debe ser booleano");
-        }
-        return bool;
-    }
-
-    private Boolean leerBooleanOpcional(JsonNullable<Boolean> campo, String field) {
-        Object value = valor(campo);
-        if (value == null) {
-            return null;
-        }
-        if (!(value instanceof Boolean bool)) {
-            throw new BadRequestException("El campo '" + field + "' debe ser booleano");
-        }
-        return bool;
-    }
-
-    private Integer leerIdRequerido(JsonNullable<Integer> campo, String field) {
-        Integer value = leerIntegerRequerido(campo, field);
-        if (value <= 0) {
-            throw new BadRequestException("El campo '" + field + "' debe ser positivo");
-        }
-        return value;
-    }
-
-    private Integer leerIdOpcional(JsonNullable<Integer> campo, String field) {
-        Integer value = leerIntegerOpcional(campo, field);
-        if (value != null && value <= 0) {
-            throw new BadRequestException("El campo '" + field + "' debe ser positivo");
-        }
-        return value;
-    }
-
-    private Integer leerIntegerRequerido(JsonNullable<Integer> campo, String field) {
-        Object value = valor(campo);
-        if (!(value instanceof Number number)) {
-            throw new BadRequestException("El campo '" + field + "' es requerido y debe ser numérico");
-        }
-        return number.intValue();
-    }
-
-    private Integer leerIntegerOpcional(JsonNullable<Integer> campo, String field) {
-        Object value = valor(campo);
-        if (value == null) {
-            return null;
-        }
-        if (!(value instanceof Number number)) {
-            throw new BadRequestException("El campo '" + field + "' debe ser numérico");
-        }
-        return number.intValue();
-    }
-
-    private Integer leerIntegerPositivoOpcional(JsonNullable<Integer> campo, String field) {
-        Integer value = leerIntegerOpcional(campo, field);
-        if (value != null && value <= 0) {
-            throw new BadRequestException("El campo '" + field + "' debe ser mayor a 0");
-        }
-        return value;
-    }
-
-    private Integer leerIntegerNoNegativoOpcional(JsonNullable<Integer> campo, String field) {
-        Integer value = leerIntegerOpcional(campo, field);
-        if (value != null && value < 0) {
-            throw new BadRequestException("El campo '" + field + "' debe ser mayor o igual a 0");
-        }
-        return value;
-    }
-
-    private BigDecimal leerDecimalNoNegativoOpcional(JsonNullable<BigDecimal> campo, String field) {
-        Object value = valor(campo);
-        if (value == null) {
-            return null;
-        }
-        if (!(value instanceof Number number)) {
-            throw new BadRequestException("El campo '" + field + "' debe ser numérico");
-        }
-        BigDecimal decimal = new BigDecimal(number.toString());
-        if (decimal.compareTo(BigDecimal.ZERO) < 0) {
-            throw new BadRequestException("El campo '" + field + "' debe ser mayor o igual a 0");
-        }
-        return decimal;
-    }
-
+    /** Específico: igual al porcentaje [0, 100] pero requerido (no opcional), usado para el IVA del producto. */
     private BigDecimal leerIvaRequerido(JsonNullable<BigDecimal> campo, String field) {
-        Object value = valor(campo);
-        if (!(value instanceof Number number)) {
-            throw new BadRequestException("El campo '" + field + "' es requerido y debe ser numérico");
-        }
-        BigDecimal decimal = new BigDecimal(number.toString());
-        if (decimal.compareTo(BigDecimal.ZERO) < 0 || decimal.compareTo(BigDecimal.valueOf(100)) > 0) {
-            throw new BadRequestException("El campo '" + field + "' debe estar entre 0 y 100");
-        }
-        return decimal;
-    }
-
-    private <E extends Enum<E>> E leerEnumOpcional(JsonNullable<E> campo, String field, Class<E> enumClass) {
-        Object value = valor(campo);
-        if (value == null) {
-            return null;
-        }
-        if (!enumClass.isInstance(value)) {
-            throw new BadRequestException("El campo '" + field + "' contiene un valor inválido");
-        }
-        return enumClass.cast(value);
+        return leerPorcentajeRequerido(campo, field);
     }
 
     // ============================
@@ -1336,7 +1202,12 @@ public class ProductoServiceImpl implements ProductoService {
     }
 
     private void programarRecalculoPostCommit(String descripcion, Integer productoId) {
-        recalculoPendienteService.marcarProducto(descripcion, productoId);
+        // marcarProductoOCalcularInicial: si el producto aún no tiene precios calculados
+        // pero ahora tiene los datos mínimos (costo + iva + margen), recalcula inmediatamente
+        // para crear las filas iniciales en producto_canal_precios. Sin esto, el cambio
+        // que justamente desbloquea el cálculo (e.g. primer costo, primer iva) marcaría
+        // 0 filas obsoletas y el banner quedaría vacío.
+        recalculoPendienteService.marcarProductoOCalcularInicial(descripcion, productoId);
     }
 
 }

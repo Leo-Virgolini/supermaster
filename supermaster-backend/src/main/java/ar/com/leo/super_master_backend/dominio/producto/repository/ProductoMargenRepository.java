@@ -15,6 +15,8 @@ public interface ProductoMargenRepository extends JpaRepository<ProductoMargen, 
 
     Optional<ProductoMargen> findByProductoId(Integer productoId);
 
+    boolean existsByProductoId(Integer productoId);
+
     @Query("SELECT pm FROM ProductoMargen pm JOIN FETCH pm.producto WHERE pm.producto.id IN :productoIds")
     List<ProductoMargen> findByProductoIdIn(@Param("productoIds") List<Integer> productoIds);
 

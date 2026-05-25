@@ -12,11 +12,11 @@ import ar.com.leo.super_master_backend.dominio.clasif_gral.mapper.ClasifGralMapp
 import ar.com.leo.super_master_backend.dominio.clasif_gral.repository.ClasifGralRepository;
 import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
+import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoResumenDTO;
 import ar.com.leo.super_master_backend.dominio.producto.mapper.ProductoMapper;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoRepository;
 import lombok.RequiredArgsConstructor;
-import org.openapitools.jackson.nullable.JsonNullable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -127,51 +127,12 @@ public class ClasifGralServiceImpl implements ClasifGralService {
     }
 
 
-    private String leerStringRequerido(JsonNullable<String> campo, String field, int maxLength) {
-        Object value = valor(campo);
-        if (!(value instanceof String text)) {
-            throw new BadRequestException("El campo '" + field + "' es requerido y debe ser texto");
-        }
-        if (text.length() > maxLength) {
-            throw new BadRequestException("El campo '" + field + "' no puede exceder " + maxLength + " caracteres");
-        }
-        return text;
-    }
-
-    private Integer leerIdOpcional(JsonNullable<Integer> campo, String field) {
-        Object value = valor(campo);
-        if (value == null) {
-            return null;
-        }
-        if (!(value instanceof Number number)) {
-            throw new BadRequestException("El campo '" + field + "' debe ser numérico");
-        }
-        int id = number.intValue();
-        if (id <= 0) {
-            throw new BadRequestException("El campo '" + field + "' debe ser positivo");
-        }
-        return id;
-    }
-
-
-    private boolean presente(JsonNullable<?> campo) {
-        return campo == null || campo.isPresent();
-    }
-
-    private Object valor(JsonNullable<?> campo) {
-        return campo == null ? null : campo.orElse(null);
-    }
-
     private Map<String, String> capturarSnapshot(ClasifGral entity) {
         LinkedHashMap<String, String> snapshot = new LinkedHashMap<>();
         snapshot.put("nombre", normalizar(entity.getNombre()));
         snapshot.put("padreId", entity.getPadre() != null ? normalizar(entity.getPadre().getId()) : null);
         snapshot.put("padre", entity.getPadre() != null ? normalizar(entity.getPadre().getNombre()) : null);
         return snapshot;
-    }
-
-    private String normalizar(Object value) {
-        return value == null ? null : String.valueOf(value);
     }
 }
 

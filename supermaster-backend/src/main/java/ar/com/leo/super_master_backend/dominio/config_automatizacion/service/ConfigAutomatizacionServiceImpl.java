@@ -6,6 +6,7 @@ import ar.com.leo.super_master_backend.dominio.auditoria.service.AuditoriaServic
 import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
 import ar.com.leo.super_master_backend.dominio.common.exception.ConflictException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
+import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 import ar.com.leo.super_master_backend.dominio.config_automatizacion.dto.ConfigAutomatizacionCreateDTO;
 import ar.com.leo.super_master_backend.dominio.config_automatizacion.dto.ConfigAutomatizacionDTO;
 import ar.com.leo.super_master_backend.dominio.config_automatizacion.dto.ConfigAutomatizacionUpdateDTO;
@@ -14,7 +15,6 @@ import ar.com.leo.super_master_backend.dominio.config_automatizacion.entity.Conf
 import ar.com.leo.super_master_backend.dominio.config_automatizacion.mapper.ConfigAutomatizacionMapper;
 import ar.com.leo.super_master_backend.dominio.config_automatizacion.repository.ConfigAutomatizacionRepository;
 import lombok.RequiredArgsConstructor;
-import org.openapitools.jackson.nullable.JsonNullable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -160,48 +160,16 @@ public class ConfigAutomatizacionServiceImpl implements ConfigAutomatizacionServ
     }
 
 
-    private String leerStringRequerido(JsonNullable<String> campo, String field, int maxLength) {
-        Object value = valor(campo);
-        if (!(value instanceof String text)) {
-            throw new BadRequestException("El campo '" + field + "' es requerido y debe ser texto");
-        }
-        if (text.length() > maxLength) {
-            throw new BadRequestException("El campo '" + field + "' no puede exceder " + maxLength + " caracteres");
-        }
-        return text;
-    }
-
-    private String leerStringOpcional(JsonNullable<String> campo, String field, int maxLength) {
-        Object value = valor(campo);
-        if (value == null) {
-            return null;
-        }
-        if (!(value instanceof String text)) {
-            throw new BadRequestException("El campo '" + field + "' debe ser texto");
-        }
-        if (text.length() > maxLength) {
-            throw new BadRequestException("El campo '" + field + "' no puede exceder " + maxLength + " caracteres");
-        }
-        return text;
-    }
-
-    private boolean presente(JsonNullable<?> campo) {
-        return campo == null || campo.isPresent();
-    }
-
-    private Object valor(JsonNullable<?> campo) {
-        return campo == null ? null : campo.orElse(null);
-    }
-
     private Map<String, String> capturarSnapshot(ConfigAutomatizacion entity) {
         Map<String, String> snapshot = new LinkedHashMap<>();
-        snapshot.put("clave", normalizar(entity.getClave()));
-        snapshot.put("valor", normalizar(entity.getValor()));
-        snapshot.put("descripcion", normalizar(entity.getDescripcion()));
+        snapshot.put("clave", normalizarTrim(entity.getClave()));
+        snapshot.put("valor", normalizarTrim(entity.getValor()));
+        snapshot.put("descripcion", normalizarTrim(entity.getDescripcion()));
         return snapshot;
     }
 
-    private String normalizar(String value) {
+    /** Específico: trimea y mapea string vacío a null (para que el diff ignore whitespace puro). */
+    private String normalizarTrim(String value) {
         if (value == null) {
             return null;
         }

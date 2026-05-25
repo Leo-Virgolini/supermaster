@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { ArrowPathIcon } from "@heroicons/react/24/outline";
@@ -66,8 +67,8 @@ function RelationTab({ productoId, entityName, getAssigned, assignFn, removeFn, 
             ]);
             setAssigned(assignedData.map((item: any) => item[entityIdKey] as number));
             setAll(allData);
-        } catch (e: any) {
-            setError(e.message);
+        } catch (e: unknown) {
+            setError(getErrorMessage(e));
         } finally {
             setIsLoading(false);
         }
@@ -83,8 +84,8 @@ function RelationTab({ productoId, entityName, getAssigned, assignFn, removeFn, 
             await assignFn(productoId, Number(selectedId));
             setSelectedId("");
             await load();
-        } catch (e: any) {
-            setError(e.message);
+        } catch (e: unknown) {
+            setError(getErrorMessage(e));
         } finally {
             setIsAdding(false);
         }
@@ -96,8 +97,8 @@ function RelationTab({ productoId, entityName, getAssigned, assignFn, removeFn, 
         try {
             await removeFn(productoId, entityId);
             await load();
-        } catch (e: any) {
-            setError(e.message);
+        } catch (e: unknown) {
+            setError(getErrorMessage(e));
         }
     };
 
@@ -179,7 +180,7 @@ function PreciosInfladosTab({ productoId }: { productoId: number }) {
         setIsLoadingInit(true);
         Promise.all([getAllCanalesAPI(), getAllPreciosInfladosAPI()])
             .then(([cans, precios]) => { setCanales(cans); setPreciosInflados(precios); })
-            .catch((e) => setError(e.message))
+            .catch((e) => setError(getErrorMessage(e)))
             .finally(() => setIsLoadingInit(false));
     }, [productoId]);
 
@@ -200,7 +201,7 @@ function PreciosInfladosTab({ productoId }: { productoId: number }) {
                     setObservaciones(data.observaciones ?? "");
                 }
             })
-            .catch((e) => setError(e.message))
+            .catch((e) => setError(getErrorMessage(e)))
             .finally(() => setIsLoadingCanal(false));
     }, [selectedCanalId, productoId]);
 
@@ -216,8 +217,8 @@ function PreciosInfladosTab({ productoId }: { productoId: number }) {
                 { fechaDesde: fechaDesde || null, fechaHasta: fechaHasta || null, observaciones: observaciones || null },
             );
             setAsignacionActual(result);
-        } catch (e: any) {
-            setError(e.message);
+        } catch (e: unknown) {
+            setError(getErrorMessage(e));
         } finally {
             setIsSaving(false);
         }
@@ -232,8 +233,8 @@ function PreciosInfladosTab({ productoId }: { productoId: number }) {
             await quitarPrecioInfladoAPI(productoId, Number(selectedCanalId));
             setAsignacionActual(null);
             setSelectedPrecioId("");
-        } catch (e: any) {
-            setError(e.message);
+        } catch (e: unknown) {
+            setError(getErrorMessage(e));
         } finally {
             setIsSaving(false);
         }
@@ -371,7 +372,7 @@ function MargenTab({ productoId }: MargenTabProps) {
         setError(null);
         getProductoMargenAPI(productoId)
             .then((data) => setMargen(data ?? {}))
-            .catch((e) => setError(e.message))
+            .catch((e) => setError(getErrorMessage(e)))
             .finally(() => setIsLoading(false));
     }, [productoId]);
 
@@ -390,8 +391,8 @@ function MargenTab({ productoId }: MargenTabProps) {
             const updated = await updateProductoMargenAPI(productoId, dto);
             setMargen(updated);
             setSuccessMsg("Margen guardado correctamente.");
-        } catch (e: any) {
-            setError(e.message);
+        } catch (e: unknown) {
+            setError(getErrorMessage(e));
         } finally {
             setIsSaving(false);
         }
@@ -404,8 +405,8 @@ function MargenTab({ productoId }: MargenTabProps) {
             await deleteProductoMargenAPI(productoId);
             setMargen({});
             setSuccessMsg("Margen eliminado.");
-        } catch (e: any) {
-            setError(e.message);
+        } catch (e: unknown) {
+            setError(getErrorMessage(e));
         }
     };
 
@@ -494,8 +495,8 @@ function PreciosTab({ productoId }: { productoId: number }) {
             ]);
             setData(preciosData);
             setMargen(margenData);
-        } catch (e: any) {
-            setError(e.message);
+        } catch (e: unknown) {
+            setError(getErrorMessage(e));
         } finally {
             setIsLoading(false);
         }
@@ -509,8 +510,8 @@ function PreciosTab({ productoId }: { productoId: number }) {
             await calcularPreciosAPI(productoId);
             await load();
             notificar.success("Precios calculados.");
-        } catch (e: any) {
-            notificar.error("Error al calcular: " + e.message);
+        } catch (e: unknown) {
+            notificar.error("Error al calcular: " + getErrorMessage(e));
         } finally {
             setIsCalculating(false);
         }
@@ -641,8 +642,8 @@ function HistorialTab({ productoId, productoSku }: { productoId: number; product
             const response = await getProductoAuditoriaAPI(productoId, 0, 50, "fechaHora,desc");
             setItems(response.content ?? []);
             setTotal(response.page?.totalElements ?? response.content?.length ?? 0);
-        } catch (e: any) {
-            setError(e.message);
+        } catch (e: unknown) {
+            setError(getErrorMessage(e));
         } finally {
             setIsLoading(false);
         }

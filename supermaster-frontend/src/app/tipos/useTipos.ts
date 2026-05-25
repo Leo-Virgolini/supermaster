@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useState, useEffect, useCallback } from "react";
 import { notificar } from "../utils/notificar";
 import { TipoDTO } from "./types";
@@ -43,8 +44,8 @@ export function useTipos(
 			);
 			setTipos(json.content || []);
 			setTotalRecords(json.page?.totalElements || 0);
-		} catch (err: any) {
-			setError(err.message || "Error desconocido");
+		} catch (err: unknown) {
+			setError(getErrorMessage(err, "Error desconocido"));
 			setTipos([]);
 		} finally {
 			setIsLoading(false);
@@ -61,8 +62,8 @@ export function useTipos(
 			await getTipos();
 			notificar.success(`[Tipos] Registro #${result.id} creado`);
 			return true;
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al crear");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al crear"));
 			throw e;
 		}
 	};
@@ -74,8 +75,8 @@ export function useTipos(
 			await getTipos();
 			notificar.success(ids.length === 1 ? `[Tipos] Registro #${ids[0]} eliminado` : `[Tipos] ${ids.length} registros eliminados`);
 			return true;
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al eliminar");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al eliminar"));
 			throw e;
 		}
 	};
@@ -89,8 +90,8 @@ export function useTipos(
 			setTipos((prev) => prev.map((t) => (t.id === id ? { ...t, ...actualizado } : t)));
 			notificar.success(`[Tipos] Registro #${id} actualizado`);
 			return true;
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al actualizar");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al actualizar"));
 			throw e;
 		}
 	};

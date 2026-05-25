@@ -1,4 +1,5 @@
 "use client";
+import { getErrorMessage } from "@/lib/errors";
 import { useState, useEffect, useCallback } from "react";
 import { notificar } from "../utils/notificar";
 import {
@@ -35,8 +36,8 @@ export function useCanalConceptoCuota(
 			setData(res.content || []);
 			setTotalRecords(res.page?.totalElements || 0);
 			setPageCount(res.page?.totalPages || 0);
-		} catch (err: any) {
-			setError(err.message || "Error al cargar cuotas");
+		} catch (err: unknown) {
+			setError(getErrorMessage(err, "Error al cargar cuotas"));
 		} finally {
 			setIsLoading(false);
 		}
@@ -52,8 +53,8 @@ export function useCanalConceptoCuota(
 			await fetchData();
 			notificar.success(`[Cuotas por Canal] Registro #${result.id} creado`);
 			notificar.info("Los precios del canal se están recalculando en segundo plano...");
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al crear");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al crear"));
 			throw e;
 		}
 	};
@@ -67,8 +68,8 @@ export function useCanalConceptoCuota(
 			setData((prev) => prev.map((d) => (d.id === id ? { ...d, ...actualizado } : d)));
 			notificar.success(`[Cuotas por Canal] Registro #${id} actualizado`);
 			notificar.info("Los precios del canal se están recalculando en segundo plano...");
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al actualizar");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al actualizar"));
 			throw e;
 		}
 	};
@@ -78,8 +79,8 @@ export function useCanalConceptoCuota(
 			await Promise.all(ids.map((id) => deleteCuotaAPI(id, "TABLE")));
 			await fetchData();
 			notificar.success(ids.length === 1 ? `[Cuotas por Canal] Registro #${ids[0]} eliminado` : `[Cuotas por Canal] ${ids.length} registros eliminados`);
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al eliminar");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al eliminar"));
 			throw e;
 		}
 	};

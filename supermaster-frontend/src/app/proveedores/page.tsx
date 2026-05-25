@@ -1,4 +1,5 @@
 "use client";
+import { getErrorMessage } from "@/lib/errors";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { notificar } from "../utils/notificar";
@@ -64,8 +65,8 @@ export default function ProveedoresPage() {
             });
             setProveedorNombre(""); setApodo(""); setPlazoPago(""); setFinanciacionPorcentaje(null); setLeadTimeDias(null); setEntrega(false); setFormTouched(false);
             setIsModalOpen(false);
-        } catch (e: any) {
-            notificar.error("Error: " + e.message);
+        } catch (e: unknown) {
+            notificar.error("Error: " + getErrorMessage(e));
         } finally {
             setIsSaving(false);
         }

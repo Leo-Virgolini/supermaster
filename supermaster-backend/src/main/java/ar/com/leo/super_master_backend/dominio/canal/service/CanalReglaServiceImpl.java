@@ -19,6 +19,8 @@ import ar.com.leo.super_master_backend.dominio.clasif_gral.entity.ClasifGral;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.repository.ClasifGralRepository;
 import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
+import ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService;
+import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 import ar.com.leo.super_master_backend.dominio.marca.entity.Marca;
 import ar.com.leo.super_master_backend.dominio.marca.repository.MarcaRepository;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
@@ -51,7 +53,7 @@ public class CanalReglaServiceImpl implements CanalReglaService {
     private final ProductoRepository productoRepository;
     private final CanalReglaMapper mapper;
     private final AuditoriaService auditoriaService;
-    private final ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService recalculoPendienteService;
+    private final RecalculoPendienteService recalculoPendienteService;
     private final CanalScopeService canalScopeService;
 
     @Override
@@ -347,40 +349,7 @@ public class CanalReglaServiceImpl implements CanalReglaService {
         }
     }
 
-    private Integer leerIdRequerido(JsonNullable<Integer> campo, String field) {
-        Integer value = leerIdOpcional(campo, field);
-        if (value == null) {
-            throw new BadRequestException("El campo '" + field + "' es requerido");
-        }
-        return value;
-    }
-
-    private Integer leerIdOpcional(JsonNullable<Integer> campo, String field) {
-        Object value = valor(campo);
-        if (value == null) {
-            return null;
-        }
-        if (!(value instanceof Number number)) {
-            throw new BadRequestException("El campo '" + field + "' debe ser numérico");
-        }
-        int id = number.intValue();
-        if (id <= 0) {
-            throw new BadRequestException("El campo '" + field + "' debe ser positivo");
-        }
-        return id;
-    }
-
-    private Boolean leerBooleanOpcional(JsonNullable<Boolean> campo, String field) {
-        Object value = valor(campo);
-        if (value == null) {
-            return null;
-        }
-        if (!(value instanceof Boolean bool)) {
-            throw new BadRequestException("El campo '" + field + "' debe ser booleano");
-        }
-        return bool;
-    }
-
+    /** Específico: deserializa enum desde String (no desde JsonNullable&lt;E&gt; tipado). */
     private <E extends Enum<E>> E leerEnumRequerido(JsonNullable<String> campo, String field, Class<E> enumClass) {
         Object value = valor(campo);
         if (!(value instanceof String text)) {
@@ -391,14 +360,6 @@ public class CanalReglaServiceImpl implements CanalReglaService {
         } catch (IllegalArgumentException ex) {
             throw new BadRequestException("Valor inválido para '" + field + "': " + text);
         }
-    }
-
-    private boolean presente(JsonNullable<?> campo) {
-        return campo == null || campo.isPresent();
-    }
-
-    private Object valor(JsonNullable<?> campo) {
-        return campo == null ? null : campo.orElse(null);
     }
 
     private Map<String, String> capturarSnapshot(CanalRegla entity) {
@@ -446,10 +407,6 @@ public class CanalReglaServiceImpl implements CanalReglaService {
             return clasifGastro.getId() + " - " + clasifGastro.getNombre();
         }
         return normalizar(value);
-    }
-
-    private String normalizar(Object value) {
-        return value == null ? null : String.valueOf(value);
     }
 
     private void programarRecalculoPostCommit(Integer canalId) {

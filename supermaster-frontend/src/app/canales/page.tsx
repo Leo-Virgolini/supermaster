@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import dynamic from "next/dynamic";
 import { useState, useMemo } from "react";
 import { notificar } from "../utils/notificar";
@@ -88,8 +89,8 @@ export default function CanalesPage() {
                 try {
                     const result = await clonarConceptosDeCanalAPI(creado.id, copiarDeCanalId, "FORM");
                     notificar.success(`Se copiaron ${result.copiadas} conceptos al canal nuevo.`);
-                } catch (e: any) {
-                    notificar.error(e?.message || "Canal creado, pero falló la copia de conceptos.");
+                } catch (e: unknown) {
+                    notificar.error(getErrorMessage(e, "Canal creado, pero falló la copia de conceptos."));
                 }
             }
             setIsModalOpen(false);

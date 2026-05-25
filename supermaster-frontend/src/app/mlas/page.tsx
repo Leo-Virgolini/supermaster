@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useMemo } from "react";
@@ -89,8 +90,8 @@ export default function MlasPage() {
                 notificar.error(`No se pudo calcular envío para "${mla.mla}": ${res.mensaje ?? "motivo desconocido"}`);
             }
             refreshMlaLocal(mla.id);
-        } catch (e: any) {
-            notificar.error("Error al calcular envío: " + e.message);
+        } catch (e: unknown) {
+            notificar.error("Error al calcular envío: " + getErrorMessage(e));
         } finally {
             setCalcLoading((prev) => ({ ...prev, [mla.id]: { ...(prev[mla.id] ?? { envio: false, comision: false }), envio: false } }));
         }
@@ -108,8 +109,8 @@ export default function MlasPage() {
             const res = await calcularCostoVentaMlaAPI(mla.mla);
             notificar.success(`Comisión "${mla.mla}": ${res.porcentajeTotal}% (${res.listingTypeName})`);
             refreshMlaLocal(mla.id);
-        } catch (e: any) {
-            notificar.error("Error al calcular comisión: " + e.message);
+        } catch (e: unknown) {
+            notificar.error("Error al calcular comisión: " + getErrorMessage(e));
         } finally {
             setCalcLoading((prev) => ({ ...prev, [mla.id]: { ...(prev[mla.id] ?? { envio: false, comision: false }), comision: false } }));
         }
@@ -123,8 +124,8 @@ export default function MlasPage() {
         try {
             const data = await getProductosPorMlaAPI(mla.id);
             setSkusList(data);
-        } catch (e: any) {
-            notificar.error("Error al cargar SKUs: " + e.message);
+        } catch (e: unknown) {
+            notificar.error("Error al cargar SKUs: " + getErrorMessage(e));
         } finally {
             setSkusLoading(false);
         }

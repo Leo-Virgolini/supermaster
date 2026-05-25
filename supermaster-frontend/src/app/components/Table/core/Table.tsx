@@ -1,4 +1,5 @@
 "use client";
+import { getErrorMessage } from "@/lib/errors";
 import {
     useReactTable,
     getCoreRowModel,
@@ -337,8 +338,8 @@ const Table = ({
             const cols = buildExportColumns(table);
             exportToExcel(allData, cols, exportFilename || tableId);
             notificar.success(`${allData.length} registro(s) exportados`);
-        } catch (e: any) {
-            notificar.error("Error al exportar: " + (e?.message || "desconocido"));
+        } catch (e: unknown) {
+            notificar.error("Error al exportar: " + (getErrorMessage(e, "desconocido")));
         } finally {
             setIsExporting(false);
         }

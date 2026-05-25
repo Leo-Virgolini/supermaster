@@ -1,4 +1,5 @@
 "use client";
+import { getErrorMessage } from "@/lib/errors";
 import { useState } from "react";
 import { toast } from "sonner";
 import { notificar } from "../utils/notificar";
@@ -183,8 +184,8 @@ export default function OrdenesCompraPage() {
       await createOrden(createDTO);
       setIsNuevaOrdenOpen(false);
       resetNuevaOrdenForm();
-    } catch (e: any) {
-      notificar.error("Error: " + e.message);
+    } catch (e: unknown) {
+      notificar.error("Error: " + getErrorMessage(e));
     } finally {
       setIsSaving(false);
     }
@@ -207,8 +208,8 @@ export default function OrdenesCompraPage() {
       await enviarOrdenCompraAPI(ordenAEnviar.id);
       await refresh();
       setOrdenAEnviar(null);
-    } catch (e: any) {
-      notificar.error("Error al enviar: " + e.message);
+    } catch (e: unknown) {
+      notificar.error("Error al enviar: " + getErrorMessage(e));
     } finally {
       setIsEnviando(false);
     }
@@ -245,8 +246,8 @@ export default function OrdenesCompraPage() {
       );
       await refresh();
       setOrdenRecepcion(null);
-    } catch (e: any) {
-      notificar.error("Error al registrar recepción: " + e.message);
+    } catch (e: unknown) {
+      notificar.error("Error al registrar recepción: " + getErrorMessage(e));
     } finally {
       setIsRegistrando(false);
     }

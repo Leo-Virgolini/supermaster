@@ -14,6 +14,8 @@ import ar.com.leo.super_master_backend.dominio.canal.repository.CanalRepository;
 import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
 import ar.com.leo.super_master_backend.dominio.common.exception.ConflictException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
+import ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService;
+import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoCanalPrecioRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,7 +39,7 @@ public class CanalConceptoCuotaServiceImpl implements CanalConceptoCuotaService 
     private final CanalConceptoCuotaRepository repository;
     private final CanalRepository canalRepository;
     private final CanalConceptoCuotaMapper mapper;
-    private final ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService recalculoPendienteService;
+    private final RecalculoPendienteService recalculoPendienteService;
     private final CanalScopeService canalScopeService;
     private final ProductoCanalPrecioRepository productoCanalPrecioRepository;
     private final AuditoriaService auditoriaService;
@@ -205,6 +207,9 @@ public class CanalConceptoCuotaServiceImpl implements CanalConceptoCuotaService 
         // Eliminar los precios calculados para esa cuota (no necesita recalcular las demás)
         int eliminados = productoCanalPrecioRepository.deleteByCanalIdAndCuotas(canalId, cuotas);
         log.info("Eliminados {} precios de canal {} para {} cuotas", eliminados, canalId, cuotas);
+        // Si alguna fila borrada estaba marcada obsoleta, el conteo del banner queda
+        // desactualizado hasta el próximo marcar/desmarcar. Notificamos para refrescar.
+        recalculoPendienteService.notificarCambioEstado();
     }
 
     @Override
@@ -226,50 +231,13 @@ public class CanalConceptoCuotaServiceImpl implements CanalConceptoCuotaService 
     }
 
 
-    private Integer leerIntegerNoNegativoRequerido(JsonNullable<Integer> campo, String field) {
-        Object value = valor(campo);
-        if (!(value instanceof Number number)) {
-            throw new BadRequestException("El campo '" + field + "' es requerido y debe ser numérico");
-        }
-        int result = number.intValue();
-        if (result < 0) {
-            throw new BadRequestException("El campo '" + field + "' debe ser mayor o igual a 0");
-        }
-        return result;
-    }
-
+    /** Específico de cuotas: porcentaje bidireccional (-100, 100), no [0, 100] como el común. */
     private BigDecimal leerPorcentajeRequerido(JsonNullable<BigDecimal> campo, String field) {
-        Object value = valor(campo);
-        if (!(value instanceof Number number)) {
-            throw new BadRequestException("El campo '" + field + "' es requerido y debe ser numérico");
-        }
-        BigDecimal decimal = new BigDecimal(number.toString());
+        BigDecimal decimal = leerDecimalRequerido(campo, field);
         if (decimal.compareTo(BigDecimal.valueOf(-100)) < 0 || decimal.compareTo(BigDecimal.valueOf(100)) > 0) {
             throw new BadRequestException("El campo '" + field + "' debe estar entre -100 y 100");
         }
         return decimal;
-    }
-
-    private String leerStringOpcional(JsonNullable<String> campo, String field, int maxLength) {
-        Object value = valor(campo);
-        if (value == null) {
-            return null;
-        }
-        if (!(value instanceof String text)) {
-            throw new BadRequestException("El campo '" + field + "' debe ser texto");
-        }
-        if (text.length() > maxLength) {
-            throw new BadRequestException("El campo '" + field + "' no puede exceder " + maxLength + " caracteres");
-        }
-        return text;
-    }
-
-    private boolean presente(JsonNullable<?> campo) {
-        return campo == null || campo.isPresent();
-    }
-
-    private Object valor(JsonNullable<?> campo) {
-        return campo == null ? null : campo.orElse(null);
     }
 
     private Map<String, String> capturarSnapshot(CanalConceptoCuota cuota) {

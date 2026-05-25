@@ -8,6 +8,7 @@ import ar.com.leo.super_master_backend.excel.dto.ImportCostosResultDTO;
 import ar.com.leo.super_master_backend.excel.dto.LimpiezaDatosResultDTO;
 import ar.com.leo.super_master_backend.excel.service.ExcelService;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoFilter;
+import ar.com.leo.super_master_backend.dominio.producto.entity.Tag;
 import ar.com.leo.super_master_backend.dominio.reposicion.entity.TagReposicion;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -216,7 +217,7 @@ public class ExcelController {
             @RequestParam(required = false) Boolean tieneMla,
             @RequestParam(required = false) Boolean activo,
             @RequestParam(required = false) TagReposicion tagReposicion,
-            @RequestParam(required = false) List<ar.com.leo.super_master_backend.dominio.producto.entity.Tag> tags,
+            @RequestParam(required = false) List<Tag> tags,
 
             // 2.1) FILTROS MLA
             @RequestParam(required = false) String mla,
@@ -410,7 +411,7 @@ public class ExcelController {
             @RequestParam(value = "clasifGastroId", required = false) Integer clasifGastroId,
             @RequestParam(value = "tipoId", required = false) Integer tipoId,
             @RequestParam(value = "marcaId", required = false) Integer marcaId,
-            @RequestParam(value = "tag", required = false) ar.com.leo.super_master_backend.dominio.producto.entity.Tag tag,
+            @RequestParam(value = "tag", required = false) Tag tag,
             @RequestParam(value = "ordenarPor", required = false) String ordenarPor
     ) {
         try {

@@ -1,4 +1,5 @@
 "use client";
+import { getErrorMessage } from "@/lib/errors";
 import { useState, useEffect, useRef } from "react";
 import { API_BASE_URL } from "../config/runtime";
 import { fetchAPI } from "../utils/fetchAPI";
@@ -51,11 +52,11 @@ function ExportarProductosPanel() {
                 setEstado(data.estado === "error" ? "ERROR" : "IDLE");
                 setMensaje(data.estado === "error" ? (data.mensaje ?? "Error en la exportacion.") : "Proceso cancelado.");
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             clearInterval(intervalRef.current!);
             intervalRef.current = null;
             setEstado("ERROR");
-            setMensaje("Error al consultar el estado: " + (err?.message ?? "desconocido"));
+            setMensaje("Error al consultar el estado: " + (getErrorMessage(err, "desconocido")));
         }
     };
 
@@ -74,9 +75,9 @@ function ExportarProductosPanel() {
             idProcesoRef.current = data.idProceso ?? data.id ?? null;
             if (idProcesoRef.current === null) throw new Error("No se recibio idProceso");
             intervalRef.current = setInterval(consultarEstado, 3000);
-        } catch (err: any) {
+        } catch (err: unknown) {
             setEstado("ERROR");
-            setMensaje("No se pudo iniciar la exportacion: " + (err?.message ?? "desconocido"));
+            setMensaje("No se pudo iniciar la exportacion: " + (getErrorMessage(err, "desconocido")));
         }
     };
 

@@ -73,6 +73,19 @@ const PROCESOS_SIN_TOAST_INICIO = new Set<string>([
     "recalculo-pendiente-scoped",
 ]);
 
+// Descripciones que indican side-effects automáticos (no acciones explícitas del
+// usuario). El usuario ya recibió la notificación principal del cambio que los
+// disparó (ej. "Comisión MLA xxx: 14.35%") y los toasts "Proceso iniciado/
+// finalizado" del recálculo asíncrono son ruido. Los silenciamos por prefijo.
+const DESCRIPCIONES_SIN_TOAST_PREFIXES: string[] = [
+    "Recálculo por cambio en ",
+];
+
+function descripcionEsSideEffect(descripcion: string | undefined | null): boolean {
+    if (!descripcion) return false;
+    return DESCRIPCIONES_SIN_TOAST_PREFIXES.some((p) => descripcion.startsWith(p));
+}
+
 // Grupos de exclusión: el frontend los pide al backend en /api/procesos/grupos
 // para que sean una sola fuente de verdad. Mientras la respuesta no llegue,
 // usamos un fallback embebido (sincronizado con el backend al momento de
@@ -201,6 +214,7 @@ export function ProcesoActivoProvider({ children }: { children: React.ReactNode 
             for (const [prevId, prev] of prevProcesosRef.current) {
                 if (!nuevosMap.has(prevId)) {
                     if (PROCESOS_SIN_TOAST_GLOBAL.has(prevId)) continue;
+                    if (descripcionEsSideEffect(prev.descripcion)) continue;
                     // El proceso terminó: clasificar según contadores finales del
                     // último snapshot que recibimos antes de que desapareciera.
                     const desc = prev.descripcion;
@@ -250,6 +264,7 @@ export function ProcesoActivoProvider({ children }: { children: React.ReactNode 
             for (const [nuevoId, nuevo] of nuevosMap) {
                 if (PROCESOS_SIN_TOAST_GLOBAL.has(nuevoId)) continue;
                 if (PROCESOS_SIN_TOAST_INICIO.has(nuevoId)) continue;
+                if (descripcionEsSideEffect(nuevo.descripcion)) continue;
                 if (!prevProcesosRef.current.has(nuevoId)) notificar.info(`Proceso iniciado: ${nuevo.descripcion}`);
             }
         }

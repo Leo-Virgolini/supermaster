@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useState, useEffect, useCallback } from "react";
 import { notificar } from "../utils/notificar";
 import { CanalDTO } from "./types";
@@ -42,8 +43,8 @@ export function useCanales(
 			);
 			setCanales(json.content || []);
 			setTotalRecords(json.page?.totalElements || 0);
-		} catch (err: any) {
-			setError(err.message || "Error desconocido");
+		} catch (err: unknown) {
+			setError(getErrorMessage(err, "Error desconocido"));
 			setCanales([]);
 		} finally {
 			setIsLoading(false);
@@ -63,8 +64,8 @@ export function useCanales(
 			await getCanales();
 			notificar.success(`[Canales] Registro #${result.id} creado`);
 			return result;
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al crear");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al crear"));
 			throw e;
 		}
 	};
@@ -76,8 +77,8 @@ export function useCanales(
 			await getCanales();
 			notificar.success(ids.length === 1 ? `[Canales] Registro #${ids[0]} eliminado` : `[Canales] ${ids.length} registros eliminados`);
 			return true;
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al eliminar");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al eliminar"));
 			throw e;
 		}
 	};
@@ -91,8 +92,8 @@ export function useCanales(
 			setCanales((prev) => prev.map((c) => (c.id === id ? { ...c, ...actualizado } : c)));
 			notificar.success(`[Canales] Registro #${id} actualizado`);
 			return true;
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al actualizar");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al actualizar"));
 			throw e;
 		}
 	};

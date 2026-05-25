@@ -93,16 +93,25 @@ public interface ProductoCanalPrecioRepository extends JpaRepository<ProductoCan
 
     /**
      * Resumen agrupado por motivo para construir el snapshot del banner.
-     * Devuelve filas con: motivo, cantidad, ultima_fecha.
+     * Devuelve filas con: motivo, cantidad_de_productos_unicos, ultima_fecha.
+     *
+     * <p>Se cuenta {@code COUNT(DISTINCT producto.id)} (no filas) para que el conteo
+     * mostrado al usuario coincida con el contador principal del banner ("N producto
+     * pendiente"). Cada producto típicamente tiene varias filas en
+     * {@code producto_canal_precios} (canal × cuotas); contarlas todas daría números
+     * inflados y confusos (ej.: 16x por 1 solo producto marcado).
      */
-    @Query("SELECT p.motivoObsoleto, COUNT(p), MAX(p.marcadoObsoletoAt) FROM ProductoCanalPrecio p " +
+    @Query("SELECT p.motivoObsoleto, COUNT(DISTINCT p.producto.id), MAX(p.marcadoObsoletoAt) " +
+           "FROM ProductoCanalPrecio p " +
            "WHERE p.obsoleto = TRUE AND p.motivoObsoleto IS NOT NULL " +
-           "GROUP BY p.motivoObsoleto ORDER BY COUNT(p) DESC")
+           "GROUP BY p.motivoObsoleto ORDER BY COUNT(DISTINCT p.producto.id) DESC")
     List<Object[]> resumenObsoletosPorMotivo();
 
     boolean existsByCanalIdAndCuotas(Integer canalId, Integer cuotas);
 
     boolean existsByCanalId(Integer canalId);
+
+    boolean existsByProductoId(Integer productoId);
 
     void deleteByProductoIdAndCanalIdAndCuotasNotIn(Integer productoId, Integer canalId, List<Integer> cuotas);
 

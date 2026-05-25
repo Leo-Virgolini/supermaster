@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useState, useEffect, useCallback } from "react";
 import { notificar } from "../utils/notificar";
 import {
@@ -42,8 +43,8 @@ export function useMlas(
 			);
 			setMlas(json.content || []);
 			setTotalRecords(json.page?.totalElements || 0);
-		} catch (err: any) {
-			setError(err.message || "Error desconocido");
+		} catch (err: unknown) {
+			setError(getErrorMessage(err, "Error desconocido"));
 			setMlas([]);
 		} finally {
 			if (!silent) setIsLoading(false);
@@ -60,8 +61,8 @@ export function useMlas(
 			await getMlas();
 			notificar.success(`[MLAs] Registro #${result.id} creado`);
 			return true;
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al crear");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al crear"));
 			throw e;
 		}
 	};
@@ -73,8 +74,8 @@ export function useMlas(
 			await getMlas();
 			notificar.success(ids.length === 1 ? `[MLAs] Registro #${ids[0]} eliminado` : `[MLAs] ${ids.length} registros eliminados`);
 			return true;
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al eliminar");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al eliminar"));
 			throw e;
 		}
 	};
@@ -88,8 +89,8 @@ export function useMlas(
 			setMlas((prev) => prev.map((m) => (m.id === id ? { ...m, ...actualizado } : m)));
 			notificar.success(`[MLAs] Registro #${id} actualizado`);
 			return true;
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al actualizar");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al actualizar"));
 			throw e;
 		}
 	};

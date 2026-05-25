@@ -49,7 +49,7 @@ export default function RecalculoPendienteBanner() {
                     Recálculo pendiente
                 </span>
                 <span className="text-xs text-amber-700 dark:text-amber-300">
-                    {scopeLabel} pendiente{estado.recalcularTodo || estado.cantidad === 1 ? "" : "s"}
+                    {scopeLabel} pendiente{estado.cantidad === 1 ? "" : "s"}
                 </span>
                 <button
                     type="button"

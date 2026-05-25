@@ -20,6 +20,7 @@ import ar.com.leo.super_master_backend.dominio.canal.repository.CanalConceptoReg
 import ar.com.leo.super_master_backend.dominio.canal.repository.CanalConceptoRepository;
 import ar.com.leo.super_master_backend.dominio.canal.repository.CanalRepository;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
+import ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService;
 import ar.com.leo.super_master_backend.dominio.concepto_calculo.entity.ConceptoCalculo;
 import ar.com.leo.super_master_backend.dominio.concepto_calculo.repository.ConceptoCalculoRepository;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +33,7 @@ public class CanalConceptoServiceImpl implements CanalConceptoService {
     private final CanalConceptoReglaRepository canalConceptoReglaRepository;
     private final CanalRepository canalRepository;
     private final ConceptoCalculoRepository conceptoRepository;
-    private final ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService recalculoPendienteService;
+    private final RecalculoPendienteService recalculoPendienteService;
     private final CanalConceptoMapper canalConceptoMapper;
     private final CanalScopeService canalScopeService;
     private final AuditoriaService auditoriaService;

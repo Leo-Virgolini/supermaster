@@ -1,4 +1,5 @@
 "use client";
+import { getErrorMessage } from "@/lib/errors";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { notificar } from "../utils/notificar";
@@ -228,8 +229,8 @@ export default function SimuladorForm({ canalId, cuotas }: SimuladorFormProps) {
             setError(null);
             const infladoMsg = snap.precioInfladoCodigo ? ` · regla inflado: ${snap.precioInfladoCodigo}` : "";
             toast.success(`Cargado: ${snap.sku}${infladoMsg}`);
-        } catch (e: any) {
-            toast.error(e?.message ?? "Error al cargar producto");
+        } catch (e: unknown) {
+            toast.error(getErrorMessage(e, "Error al cargar producto"));
         } finally {
             setIsLoadingProducto(false);
         }
@@ -284,8 +285,8 @@ export default function SimuladorForm({ canalId, cuotas }: SimuladorFormProps) {
             };
             const res = await simularPrecioAPI(input);
             setResultado(res);
-        } catch (e: any) {
-            const msg = e?.message ?? "Error al simular";
+        } catch (e: unknown) {
+            const msg = getErrorMessage(e, "Error al simular");
             setError(msg);
             notificar.error(msg);
             setResultado(null);

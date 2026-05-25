@@ -1,4 +1,5 @@
 "use client";
+import { getErrorMessage } from "@/lib/errors";
 import { useState, useEffect, useCallback } from "react";
 import { notificar } from "../utils/notificar";
 import {
@@ -54,8 +55,8 @@ export function useClientes(
 			const result = await createClienteAPI(data, "FORM");
 			await getClientes();
 			notificar.success(`[Clientes] Registro #${result.id} creado`);
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al crear");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al crear"));
 			throw e;
 		}
 	};
@@ -68,8 +69,8 @@ export function useClientes(
 			const actualizado: ClienteDTO = await updateClienteAPI(id, data, "INLINE");
 			setClientes((prev) => prev.map((c) => (c.id === id ? { ...c, ...actualizado } : c)));
 			notificar.success(`[Clientes] Registro #${id} actualizado`);
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al actualizar");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al actualizar"));
 			throw e;
 		}
 	};
@@ -79,8 +80,8 @@ export function useClientes(
 			await Promise.all(ids.map((id) => deleteClienteAPI(id, "TABLE")));
 			await getClientes();
 			notificar.success(ids.length === 1 ? `[Clientes] Registro #${ids[0]} eliminado` : `[Clientes] ${ids.length} registros eliminados`);
-		} catch (e: any) {
-			notificar.error(e?.message || "Error al eliminar");
+		} catch (e: unknown) {
+			notificar.error(getErrorMessage(e, "Error al eliminar"));
 			throw e;
 		}
 	};

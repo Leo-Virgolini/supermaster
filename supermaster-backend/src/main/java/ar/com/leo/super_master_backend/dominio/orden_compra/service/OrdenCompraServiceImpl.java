@@ -5,6 +5,7 @@ import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaEntidad
 import ar.com.leo.super_master_backend.dominio.auditoria.service.AuditoriaService;
 import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
+import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 import ar.com.leo.super_master_backend.dominio.orden_compra.dto.*;
 import ar.com.leo.super_master_backend.dominio.orden_compra.entity.EstadoOrdenCompra;
 import ar.com.leo.super_master_backend.dominio.orden_compra.entity.OrdenCompra;
@@ -345,20 +346,7 @@ public class OrdenCompraServiceImpl implements OrdenCompraService {
                 && !presente(patchDto.getLineas());
     }
 
-    private String leerStringOpcional(JsonNullable<String> campo, String field, int maxLength) {
-        Object value = valor(campo);
-        if (value == null) {
-            return null;
-        }
-        if (!(value instanceof String text)) {
-            throw new BadRequestException("El campo '" + field + "' debe ser texto");
-        }
-        if (text.length() > maxLength) {
-            throw new BadRequestException("El campo '" + field + "' no puede exceder " + maxLength + " caracteres");
-        }
-        return text;
-    }
-
+    /** Específico: lista anidada con validación por elemento (productoId + cantidadPedida + costoUnitario). */
     private List<OrdenCompraLineaCreateDTO> leerLineasRequeridas(JsonNullable<List<OrdenCompraLineaCreateDTO>> campo, String field) {
         Object value = valor(campo);
         if (!(value instanceof List<?> list)) {
@@ -381,14 +369,6 @@ public class OrdenCompraServiceImpl implements OrdenCompraService {
             }
         }
         return lineas;
-    }
-
-    private boolean presente(JsonNullable<?> campo) {
-        return campo == null || campo.isPresent();
-    }
-
-    private Object valor(JsonNullable<?> campo) {
-        return campo == null ? null : campo.orElse(null);
     }
 
     private Map<String, String> capturarSnapshot(OrdenCompra oc) {
@@ -425,8 +405,5 @@ public class OrdenCompraServiceImpl implements OrdenCompraService {
                 .collect(Collectors.joining(" | "));
     }
 
-    private String normalizar(Object value) {
-        return value == null ? null : String.valueOf(value);
-    }
 }
 

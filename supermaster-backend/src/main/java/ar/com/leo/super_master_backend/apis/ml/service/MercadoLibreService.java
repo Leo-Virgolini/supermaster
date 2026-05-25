@@ -18,6 +18,7 @@ import ar.com.leo.super_master_backend.dominio.auditoria.service.AuditoriaServic
 import ar.com.leo.super_master_backend.dominio.canal.entity.Canal;
 import ar.com.leo.super_master_backend.dominio.canal.repository.CanalRepository;
 import ar.com.leo.super_master_backend.dominio.common.dto.ProcesoMasivoEstadoDTO;
+import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
 import ar.com.leo.super_master_backend.dominio.common.exception.ServiceNotConfiguredException;
 import ar.com.leo.super_master_backend.dominio.producto.calculo.dto.PrecioCalculadoDTO;
@@ -158,14 +159,14 @@ public class MercadoLibreService {
      * El cálculo es iterativo: al agregar el costo de envío, el PVP puede cambiar
      * de tier, requiriendo recalcular hasta estabilizar.
      *
-     * <p>{@code noRollbackFor = NotFoundException.class}: el motor de cálculo
-     * ({@code calcularPrecioCanalConEnvio} es {@code @Transactional(readOnly=true)})
-     * puede tirar {@link NotFoundException} si el producto no tiene márgenes / canal
-     * / conceptos configurados. Atrapamos la excepción y la transformamos en un DTO
+     * <p>{@code noRollbackFor}: el motor de cálculo ({@code calcularPrecioCanalConEnvio}
+     * es {@code @Transactional(readOnly=true)}) puede tirar {@link NotFoundException}
+     * (sin márgenes/canal/conceptos) o {@link BadRequestException} (sin costo/iva o
+     * producto no aplica al canal). Atrapamos la excepción y la transformamos en un DTO
      * con error, pero sin {@code noRollbackFor} la transacción quedaría marcada
      * rollback-only y Spring tiraría {@code UnexpectedRollbackException} al commit.
      */
-    @Transactional(noRollbackFor = NotFoundException.class)
+    @Transactional(noRollbackFor = {NotFoundException.class, BadRequestException.class})
     public CostoEnvioResponseDTO calcularCostoEnvioGratis(String mlaCode) {
         final int MAX_ITERACIONES = 10;
 

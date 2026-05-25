@@ -7,6 +7,7 @@ import ar.com.leo.super_master_backend.apis.dux.dto.ExportDuxResultDTO;
 import ar.com.leo.super_master_backend.apis.dux.dto.ImportDuxResultDTO;
 import ar.com.leo.super_master_backend.apis.dux.model.*;
 import ar.com.leo.super_master_backend.dominio.common.dto.ProcesoMasivoEstadoDTO;
+import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
 import ar.com.leo.super_master_backend.dominio.common.exception.ServiceNotConfiguredException;
 import ar.com.leo.super_master_backend.dominio.common.service.EstadoProcesoMasivo;
@@ -698,10 +699,10 @@ public class DuxService {
      * @return resultado de la importación
      */
     // noRollbackFor: el motor de cálculo (recalcularProductoEnTodosLosCanales) es @Transactional
-    // y puede tirar NotFoundException si el producto no tiene márgenes/canal/conceptos.
+    // y puede tirar NotFoundException (sin márgenes/canal) o BadRequestException (sin costo/iva).
     // El catch del loop atrapa la excepción pero sin noRollbackFor la tx outer quedaría
     // marcada rollback-only y al commit se tiraría UnexpectedRollbackException.
-    @Transactional(noRollbackFor = NotFoundException.class)
+    @Transactional(noRollbackFor = {NotFoundException.class, BadRequestException.class})
     public ImportDuxResultDTO importarProductosSincrono(AtomicBoolean cancelFlag,
                                                         java.util.function.Consumer<String> logCallback,
                                                         LocalDateTime desde) {

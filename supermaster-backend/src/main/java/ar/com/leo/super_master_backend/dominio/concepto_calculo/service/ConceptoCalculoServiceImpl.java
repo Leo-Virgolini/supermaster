@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import ar.com.leo.super_master_backend.dominio.canal.repository.CanalConceptoRepository;
+import ar.com.leo.super_master_backend.dominio.canal.service.CanalScopeService;
 import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
 import ar.com.leo.super_master_backend.dominio.common.exception.ConflictException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
@@ -27,6 +28,7 @@ import ar.com.leo.super_master_backend.dominio.concepto_calculo.entity.ConceptoC
 import ar.com.leo.super_master_backend.dominio.concepto_calculo.mapper.ConceptoCalculoMapper;
 import ar.com.leo.super_master_backend.dominio.concepto_calculo.repository.ConceptoCalculoRepository;
 import ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService;
+import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 import lombok.RequiredArgsConstructor;
 import org.openapitools.jackson.nullable.JsonNullable;
 
@@ -39,7 +41,7 @@ public class ConceptoCalculoServiceImpl implements ConceptoCalculoService {
     private final ConceptoCalculoMapper mapper;
     private final AuditoriaService auditoriaService;
     private final CanalConceptoRepository canalConceptoRepository;
-    private final ar.com.leo.super_master_backend.dominio.canal.service.CanalScopeService canalScopeService;
+    private final CanalScopeService canalScopeService;
 
     @Override
     @Transactional(readOnly = true)
@@ -179,46 +181,16 @@ public class ConceptoCalculoServiceImpl implements ConceptoCalculoService {
     }
 
 
-    private String leerStringRequerido(JsonNullable<String> campo, String field, int maxLength) {
-        Object value = valor(campo);
-        if (!(value instanceof String text)) {
-            throw new BadRequestException("El campo '" + field + "' es requerido y debe ser texto");
-        }
-        if (text.length() > maxLength) {
-            throw new BadRequestException("El campo '" + field + "' no puede exceder " + maxLength + " caracteres");
-        }
-        return text;
-    }
-
-    private String leerStringOpcional(JsonNullable<String> campo, String field, int maxLength) {
-        Object value = valor(campo);
-        if (value == null) {
-            return null;
-        }
-        if (!(value instanceof String text)) {
-            throw new BadRequestException("El campo '" + field + "' debe ser texto");
-        }
-        if (text.length() > maxLength) {
-            throw new BadRequestException("El campo '" + field + "' no puede exceder " + maxLength + " caracteres");
-        }
-        return text;
-    }
-
+    /** Específico: porcentaje bidireccional (-100, 100), no [0, 100] como el común. */
     private BigDecimal leerPorcentajeOpcional(JsonNullable<BigDecimal> campo, String field) {
-        Object value = valor(campo);
-        if (value == null) {
-            return null;
-        }
-        if (!(value instanceof Number number)) {
-            throw new BadRequestException("El campo '" + field + "' debe ser numérico");
-        }
-        BigDecimal decimal = new BigDecimal(number.toString());
-        if (decimal.compareTo(BigDecimal.valueOf(-100)) < 0 || decimal.compareTo(BigDecimal.valueOf(100)) > 0) {
+        BigDecimal decimal = leerDecimalOpcional(campo, field);
+        if (decimal != null && (decimal.compareTo(BigDecimal.valueOf(-100)) < 0 || decimal.compareTo(BigDecimal.valueOf(100)) > 0)) {
             throw new BadRequestException("El campo '" + field + "' debe estar entre -100 y 100");
         }
         return decimal;
     }
 
+    /** Específico: deserializa enum desde String (no desde JsonNullable&lt;E&gt; tipado). */
     private <E extends Enum<E>> E leerEnumRequerido(JsonNullable<String> campo, String field, Class<E> enumClass) {
         Object value = valor(campo);
         if (!(value instanceof String text)) {
@@ -231,14 +203,6 @@ public class ConceptoCalculoServiceImpl implements ConceptoCalculoService {
         }
     }
 
-    private boolean presente(JsonNullable<?> campo) {
-        return campo == null || campo.isPresent();
-    }
-
-    private Object valor(JsonNullable<?> campo) {
-        return campo == null ? null : campo.orElse(null);
-    }
-
     private Map<String, String> capturarSnapshot(ConceptoCalculo concepto) {
         LinkedHashMap<String, String> snapshot = new LinkedHashMap<>();
         snapshot.put("nombre", normalizar(concepto.getNombre()));
@@ -246,10 +210,6 @@ public class ConceptoCalculoServiceImpl implements ConceptoCalculoService {
         snapshot.put("aplicaSobre", concepto.getAplicaSobre() == null ? null : concepto.getAplicaSobre().name());
         snapshot.put("descripcion", normalizar(concepto.getDescripcion()));
         return snapshot;
-    }
-
-    private String normalizar(Object value) {
-        return value == null ? null : String.valueOf(value);
     }
 
 }

@@ -14,7 +14,15 @@ public interface MarcaMapper {
     // ENTITY → DTO
     // =============================
     @Mapping(source = "padre.id", target = "padreId")
+    @Mapping(target = "nombreCompleto", expression = "java(buildNombreCompleto(entity))")
     MarcaDTO toDTO(Marca entity);
+
+    /** Construye "ABUELO > PADRE > HIJO" navegando recursivamente la cadena de padres. */
+    default String buildNombreCompleto(Marca m) {
+        if (m == null) return null;
+        if (m.getPadre() == null) return m.getNombre();
+        return buildNombreCompleto(m.getPadre()) + " > " + m.getNombre();
+    }
 
     // =============================
     // CREATE DTO → ENTITY

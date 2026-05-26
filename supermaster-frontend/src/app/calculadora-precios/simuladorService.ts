@@ -106,7 +106,8 @@ export const searchProductosForSimulacionAPI = async (query: string): Promise<{ 
 async function resolveNombre(endpoint: string, id: number | null | undefined, existing?: string | null): Promise<string> {
     if (existing) return existing;
     if (id == null) return "";
-    return getNombreById(endpoint, id, "nombre");
+    const info = await getNombreById(endpoint, id, "nombre");
+    return info.nombre;
 }
 
 // Trae los datos del producto (con sus IDs y nombres flattened), su margen, los datos

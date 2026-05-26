@@ -18,6 +18,7 @@ type NavItemProps = {
     color?: NavColor;
     isFavorite?: boolean;
     onToggleFavorite?: () => void;
+    external?: boolean;
     children: ReactNode;
 };
 
@@ -49,19 +50,35 @@ const iconBgToneMap: Record<NavColor, string> = {
     fuchsia: "group-hover:bg-fuchsia-50 dark:group-hover:bg-fuchsia-500/12",
 };
 
-const NavItem = ({ href, label, isActive, color = "slate", isFavorite = false, onToggleFavorite, children }: NavItemProps) => {
+const NavItem = ({ href, label, isActive, color = "slate", isFavorite = false, onToggleFavorite, external = false, children }: NavItemProps) => {
     const FavoriteIcon = isFavorite ? StarSolidIcon : StarOutlineIcon;
+
+    const linkClassName = `relative flex items-center gap-2 px-2 py-1.5 rounded-xl border text-sm font-medium transition-all duration-200 ${
+        isActive
+            ? "border-blue-500/80 bg-blue-600 text-white shadow-[0_10px_24px_-14px_rgba(37,99,235,0.9)] dark:border-blue-400/70 dark:bg-blue-500 dark:shadow-[0_12px_28px_-16px_rgba(59,130,246,0.7)]"
+            : "border-transparent text-gray-700 dark:text-slate-200 hover:-translate-y-[1px] hover:border-blue-100 hover:bg-gradient-to-r hover:from-blue-50 hover:to-white hover:text-slate-900 hover:shadow-[0_10px_24px_-20px_rgba(37,99,235,0.45)] dark:hover:border-slate-600 dark:hover:from-slate-800 dark:hover:to-slate-800/90 dark:hover:text-white dark:hover:shadow-[0_12px_28px_-20px_rgba(15,23,42,0.8)]"
+    }`;
+
+    const LinkOrAnchor = external
+        ? ({ children: linkChildren }: { children: ReactNode }) => (
+            <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={linkClassName}
+            >
+                {linkChildren}
+            </a>
+        )
+        : ({ children: linkChildren }: { children: ReactNode }) => (
+            <Link href={href} className={linkClassName}>
+                {linkChildren}
+            </Link>
+        );
 
     return (
         <div className="group">
-            <Link
-                href={href}
-                className={`relative flex items-center gap-2 px-2 py-1.5 rounded-xl border text-sm font-medium transition-all duration-200 ${
-                    isActive
-                        ? "border-blue-500/80 bg-blue-600 text-white shadow-[0_10px_24px_-14px_rgba(37,99,235,0.9)] dark:border-blue-400/70 dark:bg-blue-500 dark:shadow-[0_12px_28px_-16px_rgba(59,130,246,0.7)]"
-                        : "border-transparent text-gray-700 dark:text-slate-200 hover:-translate-y-[1px] hover:border-blue-100 hover:bg-gradient-to-r hover:from-blue-50 hover:to-white hover:text-slate-900 hover:shadow-[0_10px_24px_-20px_rgba(37,99,235,0.45)] dark:hover:border-slate-600 dark:hover:from-slate-800 dark:hover:to-slate-800/90 dark:hover:text-white dark:hover:shadow-[0_12px_28px_-20px_rgba(15,23,42,0.8)]"
-                }`}
-            >
+            <LinkOrAnchor>
                 <span className={`flex size-7 shrink-0 items-center justify-center rounded-md transition-colors ${
                     isActive
                         ? "bg-white/15 text-white"
@@ -89,7 +106,7 @@ const NavItem = ({ href, label, isActive, color = "slate", isFavorite = false, o
                         <FavoriteIcon className="size-4" />
                     </button>
                 ) : null}
-            </Link>
+            </LinkOrAnchor>
         </div>
     );
 };
@@ -185,6 +202,7 @@ const Sidebar = () => {
                                         isActive={isActive(item.href)}
                                         color={item.color}
                                         isFavorite
+                                        external={item.external}
                                         onToggleFavorite={() => toggleFavorite(item.href)}
                                     >
                                         <Icon className="size-4" />
@@ -222,6 +240,7 @@ const Sidebar = () => {
                                                             isActive={isActive(item.href)}
                                                             color={item.color}
                                                             isFavorite={favoriteHrefs.includes(item.href)}
+                                                            external={item.external}
                                                             onToggleFavorite={() => toggleFavorite(item.href)}
                                                         >
                                                             <Icon className="size-4" />
@@ -241,6 +260,7 @@ const Sidebar = () => {
                                                                     isActive={isActive(child.href)}
                                                                     color={child.color}
                                                                     isFavorite={favoriteHrefs.includes(child.href)}
+                                                                    external={child.external}
                                                                     onToggleFavorite={() => toggleFavorite(child.href)}
                                                                 >
                                                                     <ChildIcon className="size-4" />
@@ -257,6 +277,7 @@ const Sidebar = () => {
                                                 isActive={isActive(item.href)}
                                                 color={item.color}
                                                 isFavorite={favoriteHrefs.includes(item.href)}
+                                                external={item.external}
                                                 onToggleFavorite={() => toggleFavorite(item.href)}
                                             >
                                                 <Icon className="size-4" />

@@ -77,12 +77,10 @@ public class DuxService {
 
     // Trackers reusables: estado + locks + supplier de progreso al SSE.
     private EstadoProcesoMasivo trackerImportacion;
-    private EstadoProcesoMasivo trackerObtencion;
     private EstadoProcesoMasivo trackerDeudas;
 
     // Resultados de las últimas ejecuciones (consultables post-finalización).
     private volatile ImportDuxResultDTO resultadoImportacion = null;
-    private volatile List<Item> resultadoObtencion = null;
     private volatile Map<String, Object> resultadoDeudas = null;
     private volatile DeudasConsultaParams paramsDeudasActual = null;
 
@@ -112,8 +110,6 @@ public class DuxService {
                 BASE_WAIT_MS,
                 properties.rateLimitPerSecond()
         );
-        this.trackerObtencion = new EstadoProcesoMasivo(
-                "dux-obtencion", "Obtención de productos DUX", procesoGlobal);
         this.trackerImportacion = new EstadoProcesoMasivo(
                 "dux-importacion", "Importación de productos DUX", procesoGlobal);
         this.trackerDeudas = new EstadoProcesoMasivo(
@@ -341,16 +337,17 @@ public class DuxService {
                 }
 
                 intentosVacios++;
-                log.warn("DUX - Respuesta vacía en offset {} (intento {}/{})",
+                log.warn("DUX - Respuesta vacía en offset {} (intento {}/{}). Reintentando mismo offset.",
                         offset, intentosVacios, MAX_INTENTOS_VACIOS);
 
                 if (intentosVacios >= MAX_INTENTOS_VACIOS) {
-                    log.warn("DUX - Terminando después de {} intentos vacíos. Obtenidos: {}/{}",
-                            MAX_INTENTOS_VACIOS, allItems.size(), total);
+                    log.warn("DUX - Terminando después de {} intentos vacíos en offset {}. Obtenidos: {}/{}",
+                            MAX_INTENTOS_VACIOS, offset, allItems.size(), total);
                     break;
                 }
 
-                offset += limit;
+                // No avanzar el offset: reintentar el mismo bloque para evitar
+                // saltarse items si la página vacía es un blip transitorio.
                 continue;
             }
 
@@ -373,8 +370,28 @@ public class DuxService {
             }
         }
 
-        log.info("DUX - Descarga completa: {} productos", allItems.size());
-        return allItems;
+        // Dedupe por cod_item: cuando se filtra por `fecha` y hay escrituras concurrentes,
+        // el paging.total puede variar entre páginas y el mismo item aparecer dos veces.
+        // Conservamos la última ocurrencia (la más reciente en la iteración).
+        int antesDedupe = allItems.size();
+        Map<String, Item> dedupePorCodigo = new LinkedHashMap<>();
+        for (Item it : allItems) {
+            String key = (it.getCodItem() != null) ? it.getCodItem().trim() : null;
+            if (key == null || key.isEmpty()) {
+                // Sin código no podemos deduplicar; lo conservamos con clave única.
+                dedupePorCodigo.put("__sinCod_" + System.identityHashCode(it), it);
+            } else {
+                dedupePorCodigo.put(key, it);
+            }
+        }
+        List<Item> resultado = new ArrayList<>(dedupePorCodigo.values());
+        if (resultado.size() != antesDedupe) {
+            log.info("DUX - Dedupe aplicado: {} → {} items ({} duplicados removidos)",
+                    antesDedupe, resultado.size(), antesDedupe - resultado.size());
+        }
+
+        log.info("DUX - Descarga completa: {} productos", resultado.size());
+        return resultado;
     }
 
     /**
@@ -383,7 +400,7 @@ public class DuxService {
     public Item obtenerProductoPorCodigo(String codItem) {
         verificarTokens();
 
-        String response = retryHandler.get("/items?cod_item=" + codItem, tokens.token);
+        String response = retryHandler.get("/items?codigoItem=" + codItem, tokens.token);
 
         if (response == null) {
             return null;
@@ -399,63 +416,6 @@ public class DuxService {
         }
 
         return null;
-    }
-
-    // =====================================================
-    // OBTENER PRODUCTOS (async)
-    // =====================================================
-
-    /**
-     * Inicia la obtención de todos los productos de DUX en background.
-     *
-     * @return true si se inició, false si ya hay una obtención en ejecución
-     */
-    public boolean iniciarObtenerProductos() {
-        if (!trackerObtencion.adquirir()) {
-            log.warn("DUX - No se pudo iniciar obtención: ya en ejecución u otro proceso DUX activo");
-            return false;
-        }
-        resultadoObtencion = null;
-        self.obtenerProductosAsync();
-        return true;
-    }
-
-    /**
-     * Obtiene todos los productos de DUX de forma asincrónica.
-     */
-    @Async
-    public void obtenerProductosAsync() {
-        try {
-            trackerObtencion.actualizar("Obteniendo productos de DUX...");
-            List<Item> items = obtenerProductos(trackerObtencion.getFlagCancelado(), null);
-            resultadoObtencion = items;
-            String tag = trackerObtencion.estaCancelado() ? "cancelado" : "completado";
-            trackerObtencion.completar(items.size(), items.size(), 0,
-                    String.format("Proceso %s. %d productos obtenidos.", tag, items.size()));
-        } catch (Exception e) {
-            log.error("DUX - Error obteniendo productos: {}", e.getMessage(), e);
-            resultadoObtencion = null;
-            trackerObtencion.completarConError(e.getMessage());
-        } finally {
-            trackerObtencion.liberar();
-        }
-    }
-
-    public boolean cancelarObtencionProductos() {
-        if (trackerObtencion.estaEjecutando()) {
-            trackerObtencion.cancelar();
-            log.info("DUX - Solicitud de cancelación de obtención de productos recibida");
-            return true;
-        }
-        return false;
-    }
-
-    public ProcesoMasivoEstadoDTO obtenerEstadoObtencionProductos() {
-        return trackerObtencion.obtener();
-    }
-
-    public List<Item> obtenerResultadoObtencionProductos() {
-        return resultadoObtencion;
     }
 
     // =====================================================
@@ -1229,24 +1189,32 @@ public class DuxService {
 
         for (Item item : items) {
             if (item.getCodItem() == null || item.getCodItem().isBlank()) continue;
-
-            int stockTotal = 0;
-            if (item.getStock() != null) {
-                for (Stock stock : item.getStock()) {
-                    if (stock.getStockDisponible() != null && !stock.getStockDisponible().isBlank()) {
-                        try {
-                            stockTotal += Integer.parseInt(stock.getStockDisponible().replace(",", ".").split("\\.")[0]);
-                        } catch (NumberFormatException e) {
-                            // Ignorar valores no numéricos
-                        }
-                    }
-                }
-            }
-            stockMap.put(item.getCodItem().trim(), stockTotal);
+            stockMap.put(item.getCodItem().trim(), sumarStockTotal(item.getStock()));
         }
 
         log.info("DUX - Stock obtenido para {} SKUs", stockMap.size());
         return stockMap;
+    }
+
+    /**
+     * Suma stockDisponible de todas las entradas de stock preservando decimales
+     * durante la suma y redondeando solo al final (HALF_UP). Evita la pérdida
+     * silenciosa que ocurre al truncar cada valor individual antes de sumar
+     * (ej: 3 depósitos con 0,4 daban 0 en vez de 1).
+     */
+    private int sumarStockTotal(List<Stock> stocks) {
+        if (stocks == null) return 0;
+        BigDecimal total = BigDecimal.ZERO;
+        for (Stock stock : stocks) {
+            String valor = stock.getStockDisponible();
+            if (valor == null || valor.isBlank()) continue;
+            try {
+                total = total.add(new BigDecimal(valor.replace(",", ".")));
+            } catch (NumberFormatException e) {
+                // Ignorar valores no numéricos
+            }
+        }
+        return total.setScale(0, RoundingMode.HALF_UP).intValue();
     }
 
     /**
@@ -1265,18 +1233,7 @@ public class DuxService {
         for (Item item : items) {
             if (item.getCodItem() == null || item.getCodItem().isBlank()) continue;
 
-            int stockTotal = 0;
-            if (item.getStock() != null) {
-                for (Stock stock : item.getStock()) {
-                    if (stock.getStockDisponible() != null && !stock.getStockDisponible().isBlank()) {
-                        try {
-                            stockTotal += Integer.parseInt(stock.getStockDisponible().replace(",", ".").split("\\.")[0]);
-                        } catch (NumberFormatException e) {
-                            // Ignorar valores no numéricos
-                        }
-                    }
-                }
-            }
+            int stockTotal = sumarStockTotal(item.getStock());
 
             BigDecimal costo = null;
             if (item.getCosto() != null && !item.getCosto().isBlank()) {

@@ -36,24 +36,97 @@ import {
     CreditCardIcon,
     ClipboardDocumentListIcon,
     SparklesIcon,
+    BookOpenIcon,
+    FunnelIcon,
+    PlusIcon,
+    XMarkIcon,
+    InformationCircleIcon,
 } from "@heroicons/react/24/outline";
+import Tooltip from "../components/Tooltip/Tooltip";
 import { toast } from "sonner";
 import { notificar } from "../utils/notificar";
 import Link from "next/link";
-import type { SyncRequest } from "./types";
+import type { SyncSteps } from "./types";
 
-type StepDef = { key: keyof SyncRequest; label: string; description: string; icon: React.ComponentType<React.SVGProps<SVGSVGElement>> };
+type StepDef = {
+    key: keyof SyncSteps;
+    label: string;
+    description: string;
+    tooltip: string;
+    icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+};
 
 const STEPS: StepDef[] = [
-    { key: "importarCostosDux", label: "Importar costos de DUX", description: "Descarga productos desde DUX ERP y actualiza costos, IVA, proveedor y descripción", icon: ArrowDownTrayIcon },
-    { key: "generarEnvio", label: "Generar precios de envío en Super Master", description: "Calcula el costo de envío para MLAs que aún no tienen precio de envío asignado", icon: TruckIcon },
-    { key: "excluirPromociones", label: "Quitar promociones en ML", description: "Remueve items de todas las promociones activas antes de actualizar precios", icon: XCircleIcon },
-    { key: "duxMl", label: "Subir a DUX (Mercado Libre)", description: "Actualiza la lista de precios de Mercado Libre en DUX", icon: ArrowUpTrayIcon },
-    { key: "duxGastro", label: "Subir a DUX (KT Gastro)", description: "Actualiza la lista de precios de KT Gastro en DUX", icon: ArrowUpTrayIcon },
-    { key: "duxNube", label: "Subir a DUX (KT Hogar)", description: "Actualiza la lista de precios de KT Hogar en DUX", icon: ArrowUpTrayIcon },
-    { key: "preciosNube", label: "Subir a Tienda Nube (KT Hogar)", description: "Actualiza precios directamente en TiendaNube KT Hogar", icon: CloudArrowUpIcon },
-    { key: "preciosMl", label: "Modificar precios en ML", description: "Modifica los precios de las publicaciones en Mercado Libre", icon: CurrencyDollarIcon },
-    { key: "incluirPromociones", label: "Incluir en promociones ML", description: "Agrega items a las promociones disponibles (DEAL, Seller Campaign, Smart)", icon: StarIcon },
+    {
+        key: "importarCostosDux",
+        label: "Importar costos de DUX",
+        description: "Descarga productos desde DUX ERP y actualiza costos, IVA, proveedor y descripción",
+        tooltip: "Descarga desde DUX los productos modificados (costo, IVA, proveedor, descripción) desde la última ejecución y actualiza la base de datos de Super Master. Solo se actualizan los productos cuyo SKU ya existe; los que no están en la base se omiten. La fecha de última importación se persiste para que la próxima corrida sea incremental.",
+        icon: ArrowDownTrayIcon,
+    },
+    {
+        key: "bajarTitulosNube",
+        label: "Sincronizar títulos KT Gastro desde Tienda Nube",
+        description: "Descarga los títulos de productos de Tienda Nube (KT Gastro) y actualiza el campo Título Web en Super Master",
+        tooltip: "Descarga el catálogo completo de KT Gastro desde Tienda Nube y actualiza el campo 'Título Web' de los productos en Super Master, matcheando por SKU. Las variantes del mismo producto comparten título. Se ejecuta antes del cálculo de precios para que los exports salgan con los títulos al día. Solo se persisten los títulos que efectivamente cambiaron.",
+        icon: BookOpenIcon,
+    },
+    {
+        key: "generarEnvio",
+        label: "Generar precios de envío en Super Master",
+        description: "Calcula el costo de envío para MLAs que aún no tienen precio de envío asignado",
+        tooltip: "Calcula el costo del envío gratis que absorbe el vendedor para los MLAs que todavía no tienen precio de envío asignado. Si al sumar el envío el PVP cambia de tramo (gratis/no gratis), itera hasta estabilizarse (máximo 10 iteraciones) y persiste el costo final. Para publicaciones pausadas usa las dimensiones como fallback en lugar del item_id.",
+        icon: TruckIcon,
+    },
+    {
+        key: "excluirPromociones",
+        label: "Quitar promociones en ML",
+        description: "Remueve items de todas las promociones activas antes de actualizar precios",
+        tooltip: "Quita las publicaciones que van a cambiar de precio de todas sus promociones. Se hace antes del cambio de precio para evitar rechazos de Mercado Libre y para que, al re-incluirlas, el descuento de cada promo se calcule sobre el nuevo precio base. Los items en under_review se saltan porque ML rechaza la operación en ese estado.",
+        icon: XCircleIcon,
+    },
+    {
+        key: "duxMl",
+        label: "Subir a DUX (Mercado Libre)",
+        description: "Actualiza la lista de precios de Mercado Libre en DUX",
+        tooltip: "Sube al DUX la lista de precios 'MERCADO LIBRE' usando los valores calculados en Super Master. El envío se hace en un único request bulk con todos los productos.",
+        icon: ArrowUpTrayIcon,
+    },
+    {
+        key: "duxGastro",
+        label: "Subir a DUX (KT Gastro)",
+        description: "Actualiza la lista de precios de KT Gastro en DUX",
+        tooltip: "Sube al DUX la lista de precios 'KT GASTRO' usando los valores calculados en Super Master. El envío se hace en un único request bulk con todos los productos.",
+        icon: ArrowUpTrayIcon,
+    },
+    {
+        key: "duxNube",
+        label: "Subir a DUX (KT Hogar)",
+        description: "Actualiza la lista de precios de KT Hogar en DUX",
+        tooltip: "Sube al DUX la lista de precios 'KT HOGAR' (Tienda Nube) usando los valores calculados en Super Master. El envío se hace en un único request bulk con todos los productos.",
+        icon: ArrowUpTrayIcon,
+    },
+    {
+        key: "preciosNube",
+        label: "Subir a Tienda Nube (KT Hogar)",
+        description: "Actualiza precios directamente en TiendaNube KT Hogar",
+        tooltip: "Actualiza por API directa de Tienda Nube el precio tachado y el precio promocional de cada variante, mapeando los SKUs a las variantes. Las variantes del mismo producto se actualizan en un solo PATCH bulk; si falla, se hace fallback a PUT individual.",
+        icon: CloudArrowUpIcon,
+    },
+    {
+        key: "preciosMl",
+        label: "Modificar precios en ML",
+        description: "Modifica los precios de las publicaciones en Mercado Libre",
+        tooltip: "Actualiza el precio en Mercado Libre de cada publicación que cambió (incluyendo todas las variaciones en un solo PUT). Solo se envían los items cuyo precio actual difiere del nuevo, para evitar llamadas innecesarias. Los items en under_review se procesan; los inactivos se saltan.",
+        icon: CurrencyDollarIcon,
+    },
+    {
+        key: "incluirPromociones",
+        label: "Incluir en promociones ML",
+        description: "Agrega items a las promociones disponibles (DEAL, Seller Campaign, Smart)",
+        tooltip: "Incluye las publicaciones en las promociones del seller donde aparezcan como candidate (DEAL/Campaña tradicional, SELLER_CAMPAIGN/Campaña del vendedor, SMART/Co-participación automatizada, PRICE_MATCHING/Precios competitivos, MARKETPLACE_CAMPAIGN). Aplica los porcentajes globales o el tope por MLA configurado en la sección Promociones. Si el seller no tiene promos activas soportadas, el paso se saltea inmediatamente (short-circuit) sin consultar item por item.",
+        icon: StarIcon,
+    },
 ];
 
 const configChannels = [
@@ -101,8 +174,67 @@ const promoStyles: Record<string, { icon: React.ComponentType<React.SVGProps<SVG
 export default function AutomatizacionPreciosPage() {
     const { usuario } = useAuth();
     const isAdmin = (usuario.rol || "").trim().toUpperCase() === "ADMIN";
-    const { config, isLoading, error, request, toggleStep, refreshConfig } = useAutomatizacionPrecios();
+    const {
+        config, isLoading, error, request,
+        toggleStep, setAllSteps,
+        agregarFiltroMlas, quitarFiltroMla, limpiarFiltroMlas, refreshConfig,
+    } = useAutomatizacionPrecios();
     const [enProceso, setEnProceso] = useState(false);
+    const [filtroMlasInput, setFiltroMlasInput] = useState("");
+    const [procesoDescripcion, setProcesoDescripcion] = useState<string | null>(null);
+
+    const commitFiltroMlasInput = () => {
+        if (filtroMlasInput.trim().length === 0) return;
+        agregarFiltroMlas(filtroMlasInput);
+        setFiltroMlasInput("");
+    };
+
+    // Pasos seleccionados (para el confirm dinámico y header del panel de pasos).
+    const pasosSeleccionados = STEPS.filter((s) => request[s.key]);
+    const totalPasos = STEPS.length;
+    const cantSeleccionados = pasosSeleccionados.length;
+
+    // Heurística que matchea la descripción del tracker contra el step key.
+    // Solo strings que se emiten desde `actualizarEstado()` en el backend, NO desde logs.
+    // Se usa para resaltar visualmente el paso en ejecución durante la corrida.
+    // Backend strings reconocidos:
+    //   "Importando costos desde DUX..."
+    //   "Descargando títulos KT Gastro desde Tienda Nube..."
+    //   "Calculando envío: X/Y"
+    //   "Excluyendo de promociones: ..."
+    //   "Actualizando precios ML: ..." / "Verificando estado de N items..." / "Obteniendo datos actuales..."
+    //   "Incluyendo en promociones: ..."
+    //   "Descargando catálogo KT HOGAR..." / "Actualizando precios Nube: ..."
+    const stepKeyEnEjecucion = (() => {
+        if (!enProceso || !procesoDescripcion) return null;
+        const d = procesoDescripcion.toLowerCase();
+        if (d.startsWith("importando costos")) return "importarCostosDux";
+        if (d.startsWith("descargando títulos") || d.startsWith("descargando titulos")) return "bajarTitulosNube";
+        if (d.startsWith("calculando envío") || d.startsWith("calculando envio")) return "generarEnvio";
+        if (d.startsWith("excluyendo de promociones")) return "excluirPromociones";
+        if (d.startsWith("incluyendo en promociones")) return "incluirPromociones";
+        // El paso "preciosMl" tiene 3 estados previos (verificando, obteniendo datos) + el de actualizar.
+        if (
+            d.startsWith("actualizando precios ml") ||
+            d.startsWith("verificando estado de") ||
+            d.startsWith("obteniendo datos actuales") ||
+            d.startsWith("precios ml cargados")
+        ) return "preciosMl";
+        // preciosNube tiene 2 estados (descargando catálogo, actualizando precios Nube).
+        if (d.startsWith("descargando catálogo") || d.startsWith("descargando catalogo")) return "preciosNube";
+        if (d.startsWith("actualizando precios nube")) return "preciosNube";
+        return null;
+    })();
+
+    const confirmMessageDinamico =
+        cantSeleccionados === 0
+            ? "No hay pasos seleccionados. ¿Querés iniciar de todos modos?"
+            : `¿Iniciar la sincronización con los siguientes ${cantSeleccionados} pasos?\n\n` +
+              pasosSeleccionados.map((s, i) => `  ${i + 1}. ${s.label}`).join("\n") +
+              (request.filtroMlas && request.filtroMlas.length > 0
+                  ? `\n\nFiltro activo: ${request.filtroMlas.length} MLAs`
+                  : "") +
+              "\n\nEste proceso puede modificar precios en ML, DUX y TiendaNube.";
 
     if (!isAdmin) {
         return (
@@ -157,38 +289,187 @@ export default function AutomatizacionPreciosPage() {
                 {/* Topes de promocion por MLA */}
                 <TopesPromocionPanel />
 
+                {/* Filtro de MLAs (opcional) */}
+                <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800/90">
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                            <FunnelIcon className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                            <h2 className="text-sm font-bold text-gray-800 dark:text-slate-100">
+                                Filtro de MLAs (opcional)
+                            </h2>
+                            {request.filtroMlas && request.filtroMlas.length > 0 && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-300">
+                                    {request.filtroMlas.length} MLAs
+                                </span>
+                            )}
+                        </div>
+                        {request.filtroMlas && request.filtroMlas.length > 0 && (
+                            <button
+                                type="button"
+                                onClick={limpiarFiltroMlas}
+                                disabled={enProceso}
+                                className="inline-flex items-center gap-1 text-xs font-medium text-rose-600 hover:text-rose-800 hover:bg-rose-50 dark:text-rose-400 dark:hover:text-rose-300 dark:hover:bg-rose-500/10 px-2 py-1 rounded-md transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Quitar todos los MLAs del filtro"
+                            >
+                                <TrashIcon className="w-3.5 h-3.5" />
+                                Limpiar todos
+                            </button>
+                        )}
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-slate-400 mb-3">
+                        Si agregás MLAs aquí, todos los pasos van a operar solo sobre ese subconjunto. Pegá uno o varios (separados por coma, espacio o salto de línea) y presioná <kbd className="px-1 py-0.5 text-[10px] font-mono rounded border border-gray-300 bg-gray-50 dark:border-slate-600 dark:bg-slate-700">Enter</kbd> para agregar. Dejá vacío para procesar todos.
+                    </p>
+
+                    <div className="flex items-center gap-2 mb-3">
+                        <input
+                            type="text"
+                            value={filtroMlasInput}
+                            onChange={(e) => setFiltroMlasInput(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    commitFiltroMlasInput();
+                                }
+                            }}
+                            onBlur={commitFiltroMlasInput}
+                            onPaste={(e) => {
+                                const pasted = e.clipboardData.getData("text");
+                                if (/[\s,;]/.test(pasted)) {
+                                    e.preventDefault();
+                                    agregarFiltroMlas(pasted);
+                                    setFiltroMlasInput("");
+                                }
+                            }}
+                            disabled={enProceso}
+                            placeholder="MLA123456789 — Enter para agregar"
+                            className="flex-1 text-xs font-mono rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-gray-800 placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-500"
+                        />
+                        <button
+                            type="button"
+                            onClick={commitFiltroMlasInput}
+                            disabled={enProceso || filtroMlasInput.trim().length === 0}
+                            className="inline-flex items-center gap-1 px-3 py-2 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 dark:disabled:bg-slate-700 dark:disabled:text-slate-500 disabled:cursor-not-allowed transition"
+                        >
+                            <PlusIcon className="w-3.5 h-3.5" />
+                            Agregar
+                        </button>
+                    </div>
+
+                    {request.filtroMlas && request.filtroMlas.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto p-2 rounded-lg border border-gray-100 bg-gray-50/50 dark:border-slate-700 dark:bg-slate-900/40">
+                            {request.filtroMlas.map((mla) => (
+                                <span
+                                    key={mla}
+                                    className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full bg-blue-100 text-blue-800 text-xs font-mono dark:bg-blue-500/20 dark:text-blue-300"
+                                >
+                                    {mla}
+                                    <button
+                                        type="button"
+                                        onClick={() => quitarFiltroMla(mla)}
+                                        disabled={enProceso}
+                                        className="ml-0.5 inline-flex items-center justify-center w-4 h-4 rounded-full hover:bg-blue-200 dark:hover:bg-blue-400/30 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                                        title={`Quitar ${mla} del filtro`}
+                                        aria-label={`Quitar ${mla}`}
+                                    >
+                                        <XMarkIcon className="w-3 h-3" />
+                                    </button>
+                                </span>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-xs italic text-gray-400 dark:text-slate-500">
+                            Sin filtro activo — la sincronización procesará todos los MLAs.
+                        </p>
+                    )}
+                </section>
+
                 {/* Pasos de sincronizacion */}
                 <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800/90">
-                    <h2 className="text-sm font-bold text-gray-800 dark:text-slate-100 mb-4">Pasos de Sincronización</h2>
-                    <div className="flex flex-col gap-2">
-                        {STEPS.map(({ key, label, description, icon: Icon }, index) => (
-                            <label
-                                key={key}
-                                className={`flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50/50 px-4 py-3 transition dark:border-slate-700 dark:bg-slate-800 ${
-                                    enProceso
-                                        ? "cursor-not-allowed opacity-60"
-                                        : "cursor-pointer hover:bg-gray-100/80 dark:hover:bg-slate-700/50"
-                                }`}
+                    <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
+                        <h2 className="text-sm font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
+                            Pasos de Sincronización
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-300">
+                                {cantSeleccionados} / {totalPasos}
+                            </span>
+                        </h2>
+                        <div className="flex items-center gap-1">
+                            <button
+                                type="button"
+                                onClick={() => setAllSteps(true)}
+                                disabled={enProceso || cantSeleccionados === totalPasos}
+                                className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-500/10 px-2 py-1 rounded-md transition disabled:opacity-40 disabled:cursor-not-allowed"
+                                title="Marcar todos los pasos"
                             >
-                                <input
-                                    type="checkbox"
-                                    checked={request[key]}
-                                    onChange={() => toggleStep(key)}
-                                    disabled={enProceso}
-                                    className="h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed dark:border-slate-600 dark:bg-slate-700"
-                                />
-                                <span className="flex items-center justify-center w-7 h-7 shrink-0 rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
-                                    <Icon className="w-4 h-4" />
-                                </span>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[10px] font-bold text-blue-500 dark:text-blue-400">{index + 1}</span>
-                                        <span className="text-sm font-medium text-gray-800 dark:text-slate-200">{label}</span>
+                                <CheckIcon className="w-3.5 h-3.5" />
+                                Marcar todos
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setAllSteps(false)}
+                                disabled={enProceso || cantSeleccionados === 0}
+                                className="inline-flex items-center gap-1 text-xs font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-700 px-2 py-1 rounded-md transition disabled:opacity-40 disabled:cursor-not-allowed"
+                                title="Desmarcar todos los pasos"
+                            >
+                                <XMarkIcon className="w-3.5 h-3.5" />
+                                Desmarcar todos
+                            </button>
+                        </div>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                        {STEPS.map(({ key, label, description, tooltip, icon: Icon }, index) => {
+                            const esActual = stepKeyEnEjecucion === key;
+                            const esActivo = request[key];
+                            const baseRing = esActual
+                                ? "border-blue-400 bg-blue-50/80 ring-2 ring-blue-300 dark:border-blue-400 dark:bg-blue-500/10 dark:ring-blue-500/40"
+                                : "border-gray-100 bg-gray-50/50 dark:border-slate-700 dark:bg-slate-800";
+                            return (
+                                <label
+                                    key={key}
+                                    className={`flex items-center gap-3 rounded-lg border px-4 py-3 transition ${baseRing} ${
+                                        enProceso
+                                            ? "cursor-not-allowed opacity-90"
+                                            : "cursor-pointer hover:bg-gray-100/80 dark:hover:bg-slate-700/50"
+                                    }`}
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={esActivo}
+                                        onChange={() => toggleStep(key)}
+                                        disabled={enProceso}
+                                        className="h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed dark:border-slate-600 dark:bg-slate-700"
+                                    />
+                                    <span className={`flex items-center justify-center w-7 h-7 shrink-0 rounded-lg ${
+                                        esActual
+                                            ? "bg-blue-600 text-white"
+                                            : "bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400"
+                                    }`}>
+                                        <Icon className="w-4 h-4" />
+                                    </span>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-bold text-blue-500 dark:text-blue-400">{index + 1}</span>
+                                            <span className="text-sm font-medium text-gray-800 dark:text-slate-200">{label}</span>
+                                            {esActual && (
+                                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-300">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                                                    En ejecución
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">{description}</p>
                                     </div>
-                                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">{description}</p>
-                                </div>
-                            </label>
-                        ))}
+                                    <Tooltip content={tooltip} placement="top" maxWidth={380}>
+                                        <span
+                                            className="flex items-center justify-center w-6 h-6 shrink-0 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors cursor-help"
+                                            onClick={(e) => e.preventDefault()}
+                                            aria-label={`Más información sobre ${label}`}
+                                        >
+                                            <InformationCircleIcon className="w-5 h-5" />
+                                        </span>
+                                    </Tooltip>
+                                </label>
+                            );
+                        })}
                     </div>
                 </section>
 
@@ -200,11 +481,12 @@ export default function AutomatizacionPreciosPage() {
                     endpointEstado="/api/automatizacion-precios/estado"
                     endpointCancelar="/api/automatizacion-precios/cancelar"
                     endpointResultado="/api/automatizacion-precios/resultado"
-                    confirmMessage="¿Iniciar la sincronización de precios? Este proceso puede modificar precios en ML, DUX y TiendaNube."
+                    confirmMessage={confirmMessageDinamico}
                     disabled={true}
                     disabledReason="Ejecución deshabilitada por seguridad. Todos los botones de acción están bloqueados hasta que se habilite manualmente."
                     requestBody={() => request}
                     onRunningChange={setEnProceso}
+                    onProcessUpdate={(p) => setProcesoDescripcion(p?.mensaje ?? null)}
                     procesoId="automatizacion-precios"
                 />
 
@@ -238,7 +520,7 @@ export default function AutomatizacionPreciosPage() {
     );
 }
 
-function EditablePromoCard({ label, value, dbKey, onSaved }: { label: string; value: number | null; dbKey: string; onSaved: () => void }) {
+function EditablePromoCard({ label, nombreEspanol, value, dbKey, onSaved }: { label: string; nombreEspanol?: string; value: number | null; dbKey: string; onSaved: () => void }) {
     const [editing, setEditing] = useState(false);
     const [input, setInput] = useState("");
     const [saving, setSaving] = useState(false);
@@ -272,7 +554,14 @@ function EditablePromoCard({ label, value, dbKey, onSaved }: { label: string; va
                     <Icon className="w-4 h-4" />
                 </span>
                 <div className="min-w-0 flex-1">
-                    <div className="text-[10px] text-gray-400 dark:text-slate-500 uppercase tracking-wider font-semibold">{label}</div>
+                    <div className="text-[10px] text-gray-400 dark:text-slate-500 uppercase tracking-wider font-semibold">
+                        {label}
+                        {nombreEspanol && (
+                            <span className="ml-1 normal-case tracking-normal font-normal text-gray-400 dark:text-slate-500">
+                                ({nombreEspanol})
+                            </span>
+                        )}
+                    </div>
                     {editing ? (
                         <input
                             type="number"
@@ -536,10 +825,12 @@ function ConfigPanel({ config, isLoading, error, onRefresh }: {
     error: string | null;
     onRefresh: () => void;
 }) {
+    // Nombres en español según la documentación oficial de Mercado Libre:
+    // https://developers.mercadolibre.com.ar/es_ar/central-de-promociones
     const promoFields = [
-        { label: "Seller Campaign", dbKey: "seller_campaign_pct", value: config?.sellerCampaignPct ?? null },
-        { label: "Deal", dbKey: "deal_pct", value: config?.dealPct ?? null },
-        { label: "Smart", dbKey: "smart_pct", value: config?.smartPct ?? null },
+        { label: "Seller Campaign", nombreEspanol: "Campaña del vendedor", dbKey: "seller_campaign_pct", value: config?.sellerCampaignPct ?? null },
+        { label: "Deal", nombreEspanol: "Campaña tradicional", dbKey: "deal_pct", value: config?.dealPct ?? null },
+        { label: "Smart", nombreEspanol: "Campaña con co-participación automatizada", dbKey: "smart_pct", value: config?.smartPct ?? null },
     ];
 
     const [canales, setCanales] = useState<CanalDTO[]>([]);
@@ -581,8 +872,8 @@ function ConfigPanel({ config, isLoading, error, onRefresh }: {
                     <div>
                         <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500">Promociones</span>
                         <div className="mt-2 grid grid-cols-3 gap-3">
-                            {promoFields.map(({ label, dbKey, value }) => (
-                                <EditablePromoCard key={dbKey} label={label} value={value} dbKey={dbKey} onSaved={onRefresh} />
+                            {promoFields.map(({ label, nombreEspanol, dbKey, value }) => (
+                                <EditablePromoCard key={dbKey} label={label} nombreEspanol={nombreEspanol} value={value} dbKey={dbKey} onSaved={onRefresh} />
                             ))}
                         </div>
                     </div>
@@ -895,23 +1186,29 @@ function LogPanel({ enProceso }: { enProceso: boolean }) {
                 onScroll={handleScroll}
                 className="max-h-64 overflow-y-auto p-4 bg-gray-950 font-mono text-xs leading-relaxed"
             >
-                {lines.map((line, i) => (
-                    <div
-                        key={i}
-                        className={`py-0.5 ${
-                            line.startsWith("ERROR")
-                                ? "text-red-400"
-                                : line.includes("ok,") || line.includes("completada")
-                                  ? "text-green-400"
-                                  : line.includes("omitido") || line.includes("omitidos")
-                                    ? "text-yellow-400"
-                                    : "text-gray-300"
-                        }`}
-                    >
-                        <span className="text-gray-600 select-none mr-2">{String(i + 1).padStart(3)}</span>
-                        {line}
-                    </div>
-                ))}
+                {lines.map((line, i) => {
+                    // Detección de "N errores" donde N > 0 → fuerza color warn (override del verde).
+                    const erroresMatch = line.match(/\b(\d+)\s*errores?\b/i);
+                    const tieneErrores = erroresMatch != null && Number(erroresMatch[1]) > 0;
+                    // Coloreo por prefijo Unicode (emitido desde el backend) con fallback a patrones de texto.
+                    const colorClass = line.startsWith("✖") || line.startsWith("ERROR")
+                        ? "text-red-400"
+                        : line.startsWith("⚠") || line.includes("omitido") || line.includes("omitidos") || tieneErrores
+                          ? "text-yellow-400"
+                          : line.startsWith("✔") || line.includes("ok,") || line.includes("completada")
+                            ? "text-green-400"
+                            : line.startsWith("─")
+                              ? "text-blue-300 font-semibold"
+                              : line.startsWith("ℹ")
+                                ? "text-gray-200"
+                                : "text-gray-300";
+                    return (
+                        <div key={i} className={`py-0.5 ${colorClass}`}>
+                            <span className="text-gray-600 select-none mr-2">{String(i + 1).padStart(3)}</span>
+                            {line}
+                        </div>
+                    );
+                })}
                 {enProceso && (
                     <div className="py-0.5 text-gray-500 animate-pulse">...</div>
                 )}

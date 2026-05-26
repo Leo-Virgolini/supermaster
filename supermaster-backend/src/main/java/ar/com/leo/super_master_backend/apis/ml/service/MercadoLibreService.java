@@ -1124,6 +1124,29 @@ public class MercadoLibreService {
     }
 
     /**
+     * Obtiene TODAS las promociones del seller en una sola request.
+     * <p>
+     * Útil como short-circuit antes de iterar item por item: si el seller no tiene
+     * ninguna promo en estado started/pending soportada, evita N consultas por item
+     * (gran ahorro en runs con muchos MLAs sin promos activas).
+     *
+     * @param userId id del usuario seller (de {@link #getUserId()})
+     * @return JSON crudo como String con campo {@code results} (array), o null si hubo error
+     */
+    public String obtenerPromocionesDelSeller(String userId) {
+        verificarTokens();
+        try {
+            return retryHandler.get(
+                    "/seller-promotions/users/" + userId + "?app_version=v2",
+                    () -> tokens.accessToken
+            );
+        } catch (Exception e) {
+            log.warn("ML - Error obteniendo promociones del seller {}: {}", userId, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Elimina un item de una promoción específica.
      */
     public boolean removeItemFromPromotion(String promotionId, String itemId, String promotionType) {
@@ -1198,6 +1221,10 @@ public class MercadoLibreService {
      * Actualiza el precio base de un item en ML (redondeado a entero, HALF_UP).
      */
     public boolean updateItemPrice(String itemId, double price) {
+        if (price <= 0) {
+            log.warn("ML - Se ignora actualización de precio para item {}: precio inválido ({})", itemId, price);
+            return false;
+        }
         verificarTokens();
         try {
             long precioEntero = Math.round(price);
@@ -1217,6 +1244,10 @@ public class MercadoLibreService {
      * pasar la lista completa de variationIds del item.
      */
     public boolean updateItemPriceConVariaciones(String itemId, List<Long> variationIds, double price) {
+        if (price <= 0) {
+            log.warn("ML - Se ignora actualización de precio para item {} (con variaciones): precio inválido ({})", itemId, price);
+            return false;
+        }
         verificarTokens();
         try {
             long precioEntero = Math.round(price);

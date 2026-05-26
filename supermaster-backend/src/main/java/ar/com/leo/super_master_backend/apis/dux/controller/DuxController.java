@@ -59,57 +59,6 @@ public class DuxController {
     // PRODUCTOS
     // =====================================================
 
-    @PostMapping("/obtener-productos")
-    @PreAuthorize(Permisos.INTEGRACIONES_EDITAR)
-    public ResponseEntity<?> iniciarObtenerProductos() {
-        boolean iniciado = duxService.iniciarObtenerProductos();
-        if (iniciado) {
-            return ResponseEntity.accepted().body(Map.of(
-                    "mensaje", "Obtención de productos DUX iniciada en background",
-                    "iniciado", true,
-                    "endpoints", Map.of(
-                            "estado", "GET /api/dux/obtener-productos/estado",
-                            "cancelar", "POST /api/dux/obtener-productos/cancelar",
-                            "resultado", "GET /api/dux/obtener-productos/resultado"
-                    )));
-        }
-        return ResponseEntity.badRequest().body(Map.of(
-                "mensaje", "Ya hay una obtención de productos en ejecución. Use GET /api/dux/obtener-productos/estado para ver el progreso.",
-                "iniciado", false));
-    }
-
-    @GetMapping("/obtener-productos/estado")
-    @PreAuthorize(Permisos.INTEGRACIONES_VER)
-    public ResponseEntity<ProcesoMasivoEstadoDTO> estadoObtenerProductos() {
-        return ResponseEntity.ok(duxService.obtenerEstadoObtencionProductos());
-    }
-
-    @PostMapping("/obtener-productos/cancelar")
-    @PreAuthorize(Permisos.INTEGRACIONES_EDITAR)
-    public ResponseEntity<?> cancelarObtenerProductos() {
-        boolean cancelado = duxService.cancelarObtencionProductos();
-        if (cancelado) {
-            return ResponseEntity.ok(Map.of(
-                    "mensaje", "Solicitud de cancelación enviada. El proceso se detendrá después de la página actual.",
-                    "cancelado", true));
-        }
-        return ResponseEntity.ok(Map.of(
-                "mensaje", "No hay obtención de productos en ejecución",
-                "cancelado", false));
-    }
-
-    @GetMapping("/obtener-productos/resultado")
-    @PreAuthorize(Permisos.INTEGRACIONES_VER)
-    public ResponseEntity<?> resultadoObtenerProductos() {
-        List<Item> resultado = duxService.obtenerResultadoObtencionProductos();
-        if (resultado != null) {
-            return ResponseEntity.ok(resultado);
-        }
-        return ResponseEntity.ok(Map.of(
-                "mensaje", "No hay resultados disponibles. El proceso aún no ha finalizado o no se ha ejecutado.",
-                "disponible", false));
-    }
-
     @GetMapping("/productos/{codItem}")
     @PreAuthorize(Permisos.INTEGRACIONES_VER)
     public ResponseEntity<Item> obtenerProducto(@PathVariable String codItem) {

@@ -152,17 +152,39 @@ async function descargarArchivo(url: string, fallbackFilename: string, init?: Re
     return response;
 }
 
+interface PdfGenIssueStats {
+    imagenesEnBlanco: number;
+    imagenesNoLeidas: number;
+    erroresImagen: number;
+}
+
 interface PdfDownloadResult {
     productos: number;
     productosSinImagen: string[];
+    issueStats: PdfGenIssueStats;
 }
+
+function readIssueStatsFromHeaders(headers: Headers): PdfGenIssueStats {
+    return {
+        imagenesEnBlanco: Number(headers.get("X-Imagenes-En-Blanco") ?? "0"),
+        imagenesNoLeidas: Number(headers.get("X-Imagenes-No-Leidas") ?? "0"),
+        erroresImagen: Number(headers.get("X-Errores-Imagen") ?? "0"),
+    };
+}
+
+const EMPTY_ISSUE_STATS: PdfGenIssueStats = {
+    imagenesEnBlanco: 0,
+    imagenesNoLeidas: 0,
+    erroresImagen: 0,
+};
 
 async function descargarPdf(url: string, init?: RequestInit): Promise<PdfDownloadResult> {
     const response = await descargarArchivo(url, "catalogo.pdf", init);
     const productos = Number(response.headers.get("X-Productos-Count") ?? "0");
     const sinImagenHeader = response.headers.get("X-Productos-Sin-Imagen") ?? "";
     const productosSinImagen = sinImagenHeader ? sinImagenHeader.split(",") : [];
-    return { productos, productosSinImagen };
+    const issueStats = readIssueStatsFromHeaders(response.headers);
+    return { productos, productosSinImagen, issueStats };
 }
 
 async function fetchCuotasPorCanal(canalId: number): Promise<string[]> {
@@ -242,6 +264,7 @@ export default function CatalogosPdfPage() {
     const [globalConfig, setGlobalConfig] = useState<CatalogoPdfGlobalConfig>({ imagenesDir: "" });
     const [cargandoGlobalConfig, setCargandoGlobalConfig] = useState(false);
     const [productosSinImagen, setProductosSinImagen] = useState<string[]>([]);
+    const [pdfIssueStats, setPdfIssueStats] = useState<PdfGenIssueStats>(EMPTY_ISSUE_STATS);
 
     const agregarOrden = (value: string) => {
         setOrdenarPor((prev) => (prev.includes(value) ? prev : [...prev, value]));
@@ -347,12 +370,14 @@ export default function CatalogosPdfPage() {
         if (titulo.trim()) params.append("titulo", titulo.trim());
         if (subtitulo.trim()) params.append("subtitulo", subtitulo.trim());
         try {
-            const { productos, productosSinImagen: sinImagen } = await descargarPdf(`${API_BASE_URL}/api/catalogos-pdf/exportar?${params.toString()}`);
+            const { productos, productosSinImagen: sinImagen, issueStats } = await descargarPdf(`${API_BASE_URL}/api/catalogos-pdf/exportar?${params.toString()}`);
             notificar.success(productos > 0 ? `Catálogo PDF descargado (${productos} productos).` : "Catálogo PDF descargado.");
             setProductosSinImagen(sinImagen);
+            setPdfIssueStats(issueStats);
         } catch (err) {
             notificar.error(err instanceof Error ? err.message : "Error al exportar catálogo PDF");
             setProductosSinImagen([]);
+            setPdfIssueStats(EMPTY_ISSUE_STATS);
         } finally {
             setExportandoCatalogoPdf(false);
         }
@@ -367,9 +392,19 @@ export default function CatalogosPdfPage() {
 
             if (contentType.includes("application/json")) {
                 // Guardado en disco del servidor
-                const data = await response.json() as { mensaje: string; ruta: string; productosExportados: number; productosSinImagen: string[] };
+                const data = await response.json() as {
+                    mensaje: string; ruta: string; productosExportados: number;
+                    productosSinImagen: string[];
+                    imagenesEnBlanco?: number; imagenesNoLeidas?: number;
+                    erroresImagen?: number;
+                };
                 notificar.success(`PDF generado para "${config.nombre}" (${data.productosExportados} productos). Guardado en: ${data.ruta}`);
                 setProductosSinImagen(data.productosSinImagen ?? []);
+                setPdfIssueStats({
+                    imagenesEnBlanco: data.imagenesEnBlanco ?? 0,
+                    imagenesNoLeidas: data.imagenesNoLeidas ?? 0,
+                    erroresImagen: data.erroresImagen ?? 0,
+                });
             } else {
                 // Descarga directa (sin ubicación de salida configurada)
                 const blob = await response.blob();
@@ -387,6 +422,7 @@ export default function CatalogosPdfPage() {
                 notificar.success(productos > 0 ? `PDF generado para "${config.nombre}" (${productos} productos).` : `PDF generado para "${config.nombre}".`);
                 const sinImagenHeader = response.headers.get("X-Productos-Sin-Imagen") ?? "";
                 setProductosSinImagen(sinImagenHeader ? sinImagenHeader.split(",") : []);
+                setPdfIssueStats(readIssueStatsFromHeaders(response.headers));
             }
         } catch (err) {
             notificar.error(err instanceof Error ? err.message : `No se pudo generar el PDF para "${config.nombre}".`);
@@ -978,6 +1014,44 @@ export default function CatalogosPdfPage() {
                             <ArrowDownTrayIcon className="w-4 h-4" />
                         </Button>
                     </div>
+
+                    {(pdfIssueStats.imagenesEnBlanco > 0 || pdfIssueStats.imagenesNoLeidas > 0 || pdfIssueStats.erroresImagen > 0) && (
+                        <div className="mt-4 rounded-lg border border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-950/40 p-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="text-sm font-semibold text-blue-800 dark:text-blue-300">
+                                    Diagnóstico de imágenes
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setPdfIssueStats(EMPTY_ISSUE_STATS)}
+                                    className="p-1 rounded text-blue-600 hover:bg-blue-200/60 dark:text-blue-400 dark:hover:bg-blue-800/40 transition"
+                                    title="Cerrar"
+                                >
+                                    <XMarkIcon className="h-4 w-4" />
+                                </button>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                                {pdfIssueStats.imagenesEnBlanco > 0 && (
+                                    <div className="flex flex-col items-center justify-center px-2 py-2 rounded bg-blue-100 dark:bg-blue-900/40">
+                                        <span className="text-lg font-bold text-blue-800 dark:text-blue-300">{pdfIssueStats.imagenesEnBlanco}</span>
+                                        <span className="text-blue-700 dark:text-blue-400">imágenes en blanco</span>
+                                    </div>
+                                )}
+                                {pdfIssueStats.imagenesNoLeidas > 0 && (
+                                    <div className="flex flex-col items-center justify-center px-2 py-2 rounded bg-blue-100 dark:bg-blue-900/40">
+                                        <span className="text-lg font-bold text-blue-800 dark:text-blue-300">{pdfIssueStats.imagenesNoLeidas}</span>
+                                        <span className="text-blue-700 dark:text-blue-400">no se pudieron decodificar</span>
+                                    </div>
+                                )}
+                                {pdfIssueStats.erroresImagen > 0 && (
+                                    <div className="flex flex-col items-center justify-center px-2 py-2 rounded bg-blue-100 dark:bg-blue-900/40">
+                                        <span className="text-lg font-bold text-blue-800 dark:text-blue-300">{pdfIssueStats.erroresImagen}</span>
+                                        <span className="text-blue-700 dark:text-blue-400">errores procesando</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     {productosSinImagen.length > 0 && (
                         <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/40 overflow-hidden">

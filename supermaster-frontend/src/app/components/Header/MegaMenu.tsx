@@ -26,35 +26,49 @@ type MenuItemProps = {
 	icon: ReactNode;
 	isActive: boolean;
 	description?: string;
+	external?: boolean;
 	onClick: () => void;
 };
 
-const MenuItem = ({ href, label, icon, isActive, description, onClick }: MenuItemProps) => (
-	<Link
-		href={href}
-		onClick={onClick}
-		className={`group flex items-start gap-3 rounded-xl border px-3 py-2.5 text-sm transition-all ${
-			isActive
-				? "border-blue-200 bg-blue-600 text-white shadow-sm dark:border-blue-400/40 dark:bg-blue-500"
-				: "border-transparent text-gray-600 hover:border-gray-200 hover:bg-gray-50 hover:text-gray-900 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:bg-slate-700/80 dark:hover:text-white"
-		}`}
-	>
-		<span className={`mt-0.5 shrink-0 ${isActive ? "text-white" : "text-gray-400 dark:text-slate-500"}`}>
-			{icon}
-		</span>
-		<span className="min-w-0 flex-1">
-			<span className="flex items-center gap-2">
-				<span className="truncate font-medium">{label}</span>
-				{isActive ? <ArrowTopRightOnSquareIcon className="size-3.5 shrink-0 text-white/85" /> : null}
+const MenuItem = ({ href, label, icon, isActive, description, external = false, onClick }: MenuItemProps) => {
+	const className = `group flex items-start gap-3 rounded-xl border px-3 py-2.5 text-sm transition-all ${
+		isActive
+			? "border-blue-200 bg-blue-600 text-white shadow-sm dark:border-blue-400/40 dark:bg-blue-500"
+			: "border-transparent text-gray-600 hover:border-gray-200 hover:bg-gray-50 hover:text-gray-900 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:bg-slate-700/80 dark:hover:text-white"
+	}`;
+
+	const content = (
+		<>
+			<span className={`mt-0.5 shrink-0 ${isActive ? "text-white" : "text-gray-400 dark:text-slate-500"}`}>
+				{icon}
 			</span>
-			{description ? (
-				<span className={`mt-0.5 block truncate text-[11px] ${isActive ? "text-blue-100/90" : "text-gray-400 dark:text-slate-500"}`}>
-					{description}
+			<span className="min-w-0 flex-1">
+				<span className="flex items-center gap-2">
+					<span className="truncate font-medium">{label}</span>
+					{(isActive || external) ? <ArrowTopRightOnSquareIcon className={`size-3.5 shrink-0 ${isActive ? "text-white/85" : "text-gray-400 dark:text-slate-500"}`} /> : null}
 				</span>
-			) : null}
-		</span>
-	</Link>
-);
+				{description ? (
+					<span className={`mt-0.5 block truncate text-[11px] ${isActive ? "text-blue-100/90" : "text-gray-400 dark:text-slate-500"}`}>
+						{description}
+					</span>
+				) : null}
+			</span>
+		</>
+	);
+
+	if (external) {
+		return (
+			<a href={href} target="_blank" rel="noopener noreferrer" onClick={onClick} className={className}>
+				{content}
+			</a>
+		);
+	}
+	return (
+		<Link href={href} onClick={onClick} className={className}>
+			{content}
+		</Link>
+	);
+};
 
 const SectionTitle = ({ label, color, description }: { label: string; color: NavColor; description?: string }) => {
 	const tones = sectionLabelColorMap[color];
@@ -162,6 +176,7 @@ const MegaMenu = ({ isOpen, onClose, toggleRef }: MegaMenuProps) => {
 											description={item.description}
 											icon={<Icon className="size-4" />}
 											isActive={isActive(item.href)}
+											external={item.external}
 											onClick={onClose}
 										/>
 									);
@@ -183,6 +198,7 @@ const MegaMenu = ({ isOpen, onClose, toggleRef }: MegaMenuProps) => {
 											description={item.description}
 											icon={<Icon className="size-4" />}
 											isActive={isActive(item.href)}
+											external={item.external}
 											onClick={onClose}
 										/>
 									);

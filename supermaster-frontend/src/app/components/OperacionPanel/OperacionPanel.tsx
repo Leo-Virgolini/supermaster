@@ -91,6 +91,8 @@ export interface OperacionPanelProps {
     onComplete?: () => void;
     /** Callback que se llama cuando el estado de ejecución cambia */
     onRunningChange?: (running: boolean) => void;
+    /** Callback con el estado del proceso (descripcion, procesados, total). Se invoca en cada polling. */
+    onProcessUpdate?: (proceso: ProcesoEstado | null) => void;
     /** Si true, deshabilita el panel externamente */
     disabled?: boolean;
     /** Mensaje explicando por qué está deshabilitado */
@@ -116,6 +118,7 @@ export function OperacionPanel({
     confirmMessage,
     onComplete,
     onRunningChange,
+    onProcessUpdate,
     disabled: propDisabled = false,
     disabledReason,
     embedded = false,
@@ -183,11 +186,15 @@ export function OperacionPanel({
         }
     };
 
+    const onProcessUpdateRef = useRef(onProcessUpdate);
+    onProcessUpdateRef.current = onProcessUpdate;
+
     const consultarEstado = async () => {
         try {
             const res = await fetchAPI(`${API_BASE_URL}${endpointEstado}`);
             const data: ProcesoEstado = await res.json();
             setProceso(data);
+            onProcessUpdateRef.current?.(data);
 
             if (data.estado === "completado") {
                 limpiarInterval();
@@ -216,6 +223,7 @@ export function OperacionPanel({
         limpiarInterval();
         setPanelEstado("EN_PROCESO");
         setProceso(null);
+        onProcessUpdateRef.current?.(null);
         setMensaje(null);
         setResultado(null);
 

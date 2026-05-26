@@ -81,7 +81,10 @@ export default function MarcasPage() {
     };
     const handleSearchMarcas = async (inputValue: string) => {
         const data = await searchMarcas(inputValue);
-        return data.content.map((m: any) => ({ id: m.id, label: m.nombre }));
+        // Usamos nombreCompleto ("ABUELO > PADRE > HIJO") como label si la marca
+        // tiene jerarquía, así el dropdown muestra la herencia y AsyncSelect
+        // destaca el hijo final en negrita.
+        return data.content.map((m: any) => ({ id: m.id, label: m.nombreCompleto ?? m.nombre }));
     };
     const columns = useMemo(() => getColumns(handleSearchMarcas, canEdit), [canEdit, marcas]);
     const handleGlobalSearch = (valor: string) => {

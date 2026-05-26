@@ -25,7 +25,8 @@ import java.util.function.Supplier;
  * <p>Grupos:
  * <ul>
  *   <li><b>ML</b>: costo-envio, costo-venta, automatizacion-precios</li>
- *   <li><b>DUX</b>: dux-importacion, dux-obtencion, automatizacion-precios</li>
+ *   <li><b>DUX</b>: dux-importacion, dux-deudas, dux-sync-programada, automatizacion-precios</li>
+ *   <li><b>BD</b>: recalculo-precios, recalculo-canal, recalculo-pendiente-scoped, dux-importacion, dux-sync-programada, automatizacion-precios</li>
  *   <li><b>reposicion</b>: sin grupo (corre libre, no bloquea ni es bloqueado)</li>
  * </ul>
  *
@@ -70,8 +71,8 @@ public class ProcesoGlobalService {
             Map.entry("costo-venta", Set.of("ML")),
             Map.entry("automatizacion-precios", Set.of("ML", "DUX", "BD")),
             Map.entry("dux-importacion", Set.of("DUX", "BD")),
-            Map.entry("dux-obtencion", Set.of("DUX")),
             Map.entry("dux-deudas", Set.of("DUX")),
+            Map.entry("dux-sync-programada", Set.of("DUX", "BD")),
             Map.entry("reposicion", Set.of())  // sin grupo, corre libre
     );
 

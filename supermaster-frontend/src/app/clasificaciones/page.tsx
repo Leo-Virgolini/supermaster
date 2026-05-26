@@ -104,7 +104,9 @@ export default function ClasificacionesPage() {
     // D. Adaptador (Solo transforma datos, no llama a API)
     const handleSearchClasificaciones = async (inputValue: string) => {
         const data = await searchClasificaciones(inputValue);
-        return data.content.map((m: any) => ({ id: m.id, label: m.nombre }));
+        // Usamos nombreCompleto ("ABUELO > PADRE > HIJO") como label si hay
+        // jerarquía: AsyncSelect destaca el hijo final en negrita.
+        return data.content.map((m: any) => ({ id: m.id, label: m.nombreCompleto ?? m.nombre }));
     };
     const columns = useMemo(() => getColumns(handleSearchClasificaciones, canEdit), [canEdit, clasificaciones]);
 

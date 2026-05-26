@@ -126,6 +126,30 @@ export default function AsyncSelect({ label, placeholder, loadOptions, onChange,
         setActiveIndex(-1);
     };
 
+    /**
+     * Render del label de una opción. Si contiene " > " (path jerárquico
+     * "ABUELO > PADRE > HIJO"), los ancestros se muestran en gris suave y el
+     * último segmento (el hijo final, que es el que efectivamente se selecciona)
+     * en negrita. Para labels sin " > " devuelve el texto plano.
+     */
+    const renderOptionLabel = (text: string) => {
+        if (!text.includes(" > ")) return text;
+        const parts = text.split(" > ");
+        const last = parts[parts.length - 1];
+        const ancestors = parts.slice(0, -1);
+        return (
+            <>
+                {ancestors.map((part, i) => (
+                    <span key={i} className="text-slate-400 dark:text-slate-500">
+                        {part}
+                        <span className="mx-1">›</span>
+                    </span>
+                ))}
+                <span className="font-semibold text-slate-900 dark:text-slate-100">{last}</span>
+            </>
+        );
+    };
+
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (!isOpen && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
             setIsOpen(true);
@@ -206,7 +230,7 @@ export default function AsyncSelect({ label, placeholder, loadOptions, onChange,
                                 onMouseDown={(e) => e.preventDefault()}
                                 onMouseEnter={() => setActiveIndex(index)}
                             >
-                                {opt.label}
+                                {renderOptionLabel(opt.label)}
                             </li>
                         ))
                     ) : (

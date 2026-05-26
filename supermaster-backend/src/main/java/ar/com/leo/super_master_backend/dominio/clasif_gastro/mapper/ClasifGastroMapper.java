@@ -14,7 +14,15 @@ public interface ClasifGastroMapper {
     // ENTITY → DTO
     // =============================
     @Mapping(source = "padre.id", target = "padreId")
+    @Mapping(target = "nombreCompleto", expression = "java(buildNombreCompleto(entity))")
     ClasifGastroDTO toDTO(ClasifGastro entity);
+
+    /** Construye "ABUELO > PADRE > HIJO" navegando recursivamente la cadena de padres. */
+    default String buildNombreCompleto(ClasifGastro c) {
+        if (c == null) return null;
+        if (c.getPadre() == null) return c.getNombre();
+        return buildNombreCompleto(c.getPadre()) + " > " + c.getNombre();
+    }
 
     // =============================
     // CREATE DTO → ENTITY

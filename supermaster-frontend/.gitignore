@@ -10,8 +10,6 @@
 !.yarn/releases
 !.yarn/versions
 
-deploy
-
 # testing
 /coverage
 
@@ -47,5 +45,3 @@ next-env.d.ts
 
 # excel generados
 *.xlsx
-
-/scripts

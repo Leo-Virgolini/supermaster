@@ -53,7 +53,9 @@ export default function TiposPage() {
 
     const handleSearchTipos = async (q: string) => {
         const data = await searchTipos(q);
-        return (data.content || []).map((t: any) => ({ id: t.id, label: t.nombre }));
+        // Usamos nombreCompleto ("ABUELO > PADRE > HIJO") como label si hay
+        // jerarquía: AsyncSelect destaca el hijo final en negrita.
+        return (data.content || []).map((t: any) => ({ id: t.id, label: t.nombreCompleto ?? t.nombre }));
     };
 
     const columns = useMemo(() => getColumns(handleSearchTipos, canEdit), [canEdit, tipos]);

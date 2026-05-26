@@ -15,10 +15,13 @@ import ar.com.leo.super_master_backend.dominio.common.service.EstadoProcesoMasiv
 import ar.com.leo.super_master_backend.dominio.common.service.ProcesoGlobalService;
 import ar.com.leo.super_master_backend.dominio.config_automatizacion.entity.ConfigAutomatizacion;
 import ar.com.leo.super_master_backend.dominio.config_automatizacion.repository.ConfigAutomatizacionRepository;
+import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCanalPrecio;
 import ar.com.leo.super_master_backend.dominio.producto.mla.entity.Mla;
 import ar.com.leo.super_master_backend.dominio.producto.mla.repository.MlaRepository;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoCanalPrecioRepository;
+import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoRepository;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +37,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.stream.Collectors;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,6 +59,7 @@ public class AutomatizacionPreciosService {
     private final TiendaNubeService nubeService;
     private final ConfigAutomatizacionRepository configRepo;
     private final ProductoCanalPrecioRepository precioRepo;
+    private final ProductoRepository productoRepository;
     private final CanalRepository canalRepository;
     private final MlaRepository mlaRepository;
     private final ObjectMapper objectMapper;
@@ -139,6 +144,7 @@ public class AutomatizacionPreciosService {
     @Async
     public void ejecutarAsync(SincronizacionRequestDTO request) {
         int duxImportActualizados = 0, duxImportTotal = 0, duxImportErrores = 0;
+        int titulosActualizados = 0, titulosSinCambio = 0, titulosSinSku = 0;
         int envioOk = 0, envioErr = 0;
         int excluidosOk = 0, excluidosErr = 0;
         int duxMlProductos = 0, duxGastroProductos = 0, duxNubeProductos = 0;
@@ -157,12 +163,36 @@ public class AutomatizacionPreciosService {
             boolean necesitaML = request.excluirPromociones() || request.duxMl()
                     || request.preciosMl() || request.incluirPromociones();
 
+            // Normalizar filtro de MLAs (opcional): si viene, todos los pasos solo operan sobre ese subconjunto.
+            Set<String> filtroMlas = (request.filtroMlas() == null || request.filtroMlas().isEmpty())
+                    ? null
+                    : Set.copyOf(request.filtroMlas());
+            if (filtroMlas != null) {
+                addLog("Filtro MLA activo: " + filtroMlas.size() + " MLAs seleccionados");
+            }
+
             // Cargar precios ML si se necesitan
             List<ProductoCanalPrecio> preciosML = List.of();
             Map<String, PrecioProductoInfo> mapaMLporMla = Map.of();
+            // MLAs en under_review: ML rechaza incluirlos/excluirlos de promos (400),
+            // pero sí acepta actualizar precio. Los trackeamos para saltearlos en los pasos de promo.
+            Set<String> mlasUnderReview = new HashSet<>();
             if (necesitaML && config.canalMl() != null) {
                 preciosML = cargarPrecios(config.canalMl(), config.cuotasMl());
                 mapaMLporMla = construirMapaPorMla(preciosML);
+                if (filtroMlas != null) {
+                    LinkedHashMap<String, PrecioProductoInfo> filtrado = new LinkedHashMap<>(mapaMLporMla);
+                    filtrado.keySet().retainAll(filtroMlas);
+                    // Reportar los MLAs del filtro que no se encontraron en la lista de precios cargada.
+                    Set<String> sinMatch = new HashSet<>(filtroMlas);
+                    sinMatch.removeAll(filtrado.keySet());
+                    if (!sinMatch.isEmpty()) {
+                        String muestra = sinMatch.stream().limit(10).collect(Collectors.joining(", "));
+                        String sufijo = sinMatch.size() > 10 ? " (y " + (sinMatch.size() - 10) + " más)" : "";
+                        addLogWarn("Filtro: " + sinMatch.size() + " MLAs no se encontraron en el canal ML: " + muestra + sufijo);
+                    }
+                    mapaMLporMla = filtrado;
+                }
                 addLog("Precios ML cargados: " + preciosML.size() + " productos, " + mapaMLporMla.size() + " MLAs");
                 actualizarEstado("Precios ML cargados", 0, mapaMLporMla.size());
 
@@ -182,6 +212,12 @@ public class AutomatizacionPreciosService {
                             log.info("ML - Item {} pausado, se procesará igualmente", mla);
                             continue;
                         }
+                        if ("under_review".equals(status)) {
+                            // Mantener para actualización de precio; excluir más abajo en pasos de promo.
+                            mlasUnderReview.add(mla);
+                            log.info("ML - Item {} en under_review: se actualiza precio, se saltean promos", mla);
+                            continue;
+                        }
                         log.warn("ML - Item {} omitido (estado: '{}')", mla, status);
                         mlasAOmitir.add(mla);
                     }
@@ -190,6 +226,9 @@ public class AutomatizacionPreciosService {
                         mapaMLporMla = new LinkedHashMap<>(mapaMLporMla);
                         mlasAOmitir.forEach(mapaMLporMla::remove);
                         addLogWarn("Items no activos omitidos: " + mlasAOmitir.size() + ". Quedan " + mapaMLporMla.size() + " MLAs");
+                    }
+                    if (!mlasUnderReview.isEmpty()) {
+                        addLogWarn(mlasUnderReview.size() + " items en under_review: se actualizarán precios pero se saltean en promociones");
                     }
                 }
             }
@@ -277,6 +316,31 @@ public class AutomatizacionPreciosService {
 
             if (cancelado()) return;
 
+            // PASO 0a-bis: Bajar títulos KT Gastro desde Tienda Nube y persistir en `tituloWeb`.
+            // Se ejecuta antes del cálculo de precios para que los exports salgan con títulos actualizados.
+            if (request.bajarTitulosNube()) {
+                actualizarEstado("Descargando títulos KT Gastro desde Tienda Nube...", 0, 0);
+                try {
+                    Map<String, String> titulos = nubeService.obtenerTitulosPorSku(TiendaNubeService.STORE_GASTRO);
+                    if (titulos.isEmpty()) {
+                        addLogWarn("Tienda Nube no devolvió títulos (verificar credenciales/conectividad)");
+                    } else {
+                        addLog("Tienda Nube: " + titulos.size() + " SKUs con título descargados");
+                        int[] r = self.actualizarTitulosWebEnDb(titulos);
+                        titulosActualizados = r[0];
+                        titulosSinCambio = r[1];
+                        titulosSinSku = r[2];
+                        addLog("Títulos: " + titulosActualizados + " actualizados, "
+                                + titulosSinCambio + " sin cambios, "
+                                + titulosSinSku + " SKUs sin match en DB");
+                    }
+                } catch (Exception e) {
+                    addLogWarn("Error al sincronizar títulos desde Tienda Nube: " + e.getMessage());
+                }
+            }
+
+            if (cancelado()) return;
+
             // PASO 0b: Generar precios de envío para MLAs que no tienen
             if (request.generarEnvio()) {
                 List<Mla> mlasSinEnvio = mlaRepository.findByMlaIsNotNullAndPrecioEnvioIsNull();
@@ -309,13 +373,16 @@ public class AutomatizacionPreciosService {
 
             if (cancelado()) return;
 
-            // PASO 1: Excluir de promociones (solo items que cambian de precio)
+            // PASO 1: Excluir de promociones (solo items que cambian de precio, sin under_review)
             if (request.excluirPromociones() && !mapaMLCambianPrecio.isEmpty()) {
-                addLog("Excluyendo de promociones (" + mapaMLCambianPrecio.size() + " items)...");
-                int[] r = excluirDePromociones(mapaMLCambianPrecio);
-                excluidosOk = r[0];
-                excluidosErr = r[1];
-                addLog("Excluidos: " + excluidosOk + " ok, " + excluidosErr + " errores");
+                Map<String, PrecioProductoInfo> excluibles = filtrarSinUnderReview(mapaMLCambianPrecio, mlasUnderReview);
+                if (!excluibles.isEmpty()) {
+                    addLog("Excluyendo de promociones (" + excluibles.size() + " items)...");
+                    int[] r = excluirDePromociones(excluibles);
+                    excluidosOk = r[0];
+                    excluidosErr = r[1];
+                    addLog("Excluidos: " + excluidosOk + " ok, " + excluidosErr + " errores");
+                }
             }
 
             if (cancelado()) return;
@@ -378,30 +445,66 @@ public class AutomatizacionPreciosService {
 
             if (cancelado()) return;
 
-            // PASO 7: Incluir en promociones
+            // PASO 7: Incluir en promociones (sin under_review)
             if (request.incluirPromociones() && !mapaMLporMla.isEmpty()) {
-                addLog("Incluyendo en promociones...");
-                int sellerPct = config.sellerCampaignPct() != null ? config.sellerCampaignPct() : 0;
-                int dealPct = config.dealPct() != null ? config.dealPct() : 0;
-                int smartPct = config.smartPct() != null ? config.smartPct() : 0;
-                int[] r = incluirEnPromociones(mapaMLporMla, sellerPct, dealPct, smartPct);
-                promoOk = r[0];
-                promoErr = r[1];
-                addLog("Promociones: " + promoOk + " ok, " + promoErr + " errores");
+                Map<String, PrecioProductoInfo> incluibles = filtrarSinUnderReview(mapaMLporMla, mlasUnderReview);
+                if (!incluibles.isEmpty()) {
+                    addLog("Incluyendo en promociones (" + incluibles.size() + " items)...");
+                    int sellerPct = config.sellerCampaignPct() != null ? config.sellerCampaignPct() : 0;
+                    int dealPct = config.dealPct() != null ? config.dealPct() : 0;
+                    int smartPct = config.smartPct() != null ? config.smartPct() : 0;
+                    int[] r = incluirEnPromociones(incluibles, sellerPct, dealPct, smartPct);
+                    promoOk = r[0];
+                    promoErr = r[1];
+                    addLog("Promociones: " + promoOk + " ok, " + promoErr + " errores");
+                }
             }
 
-            addLog("Sincronización completada");
+            // Resumen final (un bloque en el log vivo + completar tracker).
             int totalOk = envioOk + excluidosOk + mlOk + promoOk + nubeOk;
             int totalErr = envioErr + excluidosErr + mlErr + promoErr + nubeErr;
+            addLog("─────── Resumen ───────");
+            if (duxImportTotal > 0) {
+                addLog("DUX import: " + duxImportActualizados + " actualizados / " + duxImportTotal + " totales (" + duxImportErrores + " errores)");
+            }
+            if (titulosActualizados + titulosSinCambio + titulosSinSku > 0) {
+                addLog("Títulos KT Gastro: " + titulosActualizados + " actualizados, " + titulosSinCambio + " sin cambio, " + titulosSinSku + " sin match");
+            }
+            if (envioOk + envioErr > 0) {
+                addLog("Envíos: " + envioOk + " ok, " + envioErr + " errores");
+            }
+            if (excluidosOk + excluidosErr > 0) {
+                addLog("Excluidos de promos: " + excluidosOk + " ok, " + excluidosErr + " errores");
+            }
+            if (duxMlProductos > 0) {
+                addLog("DUX ML: " + duxMlProductos + " productos (" + duxMlEstado + ")");
+            }
+            if (duxGastroProductos > 0) {
+                addLog("DUX Gastro: " + duxGastroProductos + " productos (" + duxGastroEstado + ")");
+            }
+            if (duxNubeProductos > 0) {
+                addLog("DUX Nube: " + duxNubeProductos + " productos (" + duxNubeEstado + ")");
+            }
+            if (nubeOk + nubeErr > 0) {
+                addLog("TiendaNube: " + nubeOk + " ok, " + nubeErr + " errores");
+            }
+            if (mlOk + mlErr > 0) {
+                addLog("Precios ML: " + mlOk + " ok, " + mlErr + " errores");
+            }
+            if (promoOk + promoErr > 0) {
+                addLog("Promociones: " + promoOk + " ok, " + promoErr + " errores");
+            }
+            addLogOk("Sincronización completada — Total: " + totalOk + " ok, " + totalErr + " errores");
             tracker.completar(0, totalOk, totalErr, "Proceso finalizado");
 
         } catch (Exception e) {
             log.error("Error en sincronización de precios", e);
-            addLogWarn("ERROR: " + e.getMessage());
+            addLogError("ERROR: " + e.getMessage());
             tracker.completarConError(e.getMessage());
         } finally {
             resultado = new SincronizacionResultDTO(
                     duxImportActualizados, duxImportTotal, duxImportErrores,
+                    titulosActualizados, titulosSinCambio, titulosSinSku,
                     envioOk, envioErr,
                     excluidosOk, excluidosErr,
                     duxMlProductos, duxMlEstado,
@@ -475,6 +578,56 @@ public class AutomatizacionPreciosService {
      * Devuelve true si el precio actual (del body de ML) ya coincide con el precio nuevo a aplicar.
      * Para items con variaciones, todas deben coincidir.
      */
+    /**
+     * Actualiza el campo {@code tituloWeb} de los productos cuyos SKUs aparecen en el mapa.
+     * Solo se persisten cambios reales (skip si el título coincide). Trim + uppercase.
+     *
+     * @return {@code [actualizados, sinCambio, sinSkuEnDb]}
+     */
+    @Transactional
+    public int[] actualizarTitulosWebEnDb(Map<String, String> titulosPorSku) {
+        if (titulosPorSku == null || titulosPorSku.isEmpty()) return new int[]{0, 0, 0};
+
+        List<String> skus = new ArrayList<>(titulosPorSku.keySet());
+        List<Producto> productos = productoRepository.findBySkuIn(skus);
+
+        Set<String> skusEncontrados = new HashSet<>(productos.size());
+        int actualizados = 0;
+        int sinCambio = 0;
+        for (Producto p : productos) {
+            String sku = p.getSku();
+            skusEncontrados.add(sku);
+            String nuevoTitulo = titulosPorSku.get(sku);
+            if (nuevoTitulo == null) continue;
+            nuevoTitulo = nuevoTitulo.trim();
+            if (nuevoTitulo.isEmpty()) continue;
+            // El campo tiene length=100 — truncar para no fallar el insert.
+            if (nuevoTitulo.length() > 100) {
+                nuevoTitulo = nuevoTitulo.substring(0, 100);
+            }
+            if (nuevoTitulo.equals(p.getTituloWeb())) {
+                sinCambio++;
+                continue;
+            }
+            p.setTituloWeb(nuevoTitulo);
+            actualizados++;
+        }
+
+        int sinSku = skus.size() - skusEncontrados.size();
+        return new int[]{actualizados, sinCambio, sinSku};
+    }
+
+    /**
+     * Devuelve una vista del mapa sin los MLAs en under_review (ML rechaza promos en ese estado).
+     */
+    private Map<String, PrecioProductoInfo> filtrarSinUnderReview(
+            Map<String, PrecioProductoInfo> mapa, Set<String> underReview) {
+        if (underReview == null || underReview.isEmpty()) return mapa;
+        Map<String, PrecioProductoInfo> copia = new LinkedHashMap<>(mapa);
+        copia.keySet().removeAll(underReview);
+        return copia;
+    }
+
     private boolean precioYaCoincide(JsonNode body, double precioNuevo) {
         JsonNode variaciones = body.path("variations");
         if (variaciones.isArray() && !variaciones.isEmpty()) {
@@ -488,9 +641,45 @@ public class AutomatizacionPreciosService {
         return Math.abs(body.path("price").asDouble(-1) - precioNuevo) < 0.01;
     }
 
+    /** Tipos de promo que el flujo procesa. Si el seller no tiene ninguna activa de estos tipos,
+     *  podemos saltearnos las consultas por item (gran ahorro en runs grandes). */
+    private static final Set<String> TIPOS_PROMO_SOPORTADOS =
+            Set.of("DEAL", "SELLER_CAMPAIGN", "SMART", "PRICE_MATCHING", "MARKETPLACE_CAMPAIGN");
+
     private int[] incluirEnPromociones(Map<String, PrecioProductoInfo> mapaMLporMla,
                                        int sellerCampaignPct, int dealPct, int smartPct) {
         int total = mapaMLporMla.size();
+
+        // Short-circuit: 1 sola request al endpoint del seller. Si no hay ninguna promo activa
+        // de los tipos soportados, evitamos N consultas /seller-promotions/items/{mla}.
+        try {
+            String userId = mlService.getUserId();
+            String sellerPromosJson = mlService.obtenerPromocionesDelSeller(userId);
+            if (sellerPromosJson != null) {
+                JsonNode root = objectMapper.readTree(sellerPromosJson);
+                JsonNode results = root.path("results");
+                int activasSoportadas = 0;
+                if (results.isArray()) {
+                    for (JsonNode p : results) {
+                        String type = p.path("type").asString("");
+                        String status = p.path("status").asString("");
+                        if (TIPOS_PROMO_SOPORTADOS.contains(type)
+                                && ("started".equals(status) || "pending".equals(status))) {
+                            activasSoportadas++;
+                        }
+                    }
+                }
+                if (activasSoportadas == 0) {
+                    addLog("Sin promociones activas soportadas en ML: se saltean " + total + " consultas por item");
+                    return new int[]{0, 0};
+                }
+                addLog(activasSoportadas + " promo(s) activa(s) soportadas en ML; consultando candidates por item...");
+            }
+        } catch (Exception e) {
+            // No bloqueante: si falla la consulta global, seguimos con el flujo por-item (sin optimización).
+            log.warn("ML - No se pudo verificar promociones del seller (sigue flujo por item): {}", e.getMessage());
+        }
+
         actualizarEstado("Incluyendo en promociones: 0/" + total, 0, total);
 
         List<Callable<Boolean>> tasks = new ArrayList<>();
@@ -725,8 +914,12 @@ public class AutomatizacionPreciosService {
             }
 
             int p = procesados.incrementAndGet();
-            if (p % 50 == 0 || p == total) {
+            if (p % 20 == 0 || p == total) {
                 actualizarEstado(label + ": " + p + "/" + total, p, total);
+            }
+            // Item-by-item logging (granular): cada 50 items para no saturar el log vivo.
+            if (p % 50 == 0 && p < total) {
+                addLog(label + ": " + p + "/" + total + " procesados");
             }
         }
 
@@ -806,14 +999,31 @@ public class AutomatizacionPreciosService {
         return false;
     }
 
+    // Prefijos por nivel (Unicode). El frontend puede mostrarlos tal cual, y además
+    // sirven para que el LogPanel matchee colores por patrón de inicio.
+    private static final String PFX_INFO = "ℹ ";
+    private static final String PFX_OK = "✔ ";
+    private static final String PFX_WARN = "⚠ ";
+    private static final String PFX_ERROR = "✖ ";
+
     private void addLog(String mensaje) {
-        logEntries.add(mensaje);
+        logEntries.add(PFX_INFO + mensaje);
+        log.info("SYNC - {}", mensaje);
+    }
+
+    private void addLogOk(String mensaje) {
+        logEntries.add(PFX_OK + mensaje);
         log.info("SYNC - {}", mensaje);
     }
 
     private void addLogWarn(String mensaje) {
-        logEntries.add(mensaje);
+        logEntries.add(PFX_WARN + mensaje);
         log.warn("SYNC - {}", mensaje);
+    }
+
+    private void addLogError(String mensaje) {
+        logEntries.add(PFX_ERROR + mensaje);
+        log.error("SYNC - {}", mensaje);
     }
 
     private void actualizarEstado(String mensaje, int procesados, int total) {

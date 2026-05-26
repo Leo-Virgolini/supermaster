@@ -120,6 +120,9 @@ public class CatalogoPdfController {
                 response.put("ruta", result.rutaGuardada());
                 response.put("productosExportados", result.productosExportados());
                 response.put("productosSinImagen", result.productosSinImagen() != null ? result.productosSinImagen() : java.util.List.of());
+                response.put("imagenesEnBlanco", result.imagenesEnBlanco());
+                response.put("imagenesNoLeidas", result.imagenesNoLeidas());
+                response.put("erroresImagen", result.erroresImagen());
                 return ResponseEntity.ok(response);
             }
 
@@ -127,16 +130,7 @@ public class CatalogoPdfController {
             String filename = String.format("CATALOGO_%s_%s.pdf",
                     result.nombreArchivo(),
                     LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")));
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_PDF);
-            headers.setContentDispositionFormData("attachment", filename);
-            headers.setContentLength(result.archivo().length);
-            headers.add("X-Productos-Count", String.valueOf(result.productosExportados()));
-            if (result.productosSinImagen() != null && !result.productosSinImagen().isEmpty()) {
-                headers.add("X-Productos-Sin-Imagen", String.join(",", result.productosSinImagen()));
-                headers.add("X-Productos-Sin-Imagen-Count", String.valueOf(result.productosSinImagen().size()));
-            }
-            headers.add("Access-Control-Expose-Headers", "X-Productos-Count,X-Productos-Sin-Imagen,X-Productos-Sin-Imagen-Count");
+            HttpHeaders headers = buildPdfDownloadHeaders(filename, result);
             return new ResponseEntity<>(result.archivo(), headers, HttpStatus.OK);
         } catch (IllegalArgumentException e) {
             log.error("Error de validación al generar catálogo PDF automático: {}", e.getMessage(), e);
@@ -165,17 +159,7 @@ public class CatalogoPdfController {
                     result.nombreArchivo(),
                     LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")));
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_PDF);
-            headers.setContentDispositionFormData("attachment", filename);
-            headers.setContentLength(result.archivo().length);
-            headers.add("X-Productos-Count", String.valueOf(result.productosExportados()));
-            if (result.productosSinImagen() != null && !result.productosSinImagen().isEmpty()) {
-                headers.add("X-Productos-Sin-Imagen", String.join(",", result.productosSinImagen()));
-                headers.add("X-Productos-Sin-Imagen-Count", String.valueOf(result.productosSinImagen().size()));
-            }
-            headers.add("Access-Control-Expose-Headers", "X-Productos-Count,X-Productos-Sin-Imagen,X-Productos-Sin-Imagen-Count");
-
+            HttpHeaders headers = buildPdfDownloadHeaders(filename, result);
             return new ResponseEntity<>(result.archivo(), headers, HttpStatus.OK);
         } catch (IllegalArgumentException e) {
             log.error("Error de validación al generar catálogo PDF: {}", e.getMessage(), e);
@@ -189,5 +173,24 @@ public class CatalogoPdfController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ErrorResponse.of("Error interno del servidor: " + e.getMessage(), path));
         }
+    }
+
+    private HttpHeaders buildPdfDownloadHeaders(String filename, CatalogoPdfResultDTO result) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("attachment", filename);
+        headers.setContentLength(result.archivo().length);
+        headers.add("X-Productos-Count", String.valueOf(result.productosExportados()));
+        if (result.productosSinImagen() != null && !result.productosSinImagen().isEmpty()) {
+            headers.add("X-Productos-Sin-Imagen", String.join(",", result.productosSinImagen()));
+            headers.add("X-Productos-Sin-Imagen-Count", String.valueOf(result.productosSinImagen().size()));
+        }
+        headers.add("X-Imagenes-En-Blanco", String.valueOf(result.imagenesEnBlanco()));
+        headers.add("X-Imagenes-No-Leidas", String.valueOf(result.imagenesNoLeidas()));
+        headers.add("X-Errores-Imagen", String.valueOf(result.erroresImagen()));
+        headers.add("Access-Control-Expose-Headers",
+                "X-Productos-Count,X-Productos-Sin-Imagen,X-Productos-Sin-Imagen-Count," +
+                "X-Imagenes-En-Blanco,X-Imagenes-No-Leidas,X-Errores-Imagen");
+        return headers;
     }
 }

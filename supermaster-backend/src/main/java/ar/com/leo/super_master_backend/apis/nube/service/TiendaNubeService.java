@@ -27,8 +27,8 @@ import java.util.Map;
 @Service
 public class TiendaNubeService {
 
-    private static final String STORE_HOGAR = "KT HOGAR";
-    private static final String STORE_GASTRO = "KT GASTRO";
+    public static final String STORE_HOGAR = "KT HOGAR";
+    public static final String STORE_GASTRO = "KT GASTRO";
     private static final long BASE_WAIT_MS = 2000L;
 
     private final RestClient restClient;
@@ -552,6 +552,91 @@ public class TiendaNubeService {
 
         log.info("NUBE ({}) - Variantes indexadas: {} SKUs ({} páginas)", storeName, mapa.size(), paginas);
         return mapa;
+    }
+
+    /**
+     * Lista todos los productos de una tienda y devuelve un mapa {@code sku → titulo} (uppercase).
+     * El campo {@code name} de Tienda Nube puede ser objeto i18n (ej: {@code {"es": "..."}}) o string;
+     * se prefiere "es" y, si no, se toma el primer valor no vacío.
+     * <p>Si la paginación falla, devuelve un mapa vacío para no escribir títulos parciales.</p>
+     */
+    public Map<String, String> obtenerTitulosPorSku(String storeName) {
+        verificarCredenciales();
+        StoreCredentials store = getStore(storeName);
+        if (store == null) {
+            log.warn("NUBE - Store '{}' no encontrada en credenciales", storeName);
+            return Map.of();
+        }
+
+        Map<String, String> mapa = new LinkedHashMap<>();
+        String uri = String.format("/%s/products?per_page=200&fields=id,name,variants", store.getStoreId());
+        int paginas = 0;
+
+        while (uri != null) {
+            NubeRetryHandler.HttpResponse httpResponse;
+            try {
+                httpResponse = retryHandler.getWithHeaders(uri, store.getAccessToken());
+            } catch (HttpClientErrorException e) {
+                if (e.getStatusCode().value() == 404 && e.getResponseBodyAsString().contains("Last page is 0")) {
+                    break;
+                }
+                log.warn("NUBE ({}) - Error listando productos en página {}: {}. Abortando paginación.",
+                        storeName, paginas + 1, e.getMessage());
+                return Map.of();
+            }
+
+            if (httpResponse.body() == null) break;
+
+            try {
+                JsonNode products = objectMapper.readTree(httpResponse.body());
+                if (!products.isArray() || products.isEmpty()) break;
+
+                for (JsonNode product : products) {
+                    String nombre = extraerNombreProducto(product.path("name"));
+                    if (nombre == null || nombre.isBlank()) continue;
+                    nombre = nombre.toUpperCase();
+
+                    JsonNode variants = product.path("variants");
+                    if (!variants.isArray()) continue;
+
+                    for (JsonNode variant : variants) {
+                        String sku = variant.path("sku").asString("");
+                        if (sku.isBlank()) continue;
+                        mapa.putIfAbsent(sku, nombre);
+                    }
+                }
+                paginas++;
+            } catch (Exception e) {
+                log.warn("NUBE ({}) - Error parseando productos en página {}: {}. Abortando paginación.",
+                        storeName, paginas + 1, e.getMessage());
+                return Map.of();
+            }
+
+            uri = parseLinkNext(httpResponse.headers());
+        }
+
+        log.info("NUBE ({}) - Títulos indexados: {} SKUs ({} páginas)", storeName, mapa.size(), paginas);
+        return mapa;
+    }
+
+    /**
+     * Resuelve el campo {@code name} de Tienda Nube. Puede venir como string directo
+     * o como objeto i18n con claves de idioma. Se toma "es"; si no hay, devuelve null.
+     */
+    private String extraerNombreProducto(JsonNode nameNode) {
+        if (nameNode == null || nameNode.isMissingNode() || nameNode.isNull()) return null;
+        if (nameNode.isTextual()) {
+            String v = nameNode.asString("").trim();
+            return v.isEmpty() ? null : v;
+        }
+        if (nameNode.isObject()) {
+            JsonNode es = nameNode.get("es");
+            if (es != null && es.isTextual()) {
+                String esValue = es.asString("").trim();
+                if (!esValue.isEmpty()) return esValue;
+            }
+        }
+        return null;
     }
 
     /**

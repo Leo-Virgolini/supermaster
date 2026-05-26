@@ -16,8 +16,10 @@ export interface SincronizacionConfig {
     sinIvaHogar: boolean | null;
 }
 
-export interface SyncRequest {
+/** Steps booleanos (cada uno representa un checkbox en la UI). */
+export interface SyncSteps {
     importarCostosDux: boolean;
+    bajarTitulosNube: boolean;
     generarEnvio: boolean;
     excluirPromociones: boolean;
     duxMl: boolean;
@@ -28,10 +30,18 @@ export interface SyncRequest {
     preciosNube: boolean;
 }
 
+export interface SyncRequest extends SyncSteps {
+    /** Si tiene valores, restringe la sincronización solo a estos MLAs. */
+    filtroMlas?: string[];
+}
+
 export interface SincronizacionResult {
     duxImportActualizados: number;
     duxImportTotal: number;
     duxImportErrores: number;
+    titulosActualizados: number;
+    titulosSinCambio: number;
+    titulosSinSku: number;
     envioCalculados: number;
     envioErrores: number;
     excluidosExitosos: number;

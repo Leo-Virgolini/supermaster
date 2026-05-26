@@ -70,8 +70,6 @@ public class ProcesoGlobalController {
     @GetMapping("/estados")
     public ResponseEntity<List<Map<String, Object>>> todosLosEstados() {
         List<Map<String, Object>> procesos = List.of(
-                buildProcesoInfo("dux-obtencion", "Obtener productos DUX",
-                        duxService.obtenerEstadoObtencionProductos()),
                 buildProcesoInfo("dux-importacion", "Importar productos DUX",
                         duxService.obtenerEstadoImportacion()),
                 buildProcesoInfo("dux-deudas", "Deudas de clientes DUX",

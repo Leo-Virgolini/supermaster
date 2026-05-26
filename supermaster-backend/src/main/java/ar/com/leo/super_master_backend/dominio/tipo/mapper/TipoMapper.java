@@ -14,7 +14,15 @@ public interface TipoMapper {
     // ENTITY → DTO
     // =============================
     @Mapping(source = "padre.id", target = "padreId")
+    @Mapping(target = "nombreCompleto", expression = "java(buildNombreCompleto(entity))")
     TipoDTO toDTO(Tipo entity);
+
+    /** Construye "ABUELO > PADRE > HIJO" navegando recursivamente la cadena de padres. */
+    default String buildNombreCompleto(Tipo t) {
+        if (t == null) return null;
+        if (t.getPadre() == null) return t.getNombre();
+        return buildNombreCompleto(t.getPadre()) + " > " + t.getNombre();
+    }
 
     // =============================
     // CREATE DTO → ENTITY

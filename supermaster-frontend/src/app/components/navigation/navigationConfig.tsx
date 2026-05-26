@@ -1,6 +1,6 @@
 "use client";
 
-import type { ElementType } from "react";
+import type { ElementType, SVGProps } from "react";
 import {
     AdjustmentsHorizontalIcon,
     ArrowPathIcon,
@@ -56,7 +56,26 @@ export type NavItemConfig = {
     requiredPermission?: string;
     requiredRoles?: string[];
     children?: NavItemConfig[];
+    /** Si es true, el href se trata como URL externa: se abre en nueva pestaña con rel="noopener noreferrer". */
+    external?: boolean;
 };
+
+/**
+ * Ícono custom para el logo de KT Gastro. Renderiza la imagen webp respetando
+ * proporciones (object-contain) y llenando el contenedor del menú.
+ *
+ * Se ignora el `className` con tamaño que viene del callsite (size-4 de los
+ * heroicons) para que la imagen ocupe todo el wrapper de 28x28 (size-7) en el
+ * sidebar; un logo necesita más espacio que un pictograma geométrico.
+ */
+const KtGastroIcon = (_props: SVGProps<SVGSVGElement> & { className?: string }) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+        src="/logos/kt-gastro-logo.webp"
+        alt="KT Gastro"
+        className="w-full h-full object-contain"
+    />
+);
 
 export type NavSectionConfig = {
     label: string;
@@ -66,6 +85,21 @@ export type NavSectionConfig = {
 };
 
 export const navigationSections: NavSectionConfig[] = [
+    {
+        label: "Apps",
+        description: "Aplicaciones externas vinculadas al ecosistema.",
+        color: "amber",
+        items: [
+            {
+                href: "http://servidor:4200",
+                label: "Showroom",
+                description: "Vista del showroom de KT Gastro (app externa)",
+                icon: KtGastroIcon,
+                color: "amber",
+                external: true,
+            },
+        ],
+    },
     {
         label: "Análisis",
         description: "Lectura rápida del negocio y los márgenes.",
@@ -376,8 +410,8 @@ export const navigationSections: NavSectionConfig[] = [
                 children: [
                     {
                         href: "/dux-operaciones",
-                        label: "Importar / Exportar",
-                        description: "Importar y exportar productos desde/hacia DUX",
+                        label: "Operaciones DUX",
+                        description: "Sincronización automática y manual con DUX, y operaciones auxiliares",
                         icon: ServerStackIcon,
                         color: "orange",
                         requiredPermission: "INTEGRACIONES_VER",

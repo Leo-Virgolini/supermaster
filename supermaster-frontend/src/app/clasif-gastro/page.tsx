@@ -54,7 +54,9 @@ export default function ClasifGastroPage() {
 
     const handleSearchClasifGastros = async (q: string) => {
         const data = await searchClasifGastros(q);
-        return data.content.map((m: any) => ({ id: m.id, label: m.nombre }));
+        // Usamos nombreCompleto ("ABUELO > PADRE > HIJO") como label si hay
+        // jerarquía: AsyncSelect destaca el hijo final en negrita.
+        return data.content.map((m: any) => ({ id: m.id, label: m.nombreCompleto ?? m.nombre }));
     };
     const columns = useMemo(() => getColumns(handleSearchClasifGastros, canEdit), [canEdit, clasifGastros]);
 

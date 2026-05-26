@@ -54,7 +54,7 @@ const PROCESO_RUTAS: Record<string, string> = {
     "costo-venta": "/operaciones-ml",
     "reposicion": "/reposicion",
     "dux-importacion": "/dux",
-    "dux-obtencion": "/dux",
+    "dux-sync-programada": "/dux-operaciones",
     "dux-deudas": "/dux-deudas",
     "recalculo-precios": "/producto-canal-precios",
     "recalculo-canal": "/canal-concepto-cuotas",
@@ -98,7 +98,7 @@ const GRUPOS_FALLBACK: Record<string, string[]> = {
     "costo-venta": ["ML"],
     "automatizacion-precios": ["ML", "DUX", "BD"],
     "dux-importacion": ["DUX", "BD"],
-    "dux-obtencion": ["DUX"],
+    "dux-sync-programada": ["DUX", "BD"],
     "dux-deudas": ["DUX"],
     "reposicion": [],
 };

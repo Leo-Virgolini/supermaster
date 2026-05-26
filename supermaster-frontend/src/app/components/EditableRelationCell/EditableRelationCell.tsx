@@ -8,6 +8,7 @@ import { useState } from "react";
 
 type RelationOption = {
     id: number | string;
+    /** Texto mostrado en el dropdown. Para entidades jerárquicas: path completo "A > B > C". */
     label: string;
 };
 
@@ -42,8 +43,10 @@ export const EditableRelationCell = ({
     const { editingId, setEditingId } = useEditingCell();
     const isEditing = editingId === myId;
 
-    const [pendingVal, setPendingVal] = useState<{ id: number | null; label: string } | null>(null);
+    const [pendingVal, setPendingVal] = useState<{ id: number | null; label: string; nombreCorto: string } | null>(null);
     const [currentName, setCurrentName] = useState(initialName && initialName !== "---" ? initialName : "---");
+    /** Path completo "A > B > C" para tooltip y para el displayValue del AsyncSelect mientras se edita. */
+    const [currentFullName, setCurrentFullName] = useState<string | null>(null);
     const [saveState, setSaveState] = useState<"idle" | "success">("idle");
     const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -52,12 +55,24 @@ export const EditableRelationCell = ({
         const fetchName = async () => {
             if (initialId && (!initialName || initialName === "---")) {
                 setCurrentName("...");
-                const realName = await getNombreById(endpoint, initialId, labelKey);
-                if (isMounted) setCurrentName(realName);
+                setCurrentFullName(null);
+                const info = await getNombreById(endpoint, initialId, labelKey);
+                if (isMounted) {
+                    setCurrentName(info.nombre);
+                    setCurrentFullName(info.nombreCompleto ?? null);
+                }
             } else if (initialName) {
-                if (isMounted) setCurrentName(initialName);
+                if (isMounted) {
+                    setCurrentName(initialName);
+                    // No hacemos un fetch extra solo para el tooltip cuando ya
+                    // tenemos el nombre: sería 1 request por celda en cada render.
+                    setCurrentFullName(null);
+                }
             } else {
-                if (isMounted) setCurrentName("---");
+                if (isMounted) {
+                    setCurrentName("---");
+                    setCurrentFullName(null);
+                }
             }
         };
         fetchName();
@@ -78,15 +93,24 @@ export const EditableRelationCell = ({
 
     const handleSelect = (val: number | string | null | undefined, label?: string) => {
         if (val !== undefined) {
+            const fullLabel = label ?? (val === null ? "---" : String(val));
+            // El AsyncSelect solo nos da el label visible. Para entidades
+            // jerárquicas ese label es el path completo "A > B > C"; el corto
+            // (último segmento) sirve para mostrar en la celda al confirmar.
+            const nombreCorto = val === null
+                ? "---"
+                : (fullLabel.includes(" > ") ? fullLabel.split(" > ").pop() ?? fullLabel : fullLabel);
             setPendingVal({
                 id: val === null ? null : Number(val),
-                label: label ?? (val === null ? "---" : String(val)),
+                label: fullLabel,
+                nombreCorto,
             });
         }
     };
 
     const handleClear = () => {
         setCurrentName("---");
+        setCurrentFullName(null);
         onSave(null);
         setEditingId(null);
         setPendingVal(null);
@@ -95,7 +119,8 @@ export const EditableRelationCell = ({
 
     const handleConfirm = () => {
         if (pendingVal) {
-            setCurrentName(pendingVal.label);
+            setCurrentName(pendingVal.nombreCorto);
+            setCurrentFullName(pendingVal.label !== pendingVal.nombreCorto ? pendingVal.label : null);
             onSave(pendingVal.id);
             markSuccess();
         }
@@ -149,7 +174,14 @@ export const EditableRelationCell = ({
                             placeholder={placeholder}
                             loadOptions={loadOptions}
                             value={pendingVal?.id ?? initialId}
-                            displayValue={pendingVal?.label === "---" ? "" : (pendingVal?.label ?? (currentName !== "---" ? currentName : ""))}
+                            // El input nativo solo acepta texto plano, así que mostramos
+                            // únicamente el nombre corto (el "hijo final" — lo realmente
+                            // seleccionado). El path completo "ABUELO > PADRE > HIJO" sigue
+                            // visible en el dropdown (con el último segmento destacado) y
+                            // en el tooltip de la celda.
+                            displayValue={pendingVal?.label === "---"
+                                ? ""
+                                : (pendingVal?.nombreCorto ?? (currentName !== "---" ? currentName : ""))}
                             onChange={(val, label) => handleSelect(val, label)}
                             autoFocus
                             inputClassName={inputClassName}
@@ -203,6 +235,11 @@ export const EditableRelationCell = ({
         );
     }
 
+    // Tooltip prioriza la jerarquía completa "A > B > C" si está disponible
+    // (entidades jerárquicas con nombreCompleto); cae al ID en su defecto.
+    const baseTooltip = currentFullName ?? `ID: ${initialId || "N/A"}`;
+    const tooltipDisplay = disabled ? baseTooltip : `${baseTooltip} - Click para editar`;
+
     return (
         <div
             onClick={() => { if (!disabled) setEditingId(myId); }}
@@ -215,7 +252,7 @@ export const EditableRelationCell = ({
             } ${
                 disabled ? "cursor-default" : "cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-200 dark:hover:border-blue-800"
             } ${displayClassName}`}
-            title={disabled ? `ID: ${initialId || "N/A"}` : `ID: ${initialId || "N/A"} - Click para editar`}
+            title={tooltipDisplay}
         >
             {currentName}
         </div>

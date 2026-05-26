@@ -15,6 +15,17 @@ public record GenerarTodosResultDTO(
             int productosExportados,
             String rutaGuardada,
             String error,
-            List<String> productosSinImagen
-    ) {}
+            List<String> productosSinImagen,
+            int imagenesEnBlanco,
+            int imagenesNoLeidas,
+            int erroresImagen
+    ) {
+        // Compatibilidad con llamadas existentes (default stats = 0).
+        public GenerarItemResultDTO(Integer id, String nombre, boolean exito,
+                                    int productosExportados, String rutaGuardada,
+                                    String error, List<String> productosSinImagen) {
+            this(id, nombre, exito, productosExportados, rutaGuardada, error,
+                    productosSinImagen, 0, 0, 0);
+        }
+    }
 }

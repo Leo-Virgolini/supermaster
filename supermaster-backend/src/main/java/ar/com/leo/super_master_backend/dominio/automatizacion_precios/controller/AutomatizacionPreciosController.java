@@ -6,6 +6,8 @@ import ar.com.leo.super_master_backend.dominio.automatizacion_precios.dto.Sincro
 import ar.com.leo.super_master_backend.dominio.automatizacion_precios.service.AutomatizacionPreciosService;
 import ar.com.leo.super_master_backend.dominio.common.dto.ProcesoMasivoEstadoDTO;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,6 +19,7 @@ import java.nio.file.Path;
 import java.util.List;
 import ar.com.leo.super_master_backend.config.Permisos;
 
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/automatizacion-precios")
@@ -70,14 +73,33 @@ public class AutomatizacionPreciosController {
     public ResponseEntity<SincronizacionResultDTO> ejecutar()
             throws InterruptedException {
         SincronizacionRequestDTO allSteps = new SincronizacionRequestDTO(
-                true, true, true, true, true, true, true, true, true);
+                true,  // importarCostosDux
+                true,  // bajarTitulosNube
+                true,  // generarEnvio
+                true,  // excluirPromociones
+                true,  // duxMl
+                true,  // duxGastro
+                true,  // duxNube
+                true,  // preciosMl
+                true,  // incluirPromociones
+                true,  // preciosNube
+                null   // filtroMlas (sin filtro: procesa todos)
+        );
         boolean started = service.iniciar(allSteps);
         if (!started) {
             return ResponseEntity.status(409).build();
         }
 
-        // Esperar a que termine (polling interno)
+        // Esperar a que termine (polling interno) con timeout duro de seguridad.
+        // n8n suele tener timeout HTTP largo pero finito; si el proceso interno se cuelga,
+        // devolvemos 504 en vez de mantener el thread HTTP indefinidamente.
+        final long timeoutMs = 60L * 60_000L; // 60 minutos
+        long deadline = System.currentTimeMillis() + timeoutMs;
         while (service.obtenerEstado().enEjecucion()) {
+            if (System.currentTimeMillis() > deadline) {
+                log.warn("/ejecutar: timeout esperando fin del proceso ({} min)", timeoutMs / 60_000L);
+                return ResponseEntity.status(HttpStatus.GATEWAY_TIMEOUT).build();
+            }
             Thread.sleep(2000);
         }
 
@@ -87,6 +109,7 @@ public class AutomatizacionPreciosController {
         // Retornar sin log (puede ser muy grande para n8n). El detalle queda en el archivo.
         return ResponseEntity.ok(new SincronizacionResultDTO(
                 result.duxImportActualizados(), result.duxImportTotal(), result.duxImportErrores(),
+                result.titulosActualizados(), result.titulosSinCambio(), result.titulosSinSku(),
                 result.envioCalculados(), result.envioErrores(),
                 result.excluidosExitosos(), result.excluidosErrores(),
                 result.duxMlProductos(), result.duxMlEstado(),

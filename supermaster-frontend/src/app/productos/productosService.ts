@@ -26,12 +26,16 @@ type RelationLookups = {
 type LookupItem = Record<string, unknown> & {
 	id: number;
 	nombre?: string;
+	nombreCompleto?: string;
 	mla?: string;
 };
 
 type SearchOption = {
 	id: number;
+	/** Texto a mostrar en el dropdown. Para entidades jerárquicas es el path completo "A > B > C". */
 	label: string;
+	/** Nombre corto (solo el hijo), opcional. Usado en la celda después de elegir. */
+	nombreCorto?: string;
 };
 
 let _lookupsCache: RelationLookups | null = null;
@@ -202,14 +206,24 @@ export const getProductoAuditoriaAPI = async (
 };
 
 // --- HELPER PARA BUSCAR NOMBRE POR ID (Auto-corrección visual) ---
-export const getNombreById = async (endpoint: string, id: number, labelKey: string = "nombre") => {
+/**
+ * Devuelve el nombre corto (para mostrar en la celda) y el nombre completo
+ * (path "A > B > C" para tooltip), si la entidad expone `nombreCompleto`.
+ */
+export const getNombreById = async (
+	endpoint: string,
+	id: number,
+	labelKey: string = "nombre",
+): Promise<{ nombre: string; nombreCompleto?: string }> => {
 	try {
 		const res = await fetchAPI(`${API_BASE_URL}/api/${endpoint}/${id}`);
-		if (!res.ok) return "---";
+		if (!res.ok) return { nombre: "---" };
 		const json = await res.json();
-		return json[labelKey] || json.nombre || json.mla || "---";
+		const nombre = json[labelKey] || json.nombre || json.mla || "---";
+		const nombreCompleto = typeof json.nombreCompleto === "string" ? json.nombreCompleto : undefined;
+		return { nombre, nombreCompleto };
 	} catch {
-		return "Error";
+		return { nombre: "Error" };
 	}
 };
 // --- HELPERS PARA ASYNC SELECT (Buscadores) ---
@@ -220,14 +234,23 @@ const fetchOptions = async (endpoint: string, query: string, labelKey: string = 
 	const json = await res.json();
 
 	const q = query.toLowerCase();
-	return (json.content as LookupItem[]).map((item) => ({
-		id: item.id,
-		label:
-			String(item[labelKey] ?? item.nombre ?? item.mla ?? "Sin Nombre"),
-	} satisfies SearchOption)).sort((a, b) => {
-		const aStarts = a.label.toLowerCase().startsWith(q) ? 0 : 1;
-		const bStarts = b.label.toLowerCase().startsWith(q) ? 0 : 1;
-		return aStarts - bStarts;
+	// Para entidades jerárquicas el dropdown muestra el path completo
+	// "A > B > C" (más informativo al elegir); el nombre corto queda
+	// disponible aparte para mostrar en la celda después de seleccionar.
+	return (json.content as LookupItem[]).map((item) => {
+		const nombreCorto = String(item[labelKey] ?? item.nombre ?? item.mla ?? "Sin Nombre");
+		const nombreCompleto = typeof item.nombreCompleto === "string" ? item.nombreCompleto : undefined;
+		return {
+			id: item.id,
+			label: nombreCompleto ?? nombreCorto,
+			nombreCorto,
+		} satisfies SearchOption;
+	}).sort((a, b) => {
+		// El sort sigue priorizando matches por prefijo del nombre corto
+		// (más útil que el path para tipear "abat" y ver "ABATIDORES" arriba).
+		const aMatch = (a.nombreCorto ?? a.label).toLowerCase().startsWith(q) ? 0 : 1;
+		const bMatch = (b.nombreCorto ?? b.label).toLowerCase().startsWith(q) ? 0 : 1;
+		return aMatch - bMatch;
 	});
 };
 

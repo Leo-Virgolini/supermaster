@@ -521,16 +521,16 @@ export function getColumns(onOpenDetalle: (producto: ProductoDTO) => void, canEd
         cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={String(getValue() || "")} nullable className={FONT.codeSoft} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val)} disabled={!canEdit} />)
     },
     {
-        accessorKey: "largo", header: "Largo", size: 60, enableColumnFilter: false, meta: { editable: true },
-        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={String(getValue() || "")} type="number" className={FONT.numericSoft} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, Number(val))} disabled={!canEdit} />)
+        accessorKey: "largo", header: "Largo", size: 70, enableColumnFilter: false, meta: { editable: true },
+        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={String(getValue() || "")} nullable className={FONT.codeSoft} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val)} disabled={!canEdit} />)
     },
     {
-        accessorKey: "ancho", header: "Ancho", size: 60, enableColumnFilter: false, meta: { editable: true },
-        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={String(getValue() || "")} type="number" className={FONT.numericSoft} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, Number(val))} disabled={!canEdit} />)
+        accessorKey: "ancho", header: "Ancho", size: 70, enableColumnFilter: false, meta: { editable: true },
+        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={String(getValue() || "")} nullable className={FONT.codeSoft} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val)} disabled={!canEdit} />)
     },
     {
-        accessorKey: "alto", header: "Alto", size: 60, enableColumnFilter: false, meta: { editable: true },
-        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={String(getValue() || "")} type="number" className={FONT.numericSoft} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, Number(val))} disabled={!canEdit} />)
+        accessorKey: "alto", header: "Alto", size: 70, enableColumnFilter: false, meta: { editable: true },
+        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={String(getValue() || "")} nullable className={FONT.codeSoft} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val)} disabled={!canEdit} />)
     },
     {
         accessorKey: "diamboca", header: "Ø Boca", size: 70, enableColumnFilter: false, meta: { editable: true },

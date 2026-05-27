@@ -187,9 +187,9 @@ export default function ProductosPage() {
     const [activo, setActivo] = useState(true);
     const [imagenUrl, setImagenUrl] = useState("");
     const [capacidad, setCapacidad] = useState("");
-    const [largo, setLargo] = useState<number | "">("");
-    const [ancho, setAncho] = useState<number | "">("");
-    const [alto, setAlto] = useState<number | "">("");
+    const [largo, setLargo] = useState("");
+    const [ancho, setAncho] = useState("");
+    const [alto, setAlto] = useState("");
     const [diamboca, setDiamboca] = useState("");
     const [diambase, setDiambase] = useState("");
     const [espesor, setEspesor] = useState("");
@@ -427,9 +427,9 @@ export default function ProductosPage() {
         if (uxb < 1) errors.uxb = "UxB debe ser al menos 1";
         if (!clasifGralId) errors.clasifGralId = "La clasificación general es obligatoria";
         if (!tipoId) errors.tipoId = "El tipo es obligatorio";
-        if (largo !== "" && Number(largo) < 0) errors.largo = "No puede ser negativo";
-        if (ancho !== "" && Number(ancho) < 0) errors.ancho = "No puede ser negativo";
-        if (alto !== "" && Number(alto) < 0) errors.alto = "No puede ser negativo";
+        if (largo.length > 45) errors.largo = "Máximo 45 caracteres";
+        if (ancho.length > 45) errors.ancho = "Máximo 45 caracteres";
+        if (alto.length > 45) errors.alto = "Máximo 45 caracteres";
         setFormErrors(errors);
         return Object.keys(errors).length === 0;
     };
@@ -440,7 +440,7 @@ export default function ProductosPage() {
             setIsSaving(true);
             const payload: ProductoCreateDTO = {
                 sku: sku.trim(), codExt, tituloWeb: tituloWeb.trim(), descripcion: descripcion.trim(), esCombo, uxb, activo, imagenUrl,
-                capacidad, largo: Number(largo) || null, ancho: Number(ancho) || null, alto: Number(alto) || null,
+                capacidad, largo: largo || null, ancho: ancho || null, alto: alto || null,
                 diamboca: diamboca || null, diambase: diambase || null, espesor: espesor || null,
                 costo, iva,
                 stock: stock !== "" ? stock : null,
@@ -816,17 +816,17 @@ export default function ProductosPage() {
                             </label>
                             <label className="block">
                                 <span className={fieldLabelClassName}>Largo (cm)</span>
-                                <input type="number" min={0} className={`${inputBaseClassName} ${formErrors.largo ? inputErrorClassName : ""}`} value={largo} onChange={e => { setLargo(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.largo) setFormErrors(p => ({ ...p, largo: "" })); }} />
+                                <input type="text" maxLength={45} className={`${inputBaseClassName} ${formErrors.largo ? inputErrorClassName : ""}`} value={largo} onChange={e => { setLargo(e.target.value); if (formErrors.largo) setFormErrors(p => ({ ...p, largo: "" })); }} />
                                 {formErrors.largo && <p className="mt-1 text-xs text-red-500">{formErrors.largo}</p>}
                             </label>
                             <label className="block">
                                 <span className={fieldLabelClassName}>Ancho (cm)</span>
-                                <input type="number" min={0} className={`${inputBaseClassName} ${formErrors.ancho ? inputErrorClassName : ""}`} value={ancho} onChange={e => { setAncho(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.ancho) setFormErrors(p => ({ ...p, ancho: "" })); }} />
+                                <input type="text" maxLength={45} className={`${inputBaseClassName} ${formErrors.ancho ? inputErrorClassName : ""}`} value={ancho} onChange={e => { setAncho(e.target.value); if (formErrors.ancho) setFormErrors(p => ({ ...p, ancho: "" })); }} />
                                 {formErrors.ancho && <p className="mt-1 text-xs text-red-500">{formErrors.ancho}</p>}
                             </label>
                             <label className="block">
                                 <span className={fieldLabelClassName}>Alto (cm)</span>
-                                <input type="number" min={0} className={`${inputBaseClassName} ${formErrors.alto ? inputErrorClassName : ""}`} value={alto} onChange={e => { setAlto(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.alto) setFormErrors(p => ({ ...p, alto: "" })); }} />
+                                <input type="text" maxLength={45} className={`${inputBaseClassName} ${formErrors.alto ? inputErrorClassName : ""}`} value={alto} onChange={e => { setAlto(e.target.value); if (formErrors.alto) setFormErrors(p => ({ ...p, alto: "" })); }} />
                                 {formErrors.alto && <p className="mt-1 text-xs text-red-500">{formErrors.alto}</p>}
                             </label>
                             <label className="block">

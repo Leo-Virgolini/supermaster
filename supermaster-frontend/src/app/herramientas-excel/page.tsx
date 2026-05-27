@@ -1,7 +1,7 @@
 "use client";
 
 import { getErrorMessage } from "@/lib/errors";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { notificar } from "../utils/notificar";
 import Button from "../components/Button/Button";
@@ -186,6 +186,40 @@ function ResultadoImport({ data }: { data: ImportResult }) {
 }
 
 // ---------------------------------------------------------------------------
+// Resultado de enriquecimiento (NUEVO SUPER MASTER)
+// ---------------------------------------------------------------------------
+
+function ResultadoEnriquecimiento({ data }: { data: EnriquecimientoResult }) {
+    return (
+        <div className="mt-3 space-y-2">
+            <div className="grid grid-cols-3 gap-2">
+                <div className="bg-gray-50 dark:bg-slate-700/50 rounded p-2 text-center border border-gray-100 dark:border-slate-600">
+                    <div className="text-lg font-bold text-gray-700 dark:text-slate-200">{data.totalRows ?? 0}</div>
+                    <div className="text-xs text-gray-500 dark:text-slate-400">Filas leídas</div>
+                </div>
+                <div className="bg-gray-50 dark:bg-slate-700/50 rounded p-2 text-center border border-gray-100 dark:border-slate-600">
+                    <div className="text-lg font-bold text-green-600">{data.successRows ?? 0}</div>
+                    <div className="text-xs text-gray-500 dark:text-slate-400">Actualizados</div>
+                </div>
+                <div className="bg-gray-50 dark:bg-slate-700/50 rounded p-2 text-center border border-gray-100 dark:border-slate-600">
+                    <div className="text-lg font-bold text-red-600">{data.errorRows ?? 0}</div>
+                    <div className="text-xs text-gray-500 dark:text-slate-400">Con errores</div>
+                </div>
+            </div>
+            {data.errors && data.errors.length > 0 && (
+                <div className="text-xs bg-red-50 border border-red-200 rounded p-2">
+                    <div className="font-semibold text-red-700 mb-1">Errores ({data.errors.length}):</div>
+                    <ul className="list-disc list-inside text-red-600 space-y-0.5">
+                        {data.errors.slice(0, 10).map((e, i) => <li key={i}>{e}</li>)}
+                        {data.errors.length > 10 && <li className="text-red-500">...y {data.errors.length - 10} más</li>}
+                    </ul>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ---------------------------------------------------------------------------
 // Resultado de migración
 // ---------------------------------------------------------------------------
 
@@ -300,10 +334,18 @@ interface ImportCardProps {
     titulo: string;
     descripcion: string;
     endpoint: string;
-    tipo?: "costos" | "migracion" | "tablas-auxiliares";
+    tipo?: "costos" | "migracion" | "tablas-auxiliares" | "enriquecimiento";
     columnas?: string[];
     advertencia?: string;
     badge?: string;
+}
+
+interface EnriquecimientoResult {
+    totalRows?: number;
+    successRows?: number;
+    errorRows?: number;
+    errors?: string[];
+    message?: string;
 }
 
 function ImportCard({ titulo, descripcion, endpoint, tipo = "costos", columnas, advertencia, badge }: ImportCardProps) {
@@ -325,6 +367,9 @@ function ImportCard({ titulo, descripcion, endpoint, tipo = "costos", columnas, 
             if (tipo === "migracion" || tipo === "tablas-auxiliares") {
                 const d = data as MigracionResult;
                 mensaje = d.message ?? `Importación completada. ${d.hojasProcesadas ?? 0}/${d.totalHojas ?? 0} hojas procesadas.`;
+            } else if (tipo === "enriquecimiento") {
+                const d = data as EnriquecimientoResult;
+                mensaje = d.message ?? `Enriquecimiento completado. ${d.successRows ?? 0}/${d.totalRows ?? 0} productos actualizados.`;
             } else {
                 const d = data as ImportResult;
                 mensaje = `Importación completada. ${d.productosActualizados ?? 0} actualizados, ${d.productosNoEncontrados ?? 0} no encontrados.`;
@@ -383,6 +428,7 @@ function ImportCard({ titulo, descripcion, endpoint, tipo = "costos", columnas, 
                     {resultado.mensaje}
                     {resultado.ok && resultado.data && (tipo === "migracion" || tipo === "tablas-auxiliares") && <ResultadoMigracion data={resultado.data} />}
                     {resultado.ok && resultado.data && tipo === "costos" && <ResultadoImport data={resultado.data} />}
+                    {resultado.ok && resultado.data && tipo === "enriquecimiento" && <ResultadoEnriquecimiento data={resultado.data} />}
                 </div>
             )}
         </div>
@@ -399,32 +445,231 @@ interface LimpiezaResult {
     message?: string;
 }
 
+// Grupos visuales de tablas en el orden en que se muestran en la UI.
+// NO se exponen tablas de auth (usuarios/roles/permisos) — borrarlas dejaría
+// al sistema sin acceso.
+const GRUPOS_TABLAS: { titulo: string; descripcion: string; tablas: string[] }[] = [
+    {
+        titulo: "Transaccionales",
+        descripcion: "Datos generados día a día y cachés. Borrar acá no afecta maestros ni configuración.",
+        tablas: [
+            "auditoria_cambios",
+            "venta_diaria_cache",
+            "ordenes_compra",
+            "orden_compra_lineas",
+            "producto_canal_precios",
+            "producto_canal_precio_inflado",
+            "producto_margen",
+        ],
+    },
+    {
+        titulo: "Productos y relaciones",
+        descripcion: "Productos, MLAs y las tablas N-N (apto/catalogo/cliente).",
+        tablas: [
+            "productos",
+            "mlas",
+            "producto_apto",
+            "producto_catalogo",
+            "producto_cliente",
+        ],
+    },
+    {
+        titulo: "Maestros",
+        descripcion: "Atributos de producto y entidades referenciadas. La cascada se autoselecciona para evitar FKs huérfanos.",
+        tablas: [
+            "marcas",
+            "tipos",
+            "materiales",
+            "origenes",
+            "clasif_gral",
+            "clasif_gastro",
+            "proveedores",
+            "clientes",
+            "aptos",
+            "catalogos",
+        ],
+    },
+    {
+        titulo: "Canales y cálculo",
+        descripcion: "Canales de venta, conceptos de cálculo y reglas asociadas.",
+        tablas: [
+            "canales",
+            "canal_concepto",
+            "canal_concepto_cuota",
+            "canal_concepto_regla",
+            "canal_regla",
+            "conceptos_calculo",
+        ],
+    },
+    {
+        titulo: "Reglas y configuración",
+        descripcion: "Precios inflados, descuentos y configuraciones del sistema. Borrarlas requiere re-configurar.",
+        tablas: [
+            "precios_inflados",
+            "reglas_descuentos",
+            "catalogo_pdf_config",
+            "configuracion_ml",
+            "reposicion_config",
+            "config_automatizacion",
+            "dux_horario_sync",
+        ],
+    },
+];
+
+// Dependencias: clave → tablas que también deben borrarse si se borra la clave.
+// Se aplica cascada transitiva en el frontend al toggle. Construido a partir
+// de las @JoinColumn reales de las entidades JPA.
+const DEPENDENCIAS: Record<string, string[]> = {
+    // Maestros referenciados por productos y reglas
+    marcas: ["productos", "canal_concepto_regla", "canal_regla"],
+    tipos: ["productos", "canal_concepto_regla", "canal_regla"],
+    materiales: ["productos"],
+    origenes: ["productos"],
+    clasif_gral: ["productos", "canal_concepto_regla", "canal_regla", "reglas_descuentos"],
+    clasif_gastro: ["productos", "canal_concepto_regla", "canal_regla", "reglas_descuentos"],
+    proveedores: ["productos", "ordenes_compra"],
+    clientes: ["producto_cliente"],
+    aptos: ["producto_apto"],
+    catalogos: ["producto_catalogo", "reglas_descuentos"],
+    mlas: ["productos"],
+
+    // Productos
+    productos: [
+        "producto_apto",
+        "producto_catalogo",
+        "producto_cliente",
+        "producto_canal_precio_inflado",
+        "producto_canal_precios",
+        "producto_margen",
+        "orden_compra_lineas",
+        "canal_regla",
+        // venta_diaria_cache referencia productos por sku (sin FK formal pero
+        // dependencia lógica: borrar productos sin esto deja ventas con SKUs huérfanos).
+        "venta_diaria_cache",
+    ],
+
+    // Órdenes de compra
+    ordenes_compra: ["orden_compra_lineas"],
+
+    // Canales y cálculo
+    canales: [
+        "canal_concepto",
+        "canal_concepto_cuota",
+        "canal_concepto_regla",
+        "canal_regla",
+        "producto_canal_precios",
+        "producto_canal_precio_inflado",
+        "reglas_descuentos",
+    ],
+    conceptos_calculo: ["canal_concepto", "canal_concepto_regla"],
+
+    // Precios inflados
+    precios_inflados: ["producto_canal_precio_inflado"],
+};
+
+const TODAS_LAS_TABLAS: string[] = GRUPOS_TABLAS.flatMap((g) => g.tablas);
+
+/** Cierre transitivo: dado un set, devuelve set + todos sus dependientes recursivos. */
+function expandirCascada(seleccionadas: Set<string>): Set<string> {
+    const resultado = new Set(seleccionadas);
+    const cola = [...seleccionadas];
+    while (cola.length > 0) {
+        const actual = cola.shift()!;
+        const deps = DEPENDENCIAS[actual] ?? [];
+        for (const d of deps) {
+            if (!resultado.has(d)) {
+                resultado.add(d);
+                cola.push(d);
+            }
+        }
+    }
+    return resultado;
+}
+
+/** Tablas que requieren a `tabla` para ser deletable (los "padres" en la cascada). */
+function padresDe(tabla: string): string[] {
+    return Object.entries(DEPENDENCIAS)
+        .filter(([, deps]) => deps.includes(tabla))
+        .map(([padre]) => padre);
+}
+
 function LimpiarDatosCard() {
-    const TABLAS = [
-        "venta_diaria_cache", "orden_compra_lineas", "ordenes_compra",
-        "producto_apto", "producto_catalogo", "producto_cliente",
-        "producto_canal_precio_inflado", "producto_canal_precios", "producto_margen",
-        "mlas", "productos", "clientes",
-        "marcas", "tipos", "materiales", "origenes",
-        "clasif_gral", "clasif_gastro", "proveedores",
-    ];
     const FRASE_CONFIRMACION = "BORRAR DATOS";
 
     const [cargando, setCargando] = useState(false);
     const [confirmacion, setConfirmacion] = useState("");
     const [resultado, setResultado] = useState<LimpiezaResult | null>(null);
     const [error, setError] = useState<string | null>(null);
+    // Selección manual del usuario. La selección efectiva (con cascada) se deriva.
+    const [seleccionManual, setSeleccionManual] = useState<Set<string>>(
+        () => new Set(TODAS_LAS_TABLAS)
+    );
+
+    const seleccionEfectiva = useMemo(
+        () => expandirCascada(seleccionManual),
+        [seleccionManual]
+    );
+
+    // Una tabla está "forzada" si algún padre suyo está en la selección efectiva
+    // (es decir, fue seleccionado manualmente o forzado por cascada). La UI la
+    // marca checked y disabled.
+    const tablasForzadas = useMemo(() => {
+        const forzadas = new Set<string>();
+        for (const t of TODAS_LAS_TABLAS) {
+            if (padresDe(t).some((p) => seleccionEfectiva.has(p))) {
+                forzadas.add(t);
+            }
+        }
+        return forzadas;
+    }, [seleccionEfectiva]);
+
+    const toggleTabla = (tabla: string) => {
+        if (tablasForzadas.has(tabla)) {
+            toast.warning(`No podés desmarcar "${tabla}": un padre seleccionado la requiere.`);
+            return;
+        }
+        setSeleccionManual((prev) => {
+            const next = new Set(prev);
+            if (next.has(tabla)) next.delete(tabla);
+            else next.add(tabla);
+            return next;
+        });
+    };
+
+    const toggleGrupo = (tablas: string[], marcarTodo: boolean) => {
+        setSeleccionManual((prev) => {
+            const next = new Set(prev);
+            for (const t of tablas) {
+                if (marcarTodo) next.add(t);
+                else if (!tablasForzadas.has(t)) next.delete(t);
+            }
+            return next;
+        });
+    };
+
+    const seleccionarTodo = () => setSeleccionManual(new Set(TODAS_LAS_TABLAS));
+    const limpiarSeleccion = () => setSeleccionManual(new Set());
+
+    const cantidadEfectiva = seleccionEfectiva.size;
 
     const handleLimpiar = async () => {
         if (confirmacion !== FRASE_CONFIRMACION) {
             toast.error(`Escribí "${FRASE_CONFIRMACION}" para confirmar.`);
             return;
         }
+        if (cantidadEfectiva === 0) {
+            toast.error("No seleccionaste ninguna tabla.");
+            return;
+        }
         setCargando(true);
         setResultado(null);
         setError(null);
         try {
-            const res = await fetchAPI(`${API_BASE_URL}/api/excel/limpiar-datos`, { method: "POST" });
+            const res = await fetchAPI(`${API_BASE_URL}/api/excel/limpiar-datos`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ tablas: [...seleccionEfectiva] }),
+            });
             const data = await res.json().catch(() => ({})) as LimpiezaResult;
             setResultado(data);
             setConfirmacion("");
@@ -450,22 +695,92 @@ function LimpiarDatosCard() {
                     Limpiar Datos de la BD
                 </h3>
                 <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                    Borra TODO el contenido de las tablas de datos y maestros (productos, mlas, precios, marcas, tipos, etc.) y resetea sus IDs a 1. Operación irreversible.
+                    Borra el contenido de las tablas seleccionadas y resetea sus IDs a 1. Operación irreversible.
                 </p>
             </div>
 
-            <details className="text-xs">
-                <summary className="cursor-pointer text-gray-600 dark:text-slate-300 hover:text-gray-800 dark:hover:text-slate-100">
-                    Ver las {TABLAS.length} tablas afectadas
-                </summary>
-                <div className="mt-2 bg-gray-50 dark:bg-slate-700/50 border border-gray-200 dark:border-slate-600 rounded p-2 flex flex-wrap gap-1">
-                    {TABLAS.map((t) => (
-                        <span key={t} className="bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-500 rounded px-1.5 py-0.5 font-mono text-gray-700 dark:text-slate-200">
-                            {t}
-                        </span>
-                    ))}
+            <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-600 dark:text-slate-300">
+                    <strong>{cantidadEfectiva}</strong> / {TODAS_LAS_TABLAS.length} tablas seleccionadas
+                </span>
+                <div className="flex gap-2">
+                    <button type="button" onClick={seleccionarTodo}
+                        className="text-blue-600 hover:text-blue-700 dark:text-blue-400 underline"
+                        disabled={cargando}>
+                        Seleccionar todas
+                    </button>
+                    <span className="text-gray-300">|</span>
+                    <button type="button" onClick={limpiarSeleccion}
+                        className="text-blue-600 hover:text-blue-700 dark:text-blue-400 underline"
+                        disabled={cargando}>
+                        Limpiar selección
+                    </button>
                 </div>
-            </details>
+            </div>
+
+            <div className="space-y-2">
+                {GRUPOS_TABLAS.map((grupo) => {
+                    const enGrupo = grupo.tablas;
+                    const seleccionadasGrupo = enGrupo.filter((t) => seleccionEfectiva.has(t)).length;
+                    const todasSeleccionadas = seleccionadasGrupo === enGrupo.length;
+                    return (
+                        <div key={grupo.titulo}
+                            className="bg-gray-50 dark:bg-slate-700/30 border border-gray-200 dark:border-slate-600 rounded p-2.5">
+                            <div className="flex items-center justify-between mb-1.5">
+                                <div>
+                                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={todasSeleccionadas}
+                                            ref={(el) => {
+                                                if (el) el.indeterminate = seleccionadasGrupo > 0 && !todasSeleccionadas;
+                                            }}
+                                            onChange={(e) => toggleGrupo(enGrupo, e.target.checked)}
+                                            disabled={cargando}
+                                            className="accent-red-600"
+                                        />
+                                        <span className="text-sm font-semibold text-gray-800 dark:text-slate-100">
+                                            {grupo.titulo}
+                                        </span>
+                                        <span className="text-xs text-gray-500 dark:text-slate-400">
+                                            ({seleccionadasGrupo}/{enGrupo.length})
+                                        </span>
+                                    </label>
+                                    <p className="text-[11px] text-gray-500 dark:text-slate-400 ml-6 mt-0.5">{grupo.descripcion}</p>
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5 ml-6">
+                                {enGrupo.map((tabla) => {
+                                    const checked = seleccionEfectiva.has(tabla);
+                                    const forzada = tablasForzadas.has(tabla);
+                                    return (
+                                        <label
+                                            key={tabla}
+                                            title={forzada ? `Auto-seleccionada por dependencia` : undefined}
+                                            className={`flex items-center gap-1 text-xs font-mono border rounded px-1.5 py-0.5 cursor-pointer select-none ${
+                                                checked
+                                                    ? forzada
+                                                        ? "bg-amber-50 dark:bg-amber-900/30 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300"
+                                                        : "bg-red-50 dark:bg-red-900/30 border-red-300 dark:border-red-700 text-red-800 dark:text-red-300"
+                                                    : "bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-500 text-gray-700 dark:text-slate-200"
+                                            } ${cargando ? "opacity-60 cursor-not-allowed" : ""}`}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={checked}
+                                                onChange={() => toggleTabla(tabla)}
+                                                disabled={cargando || forzada}
+                                                className="accent-red-600"
+                                            />
+                                            {tabla}
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
 
             <div className="text-xs text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded p-2">
                 ⚠️ <strong>Acción destructiva.</strong> Para habilitar el botón, escribí <code className="font-mono bg-red-100 dark:bg-red-900/50 px-1 rounded">{FRASE_CONFIRMACION}</code> abajo.
@@ -481,10 +796,10 @@ function LimpiarDatosCard() {
             />
 
             <Button
-                text={cargando ? "Borrando..." : "Borrar todo"}
+                text={cargando ? "Borrando..." : `Borrar (${cantidadEfectiva} tabla${cantidadEfectiva === 1 ? "" : "s"})`}
                 variant="dark"
                 onClick={handleLimpiar}
-                disabled={cargando || confirmacion !== FRASE_CONFIRMACION}
+                disabled={cargando || confirmacion !== FRASE_CONFIRMACION || cantidadEfectiva === 0}
             >
                 <TrashIcon className="w-4 h-4" />
             </Button>
@@ -1079,10 +1394,18 @@ export default function HerramientasExcelPage() {
                     />
                     <ImportCard
                         titulo="Importar Productos (MASTER)"
-                        descripcion="Importa la hoja MASTER del Excel SUPER MASTER. Crea o actualiza productos por SKU. Las tablas auxiliares (marcas, tipos, etc.) deben estar ya cargadas."
+                        descripcion="Importa la hoja MASTER del Excel SUPER MASTER. Crea o actualiza productos por SKU (descripción, costo, IVA, MLA, catálogos, márgenes). Las FKs (marca, tipo, etc.) y dimensiones se cargan luego desde NUEVO SUPER MASTER."
                         endpoint="/api/excel/importar-migracion"
                         tipo="migracion"
-                        advertencia="Marcas, tipos, materiales, orígenes, clasificaciones y proveedores deben existir previamente. Las filas que referencien valores inexistentes se reportan como error."
+                        advertencia="Después de este paso correr 'Enriquecer Productos' con NUEVO SUPER MASTER.xlsx para completar marca, tipo, clasificaciones, material, proveedor y dimensiones."
+                    />
+                    <ImportCard
+                        titulo="Enriquecer Productos (NUEVO MASTER)"
+                        descripcion="Lee la hoja MASTER de NUEVO SUPER MASTER.xlsx (desde la fila 3) y completa por SKU los FKs (origen, marca/línea, clasif gral, clasif gastro, tipo, material, proveedor) y las dimensiones (capacidad, largo, ancho, alto, diamboca, diambase, espesor)."
+                        endpoint="/api/excel/enriquecer-productos"
+                        tipo="enriquecimiento"
+                        columnas={["SKU", "ID ORIGEN", "ID MARCA", "ID LINEA", "ID CLASIF GRAL1/2", "ID CLASIF GASTRO1/2", "ID TIPO1/2/3", "CAPACIDAD", "LARGO", "ANCHO", "ALTO", "DIAMBOCA", "DIAMBASE", "ESPESOR", "ID MATERIAL", "ID PROVEEDOR"]}
+                        advertencia="Ejecutar DESPUÉS de 'Importar Productos (MASTER)'. SKUs que no existan en la BD se ignoran. Un ID = 0 se interpreta como 'sin dato'."
                     />
                 </div>
             </section>

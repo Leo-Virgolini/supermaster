@@ -28,9 +28,9 @@ export interface ProductoDTO {
 
 	// Dimensiones
 	capacidad: string | null;
-	largo: number | null;
-	ancho: number | null;
-	alto: number | null;
+	largo: string | null;
+	ancho: string | null;
+	alto: string | null;
 	diamboca: string | null;
 	diambase: string | null;
 	espesor: string | null;
@@ -85,9 +85,9 @@ export interface ProductoCreateDTO {
 	materialId: number | null;
 	mlaId: number | null;
 	capacidad: string | null;
-	largo: number | null;
-	ancho: number | null;
-	alto: number | null;
+	largo: string | null;
+	ancho: string | null;
+	alto: string | null;
 	diamboca: string | null;
 	diambase: string | null;
 	espesor: string | null;

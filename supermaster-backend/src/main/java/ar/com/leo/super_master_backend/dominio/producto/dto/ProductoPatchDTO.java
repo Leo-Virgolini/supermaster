@@ -29,9 +29,9 @@ public class ProductoPatchDTO {
     private JsonNullable<Integer> materialId = JsonNullable.undefined();
     private JsonNullable<Integer> mlaId = JsonNullable.undefined();
     private JsonNullable<String> capacidad = JsonNullable.undefined();
-    private JsonNullable<BigDecimal> largo = JsonNullable.undefined();
-    private JsonNullable<BigDecimal> ancho = JsonNullable.undefined();
-    private JsonNullable<BigDecimal> alto = JsonNullable.undefined();
+    private JsonNullable<String> largo = JsonNullable.undefined();
+    private JsonNullable<String> ancho = JsonNullable.undefined();
+    private JsonNullable<String> alto = JsonNullable.undefined();
     private JsonNullable<String> diamboca = JsonNullable.undefined();
     private JsonNullable<String> diambase = JsonNullable.undefined();
     private JsonNullable<String> espesor = JsonNullable.undefined();

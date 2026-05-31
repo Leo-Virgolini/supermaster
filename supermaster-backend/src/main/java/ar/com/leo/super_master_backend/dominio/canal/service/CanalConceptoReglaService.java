@@ -11,7 +11,7 @@ import java.util.List;
 
 public interface CanalConceptoReglaService {
 
-    Page<CanalConceptoReglaDTO> listar(Pageable pageable);
+    Page<CanalConceptoReglaDTO> listar(String search, Pageable pageable);
 
     CanalConceptoReglaDTO obtener(Long id);
 

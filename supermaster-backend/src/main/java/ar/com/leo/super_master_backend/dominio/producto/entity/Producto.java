@@ -120,14 +120,17 @@ public class Producto {
     @Column(name = "capacidad", length = 45)
     private String capacidad;
 
-    @Column(name = "largo", precision = 10, scale = 2)
-    private BigDecimal largo;
+    @Size(max = 45)
+    @Column(name = "largo", length = 45)
+    private String largo;
 
-    @Column(name = "ancho", precision = 10, scale = 2)
-    private BigDecimal ancho;
+    @Size(max = 45)
+    @Column(name = "ancho", length = 45)
+    private String ancho;
 
-    @Column(name = "alto", precision = 10, scale = 2)
-    private BigDecimal alto;
+    @Size(max = 45)
+    @Column(name = "alto", length = 45)
+    private String alto;
 
     @Size(max = 45)
     @Column(name = "diamboca", length = 45)

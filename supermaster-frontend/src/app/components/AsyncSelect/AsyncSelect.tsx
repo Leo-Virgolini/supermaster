@@ -127,13 +127,12 @@ export default function AsyncSelect({ label, placeholder, loadOptions, onChange,
     };
 
     /**
-     * Render del label de una opción. Si contiene " > " (path jerárquico
-     * "ABUELO > PADRE > HIJO"), los ancestros se muestran en gris suave y el
-     * último segmento (el hijo final, que es el que efectivamente se selecciona)
-     * en negrita. Para labels sin " > " devuelve el texto plano.
+     * Render del label de una opción. El último segmento (o el único si no hay
+     * jerarquía) es el valor efectivamente seleccionable y se muestra en
+     * negrita. Cuando hay path "ABUELO > PADRE > HIJO", los ancestros se
+     * muestran en gris suave antes del hijo.
      */
     const renderOptionLabel = (text: string) => {
-        if (!text.includes(" > ")) return text;
         const parts = text.split(" > ");
         const last = parts[parts.length - 1];
         const ancestors = parts.slice(0, -1);

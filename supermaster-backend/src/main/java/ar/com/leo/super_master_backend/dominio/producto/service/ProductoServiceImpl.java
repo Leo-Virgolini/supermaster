@@ -323,8 +323,92 @@ public class ProductoServiceImpl implements ProductoService {
                 ProductoSpecifications.mlaIds(filter.mlaIds())
         );
 
-        Page<Producto> page = productoRepository.findAll(spec, pageable);
+        // Algunos campos de sort no son columnas directas de Producto y necesitan un
+        // ORDER BY especial dentro de la Specification:
+        //  - márgenes: viven en la relación productoMargenes -> LEFT JOIN (no excluye
+        //    productos sin margen, cosa que sí haría el INNER join implícito del sort).
+        //  - catálogo: relación many-to-many -> subconsulta escalar (MIN del nombre) para
+        //    no duplicar filas. Se ordena por el 1er catálogo alfabético; los productos
+        //    sin catálogo quedan al final.
+        boolean ordenEspecial = pageable.getSort().stream()
+                .anyMatch(o -> esSortEspecial(o.getProperty()));
+        Pageable pageableEfectivo = pageable;
+        if (ordenEspecial) {
+            spec = spec.and(ordenarPorRelacion(pageable.getSort()));
+            // El orden lo aplica la Specification; quitamos el sort del Pageable para que
+            // SimpleJpaRepository no lo pise con su propio (INNER) join.
+            pageableEfectivo = org.springframework.data.domain.PageRequest.of(
+                    pageable.getPageNumber(), pageable.getPageSize());
+        }
+
+        Page<Producto> page = productoRepository.findAll(spec, pageableEfectivo);
         return mapProductosPage(page, pageable);
+    }
+
+    /** Sort del front -> nombre real del campo en la entidad ProductoMargen. */
+    private static final Map<String, String> CAMPOS_MARGEN_SORT = Map.of(
+            "margenminorista", "margenMinorista",
+            "margenmayorista", "margenMayorista",
+            "margenfijominorista", "margenFijoMinorista",
+            "margenfijomayorista", "margenFijoMayorista");
+
+    private boolean esSortEspecial(String property) {
+        String key = property.toLowerCase();
+        return CAMPOS_MARGEN_SORT.containsKey(key) || key.equals("catalogo") || key.equals("catalogos");
+    }
+
+    /**
+     * Specification que aplica el ORDER BY completo del pageable resolviendo los campos
+     * que no son columnas directas de Producto (márgenes vía LEFT JOIN, catálogo vía
+     * subconsulta escalar) y el path directo para el resto. No aplica orden en el count
+     * query (resultType Long).
+     */
+    private Specification<Producto> ordenarPorRelacion(Sort sort) {
+        return (root, query, cb) -> {
+            Class<?> rt = query.getResultType();
+            if (rt != Long.class && rt != long.class) {
+                jakarta.persistence.criteria.Join<Object, Object> margenJoin = null;
+                List<jakarta.persistence.criteria.Order> orders = new ArrayList<>();
+                for (Sort.Order o : sort) {
+                    String key = o.getProperty().toLowerCase();
+                    if (CAMPOS_MARGEN_SORT.containsKey(key)) {
+                        if (margenJoin == null) {
+                            margenJoin = root.join("productoMargenes", jakarta.persistence.criteria.JoinType.LEFT);
+                        }
+                        jakarta.persistence.criteria.Expression<?> expr = margenJoin.get(CAMPOS_MARGEN_SORT.get(key));
+                        orders.add(o.isAscending() ? cb.asc(expr) : cb.desc(expr));
+                    } else if (key.equals("catalogo") || key.equals("catalogos")) {
+                        // Catálogo es many-to-many: ordenamos con subconsultas escalares
+                        // correlacionadas (no joins, que duplicarían filas). Usamos dos
+                        // subconsultas independientes para no reusar la misma instancia.
+                        // 1) ¿tiene catálogos? -> los productos sin catálogo van al final
+                        //    en ambas direcciones (ASC y DESC).
+                        jakarta.persistence.criteria.Subquery<Long> cuenta = query.subquery(Long.class);
+                        jakarta.persistence.criteria.Root<ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCatalogo> pcCount =
+                                cuenta.from(ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCatalogo.class);
+                        cuenta.select(cb.count(pcCount));
+                        cuenta.where(cb.equal(pcCount.get("producto"), root));
+                        orders.add(cb.asc(cb.<Integer>selectCase().when(cb.equal(cuenta, 0L), 1).otherwise(0)));
+                        // 2) menor nombre de catálogo (1er alfabético) del producto.
+                        jakarta.persistence.criteria.Subquery<String> menorNombre = query.subquery(String.class);
+                        jakarta.persistence.criteria.Root<ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCatalogo> pcNombre =
+                                menorNombre.from(ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCatalogo.class);
+                        menorNombre.select(cb.least(pcNombre.get("catalogo").<String>get("nombre")));
+                        menorNombre.where(cb.equal(pcNombre.get("producto"), root));
+                        orders.add(o.isAscending() ? cb.asc(menorNombre) : cb.desc(menorNombre));
+                    } else {
+                        // path directo (soporta anidados con punto, ej. "marca.nombre")
+                        jakarta.persistence.criteria.Path<?> path = root;
+                        for (String part : o.getProperty().split("\\.")) {
+                            path = path.get(part);
+                        }
+                        orders.add(o.isAscending() ? cb.asc(path) : cb.desc(path));
+                    }
+                }
+                query.orderBy(orders);
+            }
+            return cb.conjunction();
+        };
     }
 
     // ======================================================
@@ -1037,13 +1121,13 @@ public class ProductoServiceImpl implements ProductoService {
             entity.setCapacidad(leerStringOpcional(patchDto.getCapacidad(), "capacidad", 45));
         }
         if (presente(patchDto.getLargo())) {
-            entity.setLargo(leerDecimalNoNegativoOpcional(patchDto.getLargo(), "largo"));
+            entity.setLargo(leerStringOpcional(patchDto.getLargo(), "largo", 45));
         }
         if (presente(patchDto.getAncho())) {
-            entity.setAncho(leerDecimalNoNegativoOpcional(patchDto.getAncho(), "ancho"));
+            entity.setAncho(leerStringOpcional(patchDto.getAncho(), "ancho", 45));
         }
         if (presente(patchDto.getAlto())) {
-            entity.setAlto(leerDecimalNoNegativoOpcional(patchDto.getAlto(), "alto"));
+            entity.setAlto(leerStringOpcional(patchDto.getAlto(), "alto", 45));
         }
         if (presente(patchDto.getDiamboca())) {
             entity.setDiamboca(leerStringOpcional(patchDto.getDiamboca(), "diamboca", 45));

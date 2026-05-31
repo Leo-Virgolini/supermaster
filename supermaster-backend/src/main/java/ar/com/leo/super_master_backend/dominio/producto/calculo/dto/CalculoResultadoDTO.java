@@ -21,6 +21,8 @@ public record CalculoResultadoDTO(
         Integer errores,
         List<String> skusSinCosto,
         List<String> skusSinMargen,
+        List<String> skusSinMargenMayorista,
+        List<String> skusSinMargenMinorista,
         List<String> skusConErrores
 ) {
     /**
@@ -31,7 +33,7 @@ public record CalculoResultadoDTO(
                 canal.precios().size(),
                 LocalDateTime.now(),
                 List.of(canal),
-                null, null, null, null, null, null
+                null, null, null, null, null, null, null, null
         );
     }
 
@@ -40,14 +42,14 @@ public record CalculoResultadoDTO(
      */
     public static CalculoResultadoDTO of(List<CanalPreciosDTO> canales) {
         int total = canales.stream().mapToInt(c -> c.precios().size()).sum();
-        return new CalculoResultadoDTO(total, LocalDateTime.now(), canales, null, null, null, null, null, null);
+        return new CalculoResultadoDTO(total, LocalDateTime.now(), canales, null, null, null, null, null, null, null, null);
     }
 
     /**
      * Crea resultado para cálculo masivo (sin detalle de canales).
      */
     public static CalculoResultadoDTO masivo(int total) {
-        return new CalculoResultadoDTO(total, LocalDateTime.now(), null, null, null, null, null, null, null);
+        return new CalculoResultadoDTO(total, LocalDateTime.now(), null, null, null, null, null, null, null, null, null);
     }
 
     /**
@@ -63,6 +65,8 @@ public record CalculoResultadoDTO(
                 resultado.errores(),
                 resultado.skusSinCosto(),
                 resultado.skusSinMargen(),
+                resultado.skusSinMargenMayorista(),
+                resultado.skusSinMargenMinorista(),
                 resultado.skusConErrores()
         );
     }

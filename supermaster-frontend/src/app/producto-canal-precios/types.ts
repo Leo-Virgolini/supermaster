@@ -71,6 +71,8 @@ export interface RecalculoMasivoResultDTO {
     errores: number;
     skusSinCosto: string[];
     skusSinMargen: string[];
+    skusSinMargenMayorista: string[];
+    skusSinMargenMinorista: string[];
     skusConErrores: string[];
 }
 

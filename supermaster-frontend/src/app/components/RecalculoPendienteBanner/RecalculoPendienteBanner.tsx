@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { ArrowPathIcon, ChevronDownIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import { notificar } from "../../utils/notificar";
+import { useProcesoActivo } from "../../context/ProcesoActivoContext";
 import { useRecalculoPendiente } from "./useRecalculoPendiente";
 
 /**
@@ -11,9 +12,16 @@ import { useRecalculoPendiente } from "./useRecalculoPendiente";
  */
 export default function RecalculoPendienteBanner() {
     const { estado, aplicando, aplicar } = useRecalculoPendiente();
+    const { tieneConflicto } = useProcesoActivo();
     const [detalleAbierto, setDetalleAbierto] = useState(false);
 
     if (!estado.pendiente) return null;
+
+    // Si ya hay un recálculo (u otro proceso del grupo BD) en ejecución, el
+    // backend rechazaría un nuevo Apply con 409. Deshabilitamos el botón para
+    // reflejarlo en la UI mientras el proceso corre, no solo durante el arranque.
+    const procesoEnCurso = tieneConflicto("recalculo-pendiente-scoped");
+    const deshabilitado = aplicando || procesoEnCurso !== null;
 
     const handleAplicar = async () => {
         const result = await aplicar();
@@ -63,11 +71,12 @@ export default function RecalculoPendienteBanner() {
                 <button
                     type="button"
                     onClick={handleAplicar}
-                    disabled={aplicando}
-                    className="ml-auto inline-flex items-center gap-1 rounded-md bg-amber-600 px-2.5 py-1 text-xs font-bold text-white shadow-sm transition hover:bg-amber-700 disabled:opacity-60"
+                    disabled={deshabilitado}
+                    title={procesoEnCurso ? "Ya hay un recálculo en proceso. Esperá a que termine." : undefined}
+                    className="ml-auto inline-flex items-center gap-1 rounded-md bg-amber-600 px-2.5 py-1 text-xs font-bold text-white shadow-sm transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                    <ArrowPathIcon className={`h-3.5 w-3.5 ${aplicando ? "animate-spin" : ""}`} />
-                    {aplicando ? "Iniciando..." : "Aplicar recálculo"}
+                    <ArrowPathIcon className={`h-3.5 w-3.5 ${(aplicando || procesoEnCurso) ? "animate-spin" : ""}`} />
+                    {aplicando ? "Iniciando..." : procesoEnCurso ? "En proceso..." : "Aplicar recálculo"}
                 </button>
             </div>
 
@@ -77,8 +86,8 @@ export default function RecalculoPendienteBanner() {
                         Motivos pendientes
                     </div>
                     <ul className="max-h-60 overflow-auto py-1 text-xs">
-                        {estado.motivos.map((m) => (
-                            <li key={m.motivo} className="flex items-center justify-between gap-2 px-3 py-1 text-slate-700 dark:text-slate-200">
+                        {estado.motivos.map((m, idx) => (
+                            <li key={`${m.motivo}-${idx}`} className="flex items-center justify-between gap-2 px-3 py-1 text-slate-700 dark:text-slate-200">
                                 <span className="truncate">{m.motivo}</span>
                                 <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 dark:bg-amber-500/20 dark:text-amber-200">
                                     {m.cantidad}×

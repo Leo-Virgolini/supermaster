@@ -17,15 +17,18 @@ import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundExceptio
 import ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService;
 import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoCanalPrecioRepository;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.openapitools.jackson.nullable.JsonNullable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,9 +49,37 @@ public class CanalConceptoCuotaServiceImpl implements CanalConceptoCuotaService 
 
     @Override
     @Transactional(readOnly = true)
-    public Page<CanalConceptoCuotaDTO> listar(Pageable pageable) {
-        return repository.findAll(pageable)
+    public Page<CanalConceptoCuotaDTO> listar(String search, Integer canalId, Pageable pageable) {
+        return repository.findAll(conFiltros(search, canalId), pageable)
                 .map(mapper::toDTO);
+    }
+
+    /**
+     * Filtro combinado para el listado: por canal (exacto) y/o búsqueda de texto libre.
+     * El search matchea (OR) contra el nombre del canal, la descripción y —si el término
+     * es numérico— la cantidad de cuotas exacta. Si ambos params son null, no filtra nada.
+     */
+    private Specification<CanalConceptoCuota> conFiltros(String search, Integer canalId) {
+        return (root, query, cb) -> {
+            List<Predicate> ands = new ArrayList<>();
+            if (canalId != null) {
+                ands.add(cb.equal(root.get("canal").get("id"), canalId));
+            }
+            if (search != null && !search.isBlank()) {
+                String like = "%" + search.trim().toLowerCase() + "%";
+                List<Predicate> ors = new ArrayList<>();
+                ors.add(cb.like(cb.lower(root.get("canal").get("nombre")), like));
+                ors.add(cb.like(cb.lower(root.get("descripcion")), like));
+                // Si el término es un número, también matchear la cantidad de cuotas exacta.
+                try {
+                    ors.add(cb.equal(root.get("cuotas"), Integer.parseInt(search.trim())));
+                } catch (NumberFormatException ignored) {
+                    // término no numérico: solo busca por texto
+                }
+                ands.add(cb.or(ors.toArray(new Predicate[0])));
+            }
+            return ands.isEmpty() ? cb.conjunction() : cb.and(ands.toArray(new Predicate[0]));
+        };
     }
 
     @Override

@@ -10,7 +10,7 @@ import java.util.Map;
 
 public interface OrdenCompraService {
 
-    Page<OrdenCompraDTO> listar(Pageable pageable, Integer proveedorId, EstadoOrdenCompra estado);
+    Page<OrdenCompraDTO> listar(Pageable pageable, Integer proveedorId, EstadoOrdenCompra estado, String search);
 
     OrdenCompraDTO obtener(Integer id);
 

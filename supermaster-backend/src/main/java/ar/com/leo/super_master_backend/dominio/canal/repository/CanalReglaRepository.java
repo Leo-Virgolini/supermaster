@@ -19,6 +19,25 @@ public interface CanalReglaRepository extends JpaRepository<CanalRegla, Long> {
     @EntityGraph(attributePaths = {"canal", "tipo", "marca", "clasifGral", "clasifGastro", "producto"})
     Page<CanalRegla> findAll(Pageable pageable);
 
+    /**
+     * Búsqueda paginada por texto (canal, marca, tipo o producto). Mantiene el
+     * @EntityGraph para que el mapeo a DTO no dispare N+1 (a diferencia de un
+     * findAll(Specification, ...) que no hereda el graph). El término llega no-nulo.
+     */
+    @EntityGraph(attributePaths = {"canal", "tipo", "marca", "clasifGral", "clasifGastro", "producto"})
+    @Query("""
+            SELECT cr FROM CanalRegla cr
+            LEFT JOIN cr.marca m
+            LEFT JOIN cr.tipo t
+            LEFT JOIN cr.producto p
+            WHERE LOWER(cr.canal.nombre) LIKE LOWER(CONCAT('%', :search, '%'))
+               OR LOWER(m.nombre)        LIKE LOWER(CONCAT('%', :search, '%'))
+               OR LOWER(t.nombre)        LIKE LOWER(CONCAT('%', :search, '%'))
+               OR LOWER(p.sku)           LIKE LOWER(CONCAT('%', :search, '%'))
+               OR LOWER(p.descripcion)   LIKE LOWER(CONCAT('%', :search, '%'))
+            """)
+    Page<CanalRegla> buscar(@Param("search") String search, Pageable pageable);
+
     @Override
     @EntityGraph(attributePaths = {"canal", "tipo", "marca", "clasifGral", "clasifGastro", "producto"})
     Optional<CanalRegla> findById(Long id);

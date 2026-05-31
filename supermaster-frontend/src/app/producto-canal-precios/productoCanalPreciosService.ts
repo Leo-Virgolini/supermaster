@@ -53,7 +53,8 @@ export const recalcularTodosAPI = async (): Promise<RecalculoMasivoResultDTO> =>
 /**
  * Devuelve el resultado del último recálculo masivo (sincrónico o async),
  * con la lista detallada de SKUs problemáticos:
- *  - skusConErrores, skusSinCosto, skusSinMargen.
+ *  - skusConErrores, skusSinCosto, skusSinMargen (combinado),
+ *    skusSinMargenMayorista y skusSinMargenMinorista (desglose por tipo requerido).
  * Devuelve null si el endpoint responde 204 (no hay resultado guardado todavía).
  */
 export const getResultadoRecalculoMasivoAPI = async (): Promise<RecalculoMasivoResultDTO | null> => {

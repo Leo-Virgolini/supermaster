@@ -19,6 +19,18 @@ public interface CanalConceptoReglaRepository extends JpaRepository<CanalConcept
     @EntityGraph(attributePaths = {"canal", "concepto", "tipo", "marca", "clasifGral", "clasifGastro"})
     Page<CanalConceptoRegla> findAll(Pageable pageable);
 
+    /**
+     * Búsqueda paginada por texto (canal o concepto). Mantiene el @EntityGraph para
+     * que el mapeo a DTO no dispare N+1. El término llega no-nulo.
+     */
+    @EntityGraph(attributePaths = {"canal", "concepto", "tipo", "marca", "clasifGral", "clasifGastro"})
+    @Query("""
+            SELECT ccr FROM CanalConceptoRegla ccr
+            WHERE LOWER(ccr.canal.nombre)    LIKE LOWER(CONCAT('%', :search, '%'))
+               OR LOWER(ccr.concepto.nombre) LIKE LOWER(CONCAT('%', :search, '%'))
+            """)
+    Page<CanalConceptoRegla> buscar(@Param("search") String search, Pageable pageable);
+
     @Override
     @EntityGraph(attributePaths = {"canal", "concepto", "tipo", "marca", "clasifGral", "clasifGastro"})
     Optional<CanalConceptoRegla> findById(Long id);

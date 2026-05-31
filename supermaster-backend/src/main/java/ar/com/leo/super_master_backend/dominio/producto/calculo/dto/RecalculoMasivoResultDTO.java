@@ -13,6 +13,9 @@ public record RecalculoMasivoResultDTO(
         int errores,
         List<String> skusSinCosto,
         List<String> skusSinMargen,
+        // Desglose de los SKUs sin margen según el tipo que cada canal requiere usar
+        List<String> skusSinMargenMayorista,
+        List<String> skusSinMargenMinorista,
         List<String> skusConErrores
 ) {
 }

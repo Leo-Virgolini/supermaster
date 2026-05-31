@@ -120,6 +120,40 @@ public interface CalculoPrecioService {
      */
     RecalculoMasivoResultDTO recalcularTodos();
 
+    /**
+     * Activa un caché ThreadLocal de contexto canal-constante (reglas, conceptos, cuotas,
+     * canalBase) para acelerar el recálculo: estas queries dependen solo del canal, así que
+     * se ejecutan una sola vez en lugar de repetirse por producto/cuota. Los canales se
+     * memoizan on-demand; {@code canalId} se precarga (puede ser {@code null} para solo
+     * activar el caché y dejar que se llene a medida que se procesan varios canales).
+     *
+     * <p>Es ANIDABLE (ref-counted): un loop externo puede mantener el caché vivo mientras
+     * llama operaciones que también lo abren/cierran. Debe cerrarse SIEMPRE con un
+     * {@link #limpiarCacheContextoCanal()} balanceado en finally.
+     */
+    void iniciarCacheContextoCanal(Integer canalId);
+
+    /** Cierra un nivel del caché de contexto de canal; libera el caché en el nivel 0. Llamar en finally. */
+    void limpiarCacheContextoCanal();
+
+    /**
+     * Callback de avance del recálculo de un canal completo. Permite reflejar el progreso
+     * (productos procesados / total) en el badge del header durante recálculos largos.
+     */
+    @FunctionalInterface
+    interface AvanceCanalCallback {
+        void onAvance(int procesados, int total, int ok, int errores);
+    }
+
+    /**
+     * Recalcula TODO el catálogo en un canal usando la maquinaria de precarga + batch del
+     * masivo (precarga de productos/precios/inflados en memoria, persistencia diferida al
+     * commit). Mucho más rápido que el camino producto-por-producto. Pensado para canales
+     * BASE (sin canalBase): el cálculo no recursa, así que el loop no hace queries y la
+     * persistencia se agrupa en un único flush. Devuelve la cantidad de productos OK.
+     */
+    int recalcularCanalCompletoBatch(Integer canalId, AvanceCanalCallback onAvance);
+
     // Recálculo masivo asincrónico con progreso
     boolean iniciarRecalculoMasivo();
     ProcesoMasivoEstadoDTO obtenerEstadoRecalculo();

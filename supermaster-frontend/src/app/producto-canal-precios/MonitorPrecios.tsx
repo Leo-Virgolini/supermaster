@@ -676,16 +676,20 @@ const getColumns = (
         size: 85,
         enableSorting: true,
         meta: { center: true, editable: true },
-        cell: ({ getValue, row }) => (
+        cell: ({ getValue, row }) => {
+            const value = getValue() as number | null;
+            const enCero = value === 0;
+            return (
             <EditableCell
-                initialValue={(getValue() as number | null) ?? ""}
+                initialValue={value ?? ""}
                 type="number"
                 suffix="%"
-                className={`font-mono text-indigo-600 ${highlightClass(row.original.id, "margenMinorista")}`}
+                className={`font-mono font-semibold ${enCero ? "text-red-600 dark:text-red-400" : "text-yellow-600 dark:text-yellow-400"} ${highlightClass(row.original.id, "margenMinorista")}`}
                 disabled={!canEdit}
                 onSave={(val) => onEditField?.(row.original.id, row.original.canalId, "margenMinorista", val!)}
             />
-        ),
+            );
+        },
     },
     {
         accessorKey: "margenMayorista",
@@ -693,16 +697,20 @@ const getColumns = (
         size: 85,
         enableSorting: true,
         meta: { center: true, editable: true },
-        cell: ({ getValue, row }) => (
+        cell: ({ getValue, row }) => {
+            const value = getValue() as number | null;
+            const enCero = value === 0;
+            return (
             <EditableCell
-                initialValue={(getValue() as number | null) ?? ""}
+                initialValue={value ?? ""}
                 type="number"
                 suffix="%"
-                className={`font-mono text-indigo-600 ${highlightClass(row.original.id, "margenMayorista")}`}
+                className={`font-mono font-semibold ${enCero ? "text-red-600 dark:text-red-400" : "text-blue-700 dark:text-blue-400"} ${highlightClass(row.original.id, "margenMayorista")}`}
                 disabled={!canEdit}
                 onSave={(val) => onEditField?.(row.original.id, row.original.canalId, "margenMayorista", val!)}
             />
-        ),
+            );
+        },
     },
     {
         accessorKey: "margenFijoMinorista",
@@ -716,7 +724,7 @@ const getColumns = (
                 type="number"
                 prefix="$ "
                 displayFormatter={formatThousands}
-                className={`font-mono text-indigo-600 ${highlightClass(row.original.id, "margenFijoMinorista")}`}
+                className={`font-mono font-semibold text-yellow-600 dark:text-yellow-400 ${highlightClass(row.original.id, "margenFijoMinorista")}`}
                 disabled={!canEdit}
                 onSave={(val) => onEditField?.(row.original.id, row.original.canalId, "margenFijoMinorista", val!)}
             />
@@ -734,7 +742,7 @@ const getColumns = (
                 type="number"
                 prefix="$ "
                 displayFormatter={formatThousands}
-                className={`font-mono text-indigo-600 ${highlightClass(row.original.id, "margenFijoMayorista")}`}
+                className={`font-mono font-semibold text-blue-700 dark:text-blue-400 ${highlightClass(row.original.id, "margenFijoMayorista")}`}
                 disabled={!canEdit}
                 onSave={(val) => onEditField?.(row.original.id, row.original.canalId, "margenFijoMayorista", val!)}
             />

@@ -156,6 +156,7 @@ const originLabelMap: Record<string, string> = {
     TABLE: "Tabla",
     MONITOR_PRECIOS: "Monitor de precios",
     PROCESS: "Proceso",
+    MANUAL: "Manual",
     API: "API",
     SYSTEM: "Sistema",
 };
@@ -210,6 +211,7 @@ const origenOptions = [
     { value: "TABLE", label: "Tabla" },
     { value: "MONITOR_PRECIOS", label: "Monitor de precios" },
     { value: "PROCESS", label: "Proceso" },
+    { value: "MANUAL", label: "Manual" },
     { value: "API", label: "API" },
     { value: "SYSTEM", label: "Sistema" },
 ];

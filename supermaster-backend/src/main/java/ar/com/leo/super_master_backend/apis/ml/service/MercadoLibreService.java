@@ -790,7 +790,9 @@ public class MercadoLibreService {
             anterior.put("comisionPorcentaje", comisionAnterior != null ? comisionAnterior.toPlainString() : null);
             Map<String, String> nuevo = new LinkedHashMap<>();
             nuevo.put("comisionPorcentaje", porcentaje.toPlainString());
-            auditoriaService.registrarCambios(AuditoriaEntidad.MLA, mla.getId(), mlaCode, AuditoriaAccion.UPDATE, anterior, nuevo);
+            // Origen PROCESS: el valor lo calcula el motor de costos de ML (no es edición
+            // manual). Explícito porque el cálculo masivo corre en @Async (sin request).
+            auditoriaService.registrarCambios(AuditoriaEntidad.MLA, mla.getId(), mlaCode, AuditoriaAccion.UPDATE, anterior, nuevo, "PROCESS");
 
             if (comisionAnterior == null || comisionAnterior.compareTo(porcentaje) != 0) {
                 programarRecalculoMlaPostCommit(mla.getId());
@@ -821,7 +823,9 @@ public class MercadoLibreService {
             anterior.put("precioEnvio", precioAnterior != null ? precioAnterior.toPlainString() : null);
             Map<String, String> nuevo = new LinkedHashMap<>();
             nuevo.put("precioEnvio", costoEnvio.toPlainString());
-            auditoriaService.registrarCambios(AuditoriaEntidad.MLA, mla.getId(), mlaCode, AuditoriaAccion.UPDATE, anterior, nuevo);
+            // Origen PROCESS: el valor lo calcula el motor de costos de ML (no es edición
+            // manual). Explícito porque el cálculo masivo corre en @Async (sin request).
+            auditoriaService.registrarCambios(AuditoriaEntidad.MLA, mla.getId(), mlaCode, AuditoriaAccion.UPDATE, anterior, nuevo, "PROCESS");
 
             if (precioAnterior == null || precioAnterior.compareTo(costoEnvio) != 0) {
                 programarRecalculoMlaPostCommit(mla.getId());
@@ -1432,11 +1436,11 @@ public class MercadoLibreService {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    for (Integer id : nuevos) {
-                        recalculoPrecioFacade.ejecutarRecalculoAsync(
-                                "Recálculo por cambio en MLA " + describirMla(id),
-                                () -> recalculoPrecioFacade.recalcularProductosDelMla(id));
-                    }
+                    // UNA sola tarea async para TODOS los MLAs de la transacción. Despachar
+                    // una tarea por MLA fallaba: ejecutarRecalculoAsync adquiere el lock del
+                    // grupo BD, así que solo la primera corría y el resto se descartaba
+                    // ("recálculo pospuesto"), dejando esos productos sin recalcular.
+                    dispatchBatchRecalculoMla(nuevos);
                 }
 
                 @Override

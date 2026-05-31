@@ -17,14 +17,18 @@ import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoRepository;
 import ar.com.leo.super_master_backend.dominio.proveedor.entity.Proveedor;
 import ar.com.leo.super_master_backend.dominio.proveedor.repository.ProveedorRepository;
+import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.openapitools.jackson.nullable.JsonNullable;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -46,18 +50,41 @@ public class OrdenCompraServiceImpl implements OrdenCompraService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<OrdenCompraDTO> listar(Pageable pageable, Integer proveedorId, EstadoOrdenCompra estado) {
-        Page<OrdenCompra> page;
-        if (proveedorId != null && estado != null) {
-            page = ordenCompraRepository.findByProveedorIdAndEstado(proveedorId, estado, pageable);
-        } else if (proveedorId != null) {
-            page = ordenCompraRepository.findByProveedorId(proveedorId, pageable);
-        } else if (estado != null) {
-            page = ordenCompraRepository.findByEstado(estado, pageable);
-        } else {
-            page = ordenCompraRepository.findAll(pageable);
-        }
-        return page.map(ordenCompraMapper::toDTO);
+    public Page<OrdenCompraDTO> listar(Pageable pageable, Integer proveedorId, EstadoOrdenCompra estado, String search) {
+        Specification<OrdenCompra> spec = conFiltros(proveedorId, estado, search);
+        return ordenCompraRepository.findAll(spec, pageable).map(ordenCompraMapper::toDTO);
+    }
+
+    /**
+     * Filtro combinado del listado: proveedor (exacto), estado (exacto) y búsqueda de
+     * texto. El search matchea (OR) el nombre/apodo del proveedor, las observaciones y
+     * —si el término es numérico— el número (id) de la orden. Params null no filtran.
+     */
+    private Specification<OrdenCompra> conFiltros(Integer proveedorId, EstadoOrdenCompra estado, String search) {
+        return (root, query, cb) -> {
+            List<Predicate> ands = new ArrayList<>();
+            if (proveedorId != null) {
+                ands.add(cb.equal(root.get("proveedor").get("id"), proveedorId));
+            }
+            if (estado != null) {
+                ands.add(cb.equal(root.get("estado"), estado));
+            }
+            if (search != null && !search.isBlank()) {
+                String like = "%" + search.trim().toLowerCase() + "%";
+                var proveedor = root.join("proveedor", JoinType.LEFT);
+                List<Predicate> ors = new ArrayList<>();
+                ors.add(cb.like(cb.lower(proveedor.get("nombre")), like));
+                ors.add(cb.like(cb.lower(proveedor.get("apodo")), like));
+                ors.add(cb.like(cb.lower(root.get("observaciones")), like));
+                try {
+                    ors.add(cb.equal(root.get("id"), Integer.parseInt(search.trim())));
+                } catch (NumberFormatException ignored) {
+                    // término no numérico: solo busca por texto
+                }
+                ands.add(cb.or(ors.toArray(new Predicate[0])));
+            }
+            return ands.isEmpty() ? cb.conjunction() : cb.and(ands.toArray(new Predicate[0]));
+        };
     }
 
     @Override

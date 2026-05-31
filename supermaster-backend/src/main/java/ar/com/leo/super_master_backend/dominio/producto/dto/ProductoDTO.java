@@ -36,9 +36,9 @@ public record ProductoDTO(
 
         // Atributos extra
         String capacidad,
-        BigDecimal largo,
-        BigDecimal ancho,
-        BigDecimal alto,
+        String largo,
+        String ancho,
+        String alto,
         String diamboca,
         String diambase,
         String espesor,

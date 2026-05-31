@@ -5,6 +5,8 @@ import ar.com.leo.super_master_backend.excel.dto.ExportCatalogoResultDTO;
 import ar.com.leo.super_master_backend.excel.dto.ExportResultDTO;
 import ar.com.leo.super_master_backend.excel.dto.ImportCompletoResultDTO;
 import ar.com.leo.super_master_backend.excel.dto.ImportCostosResultDTO;
+import ar.com.leo.super_master_backend.excel.dto.ImportResultDTO;
+import ar.com.leo.super_master_backend.excel.dto.LimpiezaDatosRequestDTO;
 import ar.com.leo.super_master_backend.excel.dto.LimpiezaDatosResultDTO;
 import ar.com.leo.super_master_backend.excel.service.ExcelService;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoFilter;
@@ -82,13 +84,22 @@ public class ExcelController {
      * producto_catalogo, producto_cliente, producto_canal_precio_inflado,
      * producto_canal_precios, producto_margen, mlas, productos, clientes,
      * marcas, tipos, materiales, origenes, clasif_gral, clasif_gastro, proveedores.
+     * <p>
+     * Body opcional: {@code { "tablas": ["productos", "marcas"] }}.
+     * Si se omite (request sin body o {@code {}}) se limpian TODAS las tablas elegibles.
+     * Si se envía lista vacía {@code { "tablas": [] }} no se borra nada (intent explícito).
+     * Cada nombre se valida contra el whitelist; los desconocidos vuelven como error.
+     * <p>
      * Usar SOLO durante setup inicial.
      */
     @PostMapping("/limpiar-datos")
     @PreAuthorize(Permisos.EXCEL_EDITAR)
-    public ResponseEntity<?> limpiarDatos() {
+    public ResponseEntity<?> limpiarDatos(
+            @RequestBody(required = false) LimpiezaDatosRequestDTO body
+    ) {
         try {
-            LimpiezaDatosResultDTO resultado = excelService.limpiarDatos();
+            List<String> tablas = body != null ? body.tablas() : null;
+            LimpiezaDatosResultDTO resultado = excelService.limpiarDatos(tablas);
             return ResponseEntity.ok(resultado);
         } catch (Exception e) {
             log.error("Error al limpiar datos: {}", e.getMessage(), e);
@@ -134,6 +145,41 @@ public class ExcelController {
             log.error("Error inesperado al importar tablas auxiliares: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ErrorResponse.of("Error interno del servidor: " + e.getMessage(), "/api/excel/importar-tablas-auxiliares"));
+        }
+    }
+
+    /**
+     * Enriquece los productos (ya importados con /importar-migracion) con datos del
+     * archivo NUEVO SUPER MASTER.xlsx, hoja "MASTER", desde la fila 3.
+     * Asigna FKs (origen, marca/linea, clasif gral 1-2, clasif gastro 1-2, tipo 1-3,
+     * material, proveedor) y dimensiones string (capacidad, largo, ancho, alto,
+     * diamboca, diambase, espesor). ID = 0 se trata como "sin dato".
+     *
+     * @param file Archivo NUEVO SUPER MASTER.xlsx
+     * @return Resultado de la importación con totales y errores por fila
+     */
+    @PostMapping("/enriquecer-productos")
+    @PreAuthorize(Permisos.EXCEL_EDITAR)
+    public ResponseEntity<?> enriquecerProductos(
+            @RequestParam("archivo") MultipartFile file
+    ) {
+        try {
+            validarArchivoExcel(file);
+            ImportResultDTO resultado = excelService.enriquecerProductosDesdeNuevoMaster(file);
+            return ResponseEntity.ok(resultado);
+        } catch (IllegalArgumentException e) {
+            log.error("Error de validación al enriquecer productos: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body(
+                    ImportResultDTO.withErrors(0, 0, 1, List.of(e.getMessage()))
+            );
+        } catch (IOException e) {
+            log.error("Error de I/O al enriquecer productos: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ErrorResponse.of("Error al procesar el archivo Excel: " + e.getMessage(), "/api/excel/enriquecer-productos"));
+        } catch (Exception e) {
+            log.error("Error inesperado al enriquecer productos: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ErrorResponse.of("Error interno del servidor: " + e.getMessage(), "/api/excel/enriquecer-productos"));
         }
     }
 

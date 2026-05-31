@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Table, { getInitialPageSize } from "../components/Table/core/Table";
 import SearchInput from "../components/SearchInput/SearchInput";
 import Modal from "../components/Modal/Modal";
@@ -11,10 +11,12 @@ import { useCanalConceptoCuota } from "./useCanalConceptoCuota";
 import { getCuotasAPI } from "./canalConceptoCuotaService";
 import { getColumns } from "./columns";
 import { type SortingState } from "@tanstack/react-table";
-import { CreditCardIcon, PlusIcon, TrashIcon, CheckIcon, XMarkIcon, InformationCircleIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
+import { CreditCardIcon, PlusIcon, TrashIcon, CheckIcon, XMarkIcon, InformationCircleIcon, ChevronDownIcon, FunnelIcon } from "@heroicons/react/24/outline";
 import ErrorBanner from "../components/ErrorBanner/ErrorBanner";
 import { confirmDialog } from "../utils/confirmDialog";
 import { CanalConceptoCuotaPatchDTO } from "./types";
+import { getCanalesAPI } from "../canales/canalesService";
+import CanalSelectBadge from "../components/CanalSelectBadge/CanalSelectBadge";
 
 export default function CanalConceptoCuotaPage() {
     const { hasPermiso } = useAuth();
@@ -28,6 +30,22 @@ export default function CanalConceptoCuotaPage() {
 
     const [ayudaAbierta, setAyudaAbierta] = useState(false);
 
+    // Filtro por canal (server-side): muestra solo las cuotas del canal elegido.
+    const [canalesList, setCanalesList] = useState<{ id: number; nombre: string }[]>([]);
+    const [canalFilterId, setCanalFilterId] = useState<number | null>(null);
+
+    useEffect(() => {
+        let cancelled = false;
+        getCanalesAPI(0, 500, {}, "nombre,asc")
+            .then((json) => {
+                if (cancelled) return;
+                const items = (json.content ?? []).map((c: any) => ({ id: c.id, nombre: c.nombre }));
+                setCanalesList(items);
+            })
+            .catch(() => { /* silencio: filtro queda deshabilitado si falla */ });
+        return () => { cancelled = true; };
+    }, []);
+
     // Modal solo para crear
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -40,17 +58,24 @@ export default function CanalConceptoCuotaPage() {
     const [cuotas, setCuotas] = useState<number>(0);
     const [porcentaje, setPorcentaje] = useState<number>(0);
 
+    // El filtro por canal va server-side: lo combinamos con los filtros de columna
+    // como un param más (canalId) que el backend interpreta.
+    const filtrosEfectivos = useMemo(
+        () => (canalFilterId != null ? { ...columnFilters, canalId: canalFilterId } : columnFilters),
+        [columnFilters, canalFilterId],
+    );
+
     const {
         data, totalRecords, pageCount, isLoading, error,
         createCuota, updateCuota, deleteCuota, searchCanales
-    } = useCanalConceptoCuota(pageIndex, pageSize, search, columnFilters, sorting);
+    } = useCanalConceptoCuota(pageIndex, pageSize, search, filtrosEfectivos, sorting);
     const columns = useMemo(() => getColumns(canEdit), [canEdit]);
 
     const SORT_MAP: Record<string, string> = { canalNombre: "canal.nombre" };
     const handleExportAll = async () => {
         const rawId = sorting.length > 0 ? sorting[0].id : "id";
         const sortParam = `${SORT_MAP[rawId] || rawId},${sorting.length > 0 && sorting[0].desc ? "desc" : "asc"}`;
-        const res = await getCuotasAPI(0, 99999, search, columnFilters, sortParam);
+        const res = await getCuotasAPI(0, 99999, search, filtrosEfectivos, sortParam);
         return res.content;
     };
 
@@ -185,7 +210,21 @@ export default function CanalConceptoCuotaPage() {
                 {error ? <ErrorBanner message={error} /> : (
                     <Table
                         tableId="cuotas"
-                        searchSlot={<SearchInput placeholder="Buscar cuota por canal o cantidad..." onSearch={setSearch} />}
+                        searchSlot={
+                            <div className="flex flex-wrap items-center gap-2">
+                                <SearchInput placeholder="Buscar cuota por canal o cantidad..." onSearch={setSearch} />
+                                <div className="flex items-center gap-1.5">
+                                    <FunnelIcon className="h-4 w-4 text-slate-400" />
+                                    <CanalSelectBadge
+                                        canales={canalesList}
+                                        value={canalFilterId}
+                                        onChange={(id) => { setCanalFilterId(id); setPageIndex(0); }}
+                                        allowAll
+                                        className="w-56"
+                                    />
+                                </div>
+                            </div>
+                        }
                         data={data}
                         isLoading={isLoading}
                         columns={columns}

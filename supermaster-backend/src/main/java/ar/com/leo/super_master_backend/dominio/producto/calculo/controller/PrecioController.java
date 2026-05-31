@@ -29,6 +29,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -305,14 +307,9 @@ public class PrecioController {
         if (started) {
             // limpiar() ya NO se llama acá: el masivo limpia los flags al finalizar
             // con éxito, evitando la ventana donde el frontend leería precios sin recalcular.
-            auditoriaService.registrarCambios(
-                    AuditoriaEntidad.RECALCULO,
-                    null,
-                    "masivo",
-                    AuditoriaAccion.CREATE,
-                    Map.of(),
-                    Map.of("evento", "recalculo_masivo_iniciado", "scope", "todos los productos y canales")
-            );
+            auditoriaService.registrarEvento(
+                    AuditoriaEntidad.RECALCULO, "masivo", AuditoriaAccion.CREATE,
+                    "recalculo_masivo_iniciado", "todos los productos y canales", usernameActual(), "MANUAL");
         }
         return started ? ResponseEntity.ok().build() : ResponseEntity.status(409).build();
     }
@@ -357,14 +354,10 @@ public class PrecioController {
             boolean started = calculoPrecioService.iniciarRecalculoMasivo();
             if (started) {
                 // limpiar() ya NO se llama acá: el masivo limpia al final con éxito.
-                auditoriaService.registrarCambios(
-                        AuditoriaEntidad.RECALCULO,
-                        null,
-                        "pendiente-todo",
-                        AuditoriaAccion.CREATE,
-                        Map.of(),
-                        Map.of("evento", "aplicar_recalculo_pendiente", "scope", "todo")
-                );
+                auditoriaService.registrarEvento(
+                        AuditoriaEntidad.RECALCULO, "pendiente-todo", AuditoriaAccion.CREATE,
+                        "aplicar_recalculo_pendiente", "recálculo masivo (todos los productos y canales)",
+                        usernameActual(), "MANUAL");
                 return ResponseEntity.ok().build();
             }
             return ResponseEntity.status(409).build();
@@ -378,21 +371,17 @@ public class PrecioController {
         // limpiar() ya NO se llama acá: el bulk executor desmarca producto-por-producto
         // y canal-por-canal tras cada recálculo exitoso. Cambios nuevos que entren durante
         // el async quedan marcados y se aplican en el próximo ciclo de forma natural.
-        auditoriaService.registrarCambios(
-                AuditoriaEntidad.RECALCULO,
-                null,
-                "pendiente-scoped",
-                AuditoriaAccion.CREATE,
-                Map.of(),
-                Map.of(
-                        "evento", "aplicar_recalculo_pendiente",
-                        "scope", "scoped",
-                        "productos", String.valueOf(plan.productos().size()),
-                        "canales", String.valueOf(plan.canales().size())
-                )
-        );
-        aplicadorPendientesService.ejecutarPlanScopedAsync(plan);
+        // La auditoría se registra al FINAL del proceso (con el conteo real de precios
+        // recalculados); pasamos el usuario actual porque el SecurityContext no llega al
+        // hilo @Async.
+        aplicadorPendientesService.ejecutarPlanScopedAsync(plan, usernameActual());
         return ResponseEntity.ok().build();
+    }
+
+    /** Username autenticado actual (o null si anónimo). Se captura en el hilo HTTP. */
+    private String usernameActual() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth != null ? auth.getName() : null;
     }
 
     @GetMapping("/recalculo-masivo/estado")

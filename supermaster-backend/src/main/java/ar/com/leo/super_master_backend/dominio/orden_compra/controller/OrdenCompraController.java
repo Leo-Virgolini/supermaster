@@ -28,9 +28,10 @@ public class OrdenCompraController {
     public ResponseEntity<Page<OrdenCompraDTO>> listar(
             @RequestParam(required = false) Integer proveedorId,
             @RequestParam(required = false) EstadoOrdenCompra estado,
+            @RequestParam(required = false) String search,
             Pageable pageable
     ) {
-        return ResponseEntity.ok(ordenCompraService.listar(pageable, proveedorId, estado));
+        return ResponseEntity.ok(ordenCompraService.listar(pageable, proveedorId, estado, search));
     }
 
     @GetMapping("/{id}")

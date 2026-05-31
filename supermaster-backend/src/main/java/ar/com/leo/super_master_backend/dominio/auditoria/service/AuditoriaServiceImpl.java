@@ -43,12 +43,28 @@ public class AuditoriaServiceImpl implements AuditoriaService {
             Map<String, String> estadoAnterior,
             Map<String, String> estadoNuevo
     ) {
+        registrarCambios(entidad, entidadId, entidadCodigo, accion, estadoAnterior, estadoNuevo, null);
+    }
+
+    @Override
+    @Transactional
+    public void registrarCambios(
+            AuditoriaEntidad entidad,
+            Integer entidadId,
+            String entidadCodigo,
+            AuditoriaAccion accion,
+            Map<String, String> estadoAnterior,
+            Map<String, String> estadoNuevo,
+            String origenExplicito
+    ) {
         LinkedHashSet<String> campos = new LinkedHashSet<>();
         campos.addAll(estadoAnterior.keySet());
         campos.addAll(estadoNuevo.keySet());
 
         AuditoriaUsuario usuarioActual = resolverUsuarioActual();
-        String origen = resolverOrigen();
+        String origen = (origenExplicito != null && !origenExplicito.isBlank())
+                ? origenExplicito.trim().toUpperCase()
+                : resolverOrigen();
         List<AuditoriaCambio> registros = new ArrayList<>();
 
         for (String campo : campos) {
@@ -148,17 +164,46 @@ public class AuditoriaServiceImpl implements AuditoriaService {
         );
     }
 
+    @Override
+    @Transactional
+    public void registrarEvento(
+            AuditoriaEntidad entidad,
+            String entidadCodigo,
+            AuditoriaAccion accion,
+            String campo,
+            String valorNuevo,
+            String username,
+            String origen
+    ) {
+        AuditoriaUsuario usuario = resolverUsuarioPorUsername(username);
+        AuditoriaCambio auditoria = new AuditoriaCambio();
+        auditoria.setEntidad(entidad);
+        auditoria.setEntidadCodigo(entidadCodigo);
+        auditoria.setAccion(accion);
+        auditoria.setCampo(campo);
+        auditoria.setValorAnterior(null);
+        auditoria.setValorNuevo(valorNuevo);
+        auditoria.setUsuarioId(usuario.usuarioId());
+        auditoria.setUsuarioUsername(usuario.username());
+        auditoria.setUsuarioNombreCompleto(usuario.nombreCompleto());
+        auditoria.setOrigen(origen != null && !origen.isBlank() ? origen : "SYSTEM");
+        auditoria.setFechaHora(LocalDateTime.now());
+        auditoriaCambioRepository.save(auditoria);
+    }
+
     private AuditoriaUsuario resolverUsuarioActual() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || authentication.getPrincipal() == null) {
             return new AuditoriaUsuario(null, null, null);
         }
+        return resolverUsuarioPorUsername(String.valueOf(authentication.getPrincipal()).trim());
+    }
 
-        String username = String.valueOf(authentication.getPrincipal()).trim();
-        if (username.isBlank() || "anonymousUser".equalsIgnoreCase(username)) {
+    /** Resuelve el usuario por username (query). Devuelve usuario "vacío" si es anónimo o no existe. */
+    private AuditoriaUsuario resolverUsuarioPorUsername(String username) {
+        if (username == null || username.isBlank() || "anonymousUser".equalsIgnoreCase(username)) {
             return new AuditoriaUsuario(null, null, null);
         }
-
         Optional<Usuario> usuario = usuarioRepository.findByUsername(username);
         return usuario
                 .map(value -> new AuditoriaUsuario(value.getId(), value.getUsername(), value.getNombreCompleto()))

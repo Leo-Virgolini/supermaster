@@ -286,7 +286,7 @@ export function getColumns(onOpenDetalle: (producto: ProductoDTO) => void, canEd
     // --- ECONÓMICOS ---
     {
         accessorKey: "costo", header: "Costo", enableColumnFilter: false, meta: { editable: true },
-        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={String(getValue())} type="number" prefix="$ " className={FONT.money} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, Number(val))} disabled={!canEdit} />)
+        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={String(getValue())} type="number" prefix="$ " className="font-mono text-[13px] font-semibold text-gray-500 dark:text-slate-400 whitespace-nowrap" onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, Number(val))} disabled={!canEdit} />)
     },
     {
         accessorKey: "iva", header: "IVA", enableColumnFilter: false, meta: { editable: true },
@@ -294,19 +294,27 @@ export function getColumns(onOpenDetalle: (producto: ProductoDTO) => void, canEd
     },
     {
         accessorKey: "margenMinorista", header: "Mrg Min", size: 85, enableColumnFilter: false, meta: { editable: true, center: true },
-        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={(getValue() as number | null) ?? ""} type="number" nullable suffix="%" className="font-mono text-indigo-600" onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val === null ? null : Number(val))} disabled={!canEdit} />)
+        cell: ({ getValue, row, column, table }) => {
+            const value = getValue() as number | null;
+            const enCero = value === 0;
+            return (<EditableCell initialValue={value ?? ""} type="number" nullable suffix="%" className={enCero ? "font-mono font-semibold text-red-600 dark:text-red-400" : "font-mono font-semibold text-yellow-600 dark:text-yellow-400"} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val === null ? null : Number(val))} disabled={!canEdit} />);
+        }
     },
     {
         accessorKey: "margenMayorista", header: "Mrg May", size: 85, enableColumnFilter: false, meta: { editable: true, center: true },
-        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={(getValue() as number | null) ?? ""} type="number" nullable suffix="%" className="font-mono text-indigo-600" onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val === null ? null : Number(val))} disabled={!canEdit} />)
+        cell: ({ getValue, row, column, table }) => {
+            const value = getValue() as number | null;
+            const enCero = value === 0;
+            return (<EditableCell initialValue={value ?? ""} type="number" nullable suffix="%" className={enCero ? "font-mono font-semibold text-red-600 dark:text-red-400" : "font-mono font-semibold text-blue-700 dark:text-blue-400"} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val === null ? null : Number(val))} disabled={!canEdit} />);
+        }
     },
     {
         accessorKey: "margenFijoMinorista", header: "Fijo Min", size: 95, enableColumnFilter: false, meta: { editable: true, center: true },
-        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={(getValue() as number | null) ?? ""} type="number" nullable prefix="$ " className="font-mono text-indigo-600" onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val === null ? null : Number(val))} disabled={!canEdit} />)
+        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={(getValue() as number | null) ?? ""} type="number" nullable prefix="$ " className="font-mono font-semibold text-yellow-600 dark:text-yellow-400" onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val === null ? null : Number(val))} disabled={!canEdit} />)
     },
     {
         accessorKey: "margenFijoMayorista", header: "Fijo May", size: 95, enableColumnFilter: false, meta: { editable: true, center: true },
-        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={(getValue() as number | null) ?? ""} type="number" nullable prefix="$ " className="font-mono text-indigo-600" onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val === null ? null : Number(val))} disabled={!canEdit} />)
+        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={(getValue() as number | null) ?? ""} type="number" nullable prefix="$ " className="font-mono font-semibold text-blue-700 dark:text-blue-400" onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val === null ? null : Number(val))} disabled={!canEdit} />)
     },
     {
         accessorKey: "stock", header: "Stock", enableColumnFilter: false, meta: { editable: true },
@@ -429,7 +437,7 @@ export function getColumns(onOpenDetalle: (producto: ProductoDTO) => void, canEd
 
     // --- RELACIONES MANY-TO-MANY ---
     {
-        id: "catalogo", accessorKey: "catalogos", header: "Catálogo", size: 160, enableSorting: false,
+        id: "catalogo", accessorKey: "catalogos", header: "Catálogo", size: 160,
         cell: ({ getValue }) => {
             const vals = getValue() as string[] | null;
             if (!vals?.length) return <span className="text-gray-400 dark:text-slate-500">{EMPTY}</span>;

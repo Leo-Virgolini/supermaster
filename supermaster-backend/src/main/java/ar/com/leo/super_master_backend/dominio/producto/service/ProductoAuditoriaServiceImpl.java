@@ -48,9 +48,9 @@ public class ProductoAuditoriaServiceImpl implements ProductoAuditoriaService {
         snapshot.put("material", relacion(producto.getMaterial() != null ? producto.getMaterial().getId() : null, producto.getMaterial() != null ? producto.getMaterial().getNombre() : null));
         snapshot.put("mla", relacion(producto.getMla() != null ? producto.getMla().getId() : null, producto.getMla() != null ? producto.getMla().getMla() : null));
         snapshot.put("capacidad", normalizar(producto.getCapacidad()));
-        snapshot.put("largo", decimal(producto.getLargo()));
-        snapshot.put("ancho", decimal(producto.getAncho()));
-        snapshot.put("alto", decimal(producto.getAlto()));
+        snapshot.put("largo", normalizar(producto.getLargo()));
+        snapshot.put("ancho", normalizar(producto.getAncho()));
+        snapshot.put("alto", normalizar(producto.getAlto()));
         snapshot.put("diamboca", normalizar(producto.getDiamboca()));
         snapshot.put("diambase", normalizar(producto.getDiambase()));
         snapshot.put("espesor", normalizar(producto.getEspesor()));

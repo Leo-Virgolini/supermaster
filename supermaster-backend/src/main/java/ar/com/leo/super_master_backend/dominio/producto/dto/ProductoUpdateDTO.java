@@ -48,12 +48,12 @@ public record ProductoUpdateDTO(
 
         @Size(max = 45, message = "La capacidad no puede exceder 45 caracteres")
         String capacidad,
-        @PositiveOrZero(message = "El largo debe ser mayor o igual a 0")
-        BigDecimal largo,
-        @PositiveOrZero(message = "El ancho debe ser mayor o igual a 0")
-        BigDecimal ancho,
-        @PositiveOrZero(message = "El alto debe ser mayor o igual a 0")
-        BigDecimal alto,
+        @Size(max = 45, message = "El largo no puede exceder 45 caracteres")
+        String largo,
+        @Size(max = 45, message = "El ancho no puede exceder 45 caracteres")
+        String ancho,
+        @Size(max = 45, message = "El alto no puede exceder 45 caracteres")
+        String alto,
         @Size(max = 45, message = "El diámetro de boca no puede exceder 45 caracteres")
         String diamboca,
         @Size(max = 45, message = "El diámetro de base no puede exceder 45 caracteres")

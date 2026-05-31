@@ -12,7 +12,7 @@ import java.util.List;
 
 public interface CanalReglaService {
 
-    Page<CanalReglaDTO> listar(Pageable pageable);
+    Page<CanalReglaDTO> listar(String search, Pageable pageable);
 
     CanalReglaDTO obtener(Long id);
 

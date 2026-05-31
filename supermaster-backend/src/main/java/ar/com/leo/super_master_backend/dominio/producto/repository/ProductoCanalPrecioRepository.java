@@ -92,6 +92,16 @@ public interface ProductoCanalPrecioRepository extends JpaRepository<ProductoCan
     List<Integer> findDistinctProductoIdsObsoletos();
 
     /**
+     * Productos con precios obsoletos en canales QUE NO están en la lista dada.
+     * Usado por el plan de recálculo: los canales en reevaluación se recalculan
+     * completos (todo el catálogo), así que no hace falta recalcular individualmente
+     * los productos cuyo único motivo de obsolescencia es uno de esos canales.
+     * Evita el doble trabajo "producto × todos los canales" + "canal completo".
+     */
+    @Query("SELECT DISTINCT p.producto.id FROM ProductoCanalPrecio p WHERE p.obsoleto = TRUE AND p.canal.id NOT IN :canalIds ORDER BY p.producto.id")
+    List<Integer> findDistinctProductoIdsObsoletosExcluyendoCanales(@Param("canalIds") Collection<Integer> canalIds);
+
+    /**
      * Resumen agrupado por motivo para construir el snapshot del banner.
      * Devuelve filas con: motivo, cantidad_de_productos_unicos, ultima_fecha.
      *

@@ -123,7 +123,7 @@ async function mostrarDetalleRecalculoMasivo() {
     try {
         const resultado = await getResultadoRecalculoMasivoAPI();
         if (!resultado) return;
-        const { skusConErrores = [], skusSinCosto = [], skusSinMargen = [] } = resultado;
+        const { skusConErrores = [], skusSinCosto = [], skusSinMargen = [], skusSinMargenMayorista = [], skusSinMargenMinorista = [] } = resultado;
         if (skusConErrores.length === 0 && skusSinCosto.length === 0 && skusSinMargen.length === 0) {
             return;
         }
@@ -140,7 +140,16 @@ async function mostrarDetalleRecalculoMasivo() {
         if (skusSinCosto.length > 0) {
             lineas.push("# Sin costo", ...skusSinCosto, "");
         }
-        if (skusSinMargen.length > 0) {
+        // Desglose por tipo de margen requerido. Si el backend no lo provee
+        // (resultado viejo), caer a la lista combinada.
+        if (skusSinMargenMayorista.length > 0 || skusSinMargenMinorista.length > 0) {
+            if (skusSinMargenMayorista.length > 0) {
+                lineas.push("# Sin margen mayorista", ...skusSinMargenMayorista, "");
+            }
+            if (skusSinMargenMinorista.length > 0) {
+                lineas.push("# Sin margen minorista", ...skusSinMargenMinorista, "");
+            }
+        } else if (skusSinMargen.length > 0) {
             lineas.push("# Sin margen", ...skusSinMargen, "");
         }
         const textoCopia = lineas.join("\n").trimEnd();

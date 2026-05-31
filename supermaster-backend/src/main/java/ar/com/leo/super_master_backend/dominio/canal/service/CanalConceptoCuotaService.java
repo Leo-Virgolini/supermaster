@@ -11,7 +11,7 @@ import java.util.List;
 
 public interface CanalConceptoCuotaService {
 
-    Page<CanalConceptoCuotaDTO> listar(Pageable pageable);
+    Page<CanalConceptoCuotaDTO> listar(String search, Integer canalId, Pageable pageable);
 
     CanalConceptoCuotaDTO obtener(Long id);
 

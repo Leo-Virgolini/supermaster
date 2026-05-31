@@ -22,6 +22,7 @@ import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundExceptio
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,9 +43,18 @@ public class ReglaDescuentoServiceImpl implements ReglaDescuentoService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<ReglaDescuentoDTO> listar(Pageable pageable) {
-        return repo.findAll(pageable)
-                .map(mapper::toDTO);
+    public Page<ReglaDescuentoDTO> listar(String search, Pageable pageable) {
+        // Sin search: findAll(pageable) directo. Con search: filtra por nombre de
+        // canal o descripción de la regla (el placeholder del buscador en el front).
+        if (search == null || search.isBlank()) {
+            return repo.findAll(pageable).map(mapper::toDTO);
+        }
+        String like = "%" + search.trim().toLowerCase() + "%";
+        Specification<ReglaDescuento> spec = (root, query, cb) -> cb.or(
+                cb.like(cb.lower(root.get("canal").get("nombre")), like),
+                cb.like(cb.lower(root.get("descripcion")), like)
+        );
+        return repo.findAll(spec, pageable).map(mapper::toDTO);
     }
 
     @Override

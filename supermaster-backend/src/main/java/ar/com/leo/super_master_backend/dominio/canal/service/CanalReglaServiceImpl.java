@@ -58,8 +58,15 @@ public class CanalReglaServiceImpl implements CanalReglaService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<CanalReglaDTO> listar(Pageable pageable) {
-        return repository.findAll(pageable).map(mapper::toDTO);
+    public Page<CanalReglaDTO> listar(String search, Pageable pageable) {
+        // Ambas ramas conservan el @EntityGraph del repo (sin N+1 al mapear). Con search
+        // se filtra por canal, marca, tipo o producto (SKU/descripción) — las columnas
+        // que el buscador del front anuncia — con LEFT joins para no excluir reglas
+        // cuyas condiciones (marca/tipo/producto) son nulas.
+        if (search == null || search.isBlank()) {
+            return repository.findAll(pageable).map(mapper::toDTO);
+        }
+        return repository.buscar(search.trim(), pageable).map(mapper::toDTO);
     }
 
     @Override

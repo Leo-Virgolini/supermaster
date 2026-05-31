@@ -190,6 +190,22 @@ function ResultadoImport({ data }: { data: ImportResult }) {
 // ---------------------------------------------------------------------------
 
 function ResultadoEnriquecimiento({ data }: { data: EnriquecimientoResult }) {
+    // Si errorRows === 0 pero hay entries en errors[], son advertencias (IDs inválidos
+    // que se manejaron poniendo NULL), no errores. Renderizamos con estilo amarillo
+    // en lugar de rojo y cambiamos el label.
+    const errorRows = data.errorRows ?? 0;
+    const errors = data.errors ?? [];
+    const hayAdvertencias = errorRows === 0 && errors.length > 0;
+    const cajaClass = hayAdvertencias
+        ? "text-xs bg-amber-50 border border-amber-200 rounded p-2"
+        : "text-xs bg-red-50 border border-red-200 rounded p-2";
+    const tituloClass = hayAdvertencias ? "font-semibold text-amber-700 mb-1" : "font-semibold text-red-700 mb-1";
+    const itemClass = hayAdvertencias
+        ? "list-disc list-inside text-amber-700 space-y-0.5"
+        : "list-disc list-inside text-red-600 space-y-0.5";
+    const masClass = hayAdvertencias ? "text-amber-600" : "text-red-500";
+    const tituloTexto = hayAdvertencias ? `Advertencias (${errors.length})` : `Errores (${errors.length})`;
+
     return (
         <div className="mt-3 space-y-2">
             <div className="grid grid-cols-3 gap-2">
@@ -202,16 +218,16 @@ function ResultadoEnriquecimiento({ data }: { data: EnriquecimientoResult }) {
                     <div className="text-xs text-gray-500 dark:text-slate-400">Actualizados</div>
                 </div>
                 <div className="bg-gray-50 dark:bg-slate-700/50 rounded p-2 text-center border border-gray-100 dark:border-slate-600">
-                    <div className="text-lg font-bold text-red-600">{data.errorRows ?? 0}</div>
+                    <div className="text-lg font-bold text-red-600">{errorRows}</div>
                     <div className="text-xs text-gray-500 dark:text-slate-400">Con errores</div>
                 </div>
             </div>
-            {data.errors && data.errors.length > 0 && (
-                <div className="text-xs bg-red-50 border border-red-200 rounded p-2">
-                    <div className="font-semibold text-red-700 mb-1">Errores ({data.errors.length}):</div>
-                    <ul className="list-disc list-inside text-red-600 space-y-0.5">
-                        {data.errors.slice(0, 10).map((e, i) => <li key={i}>{e}</li>)}
-                        {data.errors.length > 10 && <li className="text-red-500">...y {data.errors.length - 10} más</li>}
+            {errors.length > 0 && (
+                <div className={cajaClass}>
+                    <div className={tituloClass}>{tituloTexto}:</div>
+                    <ul className={itemClass}>
+                        {errors.slice(0, 10).map((e, i) => <li key={i}>{e}</li>)}
+                        {errors.length > 10 && <li className={masClass}>...y {errors.length - 10} más</li>}
                     </ul>
                 </div>
             )}
@@ -338,6 +354,8 @@ interface ImportCardProps {
     columnas?: string[];
     advertencia?: string;
     badge?: string;
+    /** Número de paso a mostrar como círculo a la izquierda del título. */
+    paso?: number;
 }
 
 interface EnriquecimientoResult {
@@ -348,7 +366,7 @@ interface EnriquecimientoResult {
     message?: string;
 }
 
-function ImportCard({ titulo, descripcion, endpoint, tipo = "costos", columnas, advertencia, badge }: ImportCardProps) {
+function ImportCard({ titulo, descripcion, endpoint, tipo = "costos", columnas, advertencia, badge, paso }: ImportCardProps) {
     const fileRef = useRef<HTMLInputElement>(null);
     const [cargando, setCargando] = useState(false);
     const [resultado, setResultado] = useState<{ ok: boolean; mensaje: string; data?: any } | null>(null);
@@ -385,16 +403,23 @@ function ImportCard({ titulo, descripcion, endpoint, tipo = "costos", columnas, 
 
     return (
         <div className="bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-600 p-5 flex flex-col gap-3">
-            <div>
-                <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-gray-800 dark:text-slate-100">{titulo}</h3>
-                    {badge && (
-                        <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
-                            {badge}
-                        </span>
-                    )}
+            <div className="flex items-start gap-3">
+                {paso !== undefined && (
+                    <span className="shrink-0 w-9 h-9 rounded-full bg-blue-600 text-white font-bold text-base flex items-center justify-center shadow-sm">
+                        {paso}
+                    </span>
+                )}
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-semibold text-gray-800 dark:text-slate-100">{titulo}</h3>
+                        {badge && (
+                            <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                                {badge}
+                            </span>
+                        )}
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">{descripcion}</p>
                 </div>
-                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">{descripcion}</p>
             </div>
 
             {columnas && (
@@ -525,12 +550,14 @@ const DEPENDENCIAS: Record<string, string[]> = {
     tipos: ["productos", "canal_concepto_regla", "canal_regla"],
     materiales: ["productos"],
     origenes: ["productos"],
-    clasif_gral: ["productos", "canal_concepto_regla", "canal_regla", "reglas_descuentos"],
+    // clasif_gral también es referenciada (FK informal Integer) por catalogo_pdf_config.
+    clasif_gral: ["productos", "canal_concepto_regla", "canal_regla", "reglas_descuentos", "catalogo_pdf_config"],
     clasif_gastro: ["productos", "canal_concepto_regla", "canal_regla", "reglas_descuentos"],
     proveedores: ["productos", "ordenes_compra"],
     clientes: ["producto_cliente"],
     aptos: ["producto_apto"],
-    catalogos: ["producto_catalogo", "reglas_descuentos"],
+    // catalogos referenciada por catalogo_pdf_config (FK informal Integer, sin @JoinColumn).
+    catalogos: ["producto_catalogo", "reglas_descuentos", "catalogo_pdf_config"],
     mlas: ["productos"],
 
     // Productos
@@ -560,6 +587,8 @@ const DEPENDENCIAS: Record<string, string[]> = {
         "producto_canal_precios",
         "producto_canal_precio_inflado",
         "reglas_descuentos",
+        // catalogo_pdf_config tiene canal_id como FK informal Integer (sin @JoinColumn).
+        "catalogo_pdf_config",
     ],
     conceptos_calculo: ["canal_concepto", "canal_concepto_regla"],
 
@@ -600,20 +629,26 @@ function LimpiarDatosCard() {
     const [confirmacion, setConfirmacion] = useState("");
     const [resultado, setResultado] = useState<LimpiezaResult | null>(null);
     const [error, setError] = useState<string | null>(null);
-    // Selección manual del usuario. La selección efectiva (con cascada) se deriva.
+    // Selección manual del usuario.
     const [seleccionManual, setSeleccionManual] = useState<Set<string>>(
         () => new Set(TODAS_LAS_TABLAS)
     );
+    // Toggle de cascada. Si está activo (default), borrar una tabla padre arrastra
+    // automáticamente sus dependientes (más seguro). Si está desactivo, solo se
+    // borran las tablas explícitamente seleccionadas, ignorando dependencias
+    // (puede dejar FKs huérfanos pero da control total al usuario).
+    const [cascadaActiva, setCascadaActiva] = useState(true);
 
+    // Si la cascada está activa, expande dependientes. Si no, usa solo la selección manual.
     const seleccionEfectiva = useMemo(
-        () => expandirCascada(seleccionManual),
-        [seleccionManual]
+        () => (cascadaActiva ? expandirCascada(seleccionManual) : new Set(seleccionManual)),
+        [seleccionManual, cascadaActiva]
     );
 
-    // Una tabla está "forzada" si algún padre suyo está en la selección efectiva
-    // (es decir, fue seleccionado manualmente o forzado por cascada). La UI la
-    // marca checked y disabled.
+    // Una tabla está "forzada" si algún padre suyo está en la selección efectiva.
+    // Solo aplica cuando la cascada está activa (sino el usuario puede tocar libremente).
     const tablasForzadas = useMemo(() => {
+        if (!cascadaActiva) return new Set<string>();
         const forzadas = new Set<string>();
         for (const t of TODAS_LAS_TABLAS) {
             if (padresDe(t).some((p) => seleccionEfectiva.has(p))) {
@@ -621,7 +656,7 @@ function LimpiarDatosCard() {
             }
         }
         return forzadas;
-    }, [seleccionEfectiva]);
+    }, [seleccionEfectiva, cascadaActiva]);
 
     const toggleTabla = (tabla: string) => {
         if (tablasForzadas.has(tabla)) {
@@ -716,6 +751,39 @@ function LimpiarDatosCard() {
                         Limpiar selección
                     </button>
                 </div>
+            </div>
+
+            {/* Toggle cascada */}
+            <div className={`text-xs rounded p-2 border ${cascadaActiva
+                ? "bg-gray-50 dark:bg-slate-700/50 border-gray-200 dark:border-slate-600"
+                : "bg-amber-50 dark:bg-amber-900/20 border-amber-300 dark:border-amber-700"}`}>
+                <label className="flex items-start gap-2 cursor-pointer select-none">
+                    <input
+                        type="checkbox"
+                        checked={cascadaActiva}
+                        onChange={(e) => setCascadaActiva(e.target.checked)}
+                        disabled={cargando}
+                        className="mt-0.5 accent-red-600"
+                    />
+                    <div className="flex-1">
+                        <div className="font-semibold text-gray-700 dark:text-slate-200">
+                            Borrar también tablas dependientes (cascada)
+                        </div>
+                        {cascadaActiva ? (
+                            <p className="text-gray-500 dark:text-slate-400 mt-0.5">
+                                Si seleccionás una tabla con dependientes (ej. marcas → productos),
+                                se auto-marcan también las dependientes. Evita FKs huérfanos.
+                            </p>
+                        ) : (
+                            <p className="text-amber-700 dark:text-amber-300 mt-0.5">
+                                ⚠️ Cascada desactivada: solo se borrarán las tablas que marques
+                                explícitamente, sin tocar las dependientes. Puede dejar registros
+                                con FKs apuntando a IDs inexistentes. Útil si vas a re-importar
+                                con los mismos IDs.
+                            </p>
+                        )}
+                    </div>
+                </label>
             </div>
 
             <div className="space-y-2">
@@ -1368,16 +1436,19 @@ export default function HerramientasExcelPage() {
                 <p className="text-gray-500 dark:text-slate-400 text-sm mt-1">Importá y exportá datos desde archivos Excel.</p>
             </div>
 
-            {/* ── Importar ──────────────────────────────────────────────── */}
+            {/* ── Importación inicial / Setup (3 pasos secuenciales) ────── */}
             <section className="bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-200 dark:border-blue-900 p-6">
                 <h2 className="text-lg font-bold text-blue-900 dark:text-blue-300 mb-1 flex items-center gap-2">
                     <ArrowUpTrayIcon className="w-5 h-5" />
-                    Importar desde Excel
+                    Importación inicial — Setup en 3 pasos
                 </h2>
-                <p className="text-sm text-blue-700 dark:text-blue-400 mb-5">Sube un archivo .xlsx, .xls o .xlsm para cargar datos al sistema.</p>
+                <p className="text-sm text-blue-700 dark:text-blue-400 mb-5">
+                    Carga inicial de datos. Ejecutar los pasos <strong>en orden</strong>: primero las tablas auxiliares, luego los productos, finalmente el enriquecimiento.
+                </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                     <ImportCard
+                        paso={1}
                         titulo="Importar Tablas Auxiliares"
                         descripcion="Carga las tablas pequeñas usadas como atributos de producto: marcas, tipos, materiales, orígenes, clasif. grales, clasif. gastro, aptos y proveedores."
                         endpoint="/api/excel/importar-tablas-auxiliares"
@@ -1386,13 +1457,7 @@ export default function HerramientasExcelPage() {
                         advertencia="Usar la plantilla Plantilla_Tablas_SuperMaster.xlsx. Las entidades se buscan/crean por nombre (no se duplican)."
                     />
                     <ImportCard
-                        titulo="Importar Costos"
-                        descripcion="Actualiza costos, IVA y proveedor de productos. Dispara recálculo automático de precios si alguno cambia."
-                        endpoint="/api/excel/importar-costos"
-                        columnas={["CODIGO", "PRODUCTO", "COSTO", "CODIGO EXTERNO", "PROVEEDOR", "TIPO DE PRODUCTO", "ULTIMA ACT. COSTO", "UNIDADES POR BULTO", "PORCENTAJE IVA"]}
-                        advertencia="Si el costo, IVA o proveedor cambia, los precios se recalculan automáticamente."
-                    />
-                    <ImportCard
+                        paso={2}
                         titulo="Importar Productos (MASTER)"
                         descripcion="Importa la hoja MASTER del Excel SUPER MASTER. Crea o actualiza productos por SKU (descripción, costo, IVA, MLA, catálogos, márgenes). Las FKs (marca, tipo, etc.) y dimensiones se cargan luego desde NUEVO SUPER MASTER."
                         endpoint="/api/excel/importar-migracion"
@@ -1400,12 +1465,34 @@ export default function HerramientasExcelPage() {
                         advertencia="Después de este paso correr 'Enriquecer Productos' con NUEVO SUPER MASTER.xlsx para completar marca, tipo, clasificaciones, material, proveedor y dimensiones."
                     />
                     <ImportCard
+                        paso={3}
                         titulo="Enriquecer Productos (NUEVO MASTER)"
                         descripcion="Lee la hoja MASTER de NUEVO SUPER MASTER.xlsx (desde la fila 3) y completa por SKU los FKs (origen, marca/línea, clasif gral, clasif gastro, tipo, material, proveedor) y las dimensiones (capacidad, largo, ancho, alto, diamboca, diambase, espesor)."
                         endpoint="/api/excel/enriquecer-productos"
                         tipo="enriquecimiento"
                         columnas={["SKU", "ID ORIGEN", "ID MARCA", "ID LINEA", "ID CLASIF GRAL1/2", "ID CLASIF GASTRO1/2", "ID TIPO1/2/3", "CAPACIDAD", "LARGO", "ANCHO", "ALTO", "DIAMBOCA", "DIAMBASE", "ESPESOR", "ID MATERIAL", "ID PROVEEDOR"]}
                         advertencia="Ejecutar DESPUÉS de 'Importar Productos (MASTER)'. SKUs que no existan en la BD se ignoran. Un ID = 0 se interpreta como 'sin dato'."
+                    />
+                </div>
+            </section>
+
+            {/* ── Actualización operativa (suelto, post-setup) ──────────── */}
+            <section className="bg-emerald-50 dark:bg-emerald-950/30 rounded-xl border border-emerald-200 dark:border-emerald-900 p-6">
+                <h2 className="text-lg font-bold text-emerald-900 dark:text-emerald-300 mb-1 flex items-center gap-2">
+                    <ArrowUpTrayIcon className="w-5 h-5" />
+                    Actualización operativa
+                </h2>
+                <p className="text-sm text-emerald-700 dark:text-emerald-400 mb-5">
+                    Acciones recurrentes sobre productos ya cargados. No requieren orden ni setup previo.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    <ImportCard
+                        titulo="Importar Costos"
+                        descripcion="Actualiza costos, IVA y proveedor de productos existentes. Dispara recálculo automático de precios si alguno cambia."
+                        endpoint="/api/excel/importar-costos"
+                        columnas={["CODIGO", "PRODUCTO", "COSTO", "CODIGO EXTERNO", "PROVEEDOR", "TIPO DE PRODUCTO", "ULTIMA ACT. COSTO", "UNIDADES POR BULTO", "PORCENTAJE IVA"]}
+                        advertencia="Si el costo, IVA o proveedor cambia, los precios se recalculan automáticamente."
                     />
                 </div>
             </section>

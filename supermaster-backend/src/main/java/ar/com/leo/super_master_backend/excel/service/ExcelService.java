@@ -4,6 +4,7 @@ import ar.com.leo.super_master_backend.excel.dto.ExportCatalogoResultDTO;
 import ar.com.leo.super_master_backend.excel.dto.ExportResultDTO;
 import ar.com.leo.super_master_backend.excel.dto.ImportCompletoResultDTO;
 import ar.com.leo.super_master_backend.excel.dto.ImportCostosResultDTO;
+import ar.com.leo.super_master_backend.excel.dto.ImportResultDTO;
 import ar.com.leo.super_master_backend.excel.dto.LimpiezaDatosResultDTO;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoFilter;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Tag;
@@ -44,14 +45,37 @@ public interface ExcelService {
     ImportCompletoResultDTO importarTablasAuxiliares(MultipartFile file) throws IOException;
 
     /**
+     * Enriquece los productos existentes con datos del archivo NUEVO SUPER MASTER.xlsx.
+     * <p>
+     * Lee la hoja "MASTER" desde la fila 3 y, por cada SKU presente en la BD, actualiza:
+     * <ul>
+     *   <li>FKs: origen, marca (LINEA &gt; MARCA), clasif gral (2 &gt; 1), clasif gastro (2 &gt; 1),
+     *       tipo (3 &gt; 2 &gt; 1), material, proveedor. ID = 0 se interpreta como sin dato.</li>
+     *   <li>Dimensiones (strings, max 45): capacidad, largo, ancho, alto, diamboca, diambase, espesor.</li>
+     * </ul>
+     * SKUs no encontrados en BD se omiten (no crea productos nuevos).
+     *
+     * @param file Archivo Excel NUEVO SUPER MASTER.xlsx
+     * @return Resultado con totales/exitosas/erradas y lista de errores por fila
+     */
+    ImportResultDTO enriquecerProductosDesdeNuevoMaster(MultipartFile file) throws IOException;
+
+    /**
      * Vacía las tablas de datos (productos, mlas, márgenes, precios calculados,
      * tablas relacionales y maestros: marcas, tipos, materiales, orígenes, clasif,
      * clientes, proveedores, ventas y órdenes de compra) y resetea sus AUTO_INCREMENT.
      * Es una operación destructiva — usar SOLO durante setup inicial.
      *
+     * @param tablasSeleccionadas Subconjunto a limpiar:
+     *                            <ul>
+     *                              <li>{@code null} → limpia TODAS las tablas elegibles.</li>
+     *                              <li>Lista vacía → no se limpia ninguna (intent explícito).</li>
+     *                              <li>Subconjunto → solo esas (validadas contra el whitelist).</li>
+     *                            </ul>
+     *                            Nombres no permitidos se reportan como error y no se ejecutan.
      * @return Detalle de las tablas limpiadas y errores si los hubo
      */
-    LimpiezaDatosResultDTO limpiarDatos();
+    LimpiezaDatosResultDTO limpiarDatos(java.util.List<String> tablasSeleccionadas);
 
     /**
      * Importa costos desde un archivo Excel (.xls/.xlsx) actualizando productos existentes.

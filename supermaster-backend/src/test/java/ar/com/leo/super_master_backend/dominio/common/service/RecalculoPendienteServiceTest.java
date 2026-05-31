@@ -179,16 +179,54 @@ class RecalculoPendienteServiceTest {
         }
 
         @Test
-        @DisplayName("plan scoped: productos obsoletos + algunos canales pendientes")
-        void planScoped() {
-            when(canalRepository.findIdsRequierenReevaluar()).thenReturn(List.of(10));
+        @DisplayName("plan scoped sin canales pendientes: usa la lista de obsoletos completa")
+        void planScopedSinCanales() {
+            when(canalRepository.findIdsRequierenReevaluar()).thenReturn(List.of());
             when(pcpRepository.findDistinctProductoIdsObsoletos()).thenReturn(List.of(1, 2, 3));
             when(canalRepository.count()).thenReturn(5L);
 
             PlanRecalculo plan = service.plan();
             assertThat(plan.recalcularTodo()).isFalse();
             assertThat(plan.productos()).containsExactlyInAnyOrder(1, 2, 3);
+            assertThat(plan.canales()).isEmpty();
+            // Sin canales en reevaluación no hay nada que excluir.
+            verify(pcpRepository, never()).findDistinctProductoIdsObsoletosExcluyendoCanales(any());
+        }
+
+        @Test
+        @DisplayName("plan scoped con canales pendientes: excluye los productos cubiertos por esos canales")
+        void planScopedExcluyeCanales() {
+            // Los productos 1 y 2 solo están obsoletos por el canal 10 (que se recalcula
+            // completo), así que NO deben recalcularse individualmente. El producto 5 está
+            // obsoleto por otro canal y sí debe quedar en la lista.
+            when(canalRepository.findIdsRequierenReevaluar()).thenReturn(List.of(10));
+            when(canalRepository.count()).thenReturn(5L);
+            when(pcpRepository.findDistinctProductoIdsObsoletosExcluyendoCanales(eq(List.of(10))))
+                    .thenReturn(List.of(5));
+
+            PlanRecalculo plan = service.plan();
+            assertThat(plan.recalcularTodo()).isFalse();
             assertThat(plan.canales()).containsExactly(10);
+            assertThat(plan.productos()).containsExactly(5);
+            // No debe usar la query sin filtro: eso reintroduciría el doble trabajo.
+            verify(pcpRepository, never()).findDistinctProductoIdsObsoletos();
+        }
+
+        @Test
+        @DisplayName("plan scoped: cambio de concepto en pocos canales => sin productos individuales")
+        void planScopedConceptoSoloCanales() {
+            // Reproduce el caso reportado: un cambio de concepto marca obsoletas las filas
+            // de sus canales. Todos los obsoletos están en esos canales => al excluirlos,
+            // la lista de productos queda vacía y solo se recalculan los canales completos.
+            when(canalRepository.findIdsRequierenReevaluar()).thenReturn(List.of(10, 11));
+            when(canalRepository.count()).thenReturn(5L);
+            when(pcpRepository.findDistinctProductoIdsObsoletosExcluyendoCanales(eq(List.of(10, 11))))
+                    .thenReturn(List.of());
+
+            PlanRecalculo plan = service.plan();
+            assertThat(plan.recalcularTodo()).isFalse();
+            assertThat(plan.productos()).isEmpty();
+            assertThat(plan.canales()).containsExactlyInAnyOrder(10, 11);
         }
 
         @Test

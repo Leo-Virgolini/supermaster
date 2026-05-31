@@ -28,8 +28,10 @@ public class ReglaDescuentoController {
 
     @GetMapping
     @PreAuthorize(Permisos.PRECIOS_VER)
-    public ResponseEntity<Page<ReglaDescuentoDTO>> listar(Pageable pageable) {
-        return ResponseEntity.ok(service.listar(pageable));
+    public ResponseEntity<Page<ReglaDescuentoDTO>> listar(
+            @RequestParam(required = false) String search,
+            Pageable pageable) {
+        return ResponseEntity.ok(service.listar(search, pageable));
     }
 
     @GetMapping("/canal/{canalId}")

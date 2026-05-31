@@ -28,8 +28,10 @@ public class CanalConceptoReglaController {
 
     @GetMapping
     @PreAuthorize(Permisos.CANALES_VER)
-    public ResponseEntity<Page<CanalConceptoReglaDTO>> listar(Pageable pageable) {
-        return ResponseEntity.ok(service.listar(pageable));
+    public ResponseEntity<Page<CanalConceptoReglaDTO>> listar(
+            @RequestParam(required = false) String search,
+            Pageable pageable) {
+        return ResponseEntity.ok(service.listar(search, pageable));
     }
 
     @GetMapping("/{id}")

@@ -16,6 +16,7 @@ import ar.com.leo.super_master_backend.dominio.catalogo_pdf_config.entity.Catalo
 import ar.com.leo.super_master_backend.dominio.catalogo_pdf_config.repository.CatalogoPdfConfigRepository;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.entity.ClasifGral;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.repository.ClasifGralRepository;
+import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -117,6 +118,12 @@ public class CatalogoPdfConfigServiceImpl implements CatalogoPdfConfigService {
     private void apply(CatalogoPdfConfig entity, String nombre, Integer canalId, Integer catalogoId, Integer cuotas,
                        List<String> ordenarPor, Integer clasifGralId, Boolean caratula, String titulo, String estetica,
                        String tipoDocumento, Integer productosPorPagina, String ubicacionSalida, Boolean activo) {
+        if (canalId == null) {
+            throw new BadRequestException("El canal es obligatorio");
+        }
+        if (catalogoId == null) {
+            throw new BadRequestException("El catálogo es obligatorio");
+        }
         Canal canal = canalRepository.findById(canalId)
                 .orElseThrow(() -> new NotFoundException("Canal no encontrado: " + canalId));
         Catalogo catalogo = catalogoRepository.findById(catalogoId)
@@ -141,16 +148,18 @@ public class CatalogoPdfConfigServiceImpl implements CatalogoPdfConfigService {
     }
 
     private CatalogoPdfConfigDTO toDto(CatalogoPdfConfig entity) {
-        String canalNombre = canalRepository.findById(entity.getCanalId())
-                .map(Canal::getNombre)
-                .orElseThrow(() -> new NotFoundException("Canal no encontrado: " + entity.getCanalId()));
-        String catalogoNombre = catalogoRepository.findById(entity.getCatalogoId())
-                .map(Catalogo::getNombre)
-                .orElseThrow(() -> new NotFoundException("Catálogo no encontrado: " + entity.getCatalogoId()));
+        // Lookup tolerante a IDs null y a registros borrados (las FKs son Integer
+        // planos sin constraint, así que una limpieza de canales/catalogos/clasif
+        // puede dejar referencias huérfanas). El listado no debe romperse por eso;
+        // el nombre queda en null y la UI muestra el dato como vacío.
+        String canalNombre = entity.getCanalId() != null
+                ? canalRepository.findById(entity.getCanalId()).map(Canal::getNombre).orElse(null)
+                : null;
+        String catalogoNombre = entity.getCatalogoId() != null
+                ? catalogoRepository.findById(entity.getCatalogoId()).map(Catalogo::getNombre).orElse(null)
+                : null;
         String clasificacion = entity.getClasifGralId() != null
-                ? clasifGralRepository.findById(entity.getClasifGralId())
-                    .map(ClasifGral::getNombre)
-                    .orElseThrow(() -> new NotFoundException("Clasificación general no encontrada: " + entity.getClasifGralId()))
+                ? clasifGralRepository.findById(entity.getClasifGralId()).map(ClasifGral::getNombre).orElse(null)
                 : null;
 
         return new CatalogoPdfConfigDTO(

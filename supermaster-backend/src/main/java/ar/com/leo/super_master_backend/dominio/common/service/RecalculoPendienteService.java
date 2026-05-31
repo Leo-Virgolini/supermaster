@@ -16,7 +16,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.StreamSupport;
@@ -185,7 +187,12 @@ public class RecalculoPendienteService {
         if (todo) {
             return new PlanRecalculo(true, Set.of(), Set.of());
         }
-        List<Integer> productos = pcpRepository.findDistinctProductoIdsObsoletos();
+        // Los canales en reevaluación se recalculan completos (todo el catálogo), así que
+        // excluimos de la lista de productos los que solo están obsoletos por esos canales:
+        // recalcularlos individualmente "en todos los canales" duplicaría el trabajo.
+        List<Integer> productos = canalesReevaluar.isEmpty()
+                ? pcpRepository.findDistinctProductoIdsObsoletos()
+                : pcpRepository.findDistinctProductoIdsObsoletosExcluyendoCanales(canalesReevaluar);
         return new PlanRecalculo(false, Set.copyOf(productos), Set.copyOf(canalesReevaluar));
     }
 
@@ -253,15 +260,18 @@ public class RecalculoPendienteService {
             return RecalculoPendienteDTO.vacio();
         }
 
-        List<RecalculoPendienteDTO.MotivoPendiente> motivos = new ArrayList<>();
+        // Combinar por texto de motivo: un mismo cambio (ej. "Cambio en concepto de
+        // cálculo") marca a la vez filas obsoletas (productos) y canales a reevaluar,
+        // así que aparecería dos veces. Lo unificamos sumando cantidades y quedándonos
+        // con la fecha más reciente (evita además keys duplicadas en el banner del front).
+        Map<String, RecalculoPendienteDTO.MotivoPendiente> porMotivo = new LinkedHashMap<>();
         for (Object[] row : pcpRepository.resumenObsoletosPorMotivo()) {
-            motivos.add(new RecalculoPendienteDTO.MotivoPendiente(
-                    (String) row[0], ((Number) row[1]).intValue(), (LocalDateTime) row[2]));
+            acumularMotivo(porMotivo, (String) row[0], ((Number) row[1]).intValue(), (LocalDateTime) row[2]);
         }
         for (Object[] row : canalRepository.resumenReevaluarPorMotivo()) {
-            motivos.add(new RecalculoPendienteDTO.MotivoPendiente(
-                    (String) row[0], ((Number) row[1]).intValue(), (LocalDateTime) row[2]));
+            acumularMotivo(porMotivo, (String) row[0], ((Number) row[1]).intValue(), (LocalDateTime) row[2]);
         }
+        List<RecalculoPendienteDTO.MotivoPendiente> motivos = new ArrayList<>(porMotivo.values());
         motivos.sort((a, b) -> b.cantidad() - a.cantidad());
 
         LocalDateTime ultima = motivos.stream()
@@ -293,6 +303,26 @@ public class RecalculoPendienteService {
         } catch (Exception e) {
             log.warn("Error al broadcast de recálculo pendiente por SSE: {}", e.getMessage());
         }
+    }
+
+    /**
+     * Acumula un motivo en el mapa: si ya existe el mismo texto, suma las cantidades
+     * y conserva la fecha de cambio más reciente. Garantiza una sola entrada por motivo.
+     */
+    private static void acumularMotivo(Map<String, RecalculoPendienteDTO.MotivoPendiente> acc,
+                                       String motivo, int cantidad, LocalDateTime fecha) {
+        acc.merge(motivo,
+                new RecalculoPendienteDTO.MotivoPendiente(motivo, cantidad, fecha),
+                (a, b) -> new RecalculoPendienteDTO.MotivoPendiente(
+                        motivo,
+                        a.cantidad() + b.cantidad(),
+                        masReciente(a.ultimoCambio(), b.ultimoCambio())));
+    }
+
+    private static LocalDateTime masReciente(LocalDateTime a, LocalDateTime b) {
+        if (a == null) return b;
+        if (b == null) return a;
+        return a.isAfter(b) ? a : b;
     }
 
     private static List<Integer> sanitize(Iterable<Integer> ids) {

@@ -14,6 +14,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
@@ -41,6 +42,9 @@ class AplicadorPendientesServiceTest {
     private RecalculoBulkExecutor bulkExecutor;
 
     @Mock
+    private ar.com.leo.super_master_backend.dominio.auditoria.service.AuditoriaService auditoriaService;
+
+    @Mock
     private ProcesoGlobalService procesoGlobal;
 
     private AplicadorPendientesService service;
@@ -50,7 +54,7 @@ class AplicadorPendientesServiceTest {
 
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
-        service = new AplicadorPendientesService(bulkExecutor, procesoGlobal);
+        service = new AplicadorPendientesService(bulkExecutor, auditoriaService, procesoGlobal);
     }
 
     // ============================================
@@ -105,32 +109,36 @@ class AplicadorPendientesServiceTest {
     class EjecutarPlan {
 
         @Test
-        @DisplayName("delega al bulk executor y libera locks al final")
+        @DisplayName("delega ambas fases al bulk executor y libera locks al final")
         void planConProductos_delegaEjecutor() {
             when(procesoGlobal.adquirir(eq(PROCESO_ID), eq(PROCESO_DESC), any())).thenReturn(true);
             service.intentarAdquirir();
 
-            when(bulkExecutor.ejecutar(any(), any())).thenReturn(new int[]{3, 0});
+            when(bulkExecutor.ejecutarProductos(any(), any())).thenReturn(new int[]{3, 0});
+            when(bulkExecutor.ejecutarCanales(any(), anyInt(), anyInt(), any())).thenReturn(new int[]{3, 0, 0});
 
             PlanRecalculo plan = new PlanRecalculo(false, Set.of(1, 2, 3), Set.of());
-            service.ejecutarPlanScopedAsync(plan);
+            service.ejecutarPlanScopedAsync(plan, "jorge");
 
-            verify(bulkExecutor).ejecutar(eq(plan), any());
+            verify(bulkExecutor).ejecutarProductos(eq(plan), any());
+            verify(bulkExecutor).ejecutarCanales(eq(plan), anyInt(), anyInt(), any());
             verify(procesoGlobal).liberar(PROCESO_ID);
             assertThat(service.estaEjecutando()).isFalse();
         }
 
         @Test
-        @DisplayName("plan vacío igualmente delega y libera locks")
+        @DisplayName("plan vacío igualmente delega ambas fases y libera locks")
         void planVacio_liberaLocks() {
             when(procesoGlobal.adquirir(eq(PROCESO_ID), eq(PROCESO_DESC), any())).thenReturn(true);
             service.intentarAdquirir();
 
-            when(bulkExecutor.ejecutar(any(), any())).thenReturn(new int[]{0, 0});
+            when(bulkExecutor.ejecutarProductos(any(), any())).thenReturn(new int[]{0, 0});
+            when(bulkExecutor.ejecutarCanales(any(), anyInt(), anyInt(), any())).thenReturn(new int[]{0, 0, 0});
 
-            service.ejecutarPlanScopedAsync(new PlanRecalculo(false, Set.of(), Set.of()));
+            service.ejecutarPlanScopedAsync(new PlanRecalculo(false, Set.of(), Set.of()), "jorge");
 
-            verify(bulkExecutor).ejecutar(any(), any());
+            verify(bulkExecutor).ejecutarProductos(any(), any());
+            verify(bulkExecutor).ejecutarCanales(any(), anyInt(), anyInt(), any());
             verify(procesoGlobal).liberar(PROCESO_ID);
             assertThat(service.estaEjecutando()).isFalse();
         }
@@ -139,16 +147,18 @@ class AplicadorPendientesServiceTest {
         @DisplayName("después de aplicar un plan, se puede arrancar otro (lock local liberado)")
         void permiteSegundoPlanTrasFinalizar() {
             when(procesoGlobal.adquirir(eq(PROCESO_ID), eq(PROCESO_DESC), any())).thenReturn(true);
-            when(bulkExecutor.ejecutar(any(), any())).thenReturn(new int[]{1, 0});
+            when(bulkExecutor.ejecutarProductos(any(), any())).thenReturn(new int[]{1, 0});
+            when(bulkExecutor.ejecutarCanales(any(), anyInt(), anyInt(), any())).thenReturn(new int[]{1, 0, 0});
 
             service.intentarAdquirir();
-            service.ejecutarPlanScopedAsync(new PlanRecalculo(false, Set.of(1), Set.of()));
+            service.ejecutarPlanScopedAsync(new PlanRecalculo(false, Set.of(1), Set.of()), "jorge");
             assertThat(service.estaEjecutando()).isFalse();
 
             assertThat(service.intentarAdquirir()).isTrue();
-            service.ejecutarPlanScopedAsync(new PlanRecalculo(false, Set.of(2), Set.of()));
+            service.ejecutarPlanScopedAsync(new PlanRecalculo(false, Set.of(2), Set.of()), "jorge");
 
-            verify(bulkExecutor, times(2)).ejecutar(any(), any());
+            verify(bulkExecutor, times(2)).ejecutarProductos(any(), any());
+            verify(bulkExecutor, times(2)).ejecutarCanales(any(), anyInt(), anyInt(), any());
             verify(procesoGlobal, times(2)).liberar(PROCESO_ID);
         }
 
@@ -158,17 +168,18 @@ class AplicadorPendientesServiceTest {
             when(procesoGlobal.adquirir(eq(PROCESO_ID), eq(PROCESO_DESC), any())).thenReturn(true);
             service.intentarAdquirir();
 
-            // Simula que el ejecutor invoca el callback durante su iteración.
+            // Simula que la fase de productos invoca el callback durante su iteración.
             doAnswer(invocation -> {
                 RecalculoBulkExecutor.ProgresoCallback cb = invocation.getArgument(1);
-                cb.onProgreso(1, 1, 0, "Producto 1/2");
-                cb.onProgreso(2, 2, 0, "Producto 2/2");
+                cb.onProgreso(2, 1, 1, 0, "Producto 1/2");
+                cb.onProgreso(2, 2, 2, 0, "Producto 2/2");
                 return new int[]{2, 0};
-            }).when(bulkExecutor).ejecutar(any(), any());
+            }).when(bulkExecutor).ejecutarProductos(any(), any());
+            when(bulkExecutor.ejecutarCanales(any(), anyInt(), anyInt(), any())).thenReturn(new int[]{2, 0, 0});
 
-            service.ejecutarPlanScopedAsync(new PlanRecalculo(false, Set.of(1, 2), Set.of()));
+            service.ejecutarPlanScopedAsync(new PlanRecalculo(false, Set.of(1, 2), Set.of()), "jorge");
 
-            verify(bulkExecutor).ejecutar(any(), any());
+            verify(bulkExecutor).ejecutarProductos(any(), any());
             verify(procesoGlobal).liberar(PROCESO_ID);
         }
     }
@@ -190,11 +201,12 @@ class AplicadorPendientesServiceTest {
             Set<Integer> canales = Set.of(10, 20);
             PlanRecalculo plan = new PlanRecalculo(false, productos, canales);
 
-            doThrow(new RuntimeException("fallo fatal en bulk")).when(bulkExecutor).ejecutar(any(), any());
+            // El fallo ocurre en la fase de productos; la de canales no se alcanza.
+            doThrow(new RuntimeException("fallo fatal en bulk")).when(bulkExecutor).ejecutarProductos(any(), any());
 
             // No debe propagar la excepción. Los flags de obsolescencia quedan TRUE
             // naturalmente (no se desmarcan porque no llegaron a procesarse con éxito).
-            service.ejecutarPlanScopedAsync(plan);
+            service.ejecutarPlanScopedAsync(plan, "jorge");
 
             verify(procesoGlobal).liberar(PROCESO_ID);
             assertThat(service.estaEjecutando()).isFalse();

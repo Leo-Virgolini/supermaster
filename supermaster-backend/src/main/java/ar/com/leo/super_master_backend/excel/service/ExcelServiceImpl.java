@@ -38,6 +38,9 @@ import ar.com.leo.super_master_backend.dominio.producto.entity.Tag;
 import ar.com.leo.super_master_backend.dominio.producto.mla.entity.Mla;
 import ar.com.leo.super_master_backend.dominio.producto.mla.repository.MlaRepository;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoCanalPrecioRepository;
+import ar.com.leo.super_master_backend.dominio.precio_inflado.entity.PrecioInflado;
+import ar.com.leo.super_master_backend.dominio.precio_inflado.entity.TipoPrecioInflado;
+import ar.com.leo.super_master_backend.dominio.precio_inflado.repository.PrecioInfladoRepository;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoCanalPrecioInfladoRepository;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoCatalogoRepository;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoMargenRepository;
@@ -116,17 +119,9 @@ public class ExcelServiceImpl implements ExcelService {
     private final ReglaDescuentoRepository reglaDescuentoRepository;
     private final CanalConceptoRepository canalConceptoRepository;
     private final ProductoCanalPrecioInfladoRepository productoCanalPrecioInfladoRepository;
+    private final PrecioInfladoRepository precioInfladoRepository;
     private final ProductoService productoService;
     private final RecalculoPrecioFacade recalculoPrecioFacade;
-
-    // Acumula valores referenciados en MASTER que no existen en las tablas auxiliares,
-    // agrupados por tipo de campo ("marca", "tipo", "origen", "material", "proveedor").
-    // Se reportan al final de la importación. Se resetea al inicio de cada corrida.
-    private final Map<String, Set<String>> valoresNoEncontradosMaster = new ConcurrentHashMap<>();
-
-    private void registrarValorNoEncontrado(String campo, String valor) {
-        valoresNoEncontradosMaster.computeIfAbsent(campo, k -> ConcurrentHashMap.newKeySet()).add(valor);
-    }
 
     // Caches en memoria para evitar consultas repetidas durante la importación
     private final Map<String, Marca> cacheMarcas = new ConcurrentHashMap<>();
@@ -138,6 +133,8 @@ public class ExcelServiceImpl implements ExcelService {
     private final Map<String, Catalogo> cacheCatalogos = new ConcurrentHashMap<>();
     private final Map<String, Canal> cacheCanales = new ConcurrentHashMap<>();
     private final Map<String, Material> cacheMateriales = new ConcurrentHashMap<>();
+    // Cache de precios inflados por código (ej. "50%") para no buscar/insertar dup por fila.
+    private final Map<String, PrecioInflado> cachePreciosInflados = new ConcurrentHashMap<>();
 
     private boolean esFilaVacia(Row row) {
         for (int i = 0; i < row.getLastCellNum(); i++) {
@@ -212,23 +209,30 @@ public class ExcelServiceImpl implements ExcelService {
     }
 
     /**
-     * Mapea los nombres de las columnas a sus índices
+     * Mapea los nombres de las columnas a sus índices (rango completo de la fila).
      */
     private Map<String, Integer> mapearColumnasPorNombre(Row headerRow) {
-        Map<String, Integer> columnasMap = new HashMap<>();
+        int last = headerRow.getLastCellNum();
+        return mapearColumnasPorNombre(headerRow, 0, last > 0 ? last - 1 : -1);
+    }
 
-        for (int i = 0; i < headerRow.getLastCellNum(); i++) {
+    /**
+     * Sobrecarga: mapea solo las columnas en el rango [colInicio, colFin] (inclusive).
+     * Útil cuando el header tiene celdas "fantasma" hasta XFD y no querés iterar
+     * miles de columnas vacías.
+     */
+    private Map<String, Integer> mapearColumnasPorNombre(Row headerRow, int colInicio, int colFin) {
+        Map<String, Integer> columnasMap = new HashMap<>();
+        for (int i = colInicio; i <= colFin; i++) {
             Cell cell = headerRow.getCell(i);
             if (cell != null) {
                 String nombreColumna = obtenerValorCelda(headerRow, i);
                 if (nombreColumna != null && !nombreColumna.isBlank()) {
-                    // Normalizar nombre de columna (trim, uppercase para comparación)
                     String nombreNormalizado = nombreColumna.trim().toUpperCase();
                     columnasMap.put(nombreNormalizado, i);
                 }
             }
         }
-
         return columnasMap;
     }
 
@@ -325,10 +329,36 @@ public class ExcelServiceImpl implements ExcelService {
                     };
                     yield resultado;
                 } catch (Exception e) {
-                    // Si hay error al evaluar la fórmula, retornar null en lugar de la fórmula
-                    log.debug("Error evaluando fórmula en celda {}{}: {}",
-                            row.getRowNum() + 1, columnIndex, e.getMessage());
-                    yield null;
+                    // Si POI no puede evaluar la fórmula (ej. funciones modernas como
+                    // LET, LAMBDA, XLOOKUP que POI no soporta), caer al valor cacheado
+                    // que Excel guardó la última vez que recalculó. Así no se pierde
+                    // el dato — POI lee directo el "cached formula result" de la celda.
+                    try {
+                        yield switch (cell.getCachedFormulaResultType()) {
+                            case STRING -> {
+                                String valor = cell.getStringCellValue();
+                                yield (valor != null && !valor.isBlank()) ? valor.trim() : null;
+                            }
+                            case NUMERIC -> {
+                                if (DateUtil.isCellDateFormatted(cell)) {
+                                    Date fecha = cell.getDateCellValue();
+                                    LocalDateTime ldt = fecha.toInstant()
+                                            .atZone(ZoneId.of("America/Argentina/Buenos_Aires"))
+                                            .toLocalDateTime();
+                                    yield ldt.format(DateTimeFormatter.ofPattern("d/M/yyyy  HH:mm:ss"));
+                                }
+                                double num = cell.getNumericCellValue();
+                                yield num == (long) num ? String.valueOf((long) num) : String.valueOf(num);
+                            }
+                            case BOOLEAN -> String.valueOf(cell.getBooleanCellValue());
+                            case BLANK, ERROR -> null;
+                            default -> null;
+                        };
+                    } catch (Exception ex) {
+                        log.debug("Error leyendo cached formula result en celda {}{}: {} (eval original: {})",
+                                row.getRowNum() + 1, columnIndex, ex.getMessage(), e.getMessage());
+                        yield null;
+                    }
                 }
             }
             case BLANK -> null;
@@ -1178,7 +1208,7 @@ public class ExcelServiceImpl implements ExcelService {
         cacheCatalogos.clear();
         cacheCanales.clear();
         cacheMateriales.clear();
-        valoresNoEncontradosMaster.clear();
+        cachePreciosInflados.clear();
 
         try (Workbook workbook = abrirWorkbookEficiente(file)) {
             int totalHojas = workbook.getNumberOfSheets();
@@ -1195,26 +1225,24 @@ public class ExcelServiceImpl implements ExcelService {
             int hojasConErrores = 0;
             int hojasOmitidas = 0;
 
-            // Recolectar hojas a procesar y ordenarlas: VALIDACIONES primero, luego MASTER
+            // Solo se procesa la hoja MASTER (productos). VALIDACIONES y el resto se
+            // omiten porque marcas/tipos/clasif/etc. ya se cargaron previamente desde
+            // /importar-tablas-auxiliares (Plantilla_Tablas_SuperMaster.xlsx) y los FKs
+            // se asignan después con /enriquecer-productos (NUEVO SUPER MASTER.xlsx).
             List<SheetInfo> hojasAProcesar = new ArrayList<>();
             for (int i = 0; i < totalHojas; i++) {
                 Sheet sheet = workbook.getSheetAt(i);
                 String nombreHoja = sheet.getSheetName();
                 String nombreNormalizado = nombreHoja.trim().toUpperCase();
 
-                if ("VALIDACIONES".equals(nombreNormalizado) || "MASTER".equals(nombreNormalizado)) {
-                    // Prioridad: VALIDACIONES = 0, MASTER = 1 (para ordenar)
-                    int prioridad = "VALIDACIONES".equals(nombreNormalizado) ? 0 : 1;
-                    hojasAProcesar.add(new SheetInfo(sheet, nombreHoja, prioridad));
+                if ("MASTER".equals(nombreNormalizado)) {
+                    hojasAProcesar.add(new SheetInfo(sheet, nombreHoja, 0));
                 } else {
                     hojasOmitidas++;
                 }
             }
 
-            // Ordenar por prioridad (VALIDACIONES primero)
-            hojasAProcesar.sort(Comparator.comparingInt(SheetInfo::prioridad));
-
-            log.info("Hojas a procesar (en orden): {}",
+            log.info("Hojas a procesar (solo MASTER): {}",
                     hojasAProcesar.stream().map(SheetInfo::nombre).collect(Collectors.toList()));
 
             // Procesar cada hoja en el orden correcto
@@ -1282,16 +1310,10 @@ public class ExcelServiceImpl implements ExcelService {
             log.info("Hojas omitidas (no reconocidas): {}", hojasOmitidas);
             log.info("========================================\n");
 
-            // Snapshot de valores referenciados en MASTER que no existían en las
-            // tablas auxiliares (marca/tipo/origen/material/proveedor).
-            Map<String, List<String>> valoresNoEncontrados = new LinkedHashMap<>();
-            for (Map.Entry<String, Set<String>> e : valoresNoEncontradosMaster.entrySet()) {
-                List<String> ordenados = new ArrayList<>(e.getValue());
-                Collections.sort(ordenados, String.CASE_INSENSITIVE_ORDER);
-                valoresNoEncontrados.put(e.getKey(), ordenados);
-            }
-
-            // Generar resultado final
+            // Generar resultado final. valoresNoEncontrados queda vacío porque
+            // marca/tipo/origen/material/proveedor ya no se buscan por nombre en
+            // este Excel — vienen por ID desde NUEVO SUPER MASTER (enriquecimiento).
+            Map<String, List<String>> valoresNoEncontrados = Map.of();
             if (erroresGenerales.isEmpty() && hojasConErrores == 0) {
                 return ImportCompletoResultDTO.success(totalHojas, hojasProcesadas, resultadosPorHoja, valoresNoEncontrados);
             } else {
@@ -1417,87 +1439,15 @@ public class ExcelServiceImpl implements ExcelService {
                 }
             }
 
-            // MARCA / TIPO / ORIGEN / MATERIAL / PROVEEDOR (opcionales):
-            // Si el Excel trae un nombre y NO existe en la tabla auxiliar precargada,
-            // se setea el campo en NULL y se registra el valor en valoresNoEncontradosMaster
-            // para reportarlo al final (no falla la fila).
+            // MARCA, TIPO, ORIGEN, MATERIAL, PROVEEDOR, CLASIF_GRAL, CLASIF_GASTRO,
+            // CAPACIDAD, LARGO, ANCHO, ALTO, DIAMBOCA, DIAMBASE, ESPESOR:
+            // ya no se leen de SUPER MASTER.xlsm. Esos campos los carga
+            // enriquecerProductosDesdeNuevoMaster() al final, usando los IDs
+            // y dimensiones del archivo NUEVO SUPER MASTER.xlsx (hoja MASTER).
 
-            if (columnasMap.containsKey("MARCA")) {
-                String marcaNombre = obtenerValorCelda(row, obtenerIndiceColumna(columnasMap, "MARCA"));
-                if (marcaNombre != null && !marcaNombre.isBlank()) {
-                    String mn = marcaNombre.trim();
-                    Marca marca = marcaRepository.findByNombreIgnoreCase(mn).orElse(null);
-                    if (marca == null) {
-                        registrarValorNoEncontrado("marca", mn);
-                        producto.setMarca(null);
-                    } else {
-                        producto.setMarca(marca);
-                    }
-                }
-            }
-
-            if (columnasMap.containsKey("TIPO")) {
-                String tipoNombre = obtenerValorCelda(row, obtenerIndiceColumna(columnasMap, "TIPO"));
-                if (tipoNombre != null && !tipoNombre.isBlank()) {
-                    String tn = tipoNombre.trim();
-                    Tipo tipo = tipoRepository.findByNombreIgnoreCase(tn).orElse(null);
-                    if (tipo == null) {
-                        registrarValorNoEncontrado("tipo", tn);
-                        producto.setTipo(null);
-                    } else {
-                        producto.setTipo(tipo);
-                    }
-                }
-            }
-
-            if (columnasMap.containsKey("ORIGEN")) {
-                String origenNombre = obtenerValorCelda(row, obtenerIndiceColumna(columnasMap, "ORIGEN"));
-                if (origenNombre != null && !origenNombre.isBlank()) {
-                    String on = origenNombre.trim();
-                    Origen origen = origenRepository.findByNombreIgnoreCase(on).orElse(null);
-                    if (origen == null) {
-                        registrarValorNoEncontrado("origen", on);
-                        producto.setOrigen(null);
-                    } else {
-                        producto.setOrigen(origen);
-                    }
-                }
-            }
-
-            if (columnasMap.containsKey("MATERIAL")) {
-                String materialNombre = obtenerValorCelda(row, obtenerIndiceColumna(columnasMap, "MATERIAL"));
-                if (materialNombre != null && !materialNombre.isBlank()) {
-                    String mn = materialNombre.trim();
-                    Material material = materialRepository.findByNombreIgnoreCase(mn).orElse(null);
-                    if (material == null) {
-                        registrarValorNoEncontrado("material", mn);
-                        producto.setMaterial(null);
-                    } else {
-                        producto.setMaterial(material);
-                    }
-                }
-            }
-
-            if (columnasMap.containsKey("PROVEEDOR")) {
-                String proveedorNombre = obtenerValorCelda(row, obtenerIndiceColumna(columnasMap, "PROVEEDOR"));
-                if (proveedorNombre != null && !proveedorNombre.isBlank()) {
-                    String pn = proveedorNombre.trim();
-                    Proveedor proveedor = proveedorRepository.findByNombreIgnoreCase(pn).orElse(null);
-                    if (proveedor == null) {
-                        registrarValorNoEncontrado("proveedor", pn);
-                        producto.setProveedor(null);
-                    } else {
-                        producto.setProveedor(proveedor);
-                    }
-                }
-            }
-
-            // CLASIF_GRAL y CLASIF_GASTRO: por decisión del flujo de importación,
-            // siempre se dejan en NULL. Se cargarán por otro proceso después.
-            producto.setClasifGral(null);
-            producto.setClasifGastro(null);
-
-            // TAG (enum): MAQUINA / REPUESTO / MENAJE
+            // TAG (enum): MAQUINA / REPUESTO / MENAJE.
+            // Cualquier otro valor (ej. LIQUIDACION, PRIO, etc.) se ignora silenciosamente
+            // y deja el campo en NULL — son categorías de uso, no estados comerciales.
             if (columnasMap.containsKey("TAG")) {
                 String tagStr = obtenerValorCelda(row, obtenerIndiceColumna(columnasMap, "TAG"));
                 if (tagStr != null && !tagStr.isBlank()) {
@@ -1505,7 +1455,7 @@ public class ExcelServiceImpl implements ExcelService {
                     try {
                         producto.setTag(Tag.valueOf(tu));
                     } catch (IllegalArgumentException e) {
-                        log.warn("Tag '{}' inválido para SKU {} - se deja en NULL", tagStr, skuFinal);
+                        log.debug("Tag '{}' fuera del enum (SKU {}) - se deja en NULL", tagStr, skuFinal);
                         producto.setTag(null);
                     }
                 } else {
@@ -1660,19 +1610,24 @@ public class ExcelServiceImpl implements ExcelService {
                 }
             }
 
-            // MLA - mlas.mla y mlas.precio_envio
+            // MLA - mlas.mla y mlas.precio_envio.
+            // Solo se guarda si el valor empieza con "MLA" (case-insensitive).
+            // Cualquier otro valor (vacío, texto suelto, basura) se omite silenciosamente.
             if (columnasMap.containsKey("MLA")) {
                 try {
                     String mlaStr = obtenerValorCelda(row, obtenerIndiceColumna(columnasMap, "MLA"));
-                    if (mlaStr != null && !mlaStr.isBlank()) {
+                    String mlaTrim = mlaStr != null ? mlaStr.trim() : null;
+                    boolean mlaValido = mlaTrim != null && !mlaTrim.isBlank()
+                            && mlaTrim.toUpperCase().startsWith("MLA");
+                    if (mlaValido) {
                         // Usar el MLA existente del producto o crear uno nuevo
                         Mla mla;
                         if (productoFinal.getMla() != null) {
                             mla = productoFinal.getMla();
-                            mla.setMla(mlaStr.trim());
+                            mla.setMla(mlaTrim);
                         } else {
                             mla = new Mla();
-                            mla.setMla(mlaStr.trim());
+                            mla.setMla(mlaTrim);
                         }
 
                         // ENVIO (precio_envio)
@@ -1692,10 +1647,76 @@ public class ExcelServiceImpl implements ExcelService {
                         // Asignar MLA al producto
                         productoFinal.setMla(mla);
                         productoRepository.save(productoFinal);
+                    } else if (mlaTrim != null && !mlaTrim.isBlank()) {
+                        log.debug("MLA '{}' descartado para SKU {} (no empieza con 'MLA')", mlaTrim, skuFinal);
                     }
                 } catch (Exception e) {
                     log.warn("Error procesando MLA para producto SKU {}: {}", skuFinal, e.getMessage());
                     // Continuar sin fallar toda la fila
+                }
+            }
+
+            // PROMO - descuento % a aplicar en el canal KT HOGAR.
+            // En el Excel se ve "50%" pero la celda guarda 0.5 (formato porcentaje).
+            // 1) Se busca/crea un PrecioInflado con codigo="50%", tipo=DESCUENTO_PORC, valor=50.
+            // 2) Se asigna al producto vía producto_canal_precio_inflado (1 por producto+canal).
+            //    Si ya existía la asignación, se actualiza el precio inflado referenciado.
+            if (columnasMap.containsKey("PROMO") && productoFinal.getId() != null) {
+                try {
+                    String promoStr = obtenerValorCelda(row, obtenerIndiceColumna(columnasMap, "PROMO"));
+                    if (promoStr != null && !promoStr.isBlank()) {
+                        String limpio = promoStr.trim().replace("%", "").replace(",", ".");
+                        BigDecimal raw = new BigDecimal(limpio);
+                        // Excel guarda 50% como 0.5. Si raw está en (0, 1] interpretamos formato
+                        // decimal y multiplicamos x100. Si es >= 1, ya es porcentaje entero.
+                        BigDecimal porcentaje = (raw.compareTo(BigDecimal.ZERO) > 0
+                                && raw.compareTo(BigDecimal.ONE) <= 0)
+                                ? raw.multiply(BigDecimal.valueOf(100))
+                                : raw;
+                        // Normalizar a entero cuando es entero exacto (ej. 50.00 → 50)
+                        porcentaje = porcentaje.setScale(2, RoundingMode.HALF_UP).stripTrailingZeros();
+                        if (porcentaje.scale() < 0) porcentaje = porcentaje.setScale(0);
+
+                        if (porcentaje.compareTo(BigDecimal.ZERO) <= 0
+                                || porcentaje.compareTo(BigDecimal.valueOf(100)) > 0) {
+                            log.warn("PROMO fuera de rango para SKU {}: '{}' → {}%", skuFinal, promoStr, porcentaje);
+                        } else {
+                            String codigo = porcentaje.toPlainString() + "%"; // ej. "50%"
+                            final BigDecimal valorFinal = porcentaje;
+                            PrecioInflado precioInflado = cachePreciosInflados.computeIfAbsent(
+                                    codigo.toUpperCase(),
+                                    k -> precioInfladoRepository.findByCodigo(codigo).orElseGet(() -> {
+                                        PrecioInflado nuevo = new PrecioInflado();
+                                        nuevo.setCodigo(codigo);
+                                        nuevo.setTipo(TipoPrecioInflado.DESCUENTO_PORC);
+                                        nuevo.setValor(valorFinal);
+                                        return precioInfladoRepository.save(nuevo);
+                                    }));
+
+                            Canal canalKt = buscarOCrearCanal("KT HOGAR");
+                            if (canalKt.getId() == null) {
+                                canalKt = canalRepository.save(canalKt);
+                            }
+                            final Canal canalKtFinal = canalKt;
+
+                            Optional<ProductoCanalPrecioInflado> existenteOpt = productoCanalPrecioInfladoRepository
+                                    .findByProductoIdAndCanalId(productoFinal.getId(), canalKtFinal.getId());
+                            ProductoCanalPrecioInflado pcpi = existenteOpt.orElseGet(() -> {
+                                ProductoCanalPrecioInflado nuevo = new ProductoCanalPrecioInflado();
+                                nuevo.setProducto(productoFinal);
+                                nuevo.setCanal(canalKtFinal);
+                                return nuevo;
+                            });
+                            pcpi.setPrecioInflado(precioInflado);
+                            pcpi.setActivo(true);
+                            productoCanalPrecioInfladoRepository.save(pcpi);
+                        }
+                    }
+                } catch (NumberFormatException e) {
+                    log.warn("PROMO inválido para SKU {}: '{}' ({})", skuFinal,
+                            obtenerValorCelda(row, obtenerIndiceColumna(columnasMap, "PROMO")), e.getMessage());
+                } catch (Exception e) {
+                    log.warn("Error procesando PROMO para SKU {}: {}", skuFinal, e.getMessage(), e);
                 }
             }
 
@@ -4259,19 +4280,34 @@ public class ExcelServiceImpl implements ExcelService {
      * El orden es: primero las hojas/dependientes y al final las maestras puras.
      * Igualmente desactivo FOREIGN_KEY_CHECKS para no depender del orden y poder
      * ejecutar los DELETE sin tener que preocuparme por ciclos.
+     *
+     * NO se incluyen tablas de autenticación (usuarios, roles, permisos) — borrarlas
+     * dejaría al sistema sin acceso.
      */
     private static final List<String> TABLAS_A_LIMPIAR = List.of(
+            // --- Independientes / cachés (sin FK entrantes problemáticas) ---
+            "auditoria_cambios",
             "venta_diaria_cache",
-            "orden_compra_lineas",
-            "ordenes_compra",
-            "producto_apto",
-            "producto_catalogo",
-            "producto_cliente",
-            "producto_canal_precio_inflado",
-            "producto_canal_precios",
-            "producto_margen",
+            // --- Hijas directas de productos ---
+            "orden_compra_lineas",          // → ordenes_compra, productos
+            "producto_canal_precio_inflado",// → productos, canales, precios_inflados
+            "producto_canal_precios",       // → productos, canales
+            "producto_margen",              // → productos
+            "producto_apto",                // → productos, aptos
+            "producto_catalogo",            // → productos, catalogos
+            "producto_cliente",             // → productos, clientes
+            // --- Reglas que referencian canales/conceptos/maestros ---
+            "canal_concepto_regla",         // → canales, conceptos_calculo, tipos, marcas, clasif_*
+            "canal_regla",                  // → canales, productos, tipos, marcas, clasif_*
+            "canal_concepto_cuota",         // → canales
+            "canal_concepto",               // → canales, conceptos_calculo
+            "reglas_descuentos",            // → canales, catalogos, clasif_gral, clasif_gastro
+            // --- Hijas de proveedores ---
+            "ordenes_compra",               // → proveedores
+            // --- Productos y MLAs ---
+            "productos",                    // → marcas, tipos, materiales, origenes, clasif_*, proveedores, mlas
             "mlas",
-            "productos",
+            // --- Maestros de producto ---
             "clientes",
             "marcas",
             "tipos",
@@ -4279,16 +4315,53 @@ public class ExcelServiceImpl implements ExcelService {
             "origenes",
             "clasif_gral",
             "clasif_gastro",
-            "proveedores"
+            "proveedores",
+            "aptos",
+            "catalogos",
+            // --- Canales y conceptos (ya sin dependientes) ---
+            "canales",
+            "conceptos_calculo",
+            // --- Configuración (sin FKs entrantes) ---
+            "precios_inflados",
+            "catalogo_pdf_config",
+            "configuracion_ml",
+            "reposicion_config",
+            "config_automatizacion",
+            "dux_horario_sync"
     );
 
     @Override
     @Transactional
-    public LimpiezaDatosResultDTO limpiarDatos() {
-        log.warn("===> Iniciando LIMPIEZA DESTRUCTIVA de datos: {} tablas", TABLAS_A_LIMPIAR.size());
+    public LimpiezaDatosResultDTO limpiarDatos(List<String> tablasSeleccionadas) {
+        // Resolver el subset a limpiar:
+        //  - null            → TODAS las elegibles (compat con request sin body)
+        //  - lista vacía []  → NADA (intent explícito de no borrar)
+        //  - subset          → solo las que pertenezcan al whitelist (TABLAS_A_LIMPIAR)
+        //                      manteniendo el orden definido (dependientes → maestros)
+        Set<String> whitelist = new LinkedHashSet<>(TABLAS_A_LIMPIAR);
+        List<String> tablasAEjecutar;
+        List<String> rechazadas = new ArrayList<>();
+        if (tablasSeleccionadas == null) {
+            tablasAEjecutar = new ArrayList<>(TABLAS_A_LIMPIAR);
+        } else {
+            Set<String> pedidas = new LinkedHashSet<>(tablasSeleccionadas);
+            for (String t : pedidas) {
+                if (!whitelist.contains(t)) rechazadas.add(t);
+            }
+            // Filtrar manteniendo el orden canónico (dependientes primero)
+            tablasAEjecutar = TABLAS_A_LIMPIAR.stream()
+                    .filter(pedidas::contains)
+                    .collect(Collectors.toList());
+        }
+
+        log.warn("===> Iniciando LIMPIEZA DESTRUCTIVA: {} de {} tablas (rechazadas: {})",
+                tablasAEjecutar.size(), TABLAS_A_LIMPIAR.size(), rechazadas);
 
         List<String> tablasLimpiadas = new ArrayList<>();
         List<String> errores = new ArrayList<>();
+        for (String r : rechazadas) {
+            errores.add("Tabla no permitida (no está en el whitelist): " + r);
+        }
 
         // Limpiar caches en memoria del service (referencias a entidades borradas)
         cacheMarcas.clear();
@@ -4300,11 +4373,19 @@ public class ExcelServiceImpl implements ExcelService {
         cacheProveedores.clear();
         cacheCatalogos.clear();
         cacheCanales.clear();
+        cachePreciosInflados.clear();
+
+        if (tablasAEjecutar.isEmpty()) {
+            log.warn("===> Nada para limpiar (lista resuelta vacía).");
+            return errores.isEmpty()
+                    ? LimpiezaDatosResultDTO.success(List.of())
+                    : LimpiezaDatosResultDTO.withErrors(List.of(), errores);
+        }
 
         // Desactivar FK checks para evitar problemas con orden de borrado y ciclos
         entityManager.createNativeQuery("SET FOREIGN_KEY_CHECKS = 0").executeUpdate();
         try {
-            for (String tabla : TABLAS_A_LIMPIAR) {
+            for (String tabla : tablasAEjecutar) {
                 try {
                     entityManager.createNativeQuery("DELETE FROM supermaster." + tabla).executeUpdate();
                     entityManager.createNativeQuery("ALTER TABLE supermaster." + tabla + " AUTO_INCREMENT = 1").executeUpdate();
@@ -4443,14 +4524,23 @@ public class ExcelServiceImpl implements ExcelService {
                 "proveedores", "proveedores"
         );
 
-        for (String tipo : tiposAImportar) {
-            String tabla = tablaPorTipo.get(tipo);
-            if (tabla == null) continue;
-            log.info("Limpiando tabla supermaster.{} ...", tabla);
-            entityManager.createNativeQuery("DELETE FROM supermaster." + tabla).executeUpdate();
-            entityManager.createNativeQuery("ALTER TABLE supermaster." + tabla + " AUTO_INCREMENT = 1").executeUpdate();
+        // Desactivar FK checks para permitir el DELETE aunque haya productos (u otras
+        // tablas) referenciando estos registros. Los inserts subsiguientes vuelven a
+        // usar los mismos IDs del Excel (id_excel = id_tabla), así que los FKs apuntan
+        // a los nuevos registros correctos. SE REACTIVA SIEMPRE en el finally.
+        entityManager.createNativeQuery("SET FOREIGN_KEY_CHECKS = 0").executeUpdate();
+        try {
+            for (String tipo : tiposAImportar) {
+                String tabla = tablaPorTipo.get(tipo);
+                if (tabla == null) continue;
+                log.info("Limpiando tabla supermaster.{} ...", tabla);
+                entityManager.createNativeQuery("DELETE FROM supermaster." + tabla).executeUpdate();
+                entityManager.createNativeQuery("ALTER TABLE supermaster." + tabla + " AUTO_INCREMENT = 1").executeUpdate();
+            }
+            entityManager.flush();
+        } finally {
+            entityManager.createNativeQuery("SET FOREIGN_KEY_CHECKS = 1").executeUpdate();
         }
-        entityManager.flush();
     }
 
     /**
@@ -5137,8 +5227,10 @@ public class ExcelServiceImpl implements ExcelService {
                 String apodo = leerTexto(row, columnas, "Apodo");
                 String plazoPago = leerTexto(row, columnas, "Plazo Pago");
                 Boolean entrega = leerBooleano(row, columnas, "Entrega");
-                BigDecimal financiacion = leerDecimal(row, columnas, "Financiación %");
-                if (financiacion == null) financiacion = leerDecimal(row, columnas, "Financiacion %");
+                // La financiación puede venir formateada como % en Excel (celda "5%" => valor 0.05).
+                // leerPorcentajeDeColumna normaliza a porcentaje real (0.05 -> 5, "5%" -> 5, 5 -> 5).
+                BigDecimal financiacion = leerPorcentajeDeColumna(row, columnas, "Financiación %");
+                if (financiacion == null) financiacion = leerPorcentajeDeColumna(row, columnas, "Financiacion %");
                 Integer leadTime = leerEntero(row, columnas, "Lead Time (días)");
                 if (leadTime == null) leadTime = leerEntero(row, columnas, "Lead Time (dias)");
 
@@ -5208,6 +5300,340 @@ public class ExcelServiceImpl implements ExcelService {
             }
             default -> 0;
         };
+    }
+
+    // ============================================================
+    // ENRIQUECIMIENTO DESDE NUEVO SUPER MASTER.xlsx
+    // ============================================================
+
+    /**
+     * Lee la hoja MASTER del archivo NUEVO SUPER MASTER.xlsx (subido por la UI)
+     * y enriquece los productos existentes por SKU con:
+     * <ul>
+     *   <li>FKs (origen, marca, clasifGral, clasifGastro, tipo, material, proveedor)
+     *       - Marca/Tipo/Clasif tienen varios niveles; se usa el más profundo no-nulo.</li>
+     *   <li>Dimensiones string: capacidad, largo, ancho, alto, diamboca, diambase, espesor.</li>
+     * </ul>
+     * Los datos comienzan en la fila 3 (índice 2). Un ID = 0 se interpreta como "sin dato".
+     * Si un SKU no existe en la BD, la fila se omite (no crea productos nuevos).
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ImportResultDTO enriquecerProductosDesdeNuevoMaster(MultipartFile file) throws IOException {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("El archivo está vacío");
+        }
+        if (!isExcelFile(file)) {
+            throw new IllegalArgumentException("El archivo debe ser un Excel (.xls, .xlsx o .xlsm)");
+        }
+
+        log.info("📘 Enriqueciendo productos desde archivo '{}'", file.getOriginalFilename());
+
+        try (Workbook workbook = abrirWorkbookEficiente(file)) {
+
+            Sheet hoja = workbook.getSheet("MASTER");
+            if (hoja == null) {
+                return ImportResultDTO.withErrors(0, 0, 1,
+                        List.of("La hoja 'MASTER' no existe en el archivo"));
+            }
+
+            // Si la hoja es .xlsx (XSSFSheet) y contiene una tabla Excel (ListObject)
+            // llamada "MASTER", usamos su rango exacto (filas y columnas). Eso evita
+            // iterar filas/celdas vacías residuales (formato hasta XFD) que engordan
+            // getLastRowNum()/getLastCellNum() artificialmente.
+            // Si la hoja no es XSSF (.xls) o no tiene esa tabla, fallback al rango
+            // tradicional: header en fila 2 (índice 1), datos desde fila 3 (índice 2),
+            // columnas según getLastCellNum() del header.
+            int filaHeader;  // índice 0-based de la fila de encabezados
+            int filaInicio;  // índice 0-based de la primera fila de datos
+            int filaFin;     // índice 0-based de la última fila de datos
+            int colInicio;   // índice 0-based de la primera columna
+            int colFin;      // índice 0-based de la última columna (inclusivo)
+            String origenRango;
+
+            XSSFTable tablaMaster = null;
+            if (hoja instanceof XSSFSheet xssfSheet) {
+                for (XSSFTable t : xssfSheet.getTables()) {
+                    if ("MASTER".equalsIgnoreCase(t.getName())
+                            || "MASTER".equalsIgnoreCase(t.getDisplayName())) {
+                        tablaMaster = t;
+                        break;
+                    }
+                }
+            }
+
+            if (tablaMaster != null) {
+                filaHeader = tablaMaster.getStartRowIndex();
+                filaInicio = filaHeader + 1;
+                filaFin = tablaMaster.getEndRowIndex();
+                colInicio = tablaMaster.getStartColIndex();
+                colFin = tablaMaster.getEndColIndex();
+                origenRango = String.format("tabla 'MASTER' [filas %d-%d, cols %d-%d]",
+                        filaHeader + 1, filaFin + 1, colInicio + 1, colFin + 1);
+            } else {
+                filaHeader = 1;
+                filaInicio = 2;
+                filaFin = hoja.getLastRowNum();
+                colInicio = 0;
+                Row tmpHeader = hoja.getRow(filaHeader);
+                colFin = tmpHeader != null ? tmpHeader.getLastCellNum() - 1 : -1;
+                origenRango = String.format("hoja completa [filas 2-%d, cols 1-%d] (no se encontró tabla 'MASTER')",
+                        filaFin + 1, colFin + 1);
+            }
+            log.info("📘 Rango de datos detectado: {}", origenRango);
+
+            Row headerRow = hoja.getRow(filaHeader);
+            if (headerRow == null) {
+                return ImportResultDTO.withErrors(0, 0, 1,
+                        List.of("La fila " + (filaHeader + 1) + " de cabeceras está vacía en la hoja MASTER"));
+            }
+            // Mapeamos solo las columnas del rango de la tabla (no toda la fila).
+            Map<String, Integer> columnas = mapearColumnasPorNombre(headerRow, colInicio, colFin);
+
+            // Validar columnas requerida mínima: SKU
+            if (!columnas.containsKey("SKU")) {
+                return ImportResultDTO.withErrors(0, 0, 1,
+                        List.of("La columna SKU no existe en la hoja MASTER"));
+            }
+
+            // ---- Pre-cargar IDs válidos de cada tabla maestra (1 query c/u) ----
+            // Esto evita FK violations al hacer flush: si el Excel referencia un ID
+            // que no existe en BD, lo dejamos en null y lo contamos como "inválido".
+            Set<Integer> idsOrigenes      = traerIdsTabla("origenes", "id_origen");
+            Set<Integer> idsMarcas        = traerIdsTabla("marcas", "id_marca");
+            Set<Integer> idsClasifGral    = traerIdsTabla("clasif_gral", "id_clasif_gral");
+            Set<Integer> idsClasifGastro  = traerIdsTabla("clasif_gastro", "id_clasif_gastro");
+            Set<Integer> idsTipos         = traerIdsTabla("tipos", "id_tipo");
+            Set<Integer> idsMateriales    = traerIdsTabla("materiales", "id_material");
+            Set<Integer> idsProveedores   = traerIdsTabla("proveedores", "id_proveedor");
+            log.info("📘 IDs válidos cargados: orígenes={}, marcas={}, clasif_gral={}, clasif_gastro={}, tipos={}, materiales={}, proveedores={}",
+                    idsOrigenes.size(), idsMarcas.size(), idsClasifGral.size(),
+                    idsClasifGastro.size(), idsTipos.size(), idsMateriales.size(), idsProveedores.size());
+
+            // ---- Pre-cargar TODOS los productos en un Map<sku, Producto> (1 query) ----
+            // Evita un findBySku() por fila (de 5650+ queries pasamos a 1). Los productos
+            // quedan en el persistence context: al modificarlos quedan dirty y Hibernate
+            // emite los UPDATEs en batch al flush final (batch_size=100 ya configurado).
+            long t0 = System.currentTimeMillis();
+            List<Producto> todosProductos = productoRepository.findAll();
+            Map<String, Producto> productosPorSku = new HashMap<>(todosProductos.size() * 2);
+            int skuNulls = 0;
+            for (Producto p : todosProductos) {
+                if (p.getSku() == null) { skuNulls++; continue; }
+                productosPorSku.put(p.getSku(), p);
+            }
+            log.info("📘 {} productos pre-cargados en {} ms (sku nulos descartados: {})",
+                    productosPorSku.size(), System.currentTimeMillis() - t0, skuNulls);
+
+            int totalRows = 0;
+            int successRows = 0;
+            int filasConErrorReal = 0; // Filas que tiraron excepción en el catch (≠ filas con IDs inválidos)
+            int skusNoEncontrados = 0;
+            List<String> errores = new ArrayList<>();
+            // Sets de IDs únicos referenciados en el Excel que NO existen en la BD,
+            // por cada tabla maestra. LinkedHashSet conserva el orden de aparición.
+            Set<Integer> idsInvOrigen      = new LinkedHashSet<>();
+            Set<Integer> idsInvMarca       = new LinkedHashSet<>();
+            Set<Integer> idsInvClasifGral  = new LinkedHashSet<>();
+            Set<Integer> idsInvClasifGastro = new LinkedHashSet<>();
+            Set<Integer> idsInvTipo        = new LinkedHashSet<>();
+            Set<Integer> idsInvMaterial    = new LinkedHashSet<>();
+            Set<Integer> idsInvProveedor   = new LinkedHashSet<>();
+
+            for (int i = filaInicio; i <= filaFin; i++) {
+                Row row = hoja.getRow(i);
+                if (row == null || esFilaVacia(row)) continue;
+                totalRows++;
+
+                try {
+                    String skuRaw = obtenerValorCelda(row, obtenerIndiceColumna(columnas, "SKU"));
+                    if (skuRaw == null || skuRaw.isBlank()) continue;
+                    String sku = skuRaw.trim();
+                    if (sku.endsWith(".0")) sku = sku.substring(0, sku.length() - 2);
+
+                    Producto producto = productosPorSku.get(sku);
+                    if (producto == null) {
+                        skusNoEncontrados++;
+                        continue;
+                    }
+
+                    // ---- Relaciones jerárquicas: tomar el ID más profundo no-nulo ----
+                    Integer origenId  = leerIdValido(row, columnas, "ID ORIGEN");
+                    Integer marcaId   = primerIdNoNulo(
+                            leerIdValido(row, columnas, "ID LINEA"),
+                            leerIdValido(row, columnas, "ID MARCA"));
+                    Integer clasifGralId = primerIdNoNulo(
+                            leerIdValido(row, columnas, "ID CLASIF GRAL2"),
+                            leerIdValido(row, columnas, "ID CLASIF GRAL1"));
+                    Integer clasifGastroId = primerIdNoNulo(
+                            leerIdValido(row, columnas, "ID CLASIF GASTRO2"),
+                            leerIdValido(row, columnas, "ID CLASIF GASTRO1"));
+                    Integer tipoId = primerIdNoNulo(
+                            leerIdValido(row, columnas, "ID TIPO3"),
+                            leerIdValido(row, columnas, "ID TIPO2"),
+                            leerIdValido(row, columnas, "ID TIPO1"));
+                    Integer materialId  = leerIdValido(row, columnas, "ID MATERIAL");
+                    Integer proveedorId = leerIdValido(row, columnas, "ID PROVEEDOR");
+
+                    // ---- Validar contra IDs precargados antes de asignar la FK ----
+                    if (origenId != null && !idsOrigenes.contains(origenId))      { idsInvOrigen.add(origenId);       origenId = null; }
+                    if (marcaId != null && !idsMarcas.contains(marcaId))           { idsInvMarca.add(marcaId);         marcaId = null; }
+                    if (clasifGralId != null && !idsClasifGral.contains(clasifGralId))     { idsInvClasifGral.add(clasifGralId);   clasifGralId = null; }
+                    if (clasifGastroId != null && !idsClasifGastro.contains(clasifGastroId)) { idsInvClasifGastro.add(clasifGastroId); clasifGastroId = null; }
+                    if (tipoId != null && !idsTipos.contains(tipoId))              { idsInvTipo.add(tipoId);           tipoId = null; }
+                    if (materialId != null && !idsMateriales.contains(materialId)) { idsInvMaterial.add(materialId);   materialId = null; }
+                    if (proveedorId != null && !idsProveedores.contains(proveedorId)) { idsInvProveedor.add(proveedorId); proveedorId = null; }
+
+                    producto.setOrigen(origenId != null ? entityManager.getReference(Origen.class, origenId) : null);
+                    producto.setMarca(marcaId != null ? entityManager.getReference(Marca.class, marcaId) : null);
+                    producto.setClasifGral(clasifGralId != null ? entityManager.getReference(ClasifGral.class, clasifGralId) : null);
+                    producto.setClasifGastro(clasifGastroId != null ? entityManager.getReference(ClasifGastro.class, clasifGastroId) : null);
+                    producto.setTipo(tipoId != null ? entityManager.getReference(Tipo.class, tipoId) : null);
+                    producto.setMaterial(materialId != null ? entityManager.getReference(Material.class, materialId) : null);
+                    producto.setProveedor(proveedorId != null ? entityManager.getReference(Proveedor.class, proveedorId) : null);
+
+                    // ---- Dimensiones (todas string, max 45) ----
+                    producto.setCapacidad(leerTextoTruncado(row, columnas, "CAPACIDAD", 45));
+                    producto.setLargo(leerTextoTruncado(row, columnas, "LARGO", 45));
+                    producto.setAncho(leerTextoTruncado(row, columnas, "ANCHO", 45));
+                    producto.setAlto(leerTextoTruncado(row, columnas, "ALTO", 45));
+                    producto.setDiamboca(leerTextoTruncado(row, columnas, "DIAMBOCA", 45));
+                    producto.setDiambase(leerTextoTruncado(row, columnas, "DIAMBASE", 45));
+                    producto.setEspesor(leerTextoTruncado(row, columnas, "ESPESOR", 45));
+
+                    // Producto está en el persistence context (precargado con findAll).
+                    // Los setters dejan la entidad "dirty"; Hibernate emite el UPDATE en
+                    // el flush final, en batch (batch_size=100 por config). No hace
+                    // falta save() por fila.
+                    successRows++;
+                } catch (Exception e) {
+                    errores.add("Fila " + (i + 1) + ": " + e.getMessage());
+                    filasConErrorReal++;
+                }
+            }
+
+            // Flush final: Hibernate hace dirty-check de todos los productos modificados
+            // y emite los UPDATEs en batches de 100.
+            // Si UN solo UPDATE falla, Hibernate revierte el batch entero. Capturamos
+            // y reportamos al usuario para que sepa por qué se perdieron los cambios.
+            long tFlush = System.currentTimeMillis();
+            try {
+                entityManager.flush();
+                log.info("📘 Flush de UPDATEs completado en {} ms", System.currentTimeMillis() - tFlush);
+            } catch (Exception e) {
+                log.error("❌ Flush final FALLÓ tras {} ms - se pierden los {} updates en memoria. " +
+                                "Causa: {}",
+                        System.currentTimeMillis() - tFlush, successRows, e.getMessage(), e);
+                errores.add(String.format(
+                        "Flush final falló: %s. Se intentaron actualizar %d productos pero se hizo " +
+                                "rollback de la transacción. Revisar el log del servidor para detalles.",
+                        e.getMessage(), successRows));
+                // Resetear successRows: ningún cambio quedó persistido tras el rollback.
+                successRows = 0;
+                throw e; // dejamos propagar para que @Transactional haga el rollback completo
+            }
+
+            if (skusNoEncontrados > 0) {
+                log.info("📘 Enriquecimiento: {} SKUs del segundo Excel no encontrados en BD (se ignoraron)",
+                        skusNoEncontrados);
+            }
+
+            int totalIdsInvalidos = idsInvOrigen.size() + idsInvMarca.size() + idsInvClasifGral.size()
+                    + idsInvClasifGastro.size() + idsInvTipo.size() + idsInvMaterial.size() + idsInvProveedor.size();
+            if (totalIdsInvalidos > 0) {
+                log.warn("⚠️  Enriquecimiento: {} IDs únicos inexistentes (se dejaron en NULL): " +
+                                "origen={}, marca/línea={}, clasifGral={}, clasifGastro={}, tipo={}, material={}, proveedor={}",
+                        totalIdsInvalidos, idsInvOrigen.size(), idsInvMarca.size(), idsInvClasifGral.size(),
+                        idsInvClasifGastro.size(), idsInvTipo.size(), idsInvMaterial.size(), idsInvProveedor.size());
+                // Una entrada por categoría con los IDs concretos (limitados a 200 por categoría
+                // para no inflar la respuesta si hay miles).
+                agregarErrorIds(errores, "Orígenes", idsInvOrigen);
+                agregarErrorIds(errores, "Marcas/Líneas", idsInvMarca);
+                agregarErrorIds(errores, "Clasif. Gral", idsInvClasifGral);
+                agregarErrorIds(errores, "Clasif. Gastro", idsInvClasifGastro);
+                agregarErrorIds(errores, "Tipos", idsInvTipo);
+                agregarErrorIds(errores, "Materiales", idsInvMaterial);
+                agregarErrorIds(errores, "Proveedores", idsInvProveedor);
+            }
+
+            log.info("📘 Enriquecimiento completado: {}/{} filas OK, {} filas con error real, {} SKUs sin match, {} IDs inválidos (advertencia)",
+                    successRows, totalRows, filasConErrorReal, skusNoEncontrados, totalIdsInvalidos);
+            if (successRows > 0) {
+                log.info("ℹ️  Recordatorio: si ya hay precios calculados, correr un recálculo manual " +
+                        "(cambios en clasifGastro, tipo, marca o clasifGral pueden afectar reglas de conceptos).");
+            }
+
+            // errorRows = filas con excepción real (no advertencias de IDs inválidos).
+            // Si no hubo filas con error real, la importación se considera "success" aunque
+            // haya entries de advertencia en errores[] (los IDs inexistentes son informativos).
+            if (filasConErrorReal == 0) {
+                if (errores.isEmpty()) {
+                    return ImportResultDTO.success(totalRows, successRows);
+                }
+                // Importación OK pero con advertencias (IDs inválidos). Reportamos
+                // errorRows=0 para no engañar, pero mantenemos las entries informativas.
+                return new ImportResultDTO(totalRows, successRows, 0, errores,
+                        String.format("Importación exitosa con %d advertencia(s): %d de %d filas procesadas correctamente",
+                                errores.size(), successRows, totalRows));
+            }
+            return ImportResultDTO.withErrors(totalRows, successRows, filasConErrorReal, errores);
+        }
+    }
+
+    /** Lee un ID entero; trata 0 como null (convención del segundo Excel). */
+    private Integer leerIdValido(Row row, Map<String, Integer> columnas, String nombreColumna) {
+        Integer id = leerEntero(row, columnas, nombreColumna);
+        return (id == null || id == 0) ? null : id;
+    }
+
+    /** Devuelve el primer valor no-nulo (preferencia por el nivel más profundo). */
+    private Integer primerIdNoNulo(Integer... ids) {
+        for (Integer id : ids) {
+            if (id != null) return id;
+        }
+        return null;
+    }
+
+    private String leerTextoTruncado(Row row, Map<String, Integer> columnas, String nombreColumna, int maxLen) {
+        String valor = leerTexto(row, columnas, nombreColumna);
+        if (valor == null) return null;
+        return valor.length() > maxLen ? valor.substring(0, maxLen) : valor;
+    }
+
+    /**
+     * Agrega al listado de errores una entrada con los IDs únicos inválidos de una
+     * categoría (max 200 para no inflar la respuesta si hay miles). Solo agrega
+     * si hay al menos un ID.
+     */
+    private void agregarErrorIds(List<String> errores, String categoria, Set<Integer> ids) {
+        if (ids.isEmpty()) return;
+        final int MAX_MOSTRAR = 200;
+        String detalle;
+        if (ids.size() <= MAX_MOSTRAR) {
+            detalle = ids.stream().sorted().map(String::valueOf).collect(java.util.stream.Collectors.joining(", "));
+        } else {
+            detalle = ids.stream().sorted().limit(MAX_MOSTRAR).map(String::valueOf)
+                    .collect(java.util.stream.Collectors.joining(", "))
+                    + " ... y " + (ids.size() - MAX_MOSTRAR) + " más";
+        }
+        errores.add(String.format("%s — %d IDs inexistentes: %s", categoria, ids.size(), detalle));
+    }
+
+    /**
+     * Trae todos los IDs de una tabla maestra con un único SELECT nativo (sin cargar
+     * entidades JPA). Usado para precargar el conjunto de IDs válidos antes del
+     * enriquecimiento y validar in-memory.
+     */
+    private Set<Integer> traerIdsTabla(String tabla, String columnaId) {
+        @SuppressWarnings("unchecked")
+        List<Object> rows = entityManager.createNativeQuery(
+                "SELECT " + columnaId + " FROM supermaster." + tabla
+        ).getResultList();
+        Set<Integer> ids = new HashSet<>(rows.size() * 2);
+        for (Object o : rows) {
+            if (o instanceof Number n) ids.add(n.intValue());
+        }
+        return ids;
     }
 }
 

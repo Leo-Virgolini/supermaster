@@ -2,15 +2,18 @@ package ar.com.leo.super_master_backend.dominio.producto.calculo.service;
 
 import ar.com.leo.super_master_backend.dominio.canal.entity.Canal;
 import ar.com.leo.super_master_backend.dominio.canal.repository.CanalRepository;
-import ar.com.leo.super_master_backend.dominio.common.service.EstadoProcesoMasivo;
 import ar.com.leo.super_master_backend.dominio.common.service.ProcesoGlobalService;
 import ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoRepository;
-import jakarta.annotation.PostConstruct;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -21,12 +24,12 @@ import java.util.List;
  * <ul>
  *   <li>{@link #recalcularProductoEnTodosLosCanales} — un producto en todos los canales (sync).</li>
  *   <li>{@link #recalcularProductosDelMla} — todos los productos de un MLA en todos sus canales (sync).</li>
- *   <li>{@link #recalcularCanalCompletoAsync} — un canal entero contra todo el catálogo (async, registrado como proceso).</li>
+ *   <li>{@link #recalcularCanalCompletoInline} — un canal entero contra todo el catálogo, síncrono,
+ *       para correr dentro de un proceso que ya tiene el lock del grupo BD.</li>
  *   <li>{@link #ejecutarRecalculoAsync} — runner async genérico para recálculos post-commit.</li>
  * </ul>
  *
  * <p>El recálculo de canal usa el grupo de exclusión BD: solo uno corre a la vez.
- * El tracker comparte ese único slot.
  */
 @Slf4j
 @Service
@@ -41,13 +44,17 @@ public class RecalculoPrecioFacade {
     private final ProcesoGlobalService procesoGlobal;
     private final RecalculoPendienteService recalculoPendienteService;
 
-    private EstadoProcesoMasivo trackerCanal;
+    @PersistenceContext
+    private EntityManager entityManager;
 
-    @PostConstruct
-    void initTracker() {
-        this.trackerCanal = new EstadoProcesoMasivo(PROCESO_RECALCULO_CANAL,
-                "Recalculando canal", procesoGlobal);
-    }
+    // Self-proxy para invocar el camino dependiente @Transactional desde el decididor
+    // (que NO es transaccional): la auto-invocación directa no pasaría por el proxy de Spring.
+    @Lazy
+    @Autowired
+    private RecalculoPrecioFacade self;
+
+    /** Cada cuántos productos se reporta progreso / se hace flush+clear en el recálculo de canal. */
+    private static final int FLUSH_BATCH = 50;
 
     /**
      * Recalcula los precios de un producto en TODOS los canales activos.
@@ -64,8 +71,17 @@ public class RecalculoPrecioFacade {
     public void recalcularProductoEnTodosLosCanales(Integer productoId) {
         log.info("Recalculando producto {} en todos los canales", productoId);
         var canales = canalRepository.findAll();
-        canales.forEach(canal ->
-                calculoPrecioService.recalcularYGuardarPrecioCanalTodasCuotas(productoId, canal.getId()));
+        // Caché de contexto canal-constante: el producto se recalcula en N canales y cada
+        // recalcularYGuardarPrecioCanalTodasCuotas consulta varias veces la config del canal
+        // (reglas, conceptos, cuotas). Con el caché, cada canal se carga una vez. Es anidable:
+        // si un loop externo (fase de productos) ya lo activó, se reutiliza entre productos.
+        calculoPrecioService.iniciarCacheContextoCanal(null);
+        try {
+            canales.forEach(canal ->
+                    calculoPrecioService.recalcularYGuardarPrecioCanalTodasCuotas(productoId, canal.getId()));
+        } finally {
+            calculoPrecioService.limpiarCacheContextoCanal();
+        }
         recalculoPendienteService.desmarcarProductoCompletado(productoId);
         log.info("Producto {} recalculado en {} canales", productoId, canales.size());
     }
@@ -81,36 +97,55 @@ public class RecalculoPrecioFacade {
                 .forEach(producto -> recalcularProductoEnTodosLosCanales(producto.getId()));
     }
 
+    /** Overload sin callback (callers que no necesitan reportar progreso). */
+    public int recalcularCanalCompletoInline(Integer canalId) {
+        return recalcularCanalCompletoInline(canalId, null);
+    }
+
     /**
-     * Recalcula un canal iterando TODOS los productos del catálogo (no solo los que
-     * ya tienen precio en el canal). Necesario cuando cambia canal_regla, conceptos
-     * del canal, cuotas, regla de descuento, canalBase, etc.: una regla puede hacer
-     * que productos nunca presentes en el canal ahora apliquen.
-     * Async — se registra como proceso global para que el frontend lo vea en el badge.
+     * Recalcula un canal completo (todo el catálogo) y al terminar lo desmarca. Decididor
+     * NO transaccional: enruta según el tipo de canal y deja que cada camino maneje su
+     * propia transaccionalidad (clave para no acumular el L1 ni retener locks largos).
+     *
+     * <ul>
+     *   <li><b>Base</b> (sin canalBase): {@code recalcularCanalCompletoBatch} — sin TX
+     *       envolvente, precarga + {@code saveAll} por lote (cada lote commitea). El cálculo
+     *       no recursa, así que no hay queries en el loop. Rápido.</li>
+     *   <li><b>Dependiente</b> (con canalBase): camino producto-por-producto en su PROPIA
+     *       transacción ({@code REQUIRES_NEW} vía self), porque el cálculo recursa al canal
+     *       base y necesita una sesión viva (el caché de contexto pre-inicializa el proxy
+     *       {@code canalBase}, que sin TX lanzaría LazyInitializationException).</li>
+     * </ul>
+     *
+     * @return cantidad de productos recalculados sin error
      */
-    @Async
-    public void recalcularCanalCompletoAsync(Integer canalId) {
-        String nombreCanal = canalRepository.findById(canalId)
-                .map(Canal::getNombre)
-                .orElse("ID " + canalId);
+    public int recalcularCanalCompletoInline(Integer canalId, CalculoPrecioService.AvanceCanalCallback onAvance) {
+        Canal canal = canalRepository.findById(canalId).orElse(null);
+        // getCanalBase() != null NO inicializa el proxy lazy (solo chequea la FK), así que es
+        // seguro sin transacción.
+        boolean esDependiente = canal != null && canal.getCanalBase() != null;
+        int ok = esDependiente
+                ? self.recalcularCanalDependienteEnTx(canalId, onAvance)
+                : calculoPrecioService.recalcularCanalCompletoBatch(canalId, onAvance);
+        recalculoPendienteService.desmarcarCanalCompletado(canalId);
+        return ok;
+    }
 
-        if (!trackerCanal.adquirir("Recalculando todos los productos del canal " + nombreCanal)) {
-            log.warn("Recálculo completo del canal {} pospuesto: hay un proceso activo", canalId);
-            return;
-        }
-
+    /**
+     * Camino producto-por-producto para canales DEPENDIENTES, en su PROPIA transacción.
+     * Activa el caché de contexto canal-constante y hace flush+clear periódico para no
+     * acumular el catálogo en el L1 (el cálculo del dependiente recursa al canal base y
+     * dispara queries; sin el clear el auto-flush degradaría a O(n²)).
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public int recalcularCanalDependienteEnTx(Integer canalId, CalculoPrecioService.AvanceCanalCallback onAvance) {
+        calculoPrecioService.iniciarCacheContextoCanal(canalId);
         try {
-            // Evitar findAll() — cargar todas las entidades + relaciones lazy solo
-            // para tomar el id es caro y memoria-pesado en catálogos grandes.
             List<Integer> productoIds = productoRepository.findAllIds();
-
             int total = productoIds.size();
-            String mensaje = "Recalculando " + nombreCanal + " (catálogo completo)";
-            log.info("Recálculo completo de canal {} ({}): {} productos", canalId, nombreCanal, total);
-            trackerCanal.actualizar(total, 0, 0, 0, mensaje);
-
-            int ok = 0, errores = 0;
-            for (int i = 0; i < productoIds.size(); i++) {
+            log.info("Recálculo inline de canal {}: {} productos", canalId, total);
+            int ok = 0, errores = 0, desdeFlush = 0;
+            for (int i = 0; i < total; i++) {
                 Integer productoId = productoIds.get(i);
                 try {
                     calculoPrecioService.recalcularYGuardarPrecioCanalTodasCuotas(productoId, canalId);
@@ -119,26 +154,20 @@ public class RecalculoPrecioFacade {
                     errores++;
                     log.warn("Error recalculando producto {} en canal {}: {}", productoId, canalId, e.getMessage());
                 }
-                int procesados = i + 1;
-                if (procesados == total || procesados % 50 == 0) {
-                    trackerCanal.actualizar(total, procesados, ok, errores, mensaje);
+                if (++desdeFlush >= FLUSH_BATCH) {
+                    entityManager.flush();
+                    entityManager.clear();
+                    desdeFlush = 0;
+                    if (onAvance != null) onAvance.onAvance(i + 1, total, ok, errores);
+                    log.info("Recálculo inline de canal {}: {}/{} productos", canalId, i + 1, total);
                 }
             }
-
-            log.info("Recálculo completo de canal {} finalizado: {} ok, {} errores", canalId, ok, errores);
-            // Desmarcar el canal y sus precios obsoletos: la iteración del catálogo completo
-            // ya corrió, los productos con error se loguearon. Quedaría marcado solo si crasheó
-            // entera (catch externo), no si fueron errores aislados por producto.
-            recalculoPendienteService.desmarcarCanalCompletado(canalId);
-            trackerCanal.completar(total, ok, errores,
-                    errores > 0
-                            ? String.format("%s: %d productos OK, %d errores", nombreCanal, ok, errores)
-                            : String.format("%s: %d productos recalculados", nombreCanal, ok));
-        } catch (Exception e) {
-            log.error("Error en recálculo completo de canal {}: {}", canalId, e.getMessage(), e);
-            trackerCanal.completarConError(e.getMessage());
+            entityManager.flush();
+            if (onAvance != null) onAvance.onAvance(total, total, ok, errores);
+            log.info("Recálculo inline de canal {} finalizado: {} ok, {} errores", canalId, ok, errores);
+            return ok;
         } finally {
-            trackerCanal.liberar();
+            calculoPrecioService.limpiarCacheContextoCanal();
         }
     }
 

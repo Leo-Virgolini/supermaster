@@ -56,9 +56,13 @@ public class CanalConceptoReglaServiceImpl implements CanalConceptoReglaService 
 
     @Override
     @Transactional(readOnly = true)
-    public Page<CanalConceptoReglaDTO> listar(Pageable pageable) {
-        return repository.findAll(pageable)
-                .map(mapper::toDTO);
+    public Page<CanalConceptoReglaDTO> listar(String search, Pageable pageable) {
+        // Ambas ramas conservan el @EntityGraph del repo (sin N+1 al mapear). Con search
+        // se filtra por nombre de canal o de concepto (ambos obligatorios).
+        if (search == null || search.isBlank()) {
+            return repository.findAll(pageable).map(mapper::toDTO);
+        }
+        return repository.buscar(search.trim(), pageable).map(mapper::toDTO);
     }
 
     @Override

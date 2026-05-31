@@ -11,7 +11,7 @@ import java.util.List;
 
 public interface ReglaDescuentoService {
 
-    Page<ReglaDescuentoDTO> listar(Pageable pageable);
+    Page<ReglaDescuentoDTO> listar(String search, Pageable pageable);
 
     List<ReglaDescuentoDTO> listarPorCanal(Integer canalId);
 

@@ -121,6 +121,9 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
     private static final ThreadLocal<Map<String, PrecioCalculadoDTO>> CACHE_PRECIOS_BASE = new ThreadLocal<>();
     // Cache de precios inflados por producto-canal (clave: "productoId-canalId")
     private static final ThreadLocal<Map<String, ProductoCanalPrecioInflado>> CACHE_PRECIOS_INFLADOS = new ThreadLocal<>();
+    // Cache de reglas de descuento por canal (recálculo masivo): evita re-consultar las
+    // reglas del canal en cada calcularDescuentosAplicables (una por producto y cuota).
+    private static final ThreadLocal<Map<Integer, List<ReglaDescuento>>> CACHE_REGLAS_DESCUENTO = new ThreadLocal<>();
 
     // ====================================================
     // CACHE PARA RECÁLCULO INLINE DE UN CANAL (ThreadLocal)
@@ -2992,6 +2995,7 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
         CACHE_PORCENTAJE_CUOTAS.remove();
         CACHE_PRECIOS_BASE.remove();
         CACHE_PRECIOS_INFLADOS.remove();
+        CACHE_REGLAS_DESCUENTO.remove();
     }
 
     @Async
@@ -3123,6 +3127,15 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
         for (Canal canal : todosLosCanales) {
             canalReglasPorCanal.put(canal.getId(), canalReglaRepository.findByCanalIdWithRelationsFetch(canal.getId()));
         }
+
+        // Cache de reglas de descuento por canal: las consume calcularDescuentosAplicables
+        // (vía CACHE_REGLAS_DESCUENTO) para no re-consultarlas por cada producto y cuota.
+        Map<Integer, List<ReglaDescuento>> reglasDescuentoPorCanal = new HashMap<>();
+        for (Canal canal : todosLosCanales) {
+            reglasDescuentoPorCanal.put(canal.getId(),
+                    reglaDescuentoRepository.findByCanalIdAndActivoTrueOrderByPrioridadAsc(canal.getId()));
+        }
+        CACHE_REGLAS_DESCUENTO.set(reglasDescuentoPorCanal);
 
         // Determinar qué tipo de margen usa cada canal
         Map<Integer, AplicaSobre> tipoMargenPorCanal = new HashMap<>();
@@ -3849,13 +3862,21 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
             return null;
         }
 
-        // Caché de contexto inline: las reglas de descuento dependen solo del canal; durante
-        // el recálculo de un canal completo se reutilizan en vez de re-consultarlas por
-        // cada producto y cuota. Fuera de ese flujo (ctx == null) se consulta a BD.
+        // Las reglas de descuento dependen solo del canal, así que durante un recálculo completo
+        // se reutilizan en vez de re-consultarlas por cada producto y cuota. Prioridad:
+        //   1) caché de contexto inline (recálculo de un canal: batch/inline),
+        //   2) caché del recálculo masivo (todos los canales),
+        //   3) consulta a BD (cálculos puntuales).
         ContextoCanalCache ctxCanal = obtenerContextoCanal(canalId);
-        List<ReglaDescuento> reglas = ctxCanal != null
-                ? ctxCanal.reglasDescuento()
-                : reglaDescuentoRepository.findByCanalIdAndActivoTrueOrderByPrioridadAsc(canalId);
+        Map<Integer, List<ReglaDescuento>> cacheMasivo = CACHE_REGLAS_DESCUENTO.get();
+        List<ReglaDescuento> reglas;
+        if (ctxCanal != null) {
+            reglas = ctxCanal.reglasDescuento();
+        } else if (cacheMasivo != null) {
+            reglas = cacheMasivo.getOrDefault(canalId, java.util.Collections.emptyList());
+        } else {
+            reglas = reglaDescuentoRepository.findByCanalIdAndActivoTrueOrderByPrioridadAsc(canalId);
+        }
 
         if (reglas.isEmpty()) {
             return null;

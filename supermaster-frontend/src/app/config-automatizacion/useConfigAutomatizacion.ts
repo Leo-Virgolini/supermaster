@@ -1,7 +1,7 @@
 "use client";
 
 import { getErrorMessage } from "@/lib/errors";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { notificar } from "../utils/notificar";
 import { ConfigAutomatizacionDTO } from "./types";
 import {
@@ -29,19 +29,24 @@ export function useConfigAutomatizacion(
 	const [totalRecords, setTotalRecords] = useState(0);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const latestRequestIdRef = useRef(0);
 
 	const fetchData = useCallback(async () => {
+		const requestId = ++latestRequestIdRef.current;
 		setIsLoading(true);
 		setError(null);
 		try {
 			const json: PageResponse<ConfigAutomatizacionDTO> =
 				await getConfigAutomatizacionAPI(pageIndex, pageSize, filters, sortParam);
+			if (latestRequestIdRef.current !== requestId) return;
 			setData(json.content || []);
 			setTotalRecords(json.page?.totalElements || 0);
 		} catch (err: unknown) {
+			if (latestRequestIdRef.current !== requestId) return;
 			setError(getErrorMessage(err, "Error desconocido"));
 			setData([]);
 		} finally {
+			if (latestRequestIdRef.current !== requestId) return;
 			setIsLoading(false);
 		}
 	}, [pageIndex, pageSize, JSON.stringify(filters), sortParam]);

@@ -4,6 +4,7 @@ import ar.com.leo.super_master_backend.apis.dux.model.FacturaDux;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 public record DeudaClienteDuxDTO(
         Long id,
@@ -60,7 +61,7 @@ public record DeudaClienteDuxDTO(
             BigDecimal monto
     ) {}
 
-    public static DeudaClienteDuxDTO fromFacturaDux(FacturaDux f, java.util.Map<Long, String> personalesMap) {
+    public static DeudaClienteDuxDTO fromFacturaDux(FacturaDux f, Map<Long, String> personalesMap) {
         String clienteNombre = f.getApellidoRazonSoc();
         if (f.getNombre() != null && !f.getNombre().isBlank()) {
             clienteNombre = clienteNombre != null ? clienteNombre + " " + f.getNombre() : f.getNombre();

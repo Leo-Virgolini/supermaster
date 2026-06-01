@@ -1,6 +1,6 @@
 "use client";
 import { getErrorMessage } from "@/lib/errors";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { notificar } from "../utils/notificar";
 import {
 	getCuotasAPI,
@@ -27,18 +27,23 @@ export function useCanalConceptoCuota(
 	const [pageCount, setPageCount] = useState(0);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const latestRequestIdRef = useRef(0);
 
 	const fetchData = useCallback(async () => {
+		const requestId = ++latestRequestIdRef.current;
 		setIsLoading(true);
 		setError(null);
 		try {
 			const res = await getCuotasAPI(pageIndex, pageSize, search, filters, sortParam);
+			if (latestRequestIdRef.current !== requestId) return;
 			setData(res.content || []);
 			setTotalRecords(res.page?.totalElements || 0);
 			setPageCount(res.page?.totalPages || 0);
 		} catch (err: unknown) {
+			if (latestRequestIdRef.current !== requestId) return;
 			setError(getErrorMessage(err, "Error al cargar cuotas"));
 		} finally {
+			if (latestRequestIdRef.current !== requestId) return;
 			setIsLoading(false);
 		}
 	}, [pageIndex, pageSize, search, JSON.stringify(filters), sortParam]);

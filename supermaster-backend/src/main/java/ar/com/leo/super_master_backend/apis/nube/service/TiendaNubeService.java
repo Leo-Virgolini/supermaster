@@ -18,6 +18,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -296,7 +297,7 @@ public class TiendaNubeService {
      */
     private String parseLinkNext(org.springframework.http.HttpHeaders headers) {
         if (headers == null) return null;
-        java.util.List<String> linkHeaders = headers.get("Link");
+        List<String> linkHeaders = headers.get("Link");
         if (linkHeaders == null) return null;
 
         for (String link : linkHeaders) {
@@ -340,7 +341,7 @@ public class TiendaNubeService {
 
     private void cargarCredenciales() {
         try {
-            File file = java.nio.file.Paths.get(secretsDir).resolve("nube_tokens.json").toFile();
+            File file = Paths.get(secretsDir).resolve("nube_tokens.json").toFile();
             if (file.exists()) {
                 credentials = objectMapper.readValue(file, NubeCredentials.class);
                 log.info("NUBE - Credenciales cargadas desde {}. Stores: {}",

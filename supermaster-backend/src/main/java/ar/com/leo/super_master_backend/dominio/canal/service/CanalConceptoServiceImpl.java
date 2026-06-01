@@ -19,6 +19,7 @@ import ar.com.leo.super_master_backend.dominio.canal.mapper.CanalConceptoMapper;
 import ar.com.leo.super_master_backend.dominio.canal.repository.CanalConceptoReglaRepository;
 import ar.com.leo.super_master_backend.dominio.canal.repository.CanalConceptoRepository;
 import ar.com.leo.super_master_backend.dominio.canal.repository.CanalRepository;
+import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
 import ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService;
 import ar.com.leo.super_master_backend.dominio.concepto_calculo.entity.ConceptoCalculo;
@@ -125,7 +126,7 @@ public class CanalConceptoServiceImpl implements CanalConceptoService {
     @Transactional
     public int clonarConceptosDesde(Integer targetCanalId, Integer srcCanalId) {
         if (targetCanalId.equals(srcCanalId)) {
-            throw new ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException(
+            throw new BadRequestException(
                     "El canal destino no puede ser igual al canal origen");
         }
 
@@ -177,7 +178,6 @@ public class CanalConceptoServiceImpl implements CanalConceptoService {
             nueva.setClasifGastro(srcRegla.getClasifGastro());
             nueva.setClasifGral(srcRegla.getClasifGral());
             nueva.setMarca(srcRegla.getMarca());
-            nueva.setEsMaquina(srcRegla.getEsMaquina());
             nueva.setTag(srcRegla.getTag());
             nueva.setTieneEnvio(srcRegla.getTieneEnvio());
             CanalConceptoRegla persisted = canalConceptoReglaRepository.save(nueva);

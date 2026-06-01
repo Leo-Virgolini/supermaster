@@ -1,7 +1,7 @@
 "use client";
 
 import { getErrorMessage } from "@/lib/errors";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { notificar } from "../utils/notificar";
 import { ClasificacionDTO } from "./types";
 
@@ -34,20 +34,25 @@ export function useClasificaciones(
 	const [totalRecords, setTotalRecords] = useState(0);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const latestRequestIdRef = useRef(0);
 
 	// --- 2. FUNCIÓN DE CARGA (El Refresco) ---
 	const getClasificaciones = useCallback(async () => {
+		const requestId = ++latestRequestIdRef.current;
 		setIsLoading(true);
 		setError(null);
 		try {
 			const json: PageResponse<ClasificacionDTO> =
 				await getClasificacionesAPI(pageIndex, pageSize, filters, sortParam);
+			if (latestRequestIdRef.current !== requestId) return;
 			setClasificaciones(json.content || []);
 			setTotalRecords(json.page?.totalElements || 0);
 		} catch (err: unknown) {
+			if (latestRequestIdRef.current !== requestId) return;
 			setError(getErrorMessage(err, "Error desconocido"));
 			setClasificaciones([]);
 		} finally {
+			if (latestRequestIdRef.current !== requestId) return;
 			setIsLoading(false);
 		}
 	}, [pageIndex, pageSize, JSON.stringify(filters), sortParam]);
@@ -115,6 +120,7 @@ export function useClasificaciones(
 		try {
 			return await searchClasificacionesAPI(query);
 		} catch (e) {
+			console.warn("[Clasificaciones] Error en búsqueda:", e);
 			return { content: [] }; // Devolvemos vacío si falla para no romper el select
 		}
 	};

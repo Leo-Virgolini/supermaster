@@ -10,6 +10,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -82,7 +83,7 @@ public class ProcesoGlobalService {
      * proceso y los valores listas de nombres de grupo.
      */
     public Map<String, List<String>> obtenerGruposPorProceso() {
-        var out = new java.util.LinkedHashMap<String, List<String>>();
+        var out = new LinkedHashMap<String, List<String>>();
         for (var e : GRUPOS_POR_PROCESO.entrySet()) {
             out.put(e.getKey(), List.copyOf(e.getValue()));
         }

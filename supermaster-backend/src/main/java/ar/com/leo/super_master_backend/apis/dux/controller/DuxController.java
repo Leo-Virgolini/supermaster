@@ -14,6 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import tools.jackson.databind.JsonNode;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import ar.com.leo.super_master_backend.config.Permisos;
@@ -105,7 +106,7 @@ public class DuxController {
             @PathVariable long idLista,
             @RequestBody List<ProductoPrecioRequest> productos) {
 
-        Map<String, ProductoPrecioData> productosMap = new java.util.HashMap<>();
+        Map<String, ProductoPrecioData> productosMap = new HashMap<>();
         for (ProductoPrecioRequest p : productos) {
             productosMap.put(p.sku(), new ProductoPrecioData(p.tipo(), p.precio()));
         }

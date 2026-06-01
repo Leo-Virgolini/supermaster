@@ -317,7 +317,14 @@ export default function UsuariosPage() {
     const handlePasswordSave = async () => {
         setPasswordTouched(true);
         if (!passwordUsuario) return;
-        if (nuevaPassword.trim().length < 6 || nuevaPassword !== confirmPassword) return;
+        if (nuevaPassword.trim().length < 6) {
+            notificar.warning("La contraseña debe tener al menos 6 caracteres");
+            return;
+        }
+        if (nuevaPassword !== confirmPassword) {
+            notificar.warning("Las contraseñas no coinciden");
+            return;
+        }
 
         setIsSaving(true);
         try {

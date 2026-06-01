@@ -20,6 +20,7 @@ import ar.com.leo.super_master_backend.dominio.producto.calculo.service.CalculoP
 import ar.com.leo.super_master_backend.dominio.producto.dto.CanalPreciosDTO;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoConPreciosDTO;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoFilter;
+import ar.com.leo.super_master_backend.dominio.producto.entity.Tag;
 import ar.com.leo.super_master_backend.dominio.producto.service.ProductoService;
 import ar.com.leo.super_master_backend.dominio.reposicion.entity.TagReposicion;
 import jakarta.validation.Valid;
@@ -85,7 +86,7 @@ public class PrecioController {
             @RequestParam(required = false) Boolean tieneMla,
             @RequestParam(required = false) Boolean activo,
             @RequestParam(required = false) TagReposicion tagReposicion,
-            @RequestParam(required = false) List<ar.com.leo.super_master_backend.dominio.producto.entity.Tag> tags,
+            @RequestParam(required = false) List<Tag> tags,
 
             // =======================
             // 2.1) FILTROS MLA

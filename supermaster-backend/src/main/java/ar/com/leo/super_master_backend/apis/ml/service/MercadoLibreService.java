@@ -45,6 +45,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -234,6 +235,8 @@ public class MercadoLibreService {
         int iteracion = 0;
         String tipoCalculo = "";
         String motivoFallo = null;
+        // Valores CON IVA ya vistos, para detectar oscilación entre tiers (ciclo que nunca estabiliza).
+        List<BigDecimal> valoresVistos = new ArrayList<>();
 
         while (iteracion < MAX_ITERACIONES) {
             iteracion++;
@@ -306,6 +309,22 @@ public class MercadoLibreService {
                         mlaCode, iteracion, pvpActual, nuevoCostoEnvio, costoEnvioActual, tipoCalculo);
                 break;
             }
+
+            // Detección de oscilación: el nuevo costo ya apareció en una iteración previa,
+            // así que el cálculo está rebotando entre tiers y nunca va a estabilizar. Cortamos
+            // y tomamos el mayor de los dos últimos (conservador: no subvalúa el envío).
+            boolean oscila = valoresVistos.stream().anyMatch(v -> v.compareTo(nuevoCostoEnvio) == 0);
+            if (oscila) {
+                BigDecimal costoCiclo = nuevoCostoEnvio.max(costoEnvioConIvaActual);
+                log.warn("ML - MLA {} - Oscilación detectada en iteración {} entre ${} y ${}. Se toma el mayor (${}).",
+                        mlaCode, iteracion, costoEnvioConIvaActual, nuevoCostoEnvio, costoCiclo);
+                costoEnvioConIvaActual = costoCiclo;
+                costoEnvioActual = costoCiclo.compareTo(BigDecimal.ZERO) > 0
+                        ? costoCiclo.divide(divisorIva, 2, RoundingMode.HALF_UP)
+                        : BigDecimal.ZERO;
+                break;
+            }
+            valoresVistos.add(nuevoCostoEnvio);
 
             // Guardar el valor CON IVA para comparación
             costoEnvioConIvaActual = nuevoCostoEnvio;
@@ -550,7 +569,7 @@ public class MercadoLibreService {
                     CostoVentaResponseDTO resultado = obtenerCostoVenta(mla.getMla());
                     resultados.add(resultado);
 
-                    if (resultado.comisionVentaTotal() != null && resultado.comisionVentaTotal().compareTo(java.math.BigDecimal.ZERO) > 0) {
+                    if (resultado.comisionVentaTotal() != null && resultado.comisionVentaTotal().compareTo(BigDecimal.ZERO) > 0) {
                         exitosos++;
                     } else {
                         errores++;
@@ -990,7 +1009,7 @@ public class MercadoLibreService {
 
     private void cargarCredentials() {
         try {
-            File credFile = java.nio.file.Paths.get(secretsDir).resolve("ml_credentials.json").toFile();
+            File credFile = Paths.get(secretsDir).resolve("ml_credentials.json").toFile();
             if (credFile.exists()) {
                 credentials = objectMapper.readValue(credFile, MLCredentials.class);
                 log.info("ML - Credenciales cargadas desde {}", credFile.getAbsolutePath());
@@ -1052,7 +1071,7 @@ public class MercadoLibreService {
 
     private void cargarTokens() {
         try {
-            File file = java.nio.file.Paths.get(secretsDir).resolve("ml_tokens.json").toFile();
+            File file = Paths.get(secretsDir).resolve("ml_tokens.json").toFile();
             if (file.exists()) {
                 tokens = objectMapper.readValue(file, TokensML.class);
                 log.info("ML - Tokens cargados desde {}", file.getAbsolutePath());
@@ -1066,7 +1085,7 @@ public class MercadoLibreService {
 
     private void guardarTokens(TokensML tokens) {
         try {
-            File file = java.nio.file.Paths.get(secretsDir).resolve("ml_tokens.json").toFile();
+            File file = Paths.get(secretsDir).resolve("ml_tokens.json").toFile();
             file.getParentFile().mkdirs();
             objectMapper.writerWithDefaultPrettyPrinter().writeValue(file, tokens);
             log.info("ML - Tokens guardados en {}", file.getAbsolutePath());

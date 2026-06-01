@@ -21,9 +21,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import ar.com.leo.super_master_backend.dominio.producto.entity.Tag;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import ar.com.leo.super_master_backend.config.Permisos;
 
 @Slf4j
@@ -44,7 +48,7 @@ public class CatalogoPdfController {
             @RequestParam(value = "clasifGastroId", required = false) Integer clasifGastroId,
             @RequestParam(value = "tipoId", required = false) Integer tipoId,
             @RequestParam(value = "marcaId", required = false) Integer marcaId,
-            @RequestParam(value = "tag", required = false) ar.com.leo.super_master_backend.dominio.producto.entity.Tag tag,
+            @RequestParam(value = "tag", required = false) Tag tag,
             @RequestParam(value = "ordenarPor", required = false) String ordenarPor,
             @RequestParam(value = "titulo", required = false) String titulo,
             @RequestParam(value = "subtitulo", required = false) String subtitulo,
@@ -115,11 +119,11 @@ public class CatalogoPdfController {
 
             // Si hay ubicación de salida configurada, el archivo ya fue guardado en disco
             if (result.rutaGuardada() != null) {
-                java.util.Map<String, Object> response = new java.util.LinkedHashMap<>();
+                Map<String, Object> response = new LinkedHashMap<>();
                 response.put("mensaje", "PDF generado y guardado correctamente");
                 response.put("ruta", result.rutaGuardada());
                 response.put("productosExportados", result.productosExportados());
-                response.put("productosSinImagen", result.productosSinImagen() != null ? result.productosSinImagen() : java.util.List.of());
+                response.put("productosSinImagen", result.productosSinImagen() != null ? result.productosSinImagen() : List.of());
                 response.put("imagenesEnBlanco", result.imagenesEnBlanco());
                 response.put("imagenesNoLeidas", result.imagenesNoLeidas());
                 response.put("erroresImagen", result.erroresImagen());

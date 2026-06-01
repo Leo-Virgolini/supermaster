@@ -2,41 +2,19 @@
 // Definimos la URL base acá para no repetirla. Si cambia, se cambia solo acá.
 import { API_BASE_URL } from "../config/runtime";
 import { fetchAPI } from "../utils/fetchAPI";
+import { AuditOrigin, FilterValue, buildListParams, withAuditOrigin } from "../utils/apiHelpers";
 
 const API_URL = `${API_BASE_URL}/api/marcas`;
-type MarcaAuditOrigin = "FORM" | "INLINE" | "TABLE" | "API";
+type MarcaAuditOrigin = AuditOrigin;
 
-const withAuditOrigin = (origin?: MarcaAuditOrigin, headers?: HeadersInit): HeadersInit => ({
-	...(headers as Record<string, string> ?? {}),
-	...(origin ? { "X-Audit-Origin": origin } : {}),
-});
-
-// READ: Traer la lista paginada
 // READ: Traer la lista paginada
 export const getMarcasAPI = async (
 	page: number,
 	size: number,
-	filters: Record<string, any> = {},
+	filters: Record<string, FilterValue> = {},
 	sort = "id,desc",
 ) => {
-	const params = new URLSearchParams({
-		page: page.toString(),
-		size: size.toString(),
-		sort,
-	});
-
-	Object.entries(filters).forEach(([key, value]) => {
-		if (value !== undefined && value !== null && value !== "") {
-			if (Array.isArray(value)) {
-				const joined = value.join(",");
-				params.append(key, joined);
-			} else {
-				params.append(key, String(value));
-			}
-		}
-	});
-
-	const finalUrl = `${API_URL}?${params.toString()}`;
+	const finalUrl = `${API_URL}?${buildListParams(page, size, sort, filters)}`;
 	const response = await fetchAPI(finalUrl);
 	if (!response.ok) throw new Error("Error al conectar");
 	return await response.json();

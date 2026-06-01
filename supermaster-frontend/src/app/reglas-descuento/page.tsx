@@ -65,6 +65,10 @@ export default function ReglasDescuentoPage() {
     );
 
     const handleCreate = async () => {
+        if (montoMinimo <= 0 || descuentoPorcentaje <= 0 || descuentoPorcentaje > 100) {
+            notificar.warning("El monto mínimo debe ser > 0 y el descuento entre 0 y 100%.");
+            return;
+        }
         try {
             setIsSaving(true);
             await createRegla({
@@ -280,11 +284,11 @@ export default function ReglasDescuentoPage() {
                     <div className="grid grid-cols-2 gap-4 border-t pt-4">
                         <label className="block">
                             <span className="font-bold text-gray-700 text-sm">Monto Mínimo ($) <span className="text-red-500">*</span></span>
-                            <input type="number" className="w-full border p-2 rounded" value={montoMinimo} onChange={e => setMontoMinimo(Number(e.target.value))} />
+                            <input type="number" min="0.01" className="w-full border p-2 rounded" value={montoMinimo} onChange={e => setMontoMinimo(Number(e.target.value))} />
                         </label>
                         <label className="block">
                             <span className="font-bold text-gray-700 text-sm">Descuento (%) <span className="text-red-500">*</span></span>
-                            <input type="number" className="w-full border p-2 rounded" value={descuentoPorcentaje} onChange={e => setDescuentoPorcentaje(Number(e.target.value))} />
+                            <input type="number" min="0.01" max="100" className="w-full border p-2 rounded" value={descuentoPorcentaje} onChange={e => setDescuentoPorcentaje(Number(e.target.value))} />
                         </label>
                     </div>
 

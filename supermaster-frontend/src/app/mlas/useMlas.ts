@@ -1,7 +1,7 @@
 "use client";
 
 import { getErrorMessage } from "@/lib/errors";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { notificar } from "../utils/notificar";
 import {
 	MlaDTO,
@@ -30,8 +30,10 @@ export function useMlas(
 	const [totalRecords, setTotalRecords] = useState(0);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const latestRequestIdRef = useRef(0);
 
 	const getMlas = useCallback(async (silent = false) => {
+		const requestId = ++latestRequestIdRef.current;
 		if (!silent) setIsLoading(true);
 		setError(null);
 		try {
@@ -41,12 +43,15 @@ export function useMlas(
 				filters,
 				sortParam,
 			);
+			if (latestRequestIdRef.current !== requestId) return;
 			setMlas(json.content || []);
 			setTotalRecords(json.page?.totalElements || 0);
 		} catch (err: unknown) {
+			if (latestRequestIdRef.current !== requestId) return;
 			setError(getErrorMessage(err, "Error desconocido"));
 			setMlas([]);
 		} finally {
+			if (latestRequestIdRef.current !== requestId) return;
 			if (!silent) setIsLoading(false);
 		}
 	}, [pageIndex, pageSize, JSON.stringify(filters), sortParam]);

@@ -43,7 +43,6 @@ export interface SimulacionPrecioInput {
     tipoId?: number | null;
     clasifGralId?: number | null;
     clasifGastroId?: number | null;
-    esMaquina?: boolean | null;
     tag?: "MAQUINA" | "REPUESTO" | "MENAJE" | null;
 
     proveedorFinanciacionPorcentaje?: number | null;

@@ -11,7 +11,6 @@ public record CanalConceptoReglaDTO(
         Integer clasifGastroId,
         Integer clasifGralId,
         Integer marcaId,
-        Boolean esMaquina,
         Tag tag,
         Boolean tieneEnvio
 ) {

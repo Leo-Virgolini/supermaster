@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { notificar } from "../utils/notificar";
 import {
     changeUsuarioPasswordAPI,
@@ -38,18 +38,23 @@ export function useUsuarios(
     const [isLoading, setIsLoading] = useState(true);
     const [rolesLoading, setRolesLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const latestRequestIdRef = useRef(0);
 
     const getUsuarios = useCallback(async () => {
+        const requestId = ++latestRequestIdRef.current;
         setIsLoading(true);
         setError(null);
         try {
             const json: PageResponse<UsuarioDTO> = await getUsuariosAPI(pageIndex, pageSize, stableFilters, sortParam);
+            if (latestRequestIdRef.current !== requestId) return;
             setUsuarios(json.content || []);
             setTotalRecords(json.page?.totalElements || 0);
         } catch (e: unknown) {
+            if (latestRequestIdRef.current !== requestId) return;
             setError(e instanceof Error ? e.message : "Error al cargar usuarios");
             setUsuarios([]);
         } finally {
+            if (latestRequestIdRef.current !== requestId) return;
             setIsLoading(false);
         }
     }, [pageIndex, pageSize, stableFilters, sortParam]);

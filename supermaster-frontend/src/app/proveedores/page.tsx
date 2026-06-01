@@ -177,7 +177,7 @@ export default function ProveedoresPage() {
                 />
             </div>
 
-            <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Nuevo Proveedor"
+            <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setFormTouched(false); }} title="Nuevo Proveedor"
                 footer={<><Button variant="light" onClick={() => { setIsModalOpen(false); setFormTouched(false); }}><XMarkIcon className="w-4 h-4" /> Cancelar</Button><Button variant="dark" onClick={handleCreate} disabled={isSaving}><CheckIcon className="w-4 h-4" /> {isSaving ? "Creando Proveedor..." : "Crear Proveedor"}</Button></>}>
 
                 <div className="flex flex-col gap-4">
@@ -203,7 +203,7 @@ export default function ProveedoresPage() {
 
                         <label className="block">
                             <span className="font-bold text-gray-700">% Financiación</span>
-                            <input type="number" step="1" className="w-full border p-2 rounded" value={financiacionPorcentaje ?? ""} onChange={e => setFinanciacionPorcentaje(e.target.value === "" ? null : Number(e.target.value))} placeholder="0" />
+                            <input type="number" step="1" min="0" className="w-full border p-2 rounded" value={financiacionPorcentaje ?? ""} onChange={e => setFinanciacionPorcentaje(e.target.value === "" ? null : Number(e.target.value))} placeholder="0" />
                         </label>
 
                         <label className="block">

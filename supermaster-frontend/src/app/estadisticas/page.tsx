@@ -322,7 +322,7 @@ export default function EstadisticasPage() {
     };
 
     const distribucionData = useMemo(() => {
-        if (!margenes) return [];
+        if (!margenes?.distribucionMargenes) return [];
         return [
             { rango: "< 0%", cantidad: margenes.distribucionMargenes.negativo },
             { rango: "0-10%", cantidad: margenes.distribucionMargenes.rango0a10 },

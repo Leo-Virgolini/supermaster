@@ -298,6 +298,10 @@ export default function AuditoriaPage() {
     };
 
     const load = useCallback(async () => {
+        if (fechaDesde && fechaHasta && fechaDesde > fechaHasta) {
+            notificar.warning("La fecha 'desde' no puede ser posterior a 'hasta'.");
+            return;
+        }
         setIsLoading(true);
         setError(null);
         try {

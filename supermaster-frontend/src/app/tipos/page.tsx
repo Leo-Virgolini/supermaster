@@ -201,7 +201,7 @@ export default function TiposPage() {
                         <Button variant="light" onClick={() => setIsModalOpen(false)}>
                             <XMarkIcon className="w-4 h-4" /> Cancelar
                         </Button>
-                        <Button variant="dark" onClick={handleCreate}>
+                        <Button variant="dark" onClick={handleCreate} disabled={isSaving}>
                             <CheckIcon className="w-4 h-4" /> {isSaving ? "Creando Tipo..." : "Crear Tipo"}
                         </Button>
                     </>

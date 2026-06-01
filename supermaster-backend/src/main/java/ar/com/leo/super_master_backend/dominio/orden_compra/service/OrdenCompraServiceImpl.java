@@ -27,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.openapitools.jackson.nullable.JsonNullable;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -391,7 +392,7 @@ public class OrdenCompraServiceImpl implements OrdenCompraService {
             if (linea.cantidadPedida() == null || linea.cantidadPedida() <= 0) {
                 throw new BadRequestException("El campo 'cantidadPedida' debe ser mayor a 0");
             }
-            if (linea.costoUnitario() != null && linea.costoUnitario().compareTo(java.math.BigDecimal.ZERO) < 0) {
+            if (linea.costoUnitario() != null && linea.costoUnitario().compareTo(BigDecimal.ZERO) < 0) {
                 throw new BadRequestException("El campo 'costoUnitario' debe ser mayor o igual a 0");
             }
         }

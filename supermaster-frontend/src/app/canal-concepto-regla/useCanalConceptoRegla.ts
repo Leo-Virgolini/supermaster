@@ -49,6 +49,7 @@ export function useCanalConceptoRegla(
 	const clasifGralMapRef = useRef<Record<number, string>>({});
 	const marcaMapRef = useRef<Record<number, string>>({});
 	const mapsLoaded = useRef(false);
+	const latestRequestIdRef = useRef(0);
 
 	const loadMaps = useCallback(async () => {
 		if (mapsLoaded.current) return;
@@ -75,11 +76,13 @@ export function useCanalConceptoRegla(
 	}, []);
 
 	const fetchData = useCallback(async () => {
+		const requestId = ++latestRequestIdRef.current;
 		setIsLoading(true);
 		setError(null);
 		try {
 			await loadMaps();
 			const res = await getReglasAPI(pageIndex, pageSize, search, filters, sortParam);
+			if (latestRequestIdRef.current !== requestId) return;
 			const enriched = (res.content || []).map((r: any) => ({
 				...r,
 				canalNombre: canalMapRef.current[r.canalId] ?? `Canal #${r.canalId}`,
@@ -96,8 +99,10 @@ export function useCanalConceptoRegla(
 			setTotalRecords(res.page?.totalElements || 0);
 			setPageCount(res.page?.totalPages || 0);
 		} catch (e: unknown) {
+			if (latestRequestIdRef.current !== requestId) return;
 			setError(getErrorMessage(e));
 		} finally {
+			if (latestRequestIdRef.current !== requestId) return;
 			setIsLoading(false);
 		}
 	}, [pageIndex, pageSize, search, JSON.stringify(filters), sortParam, loadMaps]);

@@ -165,7 +165,6 @@ public class CanalConceptoReglaServiceImpl implements CanalConceptoReglaService 
                 && !presente(patchDto.getClasifGastroId())
                 && !presente(patchDto.getClasifGralId())
                 && !presente(patchDto.getMarcaId())
-                && !presente(patchDto.getEsMaquina())
                 && !presente(patchDto.getTag())
                 && !presente(patchDto.getTieneEnvio())) {
             throw new BadRequestException("El body del PATCH no puede estar vacío");
@@ -219,9 +218,6 @@ public class CanalConceptoReglaServiceImpl implements CanalConceptoReglaService 
                 throw new NotFoundException("Marca no encontrada");
             }
             entity.setMarca(marcaId != null ? new Marca(marcaId) : null);
-        }
-        if (presente(patchDto.getEsMaquina())) {
-            entity.setEsMaquina(leerBooleanOpcional(patchDto.getEsMaquina(), "esMaquina"));
         }
         if (presente(patchDto.getTag())) {
             entity.setTag(patchDto.getTag().orElse(null));
@@ -304,7 +300,6 @@ public class CanalConceptoReglaServiceImpl implements CanalConceptoReglaService 
         snapshot.put("clasifGastro", describirRelacion(entity.getClasifGastro()));
         snapshot.put("clasifGral", describirRelacion(entity.getClasifGral()));
         snapshot.put("marca", describirRelacion(entity.getMarca()));
-        snapshot.put("esMaquina", normalizar(entity.getEsMaquina()));
         snapshot.put("tag", entity.getTag() != null ? entity.getTag().name() : null);
         snapshot.put("tieneEnvio", normalizar(entity.getTieneEnvio()));
         return snapshot;

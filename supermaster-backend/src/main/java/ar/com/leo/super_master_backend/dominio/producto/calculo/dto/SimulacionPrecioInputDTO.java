@@ -39,7 +39,6 @@ public record SimulacionPrecioInputDTO(
         Integer tipoId,
         Integer clasifGralId,
         Integer clasifGastroId,
-        Boolean esMaquina,    // override de clasifGastro.esMaquina
         Tag tag,
 
         // Financiación de proveedor (para FLAG_FINANCIACION_PROVEEDOR)

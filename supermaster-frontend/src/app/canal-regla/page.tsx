@@ -96,6 +96,13 @@ export default function CanalReglaPage() {
             toast.warning("Completá canal y acción.");
             return;
         }
+        const tieneCondicion = formData.tipoId != null || formData.clasifGastroId != null
+            || formData.clasifGralId != null || formData.marcaId != null
+            || formData.productoId != null || formData.tag != null || formData.tieneEnvio != null;
+        if (!tieneCondicion) {
+            toast.warning("Agregá al menos una condición (tipo, marca, clasificación, producto, tag o envío): una regla sin condiciones no aplica a ningún producto.");
+            return;
+        }
         setIsSaving(true);
         try {
             if (editingItem) {

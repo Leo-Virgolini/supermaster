@@ -1,6 +1,6 @@
 "use client";
 import { getErrorMessage } from "@/lib/errors";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { notificar } from "../utils/notificar";
 import {
 	ConceptoGastoDTO,
@@ -27,17 +27,22 @@ export function useConceptosGasto(
 	const [conceptos, setConceptos] = useState<ConceptoGastoDTO[]>([]);
 	const [totalRecords, setTotalRecords] = useState(0);
 	const [isLoading, setIsLoading] = useState(true);
+	const latestRequestIdRef = useRef(0);
 
 	const getConceptos = useCallback(async () => {
+		const requestId = ++latestRequestIdRef.current;
 		setIsLoading(true);
 		try {
 			const json: PageResponse<ConceptoGastoDTO> =
 				await getConceptosGastoAPI(pageIndex, pageSize, filters, sortParam);
+			if (latestRequestIdRef.current !== requestId) return;
 			setConceptos(json.content || []);
 			setTotalRecords(json.page?.totalElements || 0);
 		} catch (err) {
+			if (latestRequestIdRef.current !== requestId) return;
 			setConceptos([]);
 		} finally {
+			if (latestRequestIdRef.current !== requestId) return;
 			setIsLoading(false);
 		}
 	}, [pageIndex, pageSize, JSON.stringify(filters), sortParam]);

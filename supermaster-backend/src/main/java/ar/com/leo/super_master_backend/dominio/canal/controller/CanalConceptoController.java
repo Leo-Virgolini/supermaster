@@ -9,6 +9,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import ar.com.leo.super_master_backend.config.Permisos;
 
 @RestController
@@ -56,10 +57,10 @@ public class CanalConceptoController {
     // ==========================================
     @PostMapping("/clonar-de/{srcCanalId}")
     @PreAuthorize(Permisos.CANALES_EDITAR)
-    public ResponseEntity<java.util.Map<String, Integer>> clonarDesde(
+    public ResponseEntity<Map<String, Integer>> clonarDesde(
             @PathVariable @Positive Integer canalId,
             @PathVariable @Positive Integer srcCanalId) {
         int copiadas = canalConceptoService.clonarConceptosDesde(canalId, srcCanalId);
-        return ResponseEntity.ok(java.util.Map.of("copiadas", copiadas));
+        return ResponseEntity.ok(Map.of("copiadas", copiadas));
     }
 }

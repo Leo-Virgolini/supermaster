@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { ArrowTrendingUpIcon, PlusIcon, TrashIcon, CheckIcon, XMarkIcon, InformationCircleIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
 import ErrorBanner from "../components/ErrorBanner/ErrorBanner";
 import { confirmDialog } from "../utils/confirmDialog";
+import { notificar } from "../utils/notificar";
 import Table, { getInitialPageSize } from "../components/Table/core/Table";
 import SearchInput from "../components/SearchInput/SearchInput";
 import Modal from "../components/Modal/Modal";
@@ -55,6 +56,10 @@ export default function PreciosInfladosPage() {
     const handleCreate = async () => {
         setFormTouched(true);
         if (!codigo.trim()) return;
+        if (!(valor > 0)) {
+            notificar.warning("El valor debe ser mayor a 0.");
+            return;
+        }
         setIsSaving(true);
         try {
             await createItem({ codigo: codigo.toUpperCase(), tipo, valor });
@@ -245,7 +250,7 @@ export default function PreciosInfladosPage() {
                         <input
                             type="number"
                             step="0.0001"
-                            min="0"
+                            min="0.01"
                             className="w-full border p-2 rounded mt-1 border-gray-300"
                             value={valor}
                             onChange={(e) => setValor(Number(e.target.value))}

@@ -39,6 +39,7 @@ type ProductosView = {
 function ImagePickerModal({ onSelect, onClose }: { onSelect: (name: string) => void; onClose: () => void }) {
     const [search, setSearch] = useState("");
     const [files, setFiles] = useState<string[]>([]);
+    const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(false);
 
     const load = useCallback(async (q: string, signal?: AbortSignal) => {
@@ -50,16 +51,19 @@ function ImagePickerModal({ onSelect, onClose }: { onSelect: (name: string) => v
                 if (!signal?.aborted) {
                     notificar.error(`Error cargando imágenes (HTTP ${res.status})`);
                     setFiles([]);
+                    setTotal(0);
                 }
                 return;
             }
             const data = await res.json();
             if (!signal?.aborted) {
-                setFiles(Array.isArray(data) ? data : []);
+                setFiles(Array.isArray(data?.archivos) ? data.archivos : []);
+                setTotal(typeof data?.total === "number" ? data.total : 0);
             }
         } catch (e) {
             if ((e as { name?: string })?.name === "AbortError") return;
             setFiles([]);
+            setTotal(0);
         } finally {
             if (!signal?.aborted) setLoading(false);
         }
@@ -98,6 +102,11 @@ function ImagePickerModal({ onSelect, onClose }: { onSelect: (name: string) => v
                         placeholder="Buscar imagen..."
                         className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:ring-blue-500/20"
                     />
+                    {!loading && total > files.length && (
+                        <div className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                            Mostrando las primeras {files.length} de {total} imágenes — refiná la búsqueda para acotar.
+                        </div>
+                    )}
                 </div>
 
                 <div className="grid min-h-[220px] flex-1 grid-cols-2 gap-3 overflow-y-auto p-4 sm:grid-cols-3 lg:grid-cols-4">

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { notificar } from "../utils/notificar";
 import { serializeForDeps } from "../utils/serializeForDeps";
 import {
@@ -37,8 +37,10 @@ export function useOrdenesCompra(
   const [totalRecords, setTotalRecords] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const latestRequestIdRef = useRef(0);
 
   const getOrdenes = useCallback(async () => {
+    const requestId = ++latestRequestIdRef.current;
     setIsLoading(true);
     setError(null);
     try {
@@ -48,12 +50,15 @@ export function useOrdenesCompra(
         requestFilters,
         sortParam,
       );
+      if (latestRequestIdRef.current !== requestId) return;
       setOrdenes(json.content || []);
       setTotalRecords(json.page?.totalElements || 0);
     } catch (err: unknown) {
+      if (latestRequestIdRef.current !== requestId) return;
       setError(err instanceof Error ? err.message : "Error al cargar órdenes de compra");
       setOrdenes([]);
     } finally {
+      if (latestRequestIdRef.current !== requestId) return;
       setIsLoading(false);
     }
   }, [pageIndex, pageSize, requestFilters, sortParam]);

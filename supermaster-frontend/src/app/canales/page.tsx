@@ -348,6 +348,7 @@ export default function CanalesPage() {
                         <Button
                             variant="dark"
                             onClick={handleCreate}
+                            disabled={isSaving}
                         >
                             <CheckIcon className="w-4 h-4" />
                             {isSaving ? "Creando Canal..." : "Crear Canal"}

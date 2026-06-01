@@ -1,7 +1,7 @@
 "use client";
 
 import { getErrorMessage } from "@/lib/errors";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { notificar } from "../utils/notificar";
 import { MaterialDTO } from "./types";
 import {
@@ -30,8 +30,10 @@ export function useMateriales(
 	const [totalRecords, setTotalRecords] = useState(0);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const latestRequestIdRef = useRef(0);
 
 	const getMateriales = useCallback(async () => {
+		const requestId = ++latestRequestIdRef.current;
 		setIsLoading(true);
 		setError(null);
 		try {
@@ -41,12 +43,15 @@ export function useMateriales(
 				filters,
 				sortParam,
 			);
+			if (latestRequestIdRef.current !== requestId) return;
 			setMateriales(json.content || []);
 			setTotalRecords(json.page?.totalElements || 0);
 		} catch (err: unknown) {
+			if (latestRequestIdRef.current !== requestId) return;
 			setError(getErrorMessage(err, "Error desconocido"));
 			setMateriales([]);
 		} finally {
+			if (latestRequestIdRef.current !== requestId) return;
 			setIsLoading(false);
 		}
 	}, [pageIndex, pageSize, JSON.stringify(filters), sortParam]);
@@ -102,6 +107,7 @@ export function useMateriales(
 		try {
 			return await searchMaterialesAPI(query);
 		} catch (e) {
+			console.warn("[Materiales] Error en búsqueda:", e);
 			return { content: [] };
 		}
 	};

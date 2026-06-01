@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { notificar } from "../utils/notificar";
 import { AptoDTO } from "./types";
 import {
@@ -29,8 +29,10 @@ export function useAptos(
 	const [totalRecords, setTotalRecords] = useState(0);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const latestRequestIdRef = useRef(0);
 
 	const getAptos = useCallback(async () => {
+		const requestId = ++latestRequestIdRef.current;
 		setIsLoading(true);
 		setError(null);
 		try {
@@ -40,12 +42,15 @@ export function useAptos(
 				filters,
 				sortParam,
 			);
+			if (latestRequestIdRef.current !== requestId) return;
 			setAptos(json.content || []);
 			setTotalRecords(json.page?.totalElements || 0);
 		} catch (err: unknown) {
+			if (latestRequestIdRef.current !== requestId) return;
 			setError(err instanceof Error ? err.message : "Error desconocido");
 			setAptos([]);
 		} finally {
+			if (latestRequestIdRef.current !== requestId) return;
 			setIsLoading(false);
 		}
 	}, [pageIndex, pageSize, JSON.stringify(filters), sortParam]);
@@ -101,6 +106,7 @@ export function useAptos(
 		try {
 			return await searchAptosAPI(query);
 		} catch (e) {
+			console.warn("[Aptos] Error en búsqueda:", e);
 			return { content: [] };
 		}
 	};

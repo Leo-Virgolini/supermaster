@@ -190,6 +190,7 @@ export default function AptosPage() {
                         <Button
                             variant="dark"
                             onClick={handleCreate}
+                            disabled={isSaving}
                         >
                             <CheckIcon className="w-4 h-4" />
                             {isSaving ? "Creando Apto..." : "Crear Apto"}

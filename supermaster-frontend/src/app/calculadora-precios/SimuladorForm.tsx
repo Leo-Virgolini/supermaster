@@ -271,7 +271,6 @@ export default function SimuladorForm({ canalId, cuotas }: SimuladorFormProps) {
                 tipoId: form.tipoId,
                 clasifGralId: form.clasifGralId,
                 clasifGastroId: form.clasifGastroId,
-                esMaquina: null,
                 tag: form.tag === "" ? null : form.tag,
                 proveedorFinanciacionPorcentaje: parseNumOrNull(form.proveedorFin),
                 mlaPrecioEnvio: parseNumOrNull(form.mlaPrecioEnvio),

@@ -32,8 +32,6 @@ public record CanalConceptoReglaCreateDTO(
         @Positive(message = "El ID de marca debe ser positivo")
         Integer marcaId,
 
-        Boolean esMaquina,
-
         Tag tag,
 
         Boolean tieneEnvio

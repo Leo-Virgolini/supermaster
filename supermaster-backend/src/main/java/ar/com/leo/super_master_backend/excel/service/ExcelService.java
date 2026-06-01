@@ -12,6 +12,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.List;
 
 public interface ExcelService {
 
@@ -75,7 +76,7 @@ public interface ExcelService {
      *                            Nombres no permitidos se reportan como error y no se ejecutan.
      * @return Detalle de las tablas limpiadas y errores si los hubo
      */
-    LimpiezaDatosResultDTO limpiarDatos(java.util.List<String> tablasSeleccionadas);
+    LimpiezaDatosResultDTO limpiarDatos(List<String> tablasSeleccionadas);
 
     /**
      * Importa costos desde un archivo Excel (.xls/.xlsx) actualizando productos existentes.

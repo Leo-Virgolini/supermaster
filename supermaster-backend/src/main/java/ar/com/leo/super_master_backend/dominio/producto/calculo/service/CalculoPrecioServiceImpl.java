@@ -35,10 +35,14 @@ import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCanalPrecio;
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCanalPrecioInflado;
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoMargen;
+import ar.com.leo.super_master_backend.dominio.producto.entity.Tag;
 import ar.com.leo.super_master_backend.dominio.producto.mla.entity.Mla;
 import ar.com.leo.super_master_backend.dominio.producto.repository.*;
 import ar.com.leo.super_master_backend.dominio.precio_inflado.entity.PrecioInflado;
 import ar.com.leo.super_master_backend.dominio.precio_inflado.entity.TipoPrecioInflado;
+import jakarta.annotation.PostConstruct;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -71,8 +75,8 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
     private final ReglaDescuentoRepository reglaDescuentoRepository;
     private final ProcesoGlobalService procesoGlobal;
 
-    @jakarta.persistence.PersistenceContext
-    private jakarta.persistence.EntityManager entityManager;
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Lazy @Autowired
     private CalculoPrecioServiceImpl self;
@@ -86,7 +90,7 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
     private EstadoProcesoMasivo tracker;
     private volatile RecalculoMasivoResultDTO resultadoRecalculo = null;
 
-    @jakarta.annotation.PostConstruct
+    @PostConstruct
     void initTracker() {
         this.tracker = new EstadoProcesoMasivo(PROCESO_ID, PROCESO_DESC, procesoGlobal);
     }
@@ -183,7 +187,7 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
      *        producto no lo tiene, se lanza {@link NotFoundException}.
      */
     private ContextoCalculo prepararContexto(Producto producto, Integer canalId, Integer numeroCuotas,
-                                             java.util.Optional<ProductoMargen> margenPreCargado) {
+                                             Optional<ProductoMargen> margenPreCargado) {
         List<ConceptoCalculo> conceptos = obtenerConceptosAplicables(canalId, numeroCuotas, producto);
         List<CanalConcepto> conceptosCanal = convertirConceptosACanalConcepto(conceptos, canalId);
 
@@ -249,7 +253,7 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
     public void iniciarCacheContextoCanal(Integer canalId) {
         int depth = CACHE_CONTEXTO_CANAL_DEPTH.get() == null ? 0 : CACHE_CONTEXTO_CANAL_DEPTH.get();
         if (depth == 0) {
-            CACHE_CONTEXTO_CANAL.set(new java.util.HashMap<>());
+            CACHE_CONTEXTO_CANAL.set(new HashMap<>());
         }
         CACHE_CONTEXTO_CANAL_DEPTH.set(depth + 1);
         obtenerContextoCanal(canalId); // precarga el canal directo (no-op si canalId es null)
@@ -319,7 +323,7 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
         // requiere un margen mayorista/minorista que el producto no tiene (null o ≤ 0).
         // En ambos casos, borrar el precio existente si hay y no calcular.
         boolean excluido = !productoAplicaAlCanal(producto, canalId);
-        java.util.Optional<ProductoMargen> margenOpt = java.util.Optional.empty();
+        Optional<ProductoMargen> margenOpt = Optional.empty();
         if (!excluido) {
             margenOpt = productoMargenRepository.findByProductoId(productoId);
             if (!tieneMargenParaCadenaCanal(margenOpt.orElse(null), canalId)) {
@@ -1495,9 +1499,9 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
             throw new BadRequestException("El PVP del canal base es inválido (null o <= 0)");
         }
 
-        // Las métricas de costo se heredan del canal base
-        BigDecimal costoProducto = precioBase.costoProducto();
-        BigDecimal costosVentaBase = precioBase.costosVenta();
+        // Las métricas de costo se heredan del canal base (defensivo ante null)
+        BigDecimal costoProducto = precioBase.costoProducto() != null ? precioBase.costoProducto() : BigDecimal.ZERO;
+        BigDecimal costosVentaBase = precioBase.costosVenta() != null ? precioBase.costosVenta() : BigDecimal.ZERO;
 
         // Separar conceptos en dos listas:
         //   - RESELLER: definen el "corte" del ingreso del dueño
@@ -1798,8 +1802,8 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
      * EXCLUIR.
      * <p>
      * NOTA: Los conceptos ya vienen filtrados por canal_concepto_regla desde
-     * obtenerConceptosAplicables(). Para productos máquinas, los conceptos con
-     * regla EXCLUIR (es_maquina=false) ya fueron excluidos de la lista. Este
+     * obtenerConceptosAplicables(). Para productos no-máquina, los conceptos con
+     * regla INCLUIR (tag=MAQUINA) ya fueron excluidos de la lista. Este
      * método busca dinámicamente cualquier concepto con
      * aplica_sobre='DESCUENTO' en la lista filtrada, sin hardcodear nombres de
      * conceptos específicos. Si no existe (porque fue excluido), retorna cero.
@@ -1878,7 +1882,7 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
      * puede requerir margen aunque el canal directo no lo haga.
      */
     private boolean tieneMargenParaCadenaCanal(ProductoMargen productoMargen, Integer canalId) {
-        return tieneMargenParaCadenaCanal(productoMargen, canalId, new java.util.HashSet<>());
+        return tieneMargenParaCadenaCanal(productoMargen, canalId, new HashSet<>());
     }
 
     /**
@@ -1887,7 +1891,7 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
      * calcularPrecioSobrePvpBase causaría StackOverflowError.
      */
     private void validarCadenaCanalSinCiclos(Canal canal) {
-        java.util.Set<Integer> visitados = new java.util.HashSet<>();
+        Set<Integer> visitados = new HashSet<>();
         Canal actual = canal;
         while (actual != null && actual.getCanalBase() != null) {
             if (!visitados.add(actual.getId())) {
@@ -1900,7 +1904,7 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
         }
     }
 
-    private boolean tieneMargenParaCadenaCanal(ProductoMargen productoMargen, Integer canalId, java.util.Set<Integer> visitados) {
+    private boolean tieneMargenParaCadenaCanal(ProductoMargen productoMargen, Integer canalId, Set<Integer> visitados) {
         if (canalId == null || !visitados.add(canalId)) return true;
         ContextoCanalCache ctx = obtenerContextoCanal(canalId);
         Integer canalBaseId;
@@ -1993,8 +1997,8 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
      * SOLO aplica si el producto cumple TODAS las condiciones - Si tipo_regla =
      * EXCLUIR: el concepto NO aplica si el producto cumple ALGUNA condición -
      * Condiciones disponibles: id_tipo, id_clasif_gral, id_clasif_gastro,
-     * id_marca, es_maquina - es_maquina: filtra por máquina/no máquina
-     * (true=solo máquinas, false=solo no máquinas, NULL=no filtra)
+     * id_marca, tag, tiene_envio - tag: filtra por tag del producto
+     * (MAQUINA / REPUESTO / MENAJE; NULL=no filtra; sin tag se trata como MENAJE)
      * <p>
      * ENFOQUE RECOMENDADO PARA KT GASTRO (usar EXCLUIR):
      * <p>
@@ -2003,14 +2007,13 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
      * Estos conceptos aplican a todos los productos del canal.
      * <p>
      * 2. DESCUENTO_MAQUINA (solo para máquinas): - Debe estar en canal_concepto
-     * para KT GASTRO - Debe tener regla EXCLUIR con es_maquina=false (excluir
-     * cuando NO es máquina) Ejemplo: tipo_regla='EXCLUIR', es_maquina=false
-     * Resultado: Se excluye cuando producto.clasif_gastro.es_maquina = false →
-     * Solo aplica a máquinas (es_maquina = true)
+     * para KT GASTRO - Debe tener regla INCLUIR con tag=MAQUINA (incluir solo
+     * cuando es máquina) Ejemplo: tipo_regla='INCLUIR', tag=MAQUINA
+     * Resultado: Solo aplica cuando producto.tag = MAQUINA
      * <p>
      * NOTA: REL_ML_KTG se usa para KT GASTRO NO MÁQUINA como concepto con
      * aplica_sobre='MARGEN_PTS' y porcentaje negativo que reduce la ganancia.
-     * Debe tener regla EXCLUIR con es_maquina=true para que solo aplique a no máquinas.
+     * Debe tener regla EXCLUIR con tag=MAQUINA para que solo aplique a no máquinas.
      * <p>
      * NOTA: Los valores de aplica_sobre para ajuste de margen:
      * - MARGEN_PTS: Suma/resta puntos porcentuales al margen (GAN.MIN.ML + porcentaje)
@@ -2069,7 +2072,6 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
                 || regla.getClasifGral() != null
                 || regla.getClasifGastro() != null
                 || regla.getMarca() != null
-                || regla.getEsMaquina() != null
                 || regla.getTag() != null
                 || regla.getTieneEnvio() != null;
 
@@ -2107,24 +2109,13 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
             }
         }
 
-        // Verificar es_maquina si está especificado en la regla
-        if (regla.getEsMaquina() != null) {
-            Boolean esMaquinaProducto = producto.getClasifGastro() != null
-                    ? producto.getClasifGastro().getEsMaquina()
-                    : null;
-
-            if (esMaquinaProducto == null || !regla.getEsMaquina().equals(esMaquinaProducto)) {
-                return false;
-            }
-        }
-
         // Verificar tag si está especificado en la regla.
         // Si el producto no tiene tag cargado, se trata como MENAJE (default del "else" del Excel).
         if (regla.getTag() != null) {
-            ar.com.leo.super_master_backend.dominio.producto.entity.Tag productoTag =
+            Tag productoTag =
                     producto.getTag() != null
                             ? producto.getTag()
-                            : ar.com.leo.super_master_backend.dominio.producto.entity.Tag.MENAJE;
+                            : Tag.MENAJE;
             if (!regla.getTag().equals(productoTag)) {
                 return false;
             }
@@ -2573,8 +2564,6 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
         if (input.clasifGastroId() != null) {
             ClasifGastro cga = new ClasifGastro();
             cga.setId(input.clasifGastroId());
-            // El motor consulta clasifGastro.esMaquina; respetamos el override del input.
-            cga.setEsMaquina(Boolean.TRUE.equals(input.esMaquina()));
             p.setClasifGastro(cga);
         }
         if (input.proveedorFinanciacionPorcentaje() != null) {
@@ -2615,7 +2604,7 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
         // CanalPreciosDTO vacío sin calcular nada.
         Producto productoParaChequeo = obtenerProducto(productoId);
         boolean excluido = !productoAplicaAlCanal(productoParaChequeo, canalId);
-        java.util.Optional<ProductoMargen> margenOpt = java.util.Optional.empty();
+        Optional<ProductoMargen> margenOpt = Optional.empty();
         if (!excluido) {
             margenOpt = productoMargenRepository.findByProductoId(productoId);
             if (!tieneMargenParaCadenaCanal(margenOpt.orElse(null), canalId)) {
@@ -2779,7 +2768,7 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
                 Mla snap = mlaSnapshot.get(productoId);
                 if (snap != null) producto.setMla(snap);
                 Map<Integer, ProductoCanalPrecio> existentes =
-                        preciosPorProducto.getOrDefault(productoId, java.util.Collections.emptyMap());
+                        preciosPorProducto.getOrDefault(productoId, Collections.emptyMap());
 
                 try {
                     // Exclusión idéntica al inline.
@@ -2795,7 +2784,7 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
                         }
                         // Contexto del canal una sola vez (conceptos no dependen de la cuota).
                         ContextoCalculo ctx = prepararContexto(producto, canalId, null,
-                                java.util.Optional.of(productoMargen));
+                                Optional.of(productoMargen));
                         for (Integer cuotas : cuotasCanal) {
                             PrecioCalculadoDTO dto = calcularPrecioUnificado(ctx.producto(), ctx.productoMargen(),
                                     ctx.conceptosCanal(), cuotas, canalId, ctx.canal(), null);
@@ -3873,7 +3862,7 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
         if (ctxCanal != null) {
             reglas = ctxCanal.reglasDescuento();
         } else if (cacheMasivo != null) {
-            reglas = cacheMasivo.getOrDefault(canalId, java.util.Collections.emptyList());
+            reglas = cacheMasivo.getOrDefault(canalId, Collections.emptyList());
         } else {
             reglas = reglaDescuentoRepository.findByCanalIdAndActivoTrueOrderByPrioridadAsc(canalId);
         }
@@ -3970,4 +3959,3 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
     }
 
 }
-

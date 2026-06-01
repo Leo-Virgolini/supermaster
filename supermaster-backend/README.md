@@ -205,9 +205,7 @@ Los tests de integración usan `@Transactional` para rollback automático. Desta
 
 | Archivo | Contenido |
 |---------|-----------|
-| `frontend_api.md` | Endpoints completos y tipos TypeScript para el frontend |
 | `CLAUDE.md` | Guía de dominio y convenciones de desarrollo |
-| `guia_frontend_vistas.md` | Guía de las vistas del frontend que consume esta API |
 
 ---
 

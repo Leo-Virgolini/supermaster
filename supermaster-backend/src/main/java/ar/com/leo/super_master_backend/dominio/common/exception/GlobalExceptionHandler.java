@@ -17,20 +17,23 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     // Regex precompilados para extracción de errores SQL
-    private static final java.util.regex.Pattern FK_SCHEMA_TABLE = java.util.regex.Pattern.compile("`[^`]+`\\.`([^`]+)`.*CONSTRAINT");
-    private static final java.util.regex.Pattern FK_FAILS = java.util.regex.Pattern.compile("fails\\s*\\(`[^`]+`\\.`([^`]+)`");
-    private static final java.util.regex.Pattern FK_NO_SCHEMA = java.util.regex.Pattern.compile("\\(`([^`]+)`,\\s*CONSTRAINT");
-    private static final java.util.regex.Pattern FK_TABLE_REF = java.util.regex.Pattern.compile("table\\s+[\"']?([\\w_]+)[\"']?");
-    private static final java.util.regex.Pattern FK_REFERENCES = java.util.regex.Pattern.compile("REFERENCES\\s+`([^`]+)`");
-    private static final java.util.regex.Pattern DUPLICATE_ENTRY = java.util.regex.Pattern.compile("Duplicate entry '([^']+)' for key '([^']+)'");
-    private static final java.util.regex.Pattern COLUMN_NOT_NULL = java.util.regex.Pattern.compile("Column '([^']+)' cannot be null");
-    private static final java.util.regex.Pattern PROPERTY_NAME = java.util.regex.Pattern.compile("property(?:Name)?[^:]*:\\s*([\\w.]+)");
+    private static final Pattern FK_SCHEMA_TABLE = Pattern.compile("`[^`]+`\\.`([^`]+)`.*CONSTRAINT");
+    private static final Pattern FK_FAILS = Pattern.compile("fails\\s*\\(`[^`]+`\\.`([^`]+)`");
+    private static final Pattern FK_NO_SCHEMA = Pattern.compile("\\(`([^`]+)`,\\s*CONSTRAINT");
+    private static final Pattern FK_TABLE_REF = Pattern.compile("table\\s+[\"']?([\\w_]+)[\"']?");
+    private static final Pattern FK_REFERENCES = Pattern.compile("REFERENCES\\s+`([^`]+)`");
+    private static final Pattern DUPLICATE_ENTRY = Pattern.compile("Duplicate entry '([^']+)' for key '([^']+)'");
+    private static final Pattern COLUMN_NOT_NULL = Pattern.compile("Column '([^']+)' cannot be null");
+    private static final Pattern PROPERTY_NAME = Pattern.compile("property(?:Name)?[^:]*:\\s*([\\w.]+)");
 
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(NotFoundException ex, WebRequest request) {
@@ -100,7 +103,7 @@ public class GlobalExceptionHandler {
     }
 
     private String extraerTablaRelacionada(String message) {
-        java.util.regex.Matcher matcher = FK_SCHEMA_TABLE.matcher(message);
+        Matcher matcher = FK_SCHEMA_TABLE.matcher(message);
         if (matcher.find()) return formatearNombreTabla(matcher.group(1));
 
         matcher = FK_FAILS.matcher(message);
@@ -119,7 +122,7 @@ public class GlobalExceptionHandler {
     }
 
     private String extraerDetalleDuplicado(String message) {
-        java.util.regex.Matcher matcher = DUPLICATE_ENTRY.matcher(message);
+        Matcher matcher = DUPLICATE_ENTRY.matcher(message);
         if (matcher.find()) {
             String valor = matcher.group(1);
             return String.format("este valor: '%s'", valor);
@@ -128,7 +131,7 @@ public class GlobalExceptionHandler {
     }
 
     private String extraerCampoNull(String message) {
-        java.util.regex.Matcher matcher = COLUMN_NOT_NULL.matcher(message);
+        Matcher matcher = COLUMN_NOT_NULL.matcher(message);
         if (matcher.find()) return formatearNombreCampo(matcher.group(1));
 
         matcher = PROPERTY_NAME.matcher(message);

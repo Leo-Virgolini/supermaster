@@ -1,40 +1,20 @@
 // 1. CONSTANTES
 import { API_BASE_URL } from "../config/runtime";
 import { fetchAPI } from "../utils/fetchAPI";
+import { AuditOrigin, FilterValue, buildListParams, withAuditOrigin } from "../utils/apiHelpers";
 import { MaterialDTO } from "./types";
 
 const API_URL = `${API_BASE_URL}/api/materiales`;
-type MaterialAuditOrigin = "FORM" | "INLINE" | "TABLE" | "API";
-
-const withAuditOrigin = (origin?: MaterialAuditOrigin, headers?: HeadersInit): HeadersInit => ({
-	...(headers as Record<string, string> ?? {}),
-	...(origin ? { "X-Audit-Origin": origin } : {}),
-});
+type MaterialAuditOrigin = AuditOrigin;
 
 // READ
 export const getMaterialesAPI = async (
 	page: number,
 	size: number,
-	filters: Record<string, any> = {},
+	filters: Record<string, FilterValue> = {},
 	sort = "id,asc",
 ) => {
-	const params = new URLSearchParams({
-		page: page.toString(),
-		size: size.toString(),
-		sort,
-	});
-
-	Object.entries(filters).forEach(([key, value]) => {
-		if (value !== undefined && value !== null && value !== "") {
-			if (Array.isArray(value)) {
-				params.append(key, value.join(","));
-			} else {
-				params.append(key, String(value));
-			}
-		}
-	});
-
-	const response = await fetchAPI(`${API_URL}?${params.toString()}`);
+	const response = await fetchAPI(`${API_URL}?${buildListParams(page, size, sort, filters)}`);
 	if (!response.ok) throw new Error("Error al conectar con el servidor");
 	return await response.json();
 };

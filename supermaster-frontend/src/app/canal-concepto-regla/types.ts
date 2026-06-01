@@ -20,7 +20,6 @@ export interface CanalConceptoReglaDTO {
 	clasifGralNombre?: string;
 	marcaId?: number | null;
 	marcaNombre?: string;
-	esMaquina?: boolean | null;
 	tag?: Tag | null;
 	tieneEnvio?: boolean | null;
 }
@@ -33,7 +32,6 @@ export type CanalConceptoReglaUpsertDTO = {
 	clasifGastroId?: number | null;
 	clasifGralId?: number | null;
 	marcaId?: number | null;
-	esMaquina?: boolean | null;
 	tag?: Tag | null;
 	tieneEnvio?: boolean | null;
 };

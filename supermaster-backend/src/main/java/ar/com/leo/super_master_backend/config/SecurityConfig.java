@@ -21,6 +21,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -78,7 +79,7 @@ public class SecurityConfig {
         return http.build();
     }
 
-    private void writeErrorResponse(HttpServletResponse response, int status, String message, String path) throws java.io.IOException {
+    private void writeErrorResponse(HttpServletResponse response, int status, String message, String path) throws IOException {
         response.setStatus(status);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");

@@ -775,23 +775,13 @@ class RecalculoAutomaticoIntegrationTest {
     }
 
     // ===========================================
-    // TEST 10: Cambio en ClasifGastro (esMaquina)
+    // TEST 10: Regla de concepto por tag = MAQUINA
     // ===========================================
     @Test
     @Order(10)
-    @DisplayName("10. Recálculo automático al cambiar esMaquina de ClasifGastro")
-    void testRecalculoPorCambioClasifGastro() {
-        // Crear clasificación gastro
-        ClasifGastro clasifGastro = new ClasifGastro();
-        clasifGastro.setNombre(TEST_PREFIX + "Cafeteras");
-        clasifGastro.setEsMaquina(false);
-        clasifGastro = clasifGastroRepository.save(clasifGastro);
-
-        // Asignar al producto
-        producto.setClasifGastro(clasifGastro);
-        producto = productoRepository.save(producto);
-
-        // Crear un concepto de gasto que solo aplica a máquinas (via regla INCLUIR con esMaquina=true)
+    @DisplayName("10. Una regla INCLUIR con tag=MAQUINA aplica el concepto solo si el producto es MAQUINA")
+    void testReglaConceptoPorTagMaquina() {
+        // Concepto de gasto que solo debe aplicar a máquinas
         ConceptoCalculo conceptoMaquina = new ConceptoCalculo();
         conceptoMaquina.setNombre(TEST_PREFIX + "GASTO_MAQUINA");
         conceptoMaquina.setPorcentaje(new BigDecimal("8"));
@@ -800,32 +790,31 @@ class RecalculoAutomaticoIntegrationTest {
 
         canalConceptoService.asignarConcepto(canal.getId(), conceptoMaquina.getId());
 
-        // Crear regla INCLUIR: el concepto solo aplica si esMaquina=true
+        // Regla INCLUIR: el concepto solo aplica si el producto tiene tag = MAQUINA
         canalConceptoReglaService.crear(
                 new CanalConceptoReglaCreateDTO(
                         canal.getId(),
                         conceptoMaquina.getId(),
                         "INCLUIR",
                         null, null, null, null,
-                        true, // esMaquina = true
-                        null, // tag
-                        null  // tieneEnvio
+                        Tag.MAQUINA, // tag = MAQUINA
+                        null         // tieneEnvio
                 ));
 
-        // Recalcular: esMaquina=false → el concepto NO aplica (regla INCLUIR no cumplida)
+        // Producto NO máquina (tag MENAJE) → el concepto NO aplica (regla INCLUIR no cumplida)
+        producto.setTag(Tag.MENAJE);
+        producto = productoRepository.save(producto);
         calculoPrecioService.recalcularYGuardarPrecioCanalTodasCuotas(producto.getId(), canal.getId());
         BigDecimal pvpSinMaquina = obtenerPvpActual();
 
-        // Cambiar esMaquina a true (dispara recálculo automático)
-        clasifGastroService.actualizar(clasifGastro.getId(),
-                new ClasifGastroUpdateDTO(TEST_PREFIX + "Cafeteras", true, null));
+        // Producto máquina (tag MAQUINA) → el concepto SÍ aplica
+        producto.setTag(Tag.MAQUINA);
+        producto = productoRepository.save(producto);
         calculoPrecioService.recalcularYGuardarPrecioCanalTodasCuotas(producto.getId(), canal.getId());
-
         BigDecimal pvpConMaquina = obtenerPvpActual();
 
-        // Ahora el concepto SÍ aplica (esMaquina=true cumple la regla INCLUIR)
         assertNotEquals(pvpSinMaquina, pvpConMaquina,
-                "El PVP debe cambiar cuando esMaquina pasa de false a true y hay una regla INCLUIR");
+                "El PVP debe cambiar cuando el tag pasa de MENAJE a MAQUINA y hay una regla INCLUIR por tag");
         assertTrue(pvpConMaquina.compareTo(pvpSinMaquina) > 0,
                 "El PVP debe aumentar porque el gasto sobre costo ahora aplica");
     }
@@ -1671,7 +1660,6 @@ class RecalculoAutomaticoIntegrationTest {
                         null, null, null,
                         marca.getId(),
                         null,
-                        null,
                         null
                 ));
 
@@ -1726,7 +1714,6 @@ class RecalculoAutomaticoIntegrationTest {
                         conceptoGasto.getId(),
                         "INCLUIR",
                         tipoA.getId(), null, null,
-                        null,
                         null,
                         null,
                         null
@@ -1794,7 +1781,6 @@ class RecalculoAutomaticoIntegrationTest {
                         null, null, null,
                         marcaA.getId(),
                         null,
-                        null,
                         null
                 ));
 
@@ -1857,7 +1843,6 @@ class RecalculoAutomaticoIntegrationTest {
                         conceptoClasif.getId(),
                         "INCLUIR",
                         null, null, clasifA.getId(),
-                        null,
                         null,
                         null,
                         null
@@ -1929,7 +1914,6 @@ class RecalculoAutomaticoIntegrationTest {
                         "INCLUIR",
                         null, null, null,
                         marcaOtra.getId(),
-                        null,
                         null,
                         null
                 ));

@@ -1,6 +1,6 @@
 "use client";
 import { getErrorMessage } from "@/lib/errors";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { notificar } from "../utils/notificar";
 import {
 	ProveedorDTO,
@@ -27,8 +27,10 @@ export function useProveedores(
 	const [proveedores, setProveedores] = useState<ProveedorDTO[]>([]);
 	const [totalRecords, setTotalRecords] = useState(0);
 	const [isLoading, setIsLoading] = useState(true);
+	const latestRequestIdRef = useRef(0);
 
 	const getProveedores = useCallback(async () => {
+		const requestId = ++latestRequestIdRef.current;
 		setIsLoading(true);
 		try {
 			const json: PageResponse<ProveedorDTO> = await getProveedoresAPI(
@@ -37,11 +39,14 @@ export function useProveedores(
 				filters,
 				sortParam,
 			);
+			if (latestRequestIdRef.current !== requestId) return;
 			setProveedores(json.content || []);
 			setTotalRecords(json.page?.totalElements || 0);
 		} catch (err) {
+			if (latestRequestIdRef.current !== requestId) return;
 			setProveedores([]);
 		} finally {
+			if (latestRequestIdRef.current !== requestId) return;
 			setIsLoading(false);
 		}
 	}, [pageIndex, pageSize, JSON.stringify(filters), sortParam]);

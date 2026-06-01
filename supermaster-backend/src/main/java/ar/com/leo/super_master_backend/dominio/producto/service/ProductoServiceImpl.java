@@ -21,6 +21,7 @@ import ar.com.leo.super_master_backend.dominio.regla_descuento.repository.ReglaD
 import ar.com.leo.super_master_backend.dominio.producto.dto.*;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCanalPrecio;
+import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCatalogo;
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoMargen;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Tag;
 import ar.com.leo.super_master_backend.dominio.producto.mapper.ProductoMapper;
@@ -37,6 +38,13 @@ import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoSpeci
 import ar.com.leo.super_master_backend.dominio.proveedor.entity.Proveedor;
 import ar.com.leo.super_master_backend.dominio.reposicion.entity.TagReposicion;
 import ar.com.leo.super_master_backend.dominio.tipo.entity.Tipo;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Order;
+import jakarta.persistence.criteria.Path;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -51,6 +59,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -367,15 +376,15 @@ public class ProductoServiceImpl implements ProductoService {
         return (root, query, cb) -> {
             Class<?> rt = query.getResultType();
             if (rt != Long.class && rt != long.class) {
-                jakarta.persistence.criteria.Join<Object, Object> margenJoin = null;
-                List<jakarta.persistence.criteria.Order> orders = new ArrayList<>();
+                Join<Object, Object> margenJoin = null;
+                List<Order> orders = new ArrayList<>();
                 for (Sort.Order o : sort) {
                     String key = o.getProperty().toLowerCase();
                     if (CAMPOS_MARGEN_SORT.containsKey(key)) {
                         if (margenJoin == null) {
-                            margenJoin = root.join("productoMargenes", jakarta.persistence.criteria.JoinType.LEFT);
+                            margenJoin = root.join("productoMargenes", JoinType.LEFT);
                         }
-                        jakarta.persistence.criteria.Expression<?> expr = margenJoin.get(CAMPOS_MARGEN_SORT.get(key));
+                        Expression<?> expr = margenJoin.get(CAMPOS_MARGEN_SORT.get(key));
                         orders.add(o.isAscending() ? cb.asc(expr) : cb.desc(expr));
                     } else if (key.equals("catalogo") || key.equals("catalogos")) {
                         // Catálogo es many-to-many: ordenamos con subconsultas escalares
@@ -383,22 +392,22 @@ public class ProductoServiceImpl implements ProductoService {
                         // subconsultas independientes para no reusar la misma instancia.
                         // 1) ¿tiene catálogos? -> los productos sin catálogo van al final
                         //    en ambas direcciones (ASC y DESC).
-                        jakarta.persistence.criteria.Subquery<Long> cuenta = query.subquery(Long.class);
-                        jakarta.persistence.criteria.Root<ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCatalogo> pcCount =
-                                cuenta.from(ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCatalogo.class);
+                        Subquery<Long> cuenta = query.subquery(Long.class);
+                        Root<ProductoCatalogo> pcCount =
+                                cuenta.from(ProductoCatalogo.class);
                         cuenta.select(cb.count(pcCount));
                         cuenta.where(cb.equal(pcCount.get("producto"), root));
                         orders.add(cb.asc(cb.<Integer>selectCase().when(cb.equal(cuenta, 0L), 1).otherwise(0)));
                         // 2) menor nombre de catálogo (1er alfabético) del producto.
-                        jakarta.persistence.criteria.Subquery<String> menorNombre = query.subquery(String.class);
-                        jakarta.persistence.criteria.Root<ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCatalogo> pcNombre =
-                                menorNombre.from(ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCatalogo.class);
+                        Subquery<String> menorNombre = query.subquery(String.class);
+                        Root<ProductoCatalogo> pcNombre =
+                                menorNombre.from(ProductoCatalogo.class);
                         menorNombre.select(cb.least(pcNombre.get("catalogo").<String>get("nombre")));
                         menorNombre.where(cb.equal(pcNombre.get("producto"), root));
                         orders.add(o.isAscending() ? cb.asc(menorNombre) : cb.desc(menorNombre));
                     } else {
                         // path directo (soporta anidados con punto, ej. "marca.nombre")
-                        jakarta.persistence.criteria.Path<?> path = root;
+                        Path<?> path = root;
                         for (String part : o.getProperty().split("\\.")) {
                             path = path.get(part);
                         }
@@ -718,7 +727,7 @@ public class ProductoServiceImpl implements ProductoService {
             Integer canalId,
             Integer cuotas,
             Map<Integer, List<ProductoCanalPrecio>> preciosPorProducto,
-            java.util.function.Function<ProductoCanalPrecio, BigDecimal> extractor) {
+            Function<ProductoCanalPrecio, BigDecimal> extractor) {
 
         return Comparator.comparing(
                 (ProductoConPreciosDTO dto) -> {
@@ -754,7 +763,7 @@ public class ProductoServiceImpl implements ProductoService {
             Integer canalId,
             Integer cuotas,
             Map<Integer, List<ProductoCanalPrecio>> preciosPorProducto,
-            java.util.function.Function<ProductoCanalPrecio, LocalDateTime> extractor) {
+            Function<ProductoCanalPrecio, LocalDateTime> extractor) {
 
         return Comparator.comparing(
                 (ProductoConPreciosDTO dto) -> {
@@ -1148,7 +1157,7 @@ public class ProductoServiceImpl implements ProductoService {
             entity.setTagReposicion(leerEnumOpcional(patchDto.getTagReposicion(), "tagReposicion", TagReposicion.class));
         }
         if (presente(patchDto.getTag())) {
-            entity.setTag(leerEnumOpcional(patchDto.getTag(), "tag", ar.com.leo.super_master_backend.dominio.producto.entity.Tag.class));
+            entity.setTag(leerEnumOpcional(patchDto.getTag(), "tag", Tag.class));
         }
     }
 

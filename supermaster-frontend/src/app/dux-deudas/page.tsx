@@ -661,6 +661,10 @@ export default function DuxDeudasPage() {
 
     const handleBuscar = async () => {
         if (!canSearch) return;
+        if (fechaDesde && fechaHasta && fechaDesde > fechaHasta) {
+            notificar.warning("La fecha 'desde' no puede ser posterior a 'hasta'.");
+            return;
+        }
         limpiarInterval();
         completadoRef.current = false;
         setPanelEstado("EN_PROCESO");

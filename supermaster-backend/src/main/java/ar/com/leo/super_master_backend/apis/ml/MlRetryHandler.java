@@ -9,6 +9,8 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -317,8 +319,8 @@ public class MlRetryHandler {
             return Long.parseLong(retryAfter) * 1000;
         } catch (NumberFormatException e) {
             try {
-                long epoch = java.time.ZonedDateTime
-                        .parse(retryAfter, java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME)
+                long epoch = ZonedDateTime
+                        .parse(retryAfter, DateTimeFormatter.RFC_1123_DATE_TIME)
                         .toInstant()
                         .toEpochMilli();
                 return Math.max(epoch - System.currentTimeMillis(), defaultMs);

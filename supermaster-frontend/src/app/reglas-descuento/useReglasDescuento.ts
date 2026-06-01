@@ -1,6 +1,6 @@
 "use client";
 import { getErrorMessage } from "@/lib/errors";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { notificar } from "../utils/notificar";
 import { getReglasAPI, createReglaAPI, updateReglaAPI, deleteReglaAPI } from "./reglasDescuentoService";
 import { ReglaDescuentoDTO } from "./types";
@@ -18,16 +18,21 @@ export function useReglasDescuento(pageIndex: number, pageSize: number, filters:
 	const [reglas, setReglas] = useState<ReglaDescuentoDTO[]>([]);
 	const [totalRecords, setTotalRecords] = useState(0);
 	const [isLoading, setIsLoading] = useState(true);
+	const latestRequestIdRef = useRef(0);
 
 	const getReglas = useCallback(async () => {
+		const requestId = ++latestRequestIdRef.current;
 		setIsLoading(true);
 		try {
 			const json: PageResponse<ReglaDescuentoDTO> = await getReglasAPI(pageIndex, pageSize, filters, sortParam);
+			if (latestRequestIdRef.current !== requestId) return;
 			setReglas(json.content || []);
 			setTotalRecords(json.page?.totalElements || 0);
 		} catch (err) {
+			if (latestRequestIdRef.current !== requestId) return;
 			setReglas([]);
 		} finally {
+			if (latestRequestIdRef.current !== requestId) return;
 			setIsLoading(false);
 		}
 	}, [pageIndex, pageSize, JSON.stringify(filters), sortParam]);

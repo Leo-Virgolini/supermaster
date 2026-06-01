@@ -1,6 +1,6 @@
 "use client";
 import { getErrorMessage } from "@/lib/errors";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { notificar } from "../utils/notificar";
 import {
 	getPreciosInfladosAPI,
@@ -19,18 +19,23 @@ export function usePreciosInflados(pageIndex: number, pageSize: number, search: 
 	const [pageCount, setPageCount] = useState(0);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const latestRequestIdRef = useRef(0);
 
 	const fetchData = useCallback(async () => {
+		const requestId = ++latestRequestIdRef.current;
 		setIsLoading(true);
 		setError(null);
 		try {
 			const res = await getPreciosInfladosAPI(pageIndex, pageSize, search, sortParam);
+			if (latestRequestIdRef.current !== requestId) return;
 			setData(res.content || []);
 			setTotalRecords(res.page?.totalElements || 0);
 			setPageCount(res.page?.totalPages || 0);
 		} catch (e: unknown) {
+			if (latestRequestIdRef.current !== requestId) return;
 			setError(getErrorMessage(e));
 		} finally {
+			if (latestRequestIdRef.current !== requestId) return;
 			setIsLoading(false);
 		}
 	}, [pageIndex, pageSize, search, sortParam]);

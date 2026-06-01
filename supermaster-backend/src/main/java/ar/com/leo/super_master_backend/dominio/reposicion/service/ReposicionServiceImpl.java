@@ -32,6 +32,7 @@ import ar.com.leo.super_master_backend.dominio.reposicion.entity.TagReposicion;
 import ar.com.leo.super_master_backend.dominio.reposicion.entity.VentaDiariaCache;
 import ar.com.leo.super_master_backend.dominio.reposicion.repository.ReposicionConfigRepository;
 import ar.com.leo.super_master_backend.dominio.reposicion.repository.VentaDiariaCacheRepository;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -45,6 +46,7 @@ import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
@@ -74,7 +76,7 @@ public class ReposicionServiceImpl implements ReposicionService {
     private EstadoProcesoMasivo tracker;
     private volatile ReposicionResultDTO resultadoCalculo = null;
 
-    @jakarta.annotation.PostConstruct
+    @PostConstruct
     void initTracker() {
         this.tracker = new EstadoProcesoMasivo("reposicion", "Cálculo de reposición", procesoGlobal);
     }
@@ -85,7 +87,7 @@ public class ReposicionServiceImpl implements ReposicionService {
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS"),
             DateTimeFormatter.ofPattern("yyyy-MM-dd"),
             DateTimeFormatter.ofPattern("dd/MM/yyyy"),
-            DateTimeFormatter.ofPattern("MMM d, yyyy h:mm:ss a", java.util.Locale.US)
+            DateTimeFormatter.ofPattern("MMM d, yyyy h:mm:ss a", Locale.US)
     };
 
     public ReposicionServiceImpl(ReposicionConfigRepository configRepository,
@@ -135,11 +137,14 @@ public class ReposicionServiceImpl implements ReposicionService {
         if (dto.idEmpresaDux() != null) config.setIdEmpresaDux(dto.idEmpresaDux());
         if (dto.idsSucursalDux() != null) config.setIdsSucursalDux(dto.idsSucursalDux());
 
-        // Validar que los pesos sumen ~1.0
+        // Validar que los pesos sumen ~1.0 (tolerancia ±0.05). Si todavía no se
+        // cargaron pesos (suma 0), se permite y no se valida.
         BigDecimal sumaPesos = config.getPesoMes1().add(config.getPesoMes2()).add(config.getPesoMes3());
-        if (sumaPesos.compareTo(BigDecimal.ZERO) > 0 && sumaPesos.compareTo(new BigDecimal("1.05")) > 0) {
+        if (sumaPesos.compareTo(BigDecimal.ZERO) > 0
+                && (sumaPesos.compareTo(new BigDecimal("0.95")) < 0
+                || sumaPesos.compareTo(new BigDecimal("1.05")) > 0)) {
             throw new BadRequestException(
-                    String.format("La suma de los pesos (%.2f) no debería exceder 1.0", sumaPesos));
+                    String.format("La suma de los pesos (%.2f) debe ser ~1.0 (entre 0.95 y 1.05)", sumaPesos));
         }
 
         configRepository.save(config);
@@ -403,7 +408,8 @@ public class ReposicionServiceImpl implements ReposicionService {
                             try {
                                 int ctd = Integer.parseInt(det.getCtd().replace(",", ".").split("\\.")[0]);
                                 pendienteClientes.merge(det.getCodItem().trim(), ctd, Integer::sum);
-                            } catch (NumberFormatException ignored) {
+                            } catch (NumberFormatException | ArrayIndexOutOfBoundsException ignored) {
+                                // Cantidad con formato inesperado (ej. "." o vacío): se ignora ese detalle.
                             }
                         }
                     }
@@ -669,7 +675,7 @@ public class ReposicionServiceImpl implements ReposicionService {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             workbook.write(out);
 
-            String fecha = LocalDateTime.now(java.time.ZoneId.of("America/Argentina/Buenos_Aires"))
+            String fecha = LocalDateTime.now(ZoneId.of("America/Argentina/Buenos_Aires"))
                     .format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmm"));
             String filename = "SUGERENCIAS_REPOSICION_" + fecha + ".xlsx";
 
@@ -772,7 +778,7 @@ public class ReposicionServiceImpl implements ReposicionService {
             String provNombre = oc.getProveedor().getApodo() != null
                     ? oc.getProveedor().getApodo() : "SIN_PROVEEDOR";
             provNombre = provNombre.replaceAll("[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ _-]", "").replace(" ", "_");
-            String fecha = LocalDateTime.now(java.time.ZoneId.of("America/Argentina/Buenos_Aires"))
+            String fecha = LocalDateTime.now(ZoneId.of("America/Argentina/Buenos_Aires"))
                     .format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmm"));
             String filename = "ORDEN_COMPRA_" + provNombre + "_" + fecha + ".xlsx";
 
@@ -938,7 +944,7 @@ public class ReposicionServiceImpl implements ReposicionService {
 
         List<Integer> costosCambiados = new ArrayList<>();
         int stockActualizados = 0;
-        LocalDateTime ahora = LocalDateTime.now(java.time.ZoneId.of("America/Argentina/Buenos_Aires"));
+        LocalDateTime ahora = LocalDateTime.now(ZoneId.of("America/Argentina/Buenos_Aires"));
 
         for (Map.Entry<String, DuxItemData> entry : dataMap.entrySet()) {
             String sku = entry.getKey();
@@ -992,7 +998,8 @@ public class ReposicionServiceImpl implements ReposicionService {
                         ventasPorSkuFecha
                                 .computeIfAbsent(det.getCodItem().trim(), k -> new HashMap<>())
                                 .merge(fecha, cantidad, Integer::sum);
-                    } catch (NumberFormatException ignored) {
+                    } catch (NumberFormatException | ArrayIndexOutOfBoundsException ignored) {
+                        // Cantidad con formato inesperado (ej. "." o vacío): se ignora ese detalle.
                     }
                 }
             }

@@ -1,31 +1,39 @@
 package ar.com.leo.super_master_backend.dominio.producto.mapper;
 
 import ar.com.leo.super_master_backend.config.GlobalMapperConfig;
+import ar.com.leo.super_master_backend.dominio.clasif_gastro.entity.ClasifGastro;
+import ar.com.leo.super_master_backend.dominio.clasif_gral.entity.ClasifGral;
+import ar.com.leo.super_master_backend.dominio.marca.entity.Marca;
+import ar.com.leo.super_master_backend.dominio.material.entity.Material;
+import ar.com.leo.super_master_backend.dominio.origen.entity.Origen;
 import ar.com.leo.super_master_backend.dominio.producto.dto.*;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCanalPrecio;
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCanalPrecioInflado;
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoMargen;
 import ar.com.leo.super_master_backend.dominio.producto.mla.entity.Mla;
+import ar.com.leo.super_master_backend.dominio.proveedor.entity.Proveedor;
+import ar.com.leo.super_master_backend.dominio.tipo.entity.Tipo;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 import org.mapstruct.Named;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 @Mapper(config = GlobalMapperConfig.class, imports = {
-        ar.com.leo.super_master_backend.dominio.marca.entity.Marca.class,
-        ar.com.leo.super_master_backend.dominio.origen.entity.Origen.class,
-        ar.com.leo.super_master_backend.dominio.clasif_gral.entity.ClasifGral.class,
-        ar.com.leo.super_master_backend.dominio.clasif_gastro.entity.ClasifGastro.class,
-        ar.com.leo.super_master_backend.dominio.tipo.entity.Tipo.class,
-        ar.com.leo.super_master_backend.dominio.proveedor.entity.Proveedor.class,
-        ar.com.leo.super_master_backend.dominio.material.entity.Material.class,
-        ar.com.leo.super_master_backend.dominio.producto.mla.entity.Mla.class
+        Marca.class,
+        Origen.class,
+        ClasifGral.class,
+        ClasifGastro.class,
+        Tipo.class,
+        Proveedor.class,
+        Material.class,
+        Mla.class
 })
 public interface ProductoMapper {
 
@@ -49,7 +57,6 @@ public interface ProductoMapper {
                 entity.getDescripcion(),
                 entity.getTituloWeb(),
                 entity.getEsCombo(),
-                entity.getClasifGastro() != null ? entity.getClasifGastro().getEsMaquina() : null,
                 entity.getUxb(),
                 entity.getMoq(),
                 entity.getImagenUrl(),
@@ -225,7 +232,7 @@ public interface ProductoMapper {
         String mla = mlaEntity != null ? mlaEntity.getMla() : null;
         String mlau = mlaEntity != null ? mlaEntity.getMlau() : null;
         BigDecimal precioEnvio = mlaEntity != null ? mlaEntity.getPrecioEnvio() : null;
-        java.time.LocalDateTime fechaCalculoEnvio = mlaEntity != null ? mlaEntity.getFechaCalculoEnvio() : null;
+        LocalDateTime fechaCalculoEnvio = mlaEntity != null ? mlaEntity.getFechaCalculoEnvio() : null;
         BigDecimal comisionPorcentaje = mlaEntity != null ? mlaEntity.getComisionPorcentaje() : null;
 
         // Obtener márgenes (si existen)
@@ -250,7 +257,7 @@ public interface ProductoMapper {
                     // Obtener regla de inflado para este producto+canal (si existe)
                     String infCodigo = null;
                     String infTipo = null;
-                    java.math.BigDecimal infValor = null;
+                    BigDecimal infValor = null;
                     if (infladosPorProductoCanal != null) {
                         String infKey = producto.getId() + "_" + canalId;
                         ProductoCanalPrecioInflado pcpi = infladosPorProductoCanal.get(infKey);
@@ -262,7 +269,7 @@ public interface ProductoMapper {
                     }
                     final String finalInfCodigo = infCodigo;
                     final String finalInfTipo = infTipo;
-                    final java.math.BigDecimal finalInfValor = infValor;
+                    final BigDecimal finalInfValor = infValor;
 
                     List<PrecioDTO> preciosList = preciosDelCanal.stream()
                             .map(pcp -> new PrecioDTO(

@@ -14,6 +14,7 @@ import { type SortingState } from "@tanstack/react-table";
 import { CreditCardIcon, PlusIcon, TrashIcon, CheckIcon, XMarkIcon, InformationCircleIcon, ChevronDownIcon, FunnelIcon } from "@heroicons/react/24/outline";
 import ErrorBanner from "../components/ErrorBanner/ErrorBanner";
 import { confirmDialog } from "../utils/confirmDialog";
+import { notificar } from "../utils/notificar";
 import { CanalConceptoCuotaPatchDTO } from "./types";
 import { getCanalesAPI } from "../canales/canalesService";
 import CanalSelectBadge from "../components/CanalSelectBadge/CanalSelectBadge";
@@ -91,6 +92,14 @@ export default function CanalConceptoCuotaPage() {
     const handleCreate = async () => {
         setFormTouched(true);
         if (!canalId) return;
+        if (!(cuotas === -1 || cuotas >= 0)) {
+            notificar.warning("Cuotas inválidas.");
+            return;
+        }
+        if (porcentaje < -100 || porcentaje > 500) {
+            notificar.warning("El porcentaje debe estar entre -100 y 500.");
+            return;
+        }
         setIsSaving(true);
         try {
             await createCuota({ canalId, descripcion, cuotas, porcentaje });

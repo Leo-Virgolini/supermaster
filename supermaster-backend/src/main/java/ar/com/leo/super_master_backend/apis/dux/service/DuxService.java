@@ -36,11 +36,14 @@ import java.io.File;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -664,7 +667,7 @@ public class DuxService {
     // marcada rollback-only y al commit se tiraría UnexpectedRollbackException.
     @Transactional(noRollbackFor = {NotFoundException.class, BadRequestException.class})
     public ImportDuxResultDTO importarProductosSincrono(AtomicBoolean cancelFlag,
-                                                        java.util.function.Consumer<String> logCallback,
+                                                        Consumer<String> logCallback,
                                                         LocalDateTime desde) {
         if (desde != null) {
             logCallback.accept("Obteniendo productos de DUX modificados desde " +
@@ -909,7 +912,7 @@ public class DuxService {
                 uri.append("&conCobro=").append(conCobro);
             }
             if (cliente != null && !cliente.isBlank()) {
-                uri.append("&cliente=").append(URLEncoder.encode(cliente, java.nio.charset.StandardCharsets.UTF_8));
+                uri.append("&cliente=").append(URLEncoder.encode(cliente, StandardCharsets.UTF_8));
             }
             if (anuladas != null) {
                 uri.append("&anuladas=").append(anuladas);
@@ -1036,7 +1039,7 @@ public class DuxService {
             // Mapear comprobantes y descartar los completamente saldados (cobrado >= total)
             List<DeudaClienteDuxDTO> todos = todosComprobantes.stream()
                     .map(f -> DeudaClienteDuxDTO.fromFacturaDux(f, personalesMap))
-                    .filter(d -> d.saldo().compareTo(java.math.BigDecimal.ZERO) > 0)
+                    .filter(d -> d.saldo().compareTo(BigDecimal.ZERO) > 0)
                     .toList();
 
             long facturas = todos.stream().filter(d -> d.tipoComp() != null && (
@@ -1459,7 +1462,7 @@ public class DuxService {
 
     private void cargarTokens() {
         try {
-            File file = java.nio.file.Paths.get(secretsDir).resolve("dux_tokens.json").toFile();
+            File file = Paths.get(secretsDir).resolve("dux_tokens.json").toFile();
             if (file.exists()) {
                 tokens = objectMapper.readValue(file, TokensDux.class);
                 log.info("DUX - Tokens cargados desde {}", file.getAbsolutePath());

@@ -40,7 +40,7 @@ public class ProductoSpecifications {
             String pattern = "%" + texto.toLowerCase() + "%";
 
             // LEFT JOIN para incluir productos sin MLA
-            jakarta.persistence.criteria.Join<Producto, ?> mlaJoin = root.join("mla", JoinType.LEFT);
+            Join<Producto, ?> mlaJoin = root.join("mla", JoinType.LEFT);
 
             return cb.or(
                     cb.like(cb.lower(root.get("sku")), pattern),
@@ -94,7 +94,7 @@ public class ProductoSpecifications {
         };
     }
 
-    public static Specification<Producto> tags(java.util.List<Tag> tags) {
+    public static Specification<Producto> tags(List<Tag> tags) {
         return (root, query, cb) -> {
             if (tags == null || tags.isEmpty()) return null;
             return root.get("tag").in(tags);

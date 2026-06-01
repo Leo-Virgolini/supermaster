@@ -54,6 +54,8 @@ import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -283,7 +285,7 @@ public class CatalogoPdfServiceImpl implements CatalogoPdfService {
             Files.createDirectories(dir);
         }
         String filename = String.format("CATALOGO_%s_%s.pdf", nombreBase,
-                java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")));
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")));
         Path destino = dir.resolve(filename);
         Files.write(destino, archivo);
         log.info("Catálogo PDF guardado en: {}", destino.toAbsolutePath());

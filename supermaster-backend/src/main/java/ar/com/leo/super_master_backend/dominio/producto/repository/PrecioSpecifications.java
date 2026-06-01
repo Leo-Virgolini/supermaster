@@ -7,6 +7,7 @@ import ar.com.leo.super_master_backend.dominio.reposicion.entity.TagReposicion;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
@@ -25,7 +26,7 @@ public class PrecioSpecifications {
      * Obtiene o reutiliza el JOIN a Producto desde ProductoCanalPrecio.
      */
     private static Join<ProductoCanalPrecio, Producto> productoJoin(
-            jakarta.persistence.criteria.Root<ProductoCanalPrecio> root) {
+            Root<ProductoCanalPrecio> root) {
         // Reutilizar join existente si ya fue creado por otra spec
         for (var join : root.getJoins()) {
             if (join.getAttribute().getName().equals("producto")) {
@@ -163,7 +164,7 @@ public class PrecioSpecifications {
         };
     }
 
-    public static Specification<ProductoCanalPrecio> tags(java.util.List<Tag> tags) {
+    public static Specification<ProductoCanalPrecio> tags(List<Tag> tags) {
         return (root, query, cb) -> {
             if (tags == null || tags.isEmpty()) return null;
             return productoJoin(root).get("tag").in(tags);

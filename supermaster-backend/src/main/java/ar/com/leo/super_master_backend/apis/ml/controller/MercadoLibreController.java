@@ -14,6 +14,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import ar.com.leo.super_master_backend.config.Permisos;
 
+import java.util.Map;
+
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/ml")
@@ -58,16 +60,16 @@ public class MercadoLibreController {
         // Si no se proporciona ninguno, iniciar proceso masivo en background
         boolean iniciado = mercadoLibreService.iniciarCalculoCostoEnvioTodos();
         if (iniciado) {
-            return ResponseEntity.accepted().body(java.util.Map.of(
+            return ResponseEntity.accepted().body(Map.of(
                     "mensaje", "Proceso masivo iniciado en background",
                     "iniciado", true,
-                    "endpoints", java.util.Map.of(
+                    "endpoints", Map.of(
                             "estado", "GET /api/ml/costo-envio/estado",
                             "cancelar", "POST /api/ml/costo-envio/cancelar",
                             "resultado", "GET /api/ml/costo-envio/resultado"
                     )));
         }
-        return ResponseEntity.badRequest().body(java.util.Map.of(
+        return ResponseEntity.badRequest().body(Map.of(
                 "mensaje", "Ya hay un proceso masivo en ejecución. Use GET /api/ml/costo-envio/estado para ver el progreso.",
                 "iniciado", false));
     }
@@ -82,11 +84,11 @@ public class MercadoLibreController {
     public ResponseEntity<?> cancelarCostoEnvio() {
         boolean cancelado = mercadoLibreService.cancelarProcesoMasivo();
         if (cancelado) {
-            return ResponseEntity.ok(java.util.Map.of(
+            return ResponseEntity.ok(Map.of(
                     "mensaje", "Solicitud de cancelación enviada. El proceso se detendrá después del MLA actual.",
                     "cancelado", true));
         }
-        return ResponseEntity.ok(java.util.Map.of(
+        return ResponseEntity.ok(Map.of(
                 "mensaje", "No hay proceso masivo en ejecución",
                 "cancelado", false));
     }
@@ -115,7 +117,7 @@ public class MercadoLibreController {
         if (resultado != null) {
             return ResponseEntity.ok(resultado);
         }
-        return ResponseEntity.ok(java.util.Map.of(
+        return ResponseEntity.ok(Map.of(
                 "mensaje", "No hay resultados disponibles. El proceso aún no ha finalizado o no se ha ejecutado.",
                 "disponible", false));
     }
@@ -154,16 +156,16 @@ public class MercadoLibreController {
         // Si no se proporciona ninguno, iniciar proceso masivo en background
         boolean iniciado = mercadoLibreService.iniciarCalculoCostoVentaTodos();
         if (iniciado) {
-            return ResponseEntity.accepted().body(java.util.Map.of(
+            return ResponseEntity.accepted().body(Map.of(
                     "mensaje", "Proceso masivo de costo de venta iniciado en background",
                     "iniciado", true,
-                    "endpoints", java.util.Map.of(
+                    "endpoints", Map.of(
                             "estado", "GET /api/ml/costo-venta/estado",
                             "cancelar", "POST /api/ml/costo-venta/cancelar",
                             "resultado", "GET /api/ml/costo-venta/resultado"
                     )));
         }
-        return ResponseEntity.badRequest().body(java.util.Map.of(
+        return ResponseEntity.badRequest().body(Map.of(
                 "mensaje", "Ya hay un proceso masivo de costo de venta en ejecución. Use GET /api/ml/costo-venta/estado para ver el progreso.",
                 "iniciado", false));
     }
@@ -178,11 +180,11 @@ public class MercadoLibreController {
     public ResponseEntity<?> cancelarCostoVenta() {
         boolean cancelado = mercadoLibreService.cancelarProcesoMasivoCostoVenta();
         if (cancelado) {
-            return ResponseEntity.ok(java.util.Map.of(
+            return ResponseEntity.ok(Map.of(
                     "mensaje", "Solicitud de cancelación enviada. El proceso se detendrá después del MLA actual.",
                     "cancelado", true));
         }
-        return ResponseEntity.ok(java.util.Map.of(
+        return ResponseEntity.ok(Map.of(
                 "mensaje", "No hay proceso masivo de costo de venta en ejecución",
                 "cancelado", false));
     }
@@ -211,7 +213,7 @@ public class MercadoLibreController {
         if (resultado != null) {
             return ResponseEntity.ok(resultado);
         }
-        return ResponseEntity.ok(java.util.Map.of(
+        return ResponseEntity.ok(Map.of(
                 "mensaje", "No hay resultados disponibles. El proceso aún no ha finalizado o no se ha ejecutado.",
                 "disponible", false));
     }

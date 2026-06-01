@@ -2522,7 +2522,7 @@ public class ExcelServiceImpl implements ExcelService {
                             try {
                                 String costoNormalizado = normalizarNumero(costoStr);
                                 BigDecimal costo = new BigDecimal(costoNormalizado)
-                                        .setScale(2, java.math.RoundingMode.HALF_UP); // Redondear a 2 decimales
+                                        .setScale(2, RoundingMode.HALF_UP); // Redondear a 2 decimales
                                 // Validar que no exceda el límite de la columna DECIMAL(10,2)
                                 if (costo.compareTo(COSTO_MAXIMO) > 0) {
                                     errores.add("Fila " + (i + 1) + ": COSTO excede límite (" + costoStr + " > 99,999,999.99)");
@@ -5610,10 +5610,10 @@ public class ExcelServiceImpl implements ExcelService {
         final int MAX_MOSTRAR = 200;
         String detalle;
         if (ids.size() <= MAX_MOSTRAR) {
-            detalle = ids.stream().sorted().map(String::valueOf).collect(java.util.stream.Collectors.joining(", "));
+            detalle = ids.stream().sorted().map(String::valueOf).collect(Collectors.joining(", "));
         } else {
             detalle = ids.stream().sorted().limit(MAX_MOSTRAR).map(String::valueOf)
-                    .collect(java.util.stream.Collectors.joining(", "))
+                    .collect(Collectors.joining(", "))
                     + " ... y " + (ids.size() - MAX_MOSTRAR) + " más";
         }
         errores.add(String.format("%s — %d IDs inexistentes: %s", categoria, ids.size(), detalle));

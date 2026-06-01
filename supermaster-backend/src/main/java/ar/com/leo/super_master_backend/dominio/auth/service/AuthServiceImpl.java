@@ -13,6 +13,7 @@ import ar.com.leo.super_master_backend.dominio.usuario.entity.Usuario;
 import ar.com.leo.super_master_backend.dominio.usuario.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -55,7 +56,7 @@ public class AuthServiceImpl implements AuthService {
         Usuario usuario = usuarioRepository.findByUsernameConRolYPermisos(request.username())
                 .orElseThrow(() -> new NotFoundException("Usuario no encontrado"));
 
-        usuario.setUltimoLogin(java.time.LocalDateTime.now());
+        usuario.setUltimoLogin(LocalDateTime.now());
         usuarioRepository.save(usuario);
 
         auditoriaService.registrarCambios(

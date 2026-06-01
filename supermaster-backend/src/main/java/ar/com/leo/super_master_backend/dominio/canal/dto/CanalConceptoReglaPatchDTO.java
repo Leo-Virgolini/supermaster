@@ -15,7 +15,6 @@ public class CanalConceptoReglaPatchDTO {
     private JsonNullable<Integer> clasifGastroId = JsonNullable.undefined();
     private JsonNullable<Integer> clasifGralId = JsonNullable.undefined();
     private JsonNullable<Integer> marcaId = JsonNullable.undefined();
-    private JsonNullable<Boolean> esMaquina = JsonNullable.undefined();
     private JsonNullable<Tag> tag = JsonNullable.undefined();
     private JsonNullable<Boolean> tieneEnvio = JsonNullable.undefined();
 }

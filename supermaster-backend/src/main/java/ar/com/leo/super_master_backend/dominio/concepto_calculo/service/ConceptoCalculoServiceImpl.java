@@ -2,6 +2,7 @@ package ar.com.leo.super_master_backend.dominio.concepto_calculo.service;
 
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -156,7 +157,7 @@ public class ConceptoCalculoServiceImpl implements ConceptoCalculoService {
 
     private void marcarCanalesDelConcepto(Integer conceptoId, String motivo) {
         // Canales que usan el concepto + sus subcanales (heredan vía PVP base).
-        java.util.LinkedHashSet<Integer> canalIds = new java.util.LinkedHashSet<>();
+        LinkedHashSet<Integer> canalIds = new LinkedHashSet<>();
         canalConceptoRepository.findByConceptoId(conceptoId).stream()
                 .map(cc -> cc.getCanal().getId())
                 .distinct()

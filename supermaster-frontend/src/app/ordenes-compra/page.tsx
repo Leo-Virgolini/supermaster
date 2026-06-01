@@ -144,8 +144,16 @@ export default function OrdenesCompraPage() {
       toast.warning("La cantidad debe ser mayor a 0.");
       return;
     }
+    if (!Number.isInteger(lineaForm.cantidadPedida)) {
+      toast.warning("La cantidad debe ser un número entero.");
+      return;
+    }
     if (lineaForm.costoUnitario < 0) {
       toast.warning("El costo unitario no puede ser negativo.");
+      return;
+    }
+    if (lineas.some((l) => l.productoId === lineaForm.productoId)) {
+      toast.warning("Ese producto ya está en la orden. Quitá la línea existente para cambiarla.");
       return;
     }
     setLineas((prev) => [...prev, {
@@ -387,6 +395,7 @@ export default function OrdenesCompraPage() {
                   <input
                     type="number"
                     min={1}
+                    step={1}
                     className="w-full border border-gray-300 p-2 rounded mt-1 text-sm"
                     value={lineaForm.cantidadPedida}
                     onChange={(e) =>
@@ -399,7 +408,7 @@ export default function OrdenesCompraPage() {
                   <input
                     type="number"
                     min={0}
-                    step="1"
+                    step="0.01"
                     className="w-full border border-gray-300 p-2 rounded mt-1 text-sm"
                     value={lineaForm.costoUnitario}
                     onChange={(e) =>

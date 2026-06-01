@@ -29,16 +29,22 @@ const FONT = {
 function ImagePickerModal({ onSelect, onClose, currentUrl }: { onSelect: (name: string) => void; onClose: () => void; currentUrl?: string }) {
     const [search, setSearch] = useState("");
     const [files, setFiles] = useState<string[]>([]);
+    const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(false);
 
+    const MOSTRAR = 60;
+
     useEffect(() => {
-        if (search.trim().length < 2) { setFiles([]); return; }
+        if (search.trim().length < 2) { setFiles([]); setTotal(0); return; }
         setLoading(true);
         const t = setTimeout(() => {
             fetch(`${API_BASE_URL}/api/imagenes/listar?search=${encodeURIComponent(search)}`)
                 .then((res) => res.json())
-                .then((data) => setFiles(Array.isArray(data) ? data.slice(0, 60) : []))
-                .catch(() => setFiles([]))
+                .then((data) => {
+                    setFiles(Array.isArray(data?.archivos) ? data.archivos.slice(0, MOSTRAR) : []);
+                    setTotal(typeof data?.total === "number" ? data.total : 0);
+                })
+                .catch(() => { setFiles([]); setTotal(0); })
                 .finally(() => setLoading(false));
         }, 300);
         return () => clearTimeout(t);
@@ -71,6 +77,11 @@ function ImagePickerModal({ onSelect, onClose, currentUrl }: { onSelect: (name: 
                             className="w-full text-sm border border-gray-200 dark:border-slate-600 rounded-xl pl-9 pr-3 py-2.5 bg-gray-50/50 dark:bg-slate-700/50 text-gray-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent focus:bg-white dark:focus:bg-slate-700 transition"
                         />
                     </div>
+                    {!loading && total > files.length && (
+                        <div className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                            Mostrando {files.length} de {total} — refiná la búsqueda para acotar.
+                        </div>
+                    )}
                 </div>
 
                 {/* Grid */}

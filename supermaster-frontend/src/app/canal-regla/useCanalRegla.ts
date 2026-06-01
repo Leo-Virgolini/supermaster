@@ -53,6 +53,7 @@ export function useCanalRegla(
 	// Productos no se precargan por volumen: se resuelven on-demand y se cachean.
 	const productoMapRef = useRef<Record<number, string>>({});
 	const mapsLoaded = useRef(false);
+	const latestRequestIdRef = useRef(0);
 
 	const loadMaps = useCallback(async () => {
 		if (mapsLoaded.current) return;
@@ -87,11 +88,13 @@ export function useCanalRegla(
 	}, []);
 
 	const fetchData = useCallback(async () => {
+		const requestId = ++latestRequestIdRef.current;
 		setIsLoading(true);
 		setError(null);
 		try {
 			await loadMaps();
 			const res = await getCanalReglasAPI(pageIndex, pageSize, search, filters, sortParam);
+			if (latestRequestIdRef.current !== requestId) return;
 			const productoIds = (res.content || [])
 				.map((r: any) => r.productoId)
 				.filter((id: number | null | undefined): id is number => id != null);
@@ -110,8 +113,10 @@ export function useCanalRegla(
 			setTotalRecords(res.page?.totalElements || 0);
 			setPageCount(res.page?.totalPages || 0);
 		} catch (e: unknown) {
+			if (latestRequestIdRef.current !== requestId) return;
 			setError(getErrorMessage(e));
 		} finally {
+			if (latestRequestIdRef.current !== requestId) return;
 			setIsLoading(false);
 		}
 	}, [pageIndex, pageSize, search, JSON.stringify(filters), sortParam, loadMaps, resolverProductos]);

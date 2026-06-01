@@ -378,7 +378,7 @@ export default function MlasPage() {
                     </label>
                     <label className="block">
                         <span className="text-sm font-bold text-gray-700">Precio de Envío ($)</span>
-                        <input type="number" className="mt-1 block w-full border rounded p-2" placeholder="0" value={mlaPrecio} onChange={(e) => setMlaPrecio(Number(e.target.value))} />
+                        <input type="number" min="0" className="mt-1 block w-full border rounded p-2" placeholder="0" value={mlaPrecio} onChange={(e) => setMlaPrecio(Number(e.target.value))} />
                     </label>
                     <label className="block">
                         <span className="text-sm font-bold text-gray-700">Tope Promoción</span>

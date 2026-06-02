@@ -41,6 +41,11 @@ export default function ColumnContextMenu({ columnId, onClose, onFilter, current
         activo: async () => [{ id: true, label: "Sí" }, { id: false, label: "No" }],
         esCombo: async () => [{ id: true, label: "Sí" }, { id: false, label: "No" }],
         tagReposicion: async () => [{ id: "PRIO", label: "PRIO" }, { id: "LIQ", label: "LIQ" }],
+        tag: async () => [
+            { id: "MAQUINA", label: "MÁQUINA" },
+            { id: "REPUESTO", label: "REPUESTO" },
+            { id: "MENAJE", label: "MENAJE" },
+        ],
     };
 
     useEffect(() => {

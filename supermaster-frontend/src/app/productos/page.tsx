@@ -267,6 +267,7 @@ export default function ProductosPage() {
         "catalogo": "catalogoIds",
         "apto": "aptoIds",
         "cliente": "clienteIds",
+        "tag": "tags",
     };
 
     // Campos que el backend acepta como valor único (no array)
@@ -278,7 +279,7 @@ export default function ProductosPage() {
         tipoIds: "Tipo", proveedorIds: "Proveedor", origenIds: "Origen", materialIds: "Material",
         mla: "MLA", sku: "SKU", codExt: "Cód. Ext.", descripcion: "Descripción",
         tituloWeb: "Título Web", activo: "Activo", esCombo: "Combo", tagReposicion: "Tag Rep.",
-        catalogoIds: "Catálogo", aptoIds: "Apto", clienteIds: "Cliente",
+        catalogoIds: "Catálogo", aptoIds: "Apto", clienteIds: "Cliente", tags: "Tag",
     };
 
     const [filterValueLabels, setFilterValueLabels] = useState<Record<string, Record<string, string>>>({});

@@ -153,7 +153,16 @@ function ImageUrlCell({ currentUrl, sku, onSave, disabled = false }: {
     disabled?: boolean;
 }) {
     const [pickerOpen, setPickerOpen] = useState(false);
-    const imgSrc = currentUrl ? `${API_BASE_URL}/api/imagenes/${currentUrl}` : "";
+    // Imagen efectiva: la manual (currentUrl) tiene prioridad; si no hay, se resuelve por SKU.
+    const imgSrc = currentUrl
+        ? `${API_BASE_URL}/api/imagenes/${currentUrl}`
+        : sku
+          ? `${API_BASE_URL}/api/imagenes/producto/${encodeURIComponent(sku)}`
+          : "";
+    // Si la imagen no carga (no hay archivo manual ni por SKU), se muestra el placeholder.
+    const [imgError, setImgError] = useState(false);
+    useEffect(() => { setImgError(false); }, [imgSrc]);
+    const mostrarImg = !!imgSrc && !imgError;
 
     return (
         <>
@@ -162,18 +171,18 @@ function ImageUrlCell({ currentUrl, sku, onSave, disabled = false }: {
                     onClick={() => { if (!disabled) setPickerOpen(true); }}
                     disabled={disabled}
                     className={`shrink-0 rounded-lg overflow-hidden border transition ${
-                        currentUrl
+                        mostrarImg
                             ? "border-gray-200 dark:border-slate-600 hover:border-blue-400 hover:shadow-md"
                             : "border-dashed border-gray-300 dark:border-slate-600 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"
                     } ${disabled ? "cursor-default" : "cursor-pointer"}`}
                     title={disabled ? "Imagen" : "Elegir imagen"}
                 >
-                    {currentUrl ? (
+                    {mostrarImg ? (
                         <img
                             src={imgSrc}
                             alt=""
                             className="w-10 h-10 object-contain bg-gray-50 dark:bg-slate-700/50"
-                            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                            onError={() => setImgError(true)}
                         />
                     ) : (
                         <div className="w-10 h-10 flex items-center justify-center bg-gray-50 dark:bg-slate-800 text-gray-400 dark:text-slate-500">

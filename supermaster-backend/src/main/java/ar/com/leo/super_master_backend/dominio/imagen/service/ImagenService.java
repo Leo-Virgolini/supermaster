@@ -7,8 +7,10 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.stream.Stream;
 
 /**
@@ -32,6 +34,8 @@ public class ImagenService {
 
     // Índice cacheado de nombres de archivo de imagen (ya ordenado, case-insensitive).
     private volatile List<String> indice = List.of();
+    // Mapa derivado sku(lowercase) -> nombre de archivo, para resolución O(1) por SKU (sin stats a disco).
+    private volatile Map<String, String> indiceSku = Map.of();
     private volatile long indiceTimestamp = 0L;
 
     public ImagenService(
@@ -39,6 +43,18 @@ public class ImagenService {
             @Value("${app.imagenes-index-ttl-ms:60000}") long ttlMillis) {
         this.baseDir = Path.of(imagenesDir).normalize();
         this.ttlMillis = ttlMillis;
+    }
+
+    /**
+     * Resuelve el nombre del archivo de imagen para un SKU usando el índice cacheado (O(1),
+     * sin stats a disco). Case-insensitive. Devuelve null si no hay archivo para ese SKU.
+     * Ante colisión (mismo SKU con distintas extensiones), gana la de mayor prioridad (jpg primero).
+     */
+    public String resolverArchivoPorSku(String sku) {
+        if (sku == null || sku.isBlank()) {
+            return null;
+        }
+        return obtenerIndiceSku().get(sku.trim().toLowerCase(Locale.ROOT));
     }
 
     /** Busca el archivo de imagen para un SKU probando las extensiones conocidas (acceso directo, sin escanear). */
@@ -78,18 +94,57 @@ public class ImagenService {
     }
 
     private List<String> obtenerIndice() {
-        long ahora = System.currentTimeMillis();
-        if (ahora - indiceTimestamp < ttlMillis) {
-            return indice;
+        refrescarSiExpiro();
+        return indice;
+    }
+
+    private Map<String, String> obtenerIndiceSku() {
+        refrescarSiExpiro();
+        return indiceSku;
+    }
+
+    /** Re-escanea el directorio (lista + mapa por SKU) cuando el índice cacheado expiró. */
+    private void refrescarSiExpiro() {
+        if (System.currentTimeMillis() - indiceTimestamp < ttlMillis) {
+            return;
         }
         synchronized (this) {
             if (System.currentTimeMillis() - indiceTimestamp < ttlMillis) {
-                return indice;
+                return;
             }
-            indice = escanear();
+            List<String> nombres = escanear();
+            indice = nombres;
+            indiceSku = construirMapaSku(nombres);
             indiceTimestamp = System.currentTimeMillis();
-            return indice;
         }
+    }
+
+    /**
+     * Construye el mapa sku(lowercase) → nombre de archivo. Ante colisión (mismo SKU con
+     * distintas extensiones), gana la extensión de mayor prioridad según {@link #EXTENSIONES}.
+     */
+    private static Map<String, String> construirMapaSku(List<String> nombres) {
+        Map<String, String> mapa = new HashMap<>(Math.max(16, nombres.size() * 2));
+        for (String nombre : nombres) {
+            int dot = nombre.lastIndexOf('.');
+            if (dot <= 0) continue;
+            String sku = nombre.substring(0, dot).toLowerCase(Locale.ROOT);
+            String existente = mapa.get(sku);
+            if (existente == null || prioridadExtension(nombre) < prioridadExtension(existente)) {
+                mapa.put(sku, nombre);
+            }
+        }
+        return mapa;
+    }
+
+    /** Índice de prioridad de la extensión del archivo (menor = mayor prioridad; jpg primero). */
+    private static int prioridadExtension(String nombre) {
+        int dot = nombre.lastIndexOf('.');
+        String ext = dot >= 0 ? nombre.substring(dot + 1).toLowerCase(Locale.ROOT) : "";
+        for (int i = 0; i < EXTENSIONES.length; i++) {
+            if (EXTENSIONES[i].equals(ext)) return i;
+        }
+        return Integer.MAX_VALUE;
     }
 
     private List<String> escanear() {

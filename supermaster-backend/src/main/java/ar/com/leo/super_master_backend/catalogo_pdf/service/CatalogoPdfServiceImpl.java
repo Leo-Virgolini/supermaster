@@ -23,6 +23,7 @@ import ar.com.leo.super_master_backend.dominio.catalogo.repository.CatalogoRepos
 import ar.com.leo.super_master_backend.dominio.catalogo_pdf_config.entity.CatalogoPdfConfig;
 import ar.com.leo.super_master_backend.dominio.catalogo_pdf_config.repository.CatalogoPdfConfigRepository;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.repository.ClasifGralRepository;
+import ar.com.leo.super_master_backend.dominio.imagen.service.ImagenService;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCanalPrecio;
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCatalogo;
@@ -78,6 +79,7 @@ public class CatalogoPdfServiceImpl implements CatalogoPdfService {
     private final ProductoCanalPrecioRepository productoCanalPrecioRepository;
     private final CatalogoPdfConfigRepository catalogoPdfConfigRepository;
     private final ClasifGralRepository clasifGralRepository;
+    private final ImagenService imagenService;
 
     @Override
     @Transactional(readOnly = true)
@@ -113,12 +115,17 @@ public class CatalogoPdfServiceImpl implements CatalogoPdfService {
             }
 
             BigDecimal precioFinal = calcularPrecioCatalogo(precioOpt.get(), producto, catalogo);
+            // La imagen manual (imagen_url) tiene prioridad; si no hay, se resuelve por SKU desde la carpeta.
+            String imagenRef = producto.getImagenUrl();
+            if (imagenRef == null || imagenRef.isBlank()) {
+                imagenRef = imagenService.resolverArchivoPorSku(producto.getSku());
+            }
             items.add(new CatalogoPdfItem(
                     producto.getSku(),
                     resolverNombreProducto(producto),
                     precioFinal,
                     producto.getUxb(),
-                    producto.getImagenUrl(),
+                    imagenRef,
                     producto.getMarca() != null ? producto.getMarca().getNombre() : null,
                     producto.getTipo() != null ? producto.getTipo().getNombre() : null
             ));

@@ -88,21 +88,38 @@ GET /api/imagenes/producto/{sku}
 
 El 302 apunta al resource handler existente, que sirve el binario con su cache de 1 día.
 
+**Routing:** los `@RequestMapping` del controller tienen prioridad sobre el resource handler
+`/api/imagenes/**`, así que `/api/imagenes/producto/{sku}` lo atiende el controller y
+`/api/imagenes/{archivo}` (un solo segmento, p. ej. `SKU.jpg`) lo sirve el resource handler.
+No colisionan (el patrón `/producto/{sku}` exige el segmento `producto/`).
+
 ### 3. Frontend — regla de resolución del `src`
 
-En los tres puntos que hoy arman el `src` de la imagen del producto
-(`productos/columns.tsx`, `productos/page.tsx`, y el modal si corresponde):
+**Punto principal:** `ImageUrlCell` en `productos/columns.tsx` (la celda de imagen de la tabla).
+
+URL a usar:
 
 ```
-src = imagenUrl
-        ? `${API_BASE_URL}/api/imagenes/${imagenUrl}`      // override manual
-        : `${API_BASE_URL}/api/imagenes/producto/${encodeURIComponent(sku)}`  // por SKU
+src = currentUrl
+        ? `${API_BASE_URL}/api/imagenes/${currentUrl}`                       // override manual
+        : `${API_BASE_URL}/api/imagenes/producto/${encodeURIComponent(sku)}` // por SKU
 ```
 
-- `onError` del `<img>` → placeholder "sin imagen" (patrón ya usado).
-- El selector manual de imagen no cambia; su valor (`imagenUrl`) sigue teniendo prioridad.
-- Para construir la URL por SKU se necesita el `sku` del producto disponible junto a la
-  celda de imagen (ya está en la fila).
+**Cambio de estructura (no solo del `src`):** hoy la celda renderiza `<img>` **solo si**
+`currentUrl` existe, y su `onError` **oculta** la imagen (`display:none`); el ícono
+placeholder se muestra solo cuando `currentUrl` es vacío. Con el fallback por SKU, el
+componente debe:
+
+1. Intentar SIEMPRE cargar una imagen (de `currentUrl`, o de `/producto/{sku}` si no hay).
+2. Usar un estado local `imgError` (reseteado cuando cambian `currentUrl`/`sku`).
+3. Si `onError` dispara → `imgError = true` → mostrar el ícono placeholder existente.
+
+- El `sku` ya está disponible en la celda (`row.original.sku`, hoy pasado como prop `sku`).
+- El selector manual no cambia; `currentUrl` (= `imagenUrl`) sigue teniendo prioridad.
+
+**Punto secundario (opcional):** el preview de imagen en el form de alta/edición de
+`productos/page.tsx` (~líneas 692-706). Ahí el usuario está editando `imagenUrl`; aplicar el
+mismo fallback por SKU es deseable pero no imprescindible. Decidir en el plan si entra.
 
 ### 4. Backend — catálogo PDF
 
@@ -119,10 +136,13 @@ if (imagenRef == null || imagenRef.isBlank()) {
 Así el override gana; si null se resuelve por SKU; si sigue null, `ImagenComponent` cae al
 placeholder y cuenta el SKU en `productosSinImagen` (comportamiento actual intacto).
 
-**Supuesto:** la carpeta de `ImagenService` (`app.imagenes-dir`) y la que usa el PDF
-(`obtenerImagenesDirGlobal()`) son la misma. `resolverArchivoPorSku` devuelve solo el
-nombre del archivo; `ImagenComponent` lo resuelve contra el dir del PDF. Si en el futuro
-divergen, habría que alinear ambos.
+`CatalogoPdfServiceImpl` usa `@RequiredArgsConstructor`, así que inyectar `ImagenService`
+es agregar un campo `private final ImagenService imagenService;`.
+
+**Verificado:** la carpeta de `ImagenService` (`app.imagenes-dir`) y la que usa el PDF son la
+misma — `obtenerImagenesDirGlobal()` lee ese mismo `@Value("${app.imagenes-dir}")`.
+`resolverArchivoPorSku` devuelve solo el nombre del archivo y `ImagenComponent` lo resuelve
+contra ese dir, así que quedan alineados.
 
 ## Data flow
 

@@ -146,6 +146,47 @@ function ImagePickerModal({ onSelect, onClose, currentUrl }: { onSelect: (name: 
     );
 }
 
+function ImageViewerModal({ src, alt, onClose, onCambiar }: {
+    src: string;
+    alt: string;
+    onClose: () => void;
+    onCambiar?: () => void;
+}) {
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [onClose]);
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={onClose}>
+            <div className="relative flex flex-col items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                <button
+                    onClick={onClose}
+                    className="absolute -top-3 -right-3 z-10 w-8 h-8 rounded-full flex items-center justify-center bg-white text-gray-600 shadow-lg hover:bg-gray-100 transition dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                    title="Cerrar (Esc)"
+                >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+                <img
+                    src={src}
+                    alt={alt}
+                    className="max-w-[90vw] max-h-[80vh] object-contain rounded-lg shadow-2xl bg-white"
+                />
+                {onCambiar && (
+                    <button
+                        onClick={onCambiar}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition"
+                    >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
+                        Cambiar imagen
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+}
+
 function ImageUrlCell({ currentUrl, sku, onSave, disabled = false }: {
     currentUrl: string;
     sku: string;
@@ -153,6 +194,7 @@ function ImageUrlCell({ currentUrl, sku, onSave, disabled = false }: {
     disabled?: boolean;
 }) {
     const [pickerOpen, setPickerOpen] = useState(false);
+    const [viewerOpen, setViewerOpen] = useState(false);
     // Imagen efectiva: la manual (currentUrl) tiene prioridad; si no hay, se resuelve por SKU.
     const imgSrc = currentUrl
         ? `${API_BASE_URL}/api/imagenes/${currentUrl}`
@@ -168,14 +210,17 @@ function ImageUrlCell({ currentUrl, sku, onSave, disabled = false }: {
         <>
             <div className="flex items-center gap-1.5">
                 <button
-                    onClick={() => { if (!disabled) setPickerOpen(true); }}
-                    disabled={disabled}
+                    onClick={() => {
+                        // Con imagen → ver en grande; sin imagen y editable → abrir el selector.
+                        if (mostrarImg) setViewerOpen(true);
+                        else if (!disabled) setPickerOpen(true);
+                    }}
                     className={`shrink-0 rounded-lg overflow-hidden border transition ${
                         mostrarImg
                             ? "border-gray-200 dark:border-slate-600 hover:border-blue-400 hover:shadow-md"
                             : "border-dashed border-gray-300 dark:border-slate-600 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                    } ${disabled ? "cursor-default" : "cursor-pointer"}`}
-                    title={disabled ? "Imagen" : "Elegir imagen"}
+                    } ${(mostrarImg || !disabled) ? "cursor-pointer" : "cursor-default"}`}
+                    title={mostrarImg ? "Ver imagen" : (disabled ? "Imagen" : "Elegir imagen")}
                 >
                     {mostrarImg ? (
                         <img
@@ -205,6 +250,14 @@ function ImageUrlCell({ currentUrl, sku, onSave, disabled = false }: {
                     onSelect={(name) => onSave(name)}
                     onClose={() => setPickerOpen(false)}
                     currentUrl={currentUrl}
+                />
+            )}
+            {viewerOpen && imgSrc && (
+                <ImageViewerModal
+                    src={imgSrc}
+                    alt={currentUrl || sku}
+                    onClose={() => setViewerOpen(false)}
+                    onCambiar={disabled ? undefined : () => { setViewerOpen(false); setPickerOpen(true); }}
                 />
             )}
         </>

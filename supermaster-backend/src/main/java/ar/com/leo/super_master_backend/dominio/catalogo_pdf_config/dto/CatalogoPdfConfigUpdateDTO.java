@@ -24,6 +24,13 @@ public record CatalogoPdfConfigUpdateDTO(
 
         Integer clasifGralId,
 
+        Integer tipoId,
+
+        Integer marcaId,
+
+        @Size(max = 50, message = "El tag no puede exceder 50 caracteres")
+        String tag,
+
         @NotNull(message = "Carátula es obligatoria")
         Boolean caratula,
 

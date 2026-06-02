@@ -54,6 +54,11 @@ type CatalogoPdfConfigItem = {
     ordenarPor: string[];
     clasifGralId?: number | null;
     clasificacion?: string | null;
+    tipoId?: number | null;
+    tipoNombre?: string | null;
+    marcaId?: number | null;
+    marcaNombre?: string | null;
+    tag?: string | null;
     caratula: boolean;
     titulo?: string | null;
     estetica?: string | null;
@@ -70,6 +75,12 @@ type CatalogoPdfConfigFormState = {
     cuotas: string;
     ordenarPor: string[];
     clasifGralId: string;
+    clasifGralLabel: string;
+    tipoId: string;
+    tipoLabel: string;
+    marcaId: string;
+    marcaLabel: string;
+    tag: string;
     caratula: boolean;
     titulo: string;
     estetica: string;
@@ -111,6 +122,12 @@ const emptyConfigForm = (): CatalogoPdfConfigFormState => ({
     cuotas: "0",
     ordenarPor: [],
     clasifGralId: "",
+    clasifGralLabel: "",
+    tipoId: "",
+    tipoLabel: "",
+    marcaId: "",
+    marcaLabel: "",
+    tag: "",
     caratula: true,
     titulo: "",
     estetica: "",
@@ -127,6 +144,12 @@ const configToForm = (config: CatalogoPdfConfigItem): CatalogoPdfConfigFormState
     cuotas: String(config.cuotas ?? 0),
     ordenarPor: Array.isArray(config.ordenarPor) ? config.ordenarPor : [],
     clasifGralId: config.clasifGralId != null ? String(config.clasifGralId) : "",
+    clasifGralLabel: config.clasificacion ?? "",
+    tipoId: config.tipoId != null ? String(config.tipoId) : "",
+    tipoLabel: config.tipoNombre ?? "",
+    marcaId: config.marcaId != null ? String(config.marcaId) : "",
+    marcaLabel: config.marcaNombre ?? "",
+    tag: config.tag ?? "",
     caratula: Boolean(config.caratula),
     titulo: config.titulo ?? "",
     estetica: config.estetica ?? "",
@@ -212,7 +235,6 @@ export default function CatalogosPdfPage() {
 
     const [catalogos, setCatalogos] = useState<OptionItem[]>([]);
     const [canales, setCanales] = useState<OptionItem[]>([]);
-    const [clasifGrales, setClasifGrales] = useState<OptionItem[]>([]);
     const [catalogoId, setCatalogoId] = useState<number | null>(null);
     const [canalId, setCanalId] = useState<number | null>(null);
     const [cuotasCatalogo, setCuotasCatalogo] = useState("");
@@ -469,6 +491,9 @@ export default function CatalogosPdfPage() {
             cuotas: Number(configForm.cuotas || "0"),
             ordenarPor: configForm.ordenarPor,
             clasifGralId: configForm.clasifGralId ? Number(configForm.clasifGralId) : null,
+            tipoId: configForm.tipoId ? Number(configForm.tipoId) : null,
+            marcaId: configForm.marcaId ? Number(configForm.marcaId) : null,
+            tag: configForm.tag || null,
             caratula: configForm.caratula,
             titulo: configForm.titulo.trim() || null,
             estetica: configForm.estetica.trim() || null,
@@ -517,7 +542,6 @@ export default function CatalogosPdfPage() {
     useEffect(() => {
         searchCatalogos("").then((res) => setCatalogos(res.map((r: { id: string | number; label: string }) => ({ id: Number(r.id), label: r.label }))));
         searchCanales("").then((res) => setCanales(res.map((r: { id: string | number; label: string }) => ({ id: Number(r.id), label: r.label }))));
-        searchClasifGral("").then((res) => setClasifGrales(res.map((r: { id: string | number; label: string }) => ({ id: Number(r.id), label: r.label }))));
         cargarConfigsPdf();
         cargarGlobalConfig();
     }, []);
@@ -1356,17 +1380,46 @@ export default function CatalogosPdfPage() {
                         {cargandoModalCuotas && <span className="text-xs text-gray-400 dark:text-slate-500">Cargando cuotas del canal...</span>}
                     </div>
                     <div className="flex flex-col gap-1">
-                        <label className="text-sm font-medium text-gray-700 dark:text-slate-300">Clasif. General</label>
+                        <AsyncSelect
+                            label="Clasif. General"
+                            placeholder="Todas..."
+                            value={configForm.clasifGralId || undefined}
+                            displayValue={configForm.clasifGralLabel}
+                            loadOptions={searchClasifGral}
+                            onChange={(val, label) => { updateConfigField("clasifGralId", val ? String(val) : ""); updateConfigField("clasifGralLabel", label ?? ""); }}
+                        />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        <AsyncSelect
+                            label="Tipo"
+                            placeholder="Todos..."
+                            value={configForm.tipoId || undefined}
+                            displayValue={configForm.tipoLabel}
+                            loadOptions={searchTipos}
+                            onChange={(val, label) => { updateConfigField("tipoId", val ? String(val) : ""); updateConfigField("tipoLabel", label ?? ""); }}
+                        />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        <AsyncSelect
+                            label="Marca"
+                            placeholder="Todas..."
+                            value={configForm.marcaId || undefined}
+                            displayValue={configForm.marcaLabel}
+                            loadOptions={searchMarcas}
+                            onChange={(val, label) => { updateConfigField("marcaId", val ? String(val) : ""); updateConfigField("marcaLabel", label ?? ""); }}
+                        />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        <label className="text-sm font-medium text-gray-700 dark:text-slate-300">Tag</label>
                         <select
-                            value={configForm.clasifGralId}
-                            onChange={(e) => updateConfigField("clasifGralId", e.target.value)}
+                            value={configForm.tag}
+                            onChange={(e) => updateConfigField("tag", e.target.value)}
                             className="border border-gray-300 dark:border-slate-600 rounded p-2 text-sm bg-white dark:bg-slate-700 text-gray-700 dark:text-slate-200"
                         >
-                            <option value="">Todas...</option>
-                            {configForm.clasifGralId && !clasifGrales.some((clasif) => String(clasif.id) === configForm.clasifGralId) && (
-                                <option value={configForm.clasifGralId}>Clasificación actual</option>
-                            )}
-                            {clasifGrales.map((clasif) => <option key={clasif.id} value={clasif.id}>{clasif.label}</option>)}
+                            <option value="">Todos...</option>
+                            <option value="MAQUINA">MÁQUINA</option>
+                            <option value="REPUESTO">REPUESTO</option>
+                            <option value="MENAJE">MENAJE</option>
                         </select>
                     </div>
                     <div className="flex flex-col gap-1">

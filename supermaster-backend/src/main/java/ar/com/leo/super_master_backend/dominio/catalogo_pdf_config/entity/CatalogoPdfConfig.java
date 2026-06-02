@@ -1,5 +1,6 @@
 package ar.com.leo.super_master_backend.dominio.catalogo_pdf_config.entity;
 
+import ar.com.leo.super_master_backend.dominio.producto.entity.Tag;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -42,6 +43,16 @@ public class CatalogoPdfConfig {
 
     @Column(name = "clasif_gral_id")
     private Integer clasifGralId;
+
+    @Column(name = "tipo_id")
+    private Integer tipoId;
+
+    @Column(name = "marca_id")
+    private Integer marcaId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tag", length = 50)
+    private Tag tag;
 
     @NotNull
     @Column(name = "caratula", nullable = false)

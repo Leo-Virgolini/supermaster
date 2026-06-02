@@ -18,6 +18,11 @@ import ar.com.leo.super_master_backend.dominio.clasif_gral.entity.ClasifGral;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.repository.ClasifGralRepository;
 import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
+import ar.com.leo.super_master_backend.dominio.marca.entity.Marca;
+import ar.com.leo.super_master_backend.dominio.marca.repository.MarcaRepository;
+import ar.com.leo.super_master_backend.dominio.producto.entity.Tag;
+import ar.com.leo.super_master_backend.dominio.tipo.entity.Tipo;
+import ar.com.leo.super_master_backend.dominio.tipo.repository.TipoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -39,6 +44,8 @@ public class CatalogoPdfConfigServiceImpl implements CatalogoPdfConfigService {
     private final CanalRepository canalRepository;
     private final CatalogoRepository catalogoRepository;
     private final ClasifGralRepository clasifGralRepository;
+    private final TipoRepository tipoRepository;
+    private final MarcaRepository marcaRepository;
     private final AuditoriaService auditoriaService;
 
     @Override
@@ -64,7 +71,7 @@ public class CatalogoPdfConfigServiceImpl implements CatalogoPdfConfigService {
     @Transactional
     public CatalogoPdfConfigDTO crear(CatalogoPdfConfigCreateDTO dto) {
         CatalogoPdfConfig entity = new CatalogoPdfConfig();
-        apply(entity, dto.nombre(), dto.canalId(), dto.catalogoId(), dto.cuotas(), dto.ordenarPor(), dto.clasifGralId(), dto.caratula(), dto.titulo(), dto.estetica(), dto.tipoDocumento(), dto.productosPorPagina(), dto.ubicacionSalida(), dto.activo());
+        apply(entity, dto.nombre(), dto.canalId(), dto.catalogoId(), dto.cuotas(), dto.ordenarPor(), dto.clasifGralId(), dto.tipoId(), dto.marcaId(), dto.tag(), dto.caratula(), dto.titulo(), dto.estetica(), dto.tipoDocumento(), dto.productosPorPagina(), dto.ubicacionSalida(), dto.activo());
         repository.save(entity);
         auditoriaService.registrarCambios(
                 AuditoriaEntidad.CATALOGO_PDF_CONFIG,
@@ -84,7 +91,7 @@ public class CatalogoPdfConfigServiceImpl implements CatalogoPdfConfigService {
                 .orElseThrow(() -> new NotFoundException("Configuración de catálogo PDF no encontrada"));
         Map<String, String> estadoAnterior = capturarSnapshot(entity);
 
-        apply(entity, dto.nombre(), dto.canalId(), dto.catalogoId(), dto.cuotas(), dto.ordenarPor(), dto.clasifGralId(), dto.caratula(), dto.titulo(), dto.estetica(), dto.tipoDocumento(), dto.productosPorPagina(), dto.ubicacionSalida(), dto.activo());
+        apply(entity, dto.nombre(), dto.canalId(), dto.catalogoId(), dto.cuotas(), dto.ordenarPor(), dto.clasifGralId(), dto.tipoId(), dto.marcaId(), dto.tag(), dto.caratula(), dto.titulo(), dto.estetica(), dto.tipoDocumento(), dto.productosPorPagina(), dto.ubicacionSalida(), dto.activo());
         repository.save(entity);
         auditoriaService.registrarCambios(
                 AuditoriaEntidad.CATALOGO_PDF_CONFIG,
@@ -116,7 +123,8 @@ public class CatalogoPdfConfigServiceImpl implements CatalogoPdfConfigService {
     }
 
     private void apply(CatalogoPdfConfig entity, String nombre, Integer canalId, Integer catalogoId, Integer cuotas,
-                       List<String> ordenarPor, Integer clasifGralId, Boolean caratula, String titulo, String estetica,
+                       List<String> ordenarPor, Integer clasifGralId, Integer tipoId, Integer marcaId, String tag,
+                       Boolean caratula, String titulo, String estetica,
                        String tipoDocumento, Integer productosPorPagina, String ubicacionSalida, Boolean activo) {
         if (canalId == null) {
             throw new BadRequestException("El canal es obligatorio");
@@ -131,6 +139,12 @@ public class CatalogoPdfConfigServiceImpl implements CatalogoPdfConfigService {
         ClasifGral clasifGral = clasifGralId != null
                 ? clasifGralRepository.findById(clasifGralId).orElseThrow(() -> new NotFoundException("Clasificación general no encontrada: " + clasifGralId))
                 : null;
+        Tipo tipo = tipoId != null
+                ? tipoRepository.findById(tipoId).orElseThrow(() -> new NotFoundException("Tipo no encontrado: " + tipoId))
+                : null;
+        Marca marca = marcaId != null
+                ? marcaRepository.findById(marcaId).orElseThrow(() -> new NotFoundException("Marca no encontrada: " + marcaId))
+                : null;
 
         entity.setNombre(trimToNull(nombre));
         entity.setCanalId(canal.getId());
@@ -138,6 +152,9 @@ public class CatalogoPdfConfigServiceImpl implements CatalogoPdfConfigService {
         entity.setCuotas(cuotas);
         entity.setOrdenarPor(normalizeOrdenarPor(ordenarPor));
         entity.setClasifGralId(clasifGral != null ? clasifGral.getId() : null);
+        entity.setTipoId(tipo != null ? tipo.getId() : null);
+        entity.setMarcaId(marca != null ? marca.getId() : null);
+        entity.setTag(parseTag(tag));
         entity.setCaratula(caratula);
         entity.setTitulo(trimToNull(titulo));
         entity.setEstetica(parseEstetica(estetica));
@@ -161,6 +178,12 @@ public class CatalogoPdfConfigServiceImpl implements CatalogoPdfConfigService {
         String clasificacion = entity.getClasifGralId() != null
                 ? clasifGralRepository.findById(entity.getClasifGralId()).map(ClasifGral::getNombre).orElse(null)
                 : null;
+        String tipoNombre = entity.getTipoId() != null
+                ? tipoRepository.findById(entity.getTipoId()).map(Tipo::getNombre).orElse(null)
+                : null;
+        String marcaNombre = entity.getMarcaId() != null
+                ? marcaRepository.findById(entity.getMarcaId()).map(Marca::getNombre).orElse(null)
+                : null;
 
         return new CatalogoPdfConfigDTO(
                 entity.getId(),
@@ -173,6 +196,11 @@ public class CatalogoPdfConfigServiceImpl implements CatalogoPdfConfigService {
                 splitOrdenarPor(entity.getOrdenarPor()),
                 entity.getClasifGralId(),
                 clasificacion,
+                entity.getTipoId(),
+                tipoNombre,
+                entity.getMarcaId(),
+                marcaNombre,
+                entity.getTag() != null ? entity.getTag().name() : null,
                 entity.getCaratula(),
                 entity.getTitulo(),
                 entity.getEstetica() != null ? entity.getEstetica().name().replace('_', ' ') : null,
@@ -199,6 +227,18 @@ public class CatalogoPdfConfigServiceImpl implements CatalogoPdfConfigService {
             return null;
         }
         return CatalogoPdfTipoDocumento.valueOf(normalized.toUpperCase(Locale.ROOT));
+    }
+
+    private Tag parseTag(String value) {
+        String normalized = trimToNull(value);
+        if (normalized == null) {
+            return null;
+        }
+        try {
+            return Tag.valueOf(normalized.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException("Tag inválido: " + value);
+        }
     }
 
     private String normalizeOrdenarPor(List<String> values) {
@@ -253,6 +293,9 @@ public class CatalogoPdfConfigServiceImpl implements CatalogoPdfConfigService {
         snapshot.put("ordenarPor", normalizar(entity.getOrdenarPor()));
         snapshot.put("clasifGralId", normalizarNumero(entity.getClasifGralId()));
         snapshot.put("clasifGral", obtenerClasifGralNombre(entity.getClasifGralId()));
+        snapshot.put("tipoId", normalizarNumero(entity.getTipoId()));
+        snapshot.put("marcaId", normalizarNumero(entity.getMarcaId()));
+        snapshot.put("tag", entity.getTag() != null ? entity.getTag().name() : null);
         snapshot.put("caratula", normalizarBoolean(entity.getCaratula()));
         snapshot.put("titulo", normalizar(entity.getTitulo()));
         snapshot.put("estetica", entity.getEstetica() != null ? entity.getEstetica().name() : null);

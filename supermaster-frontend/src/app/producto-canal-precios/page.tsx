@@ -29,6 +29,7 @@ const MonitorPrecios = dynamic(() => import("./MonitorPrecios"), {
 });
 
 import { SORT_FIELD_MAP } from "./sortMap";
+import { construirFiltroCanal, cuotasDeshabilitadas } from "./canalFiltro";
 
 export default function ProductoCanalPreciosPage() {
     const { procesos, tieneConflicto } = useProcesoActivo();
@@ -52,8 +53,9 @@ export default function ProductoCanalPreciosPage() {
         () => sorting.map((s) => ({ ...s, id: SORT_FIELD_MAP[s.id] ?? s.id })),
         [sorting]
     );
-    // null = aún no inicializado, "all" = todos, number = canal/cuota específico
-    const [selectedCanalId, setSelectedCanalId] = useState<number | "all" | null>(null);
+    // Canales: null = aún no inicializado, [] = todos, [n…] = canales específicos.
+    const [selectedCanales, setSelectedCanales] = useState<number[] | null>(null);
+    // Cuotas: null = no inicializado, "all" = todas, number = cuota específica.
     const [selectedCuotas, setSelectedCuotas] = useState<number | "all" | null>(null);
 
     // Estado loading por fila (Recalcular individual)
@@ -75,11 +77,15 @@ export default function ProductoCanalPreciosPage() {
     const filters = useMemo(() => {
         const f: Record<string, any> = {};
         // null = no inicializado todavía → _ready=false para que el hook no fetche
-        if (selectedCanalId === null) { f._ready = false; return f; }
-        if (selectedCanalId !== "all") f.canalId = selectedCanalId;
-        if (selectedCuotas != null && selectedCuotas !== "all") f.cuotas = selectedCuotas;
+        if (selectedCanales === null) { f._ready = false; return f; }
+        // [] = todos (sin filtro); 1 canal → canalId; 2+ → canalIds.
+        Object.assign(f, construirFiltroCanal(selectedCanales));
+        // Las cuotas solo aplican con 0 o 1 canal (con 2+ se fuerzan a "Todas").
+        if (!cuotasDeshabilitadas(selectedCanales) && selectedCuotas != null && selectedCuotas !== "all") {
+            f.cuotas = selectedCuotas;
+        }
         return f;
-    }, [selectedCanalId, selectedCuotas]);
+    }, [selectedCanales, selectedCuotas]);
 
     // Hook de Datos
     const {
@@ -342,7 +348,7 @@ export default function ProductoCanalPreciosPage() {
                     onVerFormula={handleVerFormula}
                     calcLoading={calcLoading}
                     globalLoading={recalculoMasivoActivo}
-                    onCanalChange={(id) => { setSelectedCanalId(id as any); setPageIndex(0); }}
+                    onCanalChange={(canales) => { setSelectedCanales(canales); setPageIndex(0); }}
                     onCuotasChange={(c) => { setSelectedCuotas(c as any); setPageIndex(0); }}
                     onSortingChange={(s) => { setSorting(s); setPageIndex(0); }}
 

@@ -8,6 +8,7 @@ import {
     type SortingState,
 } from "@tanstack/react-table";
 import { ProductoCanalPrecioDTO, PrecioCalculado, DescuentoAplicable } from "./types";
+import { toggleCanal, cuotasDeshabilitadas, claveCanalPersistencia } from "./canalFiltro";
 import { getCanalesAPI } from "../canales/canalesService";
 import { getProductoMargenAPI, type ProductoMargenDTO } from "../productos/productoMargenService";
 import SearchInput from "../components/SearchInput/SearchInput";
@@ -108,7 +109,7 @@ interface Props {
     onVerFormula: (productoId: number, canalId: number, cuotas: number) => void;
     calcLoading: Record<number, boolean>;
     globalLoading: boolean;
-    onCanalChange?: (canalId: number | "all" | null) => void;
+    onCanalChange?: (canales: number[]) => void;
     onCuotasChange?: (cuotas: number | "all" | null) => void;
     onSortingChange?: (sorting: SortingState) => void;
     error?: string | null;
@@ -176,13 +177,15 @@ const markupColor = (val: number | null | undefined) => {
 function aplanarParaExport(
     data: ProductoCanalPrecioDTO[],
     margenesMap: Record<number, ProductoMargenDTO | null>,
-    filtro: { canal: number | "all"; cuotas: number | "all" | null },
+    filtro: { canales: number[]; cuotas: number | "all" | null },
 ): FilaComparador[] {
+    // [] = todos; [n…] = solo esos canales.
+    const canalSet = filtro.canales.length > 0 ? new Set(filtro.canales) : null;
     const result: FilaComparador[] = [];
     for (const prod of data) {
-        const canales = filtro.canal === "all"
+        const canales = canalSet === null
             ? (prod.canales ?? [])
-            : (prod.canales ?? []).filter((c) => c.canalId === filtro.canal);
+            : (prod.canales ?? []).filter((c) => canalSet.has(c.canalId));
         const margen = margenesMap[prod.id];
 
         const buildFila = (precio: PrecioCalculado, canalId: number, canalNombre: string, precioIdx: number): FilaComparador => ({
@@ -1067,7 +1070,7 @@ const getColumns = (
 type BadgeOption = { value: string | number; label: string; [k: string]: unknown };
 
 function BadgeSelect({
-    icon, label, value, options, renderBadge, onChange,
+    icon, label, value, options, renderBadge, onChange, disabled = false,
 }: {
     icon: React.ReactNode;
     label: string;
@@ -1075,6 +1078,7 @@ function BadgeSelect({
     options: BadgeOption[];
     renderBadge: (label: string, option?: BadgeOption) => React.ReactNode;
     onChange: (value: string | number) => void;
+    disabled?: boolean;
 }) {
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
@@ -1096,15 +1100,18 @@ function BadgeSelect({
             <span className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">{label}</span>
             <button
                 type="button"
-                onClick={() => setOpen(!open)}
-                className="flex items-center gap-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-md px-2.5 py-1.5 bg-white dark:bg-slate-800 hover:border-blue-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition min-w-[100px]"
+                disabled={disabled}
+                onClick={() => { if (!disabled) setOpen(!open); }}
+                className={`flex items-center gap-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-md px-2.5 py-1.5 bg-white dark:bg-slate-800 transition min-w-[100px] ${
+                    disabled ? "opacity-50 cursor-not-allowed" : "hover:border-blue-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                }`}
             >
                 {renderBadge(selected.label, selected)}
                 <svg className="w-3.5 h-3.5 text-gray-400 ml-auto shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
             </button>
-            {open && (
+            {open && !disabled && (
                 <div className="absolute top-full left-0 mt-1 z-50 min-w-[180px] max-h-72 overflow-auto rounded-lg border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-lg py-1">
                     {options.map((opt) => (
                         <button
@@ -1118,6 +1125,106 @@ function BadgeSelect({
                             {renderBadge(opt.label, opt)}
                         </button>
                     ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+/** Casilla de verificación visual (no es un <input>; el click lo maneja el botón padre). */
+function CheckBox({ checked }: { checked: boolean }) {
+    return (
+        <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+            checked ? "bg-blue-600 border-blue-600" : "border-gray-300 dark:border-slate-500"
+        }`}>
+            {checked && (
+                <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+            )}
+        </span>
+    );
+}
+
+/**
+ * Selector de canales con multi-selección por checkboxes y opción "TODOS"
+ * exclusiva. `selected` es la lista de canales elegidos (`[]` = TODOS).
+ * No cierra el dropdown al elegir (permite marcar varios); cierra al click afuera.
+ * Cada cambio se notifica vía `onToggle(value | "all")`; la regla TODOS-exclusivo
+ * la resuelve el padre con `toggleCanal`.
+ */
+function BadgeMultiSelect({
+    icon, label, selected, options, allLabel, renderBadge, onToggle,
+}: {
+    icon: React.ReactNode;
+    label: string;
+    selected: number[];
+    options: { value: number; label: string }[];
+    allLabel: string;
+    renderBadge: (label: string) => React.ReactNode;
+    onToggle: (value: number | "all") => void;
+}) {
+    const [open, setOpen] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!open) return;
+        const handleClick = (e: MouseEvent) => {
+            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+        };
+        document.addEventListener("mousedown", handleClick);
+        return () => document.removeEventListener("mousedown", handleClick);
+    }, [open]);
+
+    const isAll = selected.length === 0;
+    const selectedSet = new Set(selected);
+
+    return (
+        <div className="flex items-center gap-1.5 relative" ref={ref}>
+            {icon}
+            <span className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">{label}</span>
+            <button
+                type="button"
+                onClick={() => setOpen(!open)}
+                className="flex items-center gap-1.5 text-sm border border-gray-300 dark:border-slate-600 rounded-md px-2.5 py-1.5 bg-white dark:bg-slate-800 hover:border-blue-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition min-w-[100px]"
+            >
+                {isAll ? (
+                    renderBadge(allLabel)
+                ) : (
+                    <span className="flex flex-wrap items-center gap-1">
+                        {options.filter((o) => selectedSet.has(o.value)).map((o) => (
+                            <span key={o.value}>{renderBadge(o.label)}</span>
+                        ))}
+                    </span>
+                )}
+                <svg className="w-3.5 h-3.5 text-gray-400 ml-auto shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+            </button>
+            {open && (
+                <div className="absolute top-full left-0 mt-1 z-50 min-w-[180px] max-h-72 overflow-auto rounded-lg border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-lg py-1">
+                    <button
+                        type="button"
+                        onClick={() => onToggle("all")}
+                        className={`w-full px-3 py-1.5 flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-slate-700 transition ${isAll ? "bg-blue-50 dark:bg-blue-900/20" : ""}`}
+                    >
+                        <CheckBox checked={isAll} />
+                        {renderBadge(allLabel)}
+                    </button>
+                    {options.map((opt) => {
+                        const checked = selectedSet.has(opt.value);
+                        return (
+                            <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() => onToggle(opt.value)}
+                                className={`w-full px-3 py-1.5 flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-slate-700 transition ${checked ? "bg-blue-50 dark:bg-blue-900/20" : ""}`}
+                            >
+                                <CheckBox checked={checked} />
+                                {renderBadge(opt.label)}
+                            </button>
+                        );
+                    })}
                 </div>
             )}
         </div>
@@ -1151,12 +1258,14 @@ export default function MonitorPrecios({
             };
         }
     };
-    const [selectedCanal, setSelectedCanal] = useState<number | "all" | null>(null);
+    // null = no inicializado, [] = todos, [n…] = canales específicos.
+    const [selectedCanales, setSelectedCanales] = useState<number[] | null>(null);
     const [selectedCuotas, setSelectedCuotas] = useState<number | "all" | null>(null);
     const [showHelp, setShowHelp] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-    const storageKey = `hiddenColumns_monitor-precios_${selectedCanal ?? "none"}`;
-    const presetStorageKey = `columnPreset_monitor-precios_${selectedCanal ?? "none"}`;
+    const canalPersistKey = selectedCanales === null ? "none" : claveCanalPersistencia(selectedCanales);
+    const storageKey = `hiddenColumns_monitor-precios_${canalPersistKey}`;
+    const presetStorageKey = `columnPreset_monitor-precios_${canalPersistKey}`;
     const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(() => {
         if (typeof window === "undefined") return new Set();
         try {
@@ -1191,9 +1300,9 @@ export default function MonitorPrecios({
             .then((res) => {
                 const canales = (res.content ?? []).map((c: any) => ({ id: c.id, nombre: c.nombre }));
                 setCanalesDisponibles(canales);
-                if (selectedCanal == null) {
-                    setSelectedCanal("all");
-                    onCanalChange?.("all");
+                if (selectedCanales == null) {
+                    setSelectedCanales([]);
+                    onCanalChange?.([]);
                 }
             })
             .catch((e) => console.warn("No se pudieron cargar canales:", e));
@@ -1204,16 +1313,21 @@ export default function MonitorPrecios({
 
     // Cargar cuotas disponibles desde la configuración canal-concepto-cuotas (fuente de verdad)
     useEffect(() => {
-        if (selectedCanal == null) return;
+        if (selectedCanales == null) return;
         setEfectiveCuotas([]);
+
+        // Con 2+ canales el filtro de cuotas se deshabilita y se fuerza a "Todas":
+        // no tiene sentido listar cuotas mezcladas entre canales distintos.
+        if (cuotasDeshabilitadas(selectedCanales)) return;
 
         // Token de cancelación: si el canal cambia antes de que llegue la respuesta,
         // marcamos esta request como obsoleta para no pisar los datos del nuevo canal.
         let cancelado = false;
 
-        const promise = selectedCanal === "all"
+        // [] = todos → cuotas globales; [n] = un canal → cuotas de ese canal.
+        const promise = selectedCanales.length === 0
             ? getCuotasAPI(0, 200, "", {}, "cuotas,asc").then((res) => res.content ?? [])
-            : getCuotasPorCanalAPI(selectedCanal as number);
+            : getCuotasPorCanalAPI(selectedCanales[0]);
 
         promise
             .then((items) => {
@@ -1233,7 +1347,7 @@ export default function MonitorPrecios({
             .catch(() => { if (!cancelado) setEfectiveCuotas([]); });
 
         return () => { cancelado = true; };
-    }, [selectedCanal]);
+    }, [selectedCanales]);
 
     // Cargar márgenes configurados para los productos de la página
     const [margenesMap, setMargenesMap] = useState<Record<number, ProductoMargenDTO | null>>({});
@@ -1277,15 +1391,15 @@ export default function MonitorPrecios({
     // Aplanar datos: buscar precio según canal/cuotas seleccionados.
     // Comparte la transformación con `aplanarParaExport` (ver helper externo).
     const filas: FilaComparador[] = useMemo(() => {
-        if (selectedCanal == null) return [];
+        if (selectedCanales == null) return [];
         return aplanarParaExport(data, margenesMap, {
-            canal: selectedCanal,
+            canales: selectedCanales,
             cuotas: selectedCuotas,
         });
-    }, [data, selectedCanal, selectedCuotas, margenesMap]);
+    }, [data, selectedCanales, selectedCuotas, margenesMap]);
 
     // Limpiar selección cuando cambian las filas
-    useEffect(() => { setSelectedIds(new Set()); }, [data, selectedCanal, selectedCuotas]);
+    useEffect(() => { setSelectedIds(new Set()); }, [data, selectedCanales, selectedCuotas]);
 
     // Cargar columnas ocultas cuando cambia el canal
     useEffect(() => {
@@ -1494,7 +1608,7 @@ export default function MonitorPrecios({
             try {
                 const allData = await onExportAll();
                 const filasExport = aplanarParaExport(allData, margenesMap, {
-                    canal: selectedCanal ?? "all",
+                    canales: selectedCanales ?? [],
                     cuotas: selectedCuotas,
                 }).map((r) => ({
                     ...r,
@@ -1558,37 +1672,39 @@ export default function MonitorPrecios({
                             initialValue={search}
                             onSearch={(val) => { onSearch(val); onPageChange(0); }}
                         />
-                        <BadgeSelect
+                        <BadgeMultiSelect
                             icon={<ChartBarIcon className="w-4 h-4 text-gray-400 dark:text-slate-500" />}
                             label="Canal"
-                            value={selectedCanal ?? "all"}
-                            options={[
-                                { value: "all", label: "Todos" },
-                                ...canalesDisponibles.map((c) => ({ value: c.id, label: c.nombre })),
-                            ]}
+                            selected={selectedCanales ?? []}
+                            allLabel="Todos"
+                            options={canalesDisponibles.map((c) => ({ value: c.id, label: c.nombre }))}
                             renderBadge={(label) => {
                                 if (label === "Todos") return <span className={`${CANAL_BADGE_CLASS} text-gray-700 bg-gray-100 dark:text-slate-200 dark:bg-slate-700`}>{label}</span>;
                                 const colors = getCanalColor(label);
                                 return <span className={`${CANAL_BADGE_CLASS} ${colors}`}>{label}</span>;
                             }}
-                            onChange={(v) => {
-                                const val = v === "all" ? "all" as const : Number(v);
-                                setSelectedCanal(val);
-                                setSelectedCuotas("all");
-                                onCanalChange?.(val);
-                                onCuotasChange?.("all");
+                            onToggle={(v) => {
+                                const next = toggleCanal(selectedCanales ?? [], v);
+                                setSelectedCanales(next);
+                                onCanalChange?.(next);
+                                // Con 2+ canales el filtro de cuotas se fuerza a "Todas".
+                                if (cuotasDeshabilitadas(next)) {
+                                    setSelectedCuotas("all");
+                                    onCuotasChange?.("all");
+                                }
                                 onPageChange(0);
                             }}
                         />
                         <BadgeSelect
                             icon={<CreditCardIcon className="w-4 h-4 text-gray-400 dark:text-slate-500" />}
                             label="Cuotas"
+                            disabled={cuotasDeshabilitadas(selectedCanales ?? [])}
                             value={selectedCuotas ?? "all"}
                             options={[
                                 { value: "all", label: "Todas" },
                                 ...efectiveCuotas.map((c) => ({
                                     value: c.cuotas,
-                                    label: selectedCanal === "all"
+                                    label: (selectedCanales?.length ?? 0) === 0
                                         ? (c.cuotas === -1 ? "Transferencia"
                                             : c.cuotas === 0 ? "Contado"
                                             : `${c.cuotas} ${c.cuotas === 1 ? "cuota" : "cuotas"}`)

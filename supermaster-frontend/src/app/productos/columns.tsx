@@ -296,7 +296,7 @@ export function getColumns(onOpenDetalle: (producto: ProductoDTO) => void, canEd
 
     // --- IMAGEN ---
     {
-        accessorKey: "imagenUrl", header: "Imagen", size: 100, enableColumnFilter: false, meta: { editable: true },
+        accessorKey: "imagenUrl", header: "Imagen", size: 100, enableSorting: false, enableColumnFilter: false, meta: { editable: true },
         cell: ({ getValue, row, column, table }) => (
             <ImageUrlCell
                 currentUrl={String(getValue() || "")}
@@ -526,14 +526,14 @@ export function getColumns(onOpenDetalle: (producto: ProductoDTO) => void, canEd
         }
     },
     {
-        id: "apto", accessorKey: "aptos", header: "Apto", size: 100, enableSorting: false,
+        id: "apto", accessorKey: "aptos", header: "Apto", size: 100,
         cell: ({ getValue }) => {
             const vals = getValue() as string[] | null;
             return vals?.length ? <span className="text-xs text-gray-600 dark:text-slate-300">{vals.join(", ")}</span> : <span className="text-gray-400 dark:text-slate-500">{EMPTY}</span>;
         }
     },
     {
-        id: "cliente", accessorKey: "clientes", header: "Cliente", size: 120, enableSorting: false,
+        id: "cliente", accessorKey: "clientes", header: "Cliente", size: 120,
         cell: ({ getValue }) => {
             const vals = getValue() as string[] | null;
             return vals?.length ? <span className="text-xs text-gray-600 dark:text-slate-300">{vals.join(", ")}</span> : <span className="text-gray-400 dark:text-slate-500">{EMPTY}</span>;

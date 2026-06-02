@@ -1162,16 +1162,12 @@ public class ExcelServiceImpl implements ExcelService {
         }
         log.info("   ✓ {} catálogos fijos creados: {}", catalogosFijos.length, String.join(", ", catalogosFijos));
 
-        // Crear canales fijos
-        String[] canalesFijos = {"ML", "KT HOGAR", "KT GASTRO", "LINEA GE", "LIZZY"};
-        for (String nombre : canalesFijos) {
-            buscarOCrearCanal(nombre);
-        }
-        log.info("   ✓ {} canales fijos creados: {}", canalesFijos.length, String.join(", ", canalesFijos));
+        // Los canales NO se crean desde la importación: deben existir previamente
+        // (se gestionan desde la sección Canales). Si falta alguno, las operaciones
+        // que lo referencian (p. ej. PROMO → KT HOGAR) se omiten con un warning.
 
         // Flush final para asegurar que todas las entidades se guarden
         catalogoRepository.flush();
-        canalRepository.flush();
         // marcaRepository, tipoRepository, origenRepository, materialRepository, proveedorRepository,
         // clasifGralRepository y clasifGastroRepository se flushan al procesar VALIDACIONES
 
@@ -1693,23 +1689,24 @@ public class ExcelServiceImpl implements ExcelService {
                                         return precioInfladoRepository.save(nuevo);
                                     }));
 
-                            Canal canalKt = buscarOCrearCanal("KT HOGAR");
-                            if (canalKt.getId() == null) {
-                                canalKt = canalRepository.save(canalKt);
-                            }
-                            final Canal canalKtFinal = canalKt;
+                            Canal canalKt = buscarCanal("KT HOGAR");
+                            if (canalKt == null) {
+                                log.warn("Canal 'KT HOGAR' no existe; se omite PROMO para SKU {}", skuFinal);
+                            } else {
+                                final Canal canalKtFinal = canalKt;
 
-                            Optional<ProductoCanalPrecioInflado> existenteOpt = productoCanalPrecioInfladoRepository
-                                    .findByProductoIdAndCanalId(productoFinal.getId(), canalKtFinal.getId());
-                            ProductoCanalPrecioInflado pcpi = existenteOpt.orElseGet(() -> {
-                                ProductoCanalPrecioInflado nuevo = new ProductoCanalPrecioInflado();
-                                nuevo.setProducto(productoFinal);
-                                nuevo.setCanal(canalKtFinal);
-                                return nuevo;
-                            });
-                            pcpi.setPrecioInflado(precioInflado);
-                            pcpi.setActivo(true);
-                            productoCanalPrecioInfladoRepository.save(pcpi);
+                                Optional<ProductoCanalPrecioInflado> existenteOpt = productoCanalPrecioInfladoRepository
+                                        .findByProductoIdAndCanalId(productoFinal.getId(), canalKtFinal.getId());
+                                ProductoCanalPrecioInflado pcpi = existenteOpt.orElseGet(() -> {
+                                    ProductoCanalPrecioInflado nuevo = new ProductoCanalPrecioInflado();
+                                    nuevo.setProducto(productoFinal);
+                                    nuevo.setCanal(canalKtFinal);
+                                    return nuevo;
+                                });
+                                pcpi.setPrecioInflado(precioInflado);
+                                pcpi.setActivo(true);
+                                productoCanalPrecioInfladoRepository.save(pcpi);
+                            }
                         }
                     }
                 } catch (NumberFormatException e) {
@@ -1720,9 +1717,6 @@ public class ExcelServiceImpl implements ExcelService {
                 }
             }
 
-            // Canales (ML, KT HOGAR, KT GASTRO, LINEA GE, LIZZY)
-            // Asociar TODOS los productos con TODOS los canales
-            String[] nombresCanales = {"ML", "KT HOGAR", "KT GASTRO", "LINEA GE", "LIZZY"};
             // ProductoMargen: 1 por producto.
             //   margen_minorista <- columna GAN.MIN.ML
             //   margen_mayorista <- columna %GAN
@@ -1740,18 +1734,6 @@ public class ExcelServiceImpl implements ExcelService {
                 productoMargen.setMargenMinorista(margenMin != null ? margenMin : BigDecimal.ZERO);
                 productoMargen.setMargenMayorista(margenMay != null ? margenMay : BigDecimal.ZERO);
                 productoMargenRepository.save(productoMargen);
-            }
-            // Asegurar que los canales existen (sin crear ProductoMargen por cada uno)
-            for (String nombreCanal : nombresCanales) {
-                try {
-                    Canal canal = buscarOCrearCanal(nombreCanal);
-                    if (canal.getId() == null) {
-                        canalRepository.save(canal);
-                    }
-                } catch (Exception e) {
-                    log.warn("Error procesando canal '{}' para producto SKU {}: {}", nombreCanal, skuFinal,
-                            e.getMessage(), e);
-                }
             }
         } catch (Exception e) {
             log.error("Error en procesarFilaMaster, fila {}: {}", rowIndex + 1, e.getMessage(), e);
@@ -2375,20 +2357,19 @@ public class ExcelServiceImpl implements ExcelService {
         });
     }
 
-    private Canal buscarOCrearCanal(String nombre) {
+    /**
+     * Busca un canal existente por nombre (case-insensitive). NO crea canales:
+     * los canales se gestionan desde la sección Canales, no desde la importación.
+     * Devuelve {@code null} si no existe (no se cachea el miss).
+     */
+    private Canal buscarCanal(String nombre) {
         if (nombre == null || nombre.trim().isEmpty()) {
             return null;
         }
         String nombreNormalizado = nombre.trim();
         String key = nombreNormalizado.toUpperCase();
-        return cacheCanales.computeIfAbsent(key, k -> {
-            return canalRepository.findByNombreIgnoreCase(nombreNormalizado)
-                    .orElseGet(() -> {
-                        Canal nuevo = new Canal();
-                        nuevo.setNombre(nombreNormalizado);
-                        return canalRepository.save(nuevo);
-                    });
-        });
+        return cacheCanales.computeIfAbsent(key, k ->
+                canalRepository.findByNombreIgnoreCase(nombreNormalizado).orElse(null));
     }
 
     private Material buscarOCrearMaterial(String nombre) {

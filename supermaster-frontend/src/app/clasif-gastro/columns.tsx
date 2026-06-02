@@ -89,7 +89,6 @@ export function getColumns(
                     className={`w-3.5 h-3.5 align-middle ${canEdit ? "cursor-pointer" : "cursor-default"}`}
                 />
             ),
-            enableSorting: false,
             enableHiding: false,
             size: 80,
         },

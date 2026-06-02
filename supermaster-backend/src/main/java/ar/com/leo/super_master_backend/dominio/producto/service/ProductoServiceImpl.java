@@ -21,7 +21,9 @@ import ar.com.leo.super_master_backend.dominio.regla_descuento.repository.ReglaD
 import ar.com.leo.super_master_backend.dominio.producto.dto.*;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCanalPrecio;
+import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoApto;
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCatalogo;
+import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCliente;
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoMargen;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Tag;
 import ar.com.leo.super_master_backend.dominio.producto.mapper.ProductoMapper;
@@ -363,7 +365,10 @@ public class ProductoServiceImpl implements ProductoService {
 
     private boolean esSortEspecial(String property) {
         String key = property.toLowerCase();
-        return CAMPOS_MARGEN_SORT.containsKey(key) || key.equals("catalogo") || key.equals("catalogos");
+        return CAMPOS_MARGEN_SORT.containsKey(key)
+                || key.equals("catalogo") || key.equals("catalogos")
+                || key.equals("apto") || key.equals("aptos")
+                || key.equals("cliente") || key.equals("clientes");
     }
 
     /**
@@ -404,6 +409,33 @@ public class ProductoServiceImpl implements ProductoService {
                                 menorNombre.from(ProductoCatalogo.class);
                         menorNombre.select(cb.least(pcNombre.get("catalogo").<String>get("nombre")));
                         menorNombre.where(cb.equal(pcNombre.get("producto"), root));
+                        orders.add(o.isAscending() ? cb.asc(menorNombre) : cb.desc(menorNombre));
+                    } else if (key.equals("apto") || key.equals("aptos")) {
+                        // Apto es many-to-many: mismo enfoque que catálogo (subconsultas
+                        // escalares correlacionadas). Sin aptos -> al final; se ordena por
+                        // el 1er apto alfabético.
+                        Subquery<Long> cuenta = query.subquery(Long.class);
+                        Root<ProductoApto> paCount = cuenta.from(ProductoApto.class);
+                        cuenta.select(cb.count(paCount));
+                        cuenta.where(cb.equal(paCount.get("producto"), root));
+                        orders.add(cb.asc(cb.<Integer>selectCase().when(cb.equal(cuenta, 0L), 1).otherwise(0)));
+                        Subquery<String> menorNombre = query.subquery(String.class);
+                        Root<ProductoApto> paNombre = menorNombre.from(ProductoApto.class);
+                        menorNombre.select(cb.least(paNombre.get("apto").<String>get("nombre")));
+                        menorNombre.where(cb.equal(paNombre.get("producto"), root));
+                        orders.add(o.isAscending() ? cb.asc(menorNombre) : cb.desc(menorNombre));
+                    } else if (key.equals("cliente") || key.equals("clientes")) {
+                        // Cliente es many-to-many: mismo enfoque que catálogo. Sin clientes
+                        // -> al final; se ordena por el 1er cliente alfabético.
+                        Subquery<Long> cuenta = query.subquery(Long.class);
+                        Root<ProductoCliente> pclCount = cuenta.from(ProductoCliente.class);
+                        cuenta.select(cb.count(pclCount));
+                        cuenta.where(cb.equal(pclCount.get("producto"), root));
+                        orders.add(cb.asc(cb.<Integer>selectCase().when(cb.equal(cuenta, 0L), 1).otherwise(0)));
+                        Subquery<String> menorNombre = query.subquery(String.class);
+                        Root<ProductoCliente> pclNombre = menorNombre.from(ProductoCliente.class);
+                        menorNombre.select(cb.least(pclNombre.get("cliente").<String>get("nombre")));
+                        menorNombre.where(cb.equal(pclNombre.get("producto"), root));
                         orders.add(o.isAscending() ? cb.asc(menorNombre) : cb.desc(menorNombre));
                     } else {
                         // path directo (soporta anidados con punto, ej. "marca.nombre")

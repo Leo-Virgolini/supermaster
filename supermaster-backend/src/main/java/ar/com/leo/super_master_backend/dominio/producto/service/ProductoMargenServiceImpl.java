@@ -221,11 +221,15 @@ public class ProductoMargenServiceImpl implements ProductoMargenService {
     }
 
 
-    /** Específico: rango [0, 100) — el margen NO admite 100, a diferencia del porcentaje genérico. */
+    /**
+     * Específico: rango [0, 999.999] — el margen es un markup sobre el costo y puede
+     * superar el 100% (ej. 100% = duplicar el costo). El tope 999.999 coincide con la
+     * precisión de la columna (precision=6, scale=3).
+     */
     private BigDecimal leerMargenRequerido(JsonNullable<BigDecimal> campo, String field) {
         BigDecimal decimal = leerDecimalRequerido(campo, field);
-        if (decimal.compareTo(BigDecimal.ZERO) < 0 || decimal.compareTo(BigDecimal.valueOf(100)) >= 0) {
-            throw new BadRequestException("El campo '" + field + "' debe estar entre 0 y 100");
+        if (decimal.compareTo(BigDecimal.ZERO) < 0 || decimal.compareTo(new BigDecimal("999.999")) > 0) {
+            throw new BadRequestException("El campo '" + field + "' debe estar entre 0 y 999.999");
         }
         return decimal;
     }

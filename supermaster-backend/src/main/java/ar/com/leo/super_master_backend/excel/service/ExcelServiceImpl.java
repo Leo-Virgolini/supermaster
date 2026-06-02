@@ -4627,14 +4627,40 @@ public class ExcelServiceImpl implements ExcelService {
         if (limpio.isEmpty()) return null;
         try {
             BigDecimal num = new BigDecimal(limpio);
+            // 1) Texto con "%" (ej. "50%") -> ya es el porcentaje real, se usa tal cual.
             if (tieneSufijoPorcentaje) return num;
-            // Si Excel guardó el valor como decimal de porcentaje (|x| < 1), multiplicamos.
+            // 2) Celda con FORMATO de porcentaje: Excel guarda 50% como 0.5, 100% como 1.0
+            //    y 150% como 1.5. El valor numérico es SIEMPRE una fracción -> x100, sin
+            //    importar la magnitud. (Antes, valores >= 1.0 se leían como 1, 1.5, etc.,
+            //    convirtiendo un margen de 100% en 1% — ese era el bug.)
+            if (esCeldaConFormatoPorcentaje(row.getCell(idx))) {
+                return num.multiply(BigDecimal.valueOf(100));
+            }
+            // 3) Número plano sin formato de %: heurística para decimales (0.05 -> 5)
+            //    usada por otras columnas (ej. financiación). Valores >= 1 se toman tal cual.
             if (num.abs().compareTo(BigDecimal.ONE) < 0) {
                 return num.multiply(BigDecimal.valueOf(100));
             }
             return num;
         } catch (NumberFormatException e) {
             return null;
+        }
+    }
+
+    /**
+     * True si la celda tiene un formato numérico de porcentaje (su data format contiene
+     * "%"). En esas celdas Excel almacena el valor como fracción (50% -> 0.5), por lo que
+     * hay que multiplicar por 100 para obtener el porcentaje real.
+     */
+    private boolean esCeldaConFormatoPorcentaje(Cell cell) {
+        if (cell == null) return false;
+        try {
+            CellStyle estilo = cell.getCellStyle();
+            if (estilo == null) return false;
+            String formato = estilo.getDataFormatString();
+            return formato != null && formato.contains("%");
+        } catch (Exception e) {
+            return false;
         }
     }
 

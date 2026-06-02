@@ -24,6 +24,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -117,7 +118,13 @@ public class CatalogoServiceImpl implements CatalogoService {
             entity.setExportarConIva(leerBooleanOpcional(patchDto.getExportarConIva(), "exportarConIva"));
         }
         if (presente(patchDto.getRecargoPorcentaje())) {
-            entity.setRecargoPorcentaje(leerPorcentajeOpcional(patchDto.getRecargoPorcentaje(), "recargoPorcentaje"));
+            // El recargo es un markup sobre el PVP (pvp × (1 + recargo/100)) y puede superar
+            // el 100%. Rango [0, 999.999] alineado con la precisión de la columna (6,3).
+            BigDecimal recargo = leerDecimalNoNegativoOpcional(patchDto.getRecargoPorcentaje(), "recargoPorcentaje");
+            if (recargo != null && recargo.compareTo(new BigDecimal("999.999")) > 0) {
+                throw new BadRequestException("El campo 'recargoPorcentaje' debe ser menor o igual a 999.999");
+            }
+            entity.setRecargoPorcentaje(recargo);
         }
 
         repo.save(entity);

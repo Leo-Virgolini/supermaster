@@ -14,11 +14,11 @@ public record ProductoMargenDTO(
         Integer productoId,
         @NotNull(message = "El margen minorista es requerido")
         @DecimalMin(value = "0.0", inclusive = true, message = "El margen minorista debe ser mayor o igual a 0")
-        @DecimalMax(value = "99.999", inclusive = false, message = "El margen minorista debe ser menor a 100")
+        @DecimalMax(value = "999.999", inclusive = true, message = "El margen minorista debe ser menor o igual a 999.999")
         BigDecimal margenMinorista,
         @NotNull(message = "El margen mayorista es requerido")
         @DecimalMin(value = "0.0", inclusive = true, message = "El margen mayorista debe ser mayor o igual a 0")
-        @DecimalMax(value = "99.999", inclusive = false, message = "El margen mayorista debe ser menor a 100")
+        @DecimalMax(value = "999.999", inclusive = true, message = "El margen mayorista debe ser menor o igual a 999.999")
         BigDecimal margenMayorista,
         @PositiveOrZero(message = "El margen fijo minorista debe ser mayor o igual a 0")
         BigDecimal margenFijoMinorista,

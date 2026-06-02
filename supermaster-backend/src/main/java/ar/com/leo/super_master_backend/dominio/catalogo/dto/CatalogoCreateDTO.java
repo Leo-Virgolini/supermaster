@@ -13,6 +13,6 @@ public record CatalogoCreateDTO(
         String nombre,
         Boolean exportarConIva,
         @DecimalMin(value = "0.0", inclusive = true, message = "El recargo porcentaje debe ser mayor o igual a 0")
-        @DecimalMax(value = "100.0", inclusive = true, message = "El recargo porcentaje debe ser menor o igual a 100")
+        @DecimalMax(value = "999.999", inclusive = true, message = "El recargo porcentaje debe ser menor o igual a 999.999")
         BigDecimal recargoPorcentaje
 ) {}

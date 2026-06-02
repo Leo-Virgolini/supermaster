@@ -36,6 +36,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -1205,12 +1208,26 @@ public class MercadoLibreService {
     }
 
     /**
+     * Resultado de un intento de inclusión en promoción.
+     * <ul>
+     *   <li>{@code INCLUDED}: ML aceptó el item (POST 2xx).</li>
+     *   <li>{@code REJECTED}: rechazo de negocio (4xx: credibilidad, fuera de rango, no elegible).
+     *       No tiene sentido reintentar.</li>
+     *   <li>{@code API_ERROR}: falla transitoria de la API (5xx / conexión) tras agotar reintentos.
+     *       El item podría haber entrado en otra corrida.</li>
+     * </ul>
+     */
+    public enum IncludeResult { INCLUDED, REJECTED, API_ERROR }
+
+    /**
      * Incluye un item en una promoción (endpoint v2 de ML).
      * SMART / PRICE_MATCHING / MARKETPLACE_CAMPAIGN → requieren offer_id.
      * DEAL / SELLER_CAMPAIGN → requieren deal_price.
+     *
+     * @return {@link IncludeResult} según el desenlace (incluido / rechazado de negocio / error de API).
      */
-    public boolean addItemToPromotion(String promotionId, String itemId, String promotionType,
-                                      double price, String offerId) {
+    public IncludeResult addItemToPromotion(String promotionId, String itemId, String promotionType,
+                                            double price, String offerId) {
         verificarTokens();
         try {
             String body;
@@ -1228,15 +1245,23 @@ public class MercadoLibreService {
                     () -> tokens.accessToken,
                     body
             );
-            return true;
-        } catch (Exception e) {
-            String msg = e.getMessage();
-            if (msg != null && msg.contains("ERROR_CREDIBILITY_DISCOUNTED_PRICE")) {
+            return IncludeResult.INCLUDED;
+        } catch (HttpClientErrorException e) {
+            // 4xx: rechazo de negocio (no reintentable). Caso típico: precio no creíble.
+            String responseBody = e.getResponseBodyAsString();
+            if (responseBody != null && responseBody.contains("ERROR_CREDIBILITY_DISCOUNTED_PRICE")) {
                 log.info("ML - Precio no creíble (ignorado) al incluir item {} en promoción {} ({})", itemId, promotionId, promotionType);
             } else {
-                log.warn("ML - Error incluyendo item {} en promoción {} ({}): {}", itemId, promotionId, promotionType, msg);
+                log.warn("ML - Item {} rechazado en promoción {} ({}): {}", itemId, promotionId, promotionType, e.getStatusCode());
             }
-            return false;
+            return IncludeResult.REJECTED;
+        } catch (HttpServerErrorException | ResourceAccessException e) {
+            // 5xx / conexión tras agotar reintentos: error transitorio de la API.
+            log.warn("ML - Error de API al incluir item {} en promoción {} ({}): {}", itemId, promotionId, promotionType, e.getMessage());
+            return IncludeResult.API_ERROR;
+        } catch (Exception e) {
+            log.warn("ML - Error inesperado al incluir item {} en promoción {} ({}): {}", itemId, promotionId, promotionType, e.getMessage());
+            return IncludeResult.API_ERROR;
         }
     }
 

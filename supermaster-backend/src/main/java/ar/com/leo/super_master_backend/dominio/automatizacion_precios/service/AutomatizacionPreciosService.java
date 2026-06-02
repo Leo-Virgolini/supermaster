@@ -31,6 +31,7 @@ import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -445,7 +446,9 @@ public class AutomatizacionPreciosService {
 
             if (cancelado()) return;
 
-            // PASO 7: Incluir en promociones (sin under_review)
+            // PASO 7: Incluir en promociones (sin under_review).
+            // Si 'Excluir promociones' también está activo, reconciliamos en la misma pasada: los items con
+            // promos started cuyo descuento quedó desalineado se sacan (DELETE) y se re-incluyen con el % vigente.
             if (request.incluirPromociones() && !mapaMLporMla.isEmpty()) {
                 Map<String, PrecioProductoInfo> incluibles = filtrarSinUnderReview(mapaMLporMla, mlasUnderReview);
                 if (!incluibles.isEmpty()) {
@@ -453,10 +456,22 @@ public class AutomatizacionPreciosService {
                     int sellerPct = config.sellerCampaignPct() != null ? config.sellerCampaignPct() : 0;
                     int dealPct = config.dealPct() != null ? config.dealPct() : 0;
                     int smartPct = config.smartPct() != null ? config.smartPct() : 0;
-                    int[] r = incluirEnPromociones(incluibles, sellerPct, dealPct, smartPct);
-                    promoOk = r[0];
-                    promoErr = r[1];
-                    addLog("Promociones: " + promoOk + " ok, " + promoErr + " errores");
+                    boolean reconciliarStale = request.excluirPromociones();
+                    ResultadoInclusion r = incluirEnPromociones(incluibles, reconciliarStale, sellerPct, dealPct, smartPct);
+                    promoOk = r.incluidos();
+                    // "errores" reales = perdidos por error de API + excepciones. sinCandidate/noElegible/yaConfigurado no son fallas.
+                    promoErr = r.apiError() + r.errores();
+                    StringBuilder sb = new StringBuilder("Promociones: ")
+                            .append(r.incluidos()).append(" incluidos");
+                    if (reconciliarStale) {
+                        sb.append(" (").append(r.excluidosStale()).append(" reconciliados por descuento desalineado)")
+                          .append(", ").append(r.yaConfigurado()).append(" ya con el % vigente");
+                    }
+                    sb.append(", ").append(r.sinCandidate()).append(" sin candidate")
+                      .append(", ").append(r.noElegible()).append(" no elegibles")
+                      .append(", ").append(r.apiError()).append(" error de API")
+                      .append(", ").append(r.errores()).append(" errores");
+                    addLog(sb.toString());
                 }
             }
 
@@ -646,8 +661,34 @@ public class AutomatizacionPreciosService {
     private static final Set<String> TIPOS_PROMO_SOPORTADOS =
             Set.of("DEAL", "SELLER_CAMPAIGN", "SMART", "PRICE_MATCHING", "MARKETPLACE_CAMPAIGN");
 
-    private int[] incluirEnPromociones(Map<String, PrecioProductoInfo> mapaMLporMla,
-                                       int sellerCampaignPct, int dealPct, int smartPct) {
+    /**
+     * Resultado detallado de la inclusión en promociones.
+     * <ul>
+     *   <li>{@code incluidos}: items con POST 2xx en al menos una promo (incluye los reconciliados).</li>
+     *   <li>{@code yaConfigurado}: items que ya estaban en promo(s) con la config correcta, sin candidates
+     *       nuevos que procesar (solo aplica en modo reconcile).</li>
+     *   <li>{@code sinCandidate}: items sin promo candidate ni started accionable.</li>
+     *   <li>{@code noElegible}: items con candidate(s) pero ninguno pasó los filtros (rango, tope, credibilidad).</li>
+     *   <li>{@code apiError}: items que no quedaron incluidos porque al menos una candidate falló por error de API.</li>
+     *   <li>{@code errores}: excepciones inesperadas en la tarea.</li>
+     *   <li>{@code excluidosStale}: items con promos started desalineadas (DELETE + re-include); subconjunto
+     *       de incluidos+apiError.</li>
+     * </ul>
+     */
+    private record ResultadoInclusion(int incluidos, int yaConfigurado, int sinCandidate, int noElegible,
+                                      int apiError, int errores, int excluidosStale) {}
+
+    /**
+     * Flujo por-item: por cada MLA consulta sus promociones y procesa cada candidate.
+     * <p>
+     * Si {@code reconciliarStale=true}: además evalúa las promos en status=started. Si su descuento actual
+     * (seller_percentage) no coincide con la config vigente (ver {@link #esStaleStarted}), saca el item de
+     * TODAS sus promos (DELETE) y lo re-incluye con los % vigentes. Esto corrige items que NO cambiaron de
+     * precio base pero quedaron con un descuento desactualizado.
+     */
+    private ResultadoInclusion incluirEnPromociones(Map<String, PrecioProductoInfo> mapaMLporMla,
+                                                    boolean reconciliarStale,
+                                                    int sellerCampaignPct, int dealPct, int smartPct) {
         int total = mapaMLporMla.size();
 
         // Short-circuit: 1 sola request al endpoint del seller. Si no hay ninguna promo activa
@@ -671,7 +712,7 @@ public class AutomatizacionPreciosService {
                 }
                 if (activasSoportadas == 0) {
                     addLog("Sin promociones activas soportadas en ML: se saltean " + total + " consultas por item");
-                    return new int[]{0, 0};
+                    return new ResultadoInclusion(0, 0, total, 0, 0, 0, 0);
                 }
                 addLog(activasSoportadas + " promo(s) activa(s) soportadas en ML; consultando candidates por item...");
             }
@@ -682,6 +723,12 @@ public class AutomatizacionPreciosService {
 
         actualizarEstado("Incluyendo en promociones: 0/" + total, 0, total);
 
+        AtomicInteger yaConfigurado = new AtomicInteger();
+        AtomicInteger sinCandidate = new AtomicInteger();
+        AtomicInteger noElegible = new AtomicInteger();
+        AtomicInteger apiError = new AtomicInteger();
+        AtomicInteger excluidosStale = new AtomicInteger();
+
         List<Callable<Boolean>> tasks = new ArrayList<>();
         for (var entry : mapaMLporMla.entrySet()) {
             String mla = entry.getKey();
@@ -689,41 +736,132 @@ public class AutomatizacionPreciosService {
 
             tasks.add(() -> {
                 String promosJson = mlService.obtenerPromocionesDelItem(mla);
-                if (promosJson == null) return false;
+                if (promosJson == null) {
+                    sinCandidate.incrementAndGet();
+                    return false;
+                }
+                JsonNode promotions = objectMapper.readTree(promosJson);
+                if (!promotions.isArray() || promotions.isEmpty()) {
+                    sinCandidate.incrementAndGet();
+                    return false;
+                }
 
-                JsonNode promos = objectMapper.readTree(promosJson);
-                if (!promos.isArray()) return false;
+                // Primera pasada (solo en modo reconcile): clasificar las started.
+                //  - needsDelete: hay alguna started con descuento desalineado.
+                //  - teniaStartedOK: hay alguna started de tipo manejado y bien configurada (para distinguir
+                //    "ya configurado" de "sin promo").
+                boolean needsDelete = false;
+                boolean teniaStartedOK = false;
+                if (reconciliarStale) {
+                    for (JsonNode promo : promotions) {
+                        if (!"started".equals(promo.path("status").asString(""))) continue;
+                        if (esStaleStarted(promo, topePromocion, sellerCampaignPct, dealPct, smartPct)) {
+                            needsDelete = true;
+                        } else if (TIPOS_PROMO_SOPORTADOS.contains(promo.path("type").asString(""))) {
+                            teniaStartedOK = true;
+                        }
+                    }
+                }
+
+                // Promos a procesar como candidates:
+                //  - Si needsDelete: tras el DELETE, forzamos status=candidate sobre las started+candidate.
+                //  - Si no: las originales (solo se aceptarán las que ya estén en candidate).
+                List<JsonNode> promosAProcesar = new ArrayList<>();
+                if (needsDelete) {
+                    if (!mlService.removeAllItemPromotions(mla)) {
+                        apiError.incrementAndGet();
+                        return false;
+                    }
+                    excluidosStale.incrementAndGet();
+                    for (JsonNode promo : promotions) {
+                        String st = promo.path("status").asString("");
+                        if (!"started".equals(st) && !"candidate".equals(st)) continue;
+                        ObjectNode fake = (ObjectNode) promo.deepCopy();
+                        fake.put("status", "candidate"); // forzar para que procesarPromocion lo acepte
+                        promosAProcesar.add(fake);
+                    }
+                } else {
+                    promotions.forEach(promosAProcesar::add);
+                }
 
                 boolean incluidoEnAlguna = false;
-                for (JsonNode promo : promos) {
-                    String status = promo.path("status").asString(null);
-                    if (!"candidate".equals(status)) continue;
+                boolean tuvoApiError = false;
+                boolean teniaCandidate = false;
+                for (JsonNode promo : promosAProcesar) {
+                    if (!"candidate".equals(promo.path("status").asString(null))) continue;
+                    teniaCandidate = true;
 
                     String promoId = promo.path("id").asString(null);
                     String promoType = promo.path("type").asString(null);
                     if (promoId == null || promoType == null) continue;
 
-                    if (procesarPromocion(mla, promo, promoId, promoType,
-                            topePromocion, sellerCampaignPct, dealPct, smartPct)) {
+                    MercadoLibreService.IncludeResult ir = procesarPromocion(mla, promo, promoId, promoType,
+                            topePromocion, sellerCampaignPct, dealPct, smartPct);
+                    if (ir == MercadoLibreService.IncludeResult.INCLUDED) {
                         incluidoEnAlguna = true;
+                    } else if (ir == MercadoLibreService.IncludeResult.API_ERROR) {
+                        tuvoApiError = true;
                     }
                 }
-                return incluidoEnAlguna;
+
+                if (incluidoEnAlguna) return true;
+
+                // No quedó incluido en ninguna nueva promo: clasificar el motivo.
+                if (tuvoApiError) {
+                    apiError.incrementAndGet();
+                } else if (teniaCandidate) {
+                    noElegible.incrementAndGet();
+                } else if (teniaStartedOK) {
+                    yaConfigurado.incrementAndGet();
+                } else {
+                    sinCandidate.incrementAndGet();
+                }
+                return false;
             });
         }
 
         int[] result = ejecutarBloqueParalelo(tasks, "Incluyendo en promociones");
-        return new int[]{result[0], result[1] + result[2]};
+        if (reconciliarStale && excluidosStale.get() > 0) {
+            addLog("Reconciliados (descuento desalineado, re-incluidos con el % vigente): " + excluidosStale.get());
+        }
+        return new ResultadoInclusion(result[0], yaConfigurado.get(), sinCandidate.get(), noElegible.get(),
+                apiError.get(), result[2], excluidosStale.get());
     }
 
-    private boolean procesarPromocion(String mla, JsonNode promo, String promoId, String promoType,
+    /**
+     * Determina si una promo en status=started quedó desalineada respecto de la config actual
+     * (y por lo tanto requiere DELETE + re-inclusión).
+     * <ul>
+     *   <li>DEAL / SELLER_CAMPAIGN: stale si el seller_percentage actual ≠ el % que aplicaríamos hoy
+     *       (tope por MLA si existe, si no el % global).</li>
+     *   <li>SMART / PRICE_MATCHING / MARKETPLACE_CAMPAIGN: stale si el seller_percentage actual supera
+     *       el límite efectivo.</li>
+     *   <li>Otros tipos (DOD, LIGHTNING, etc.): nunca stale — no los manejamos.</li>
+     * </ul>
+     */
+    private boolean esStaleStarted(JsonNode promo, int topePromocion,
+                                   int sellerCampaignPct, int dealPct, int smartPct) {
+        if (!"started".equals(promo.path("status").asString(""))) return false;
+        String type = promo.path("type").asString("");
+        int currentPct = promo.path("seller_percentage").asInt(0);
+
+        return switch (type) {
+            case "DEAL" -> currentPct != (topePromocion > 0 ? topePromocion : dealPct);
+            case "SELLER_CAMPAIGN" -> currentPct != (topePromocion > 0 ? topePromocion : sellerCampaignPct);
+            case "SMART", "PRICE_MATCHING", "MARKETPLACE_CAMPAIGN" ->
+                    currentPct > (topePromocion > 0 ? topePromocion : smartPct);
+            default -> false;
+        };
+    }
+
+    private MercadoLibreService.IncludeResult procesarPromocion(String mla, JsonNode promo, String promoId, String promoType,
                                       int topePromocion, int sellerCampaignPct, int dealPct, int smartPct) {
         return switch (promoType) {
             case "DEAL" -> {
                 double originalPrice = promo.path("original_price").asDouble(0);
                 double minPrice = promo.path("min_discounted_price").asDouble(0);
                 double maxPrice = promo.path("max_discounted_price").asDouble(0);
-                if (originalPrice <= 0 || minPrice <= 0 || maxPrice <= 0) yield false;
+                if (originalPrice <= 0 || minPrice <= 0 || maxPrice <= 0) yield MercadoLibreService.IncludeResult.REJECTED;
 
                 int effectivePct = topePromocion > 0 ? topePromocion : dealPct;
                 double discounted = BigDecimal.valueOf(originalPrice * (100.0 - effectivePct) / 100.0)
@@ -733,31 +871,42 @@ public class AutomatizacionPreciosService {
                 }
                 log.info("ML - Precio fuera de rango para DEAL en {}: {} no está entre {} y {}",
                         mla, discounted, minPrice, maxPrice);
-                yield false;
+                yield MercadoLibreService.IncludeResult.REJECTED;
             }
             case "SELLER_CAMPAIGN" -> {
                 double originalPrice = promo.path("original_price").asDouble(0);
-                if (originalPrice <= 0) yield false;
+                double minPrice = promo.path("min_discounted_price").asDouble(0);
+                double maxPrice = promo.path("max_discounted_price").asDouble(0);
+                if (originalPrice <= 0 || minPrice <= 0 || maxPrice <= 0) yield MercadoLibreService.IncludeResult.REJECTED;
 
                 int effectivePct = topePromocion > 0 ? topePromocion : sellerCampaignPct;
                 double discounted = BigDecimal.valueOf(originalPrice * (100.0 - effectivePct) / 100.0)
                         .setScale(2, RoundingMode.HALF_UP).doubleValue();
-                yield mlService.addItemToPromotion(promoId, mla, "SELLER_CAMPAIGN", discounted, null);
+                if (discounted >= minPrice && discounted <= maxPrice) {
+                    yield mlService.addItemToPromotion(promoId, mla, "SELLER_CAMPAIGN", discounted, null);
+                }
+                log.info("ML - Precio fuera de rango para SELLER_CAMPAIGN en {}: {} no está entre {} y {}",
+                        mla, discounted, minPrice, maxPrice);
+                yield MercadoLibreService.IncludeResult.REJECTED;
             }
             case "SMART", "PRICE_MATCHING", "MARKETPLACE_CAMPAIGN" -> {
                 String offerId = promo.path("ref_id").asString(null);
                 int sellerPercentage = promo.path("seller_percentage").asInt(0);
                 int effectiveLimit = topePromocion > 0 ? topePromocion : smartPct;
 
-                if (offerId == null || sellerPercentage <= 0) yield false;
+                // MARKETPLACE_CAMPAIGN en candidate no trae ref_id (se asigna al incluirlo).
+                // Solo SMART y PRICE_MATCHING requieren offer_id al momento del POST.
+                boolean requiereOfferId = "SMART".equals(promoType) || "PRICE_MATCHING".equals(promoType);
+                if (requiereOfferId && offerId == null) yield MercadoLibreService.IncludeResult.REJECTED;
+                if (sellerPercentage <= 0) yield MercadoLibreService.IncludeResult.REJECTED;
                 if (sellerPercentage > effectiveLimit) {
                     log.info("ML - Item {} no incluido en {}: seller_percentage {}% > límite {}%",
                             mla, promoType, sellerPercentage, effectiveLimit);
-                    yield false;
+                    yield MercadoLibreService.IncludeResult.REJECTED;
                 }
                 yield mlService.addItemToPromotion(promoId, mla, promoType, 0, offerId);
             }
-            default -> false;
+            default -> MercadoLibreService.IncludeResult.REJECTED;
         };
     }
 

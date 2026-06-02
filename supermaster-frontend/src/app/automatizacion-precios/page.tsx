@@ -202,6 +202,7 @@ export default function AutomatizacionPreciosPage() {
     //   "Descargando títulos KT Gastro desde Tienda Nube..."
     //   "Calculando envío: X/Y"
     //   "Excluyendo de promociones: ..."
+    //   "Subiendo precios DUX ML..." / "Subiendo precios DUX Gastro..." / "Subiendo precios DUX Nube..."
     //   "Actualizando precios ML: ..." / "Verificando estado de N items..." / "Obteniendo datos actuales..."
     //   "Incluyendo en promociones: ..."
     //   "Descargando catálogo KT HOGAR..." / "Actualizando precios Nube: ..."
@@ -212,6 +213,9 @@ export default function AutomatizacionPreciosPage() {
         if (d.startsWith("descargando títulos") || d.startsWith("descargando titulos")) return "bajarTitulosNube";
         if (d.startsWith("calculando envío") || d.startsWith("calculando envio")) return "generarEnvio";
         if (d.startsWith("excluyendo de promociones")) return "excluirPromociones";
+        if (d.startsWith("subiendo precios dux ml")) return "duxMl";
+        if (d.startsWith("subiendo precios dux gastro")) return "duxGastro";
+        if (d.startsWith("subiendo precios dux nube")) return "duxNube";
         if (d.startsWith("incluyendo en promociones")) return "incluirPromociones";
         // El paso "preciosMl" tiene 3 estados previos (verificando, obteniendo datos) + el de actualizar.
         if (

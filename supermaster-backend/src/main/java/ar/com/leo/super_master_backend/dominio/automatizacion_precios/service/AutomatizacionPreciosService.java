@@ -163,6 +163,8 @@ public class AutomatizacionPreciosService {
             // Determinar si necesitamos PVP ML
             boolean necesitaML = request.excluirPromociones() || request.duxMl()
                     || request.preciosMl() || request.incluirPromociones();
+            // Canales que se identifican por SKU (no por MLA). Si hay filtro de MLAs, hay que traducirlo a SKUs.
+            boolean necesitaCanalPorSku = request.duxGastro() || request.duxNube() || request.preciosNube();
 
             // Normalizar filtro de MLAs (opcional): si viene, todos los pasos solo operan sobre ese subconjunto.
             Set<String> filtroMlas = (request.filtroMlas() == null || request.filtroMlas().isEmpty())
@@ -172,13 +174,22 @@ public class AutomatizacionPreciosService {
                 addLog("Filtro MLA activo: " + filtroMlas.size() + " MLAs seleccionados");
             }
 
+            // SKUs derivados del filtro de MLAs (vacío = sin filtro). Se usan para acotar los canales por SKU
+            // (Gastro / Nube / Tienda Nube), que no tienen MLA propio. Se traduce MLA→SKU vía el canal ML.
+            Set<String> filtroSkus = Set.of();
+
+            // Cargar el canal ML si lo piden las operaciones ML, o si hay filtro + algún canal por SKU
+            // (en ese caso lo cargamos solo para traducir MLA→SKU, sin pegarle a la API de ML).
+            boolean cargarCanalMl = (necesitaML || (filtroMlas != null && necesitaCanalPorSku))
+                    && config.canalMl() != null;
+
             // Cargar precios ML si se necesitan
             List<ProductoCanalPrecio> preciosML = List.of();
             Map<String, PrecioProductoInfo> mapaMLporMla = Map.of();
             // MLAs en under_review: ML rechaza incluirlos/excluirlos de promos (400),
             // pero sí acepta actualizar precio. Los trackeamos para saltearlos en los pasos de promo.
             Set<String> mlasUnderReview = new HashSet<>();
-            if (necesitaML && config.canalMl() != null) {
+            if (cargarCanalMl) {
                 preciosML = cargarPrecios(config.canalMl(), config.cuotasMl());
                 mapaMLporMla = construirMapaPorMla(preciosML);
                 if (filtroMlas != null) {
@@ -193,12 +204,23 @@ public class AutomatizacionPreciosService {
                         addLogWarn("Filtro: " + sinMatch.size() + " MLAs no se encontraron en el canal ML: " + muestra + sufijo);
                     }
                     mapaMLporMla = filtrado;
+
+                    // Traducir los MLAs del filtro a SKUs (antes de cualquier omisión por estado), para los canales por SKU.
+                    filtroSkus = mapaMLporMla.values().stream()
+                            .map(PrecioProductoInfo::sku)
+                            .filter(sku -> sku != null && !sku.isBlank())
+                            .map(String::toUpperCase)
+                            .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+                    if (necesitaCanalPorSku && filtroSkus.isEmpty()) {
+                        addLogWarn("Filtro: no se derivaron SKUs del filtro de MLAs; los canales por SKU se procesarán completos");
+                    }
                 }
                 addLog("Precios ML cargados: " + preciosML.size() + " productos, " + mapaMLporMla.size() + " MLAs");
                 actualizarEstado("Precios ML cargados", 0, mapaMLporMla.size());
 
-                // Filtrar items no activos (multiget directo sobre listaML, sin scan completo)
-                if (!mapaMLporMla.isEmpty()) {
+                // Filtrar items no activos (multiget directo sobre listaML, sin scan completo).
+                // Solo si hay operaciones ML reales: si cargamos el canal solo para traducir, no le pegamos a la API.
+                if (necesitaML && !mapaMLporMla.isEmpty()) {
                     actualizarEstado("Verificando estado de " + mapaMLporMla.size() + " items...", 0, mapaMLporMla.size());
                     List<String> mlasListaML = new ArrayList<>(mapaMLporMla.keySet());
                     Map<String, String> statusMap = mlService.obtenerStatusItems(mlasListaML);
@@ -391,6 +413,7 @@ public class AutomatizacionPreciosService {
             // PASO 2: DUX ML
             if (request.duxMl() && !preciosML.isEmpty() && config.listaPreciosMl() != null) {
                 addLog("Subiendo precios DUX ML...");
+                actualizarEstado("Subiendo precios DUX ML...", 0, 0);
                 Map<String, DuxService.ProductoPrecioData> duxMap = construirMapaDux(preciosML, Boolean.TRUE.equals(config.sinIvaMl()));
                 duxMlProductos = duxMap.size();
                 duxMlEstado = subirPreciosDux(duxMap, config.listaPreciosMl());
@@ -402,7 +425,13 @@ public class AutomatizacionPreciosService {
             // PASO 3: DUX Gastro
             if (request.duxGastro() && config.canalGastro() != null && config.listaPreciosGastro() != null) {
                 addLog("Subiendo precios DUX Gastro...");
+                actualizarEstado("Subiendo precios DUX Gastro...", 0, 0);
                 List<ProductoCanalPrecio> preciosGastro = cargarPrecios(config.canalGastro(), config.cuotasGastro());
+                if (filtroMlas != null) {
+                    int antes = preciosGastro.size();
+                    preciosGastro = filtrarPreciosPorSku(preciosGastro, filtroSkus);
+                    addLog("Filtro Gastro: " + preciosGastro.size() + "/" + antes + " productos coinciden con el filtro");
+                }
                 Map<String, DuxService.ProductoPrecioData> duxMapGastro = construirMapaDux(preciosGastro, Boolean.TRUE.equals(config.sinIvaGastro()));
                 duxGastroProductos = duxMapGastro.size();
                 duxGastroEstado = subirPreciosDux(duxMapGastro, config.listaPreciosGastro());
@@ -414,7 +443,13 @@ public class AutomatizacionPreciosService {
             // PASO 4: DUX Nube
             if (request.duxNube() && config.canalHogar() != null && config.listaPreciosHogar() != null) {
                 addLog("Subiendo precios DUX Nube...");
+                actualizarEstado("Subiendo precios DUX Nube...", 0, 0);
                 List<ProductoCanalPrecio> preciosNube = cargarPrecios(config.canalHogar(), config.cuotasHogar());
+                if (filtroMlas != null) {
+                    int antes = preciosNube.size();
+                    preciosNube = filtrarPreciosPorSku(preciosNube, filtroSkus);
+                    addLog("Filtro Nube: " + preciosNube.size() + "/" + antes + " productos coinciden con el filtro");
+                }
                 Map<String, DuxService.ProductoPrecioData> duxMapNube = construirMapaDux(preciosNube, Boolean.TRUE.equals(config.sinIvaHogar()));
                 duxNubeProductos = duxMapNube.size();
                 duxNubeEstado = subirPreciosDux(duxMapNube, config.listaPreciosHogar());
@@ -427,6 +462,11 @@ public class AutomatizacionPreciosService {
             if (request.preciosNube() && config.canalHogar() != null) {
                 addLog("Actualizando precios TiendaNube...");
                 List<ProductoCanalPrecio> preciosNubeDirecto = cargarPrecios(config.canalHogar(), config.cuotasHogar());
+                if (filtroMlas != null) {
+                    int antes = preciosNubeDirecto.size();
+                    preciosNubeDirecto = filtrarPreciosPorSku(preciosNubeDirecto, filtroSkus);
+                    addLog("Filtro Tienda Nube: " + preciosNubeDirecto.size() + "/" + antes + " productos coinciden con el filtro");
+                }
                 int[] r = actualizarPreciosNube(preciosNubeDirecto);
                 nubeOk = r[0];
                 nubeErr = r[1];
@@ -1090,6 +1130,20 @@ public class AutomatizacionPreciosService {
 
         Integer cuotasParam = (cuotas != null && cuotas > 0) ? cuotas : null;
         return precioRepo.findByCanalIdAndCuotasWithProductoAndMla(canal.getId(), cuotasParam);
+    }
+
+    /**
+     * Filtra una lista de precios por SKU (case-insensitive). Si el set de SKUs está vacío devuelve la lista
+     * original (no filtra) — igual que el Generator: evita borrar todo cuando el filtro no pudo derivarse.
+     */
+    private List<ProductoCanalPrecio> filtrarPreciosPorSku(List<ProductoCanalPrecio> precios, Set<String> filtroSkusUpper) {
+        if (filtroSkusUpper == null || filtroSkusUpper.isEmpty()) return precios;
+        return precios.stream()
+                .filter(pcp -> {
+                    String sku = pcp.getProducto() != null ? pcp.getProducto().getSku() : null;
+                    return sku != null && filtroSkusUpper.contains(sku.toUpperCase());
+                })
+                .collect(Collectors.toList());
     }
 
     private Map<String, PrecioProductoInfo> construirMapaPorMla(List<ProductoCanalPrecio> precios) {

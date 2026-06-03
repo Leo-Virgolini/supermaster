@@ -290,7 +290,7 @@ export default function CanalesPage() {
                         <div className="mb-3">
                             <p className="mb-1 font-semibold text-amber-700 dark:text-amber-300">✕ Lo que NO se aplica del canal hijo:</p>
                             <ul className="ml-4 list-disc space-y-0.5">
-                                <li>Cualquier otro concepto del hijo (gastos sobre costo, IVA, comisiones, márgenes, descuentos, etc.) — quedan ignorados aunque estén asignados.</li>
+                                <li>Cualquier otro concepto del hijo (gastos sobre costo, IVA, comisiones, márgenes, descuentos, etc.) — quedan ignorados aunque estén asignados. <strong>Excepción</strong>: el flag <strong>&quot;Aplicar precio inflado&quot;</strong> del hijo sí se respeta y aplica el precio inflado configurado para el producto en este canal sobre el PVP heredado.</li>
                                 <li><strong>Margen</strong> del hijo (no se usa el ProductoMargen del producto en este canal).</li>
                                 <li><strong>Cuotas</strong> del hijo: el porcentaje de la cuota no se aplica encima del PVP del padre.</li>
                                 <li><strong>Reglas de excepción</strong> sobre conceptos que no sean &quot;sobre canal base&quot; (no tienen efecto porque esos conceptos ya están descartados).</li>

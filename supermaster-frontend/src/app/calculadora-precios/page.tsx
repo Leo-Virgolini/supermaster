@@ -139,7 +139,7 @@ export default function CalculadoraPreciosPage() {
                             <ul className="ml-4 list-disc space-y-0.5">
                                 <li><strong>PVP</strong>: precio final de venta al público que paga el cliente, incluye IVA, impuestos, comisiones y recargo por cuotas.</li>
                                 <li><strong>PVP Inflado</strong>: precio &quot;tachado&quot; mostrado como referencia cuando hay una regla de precio inflado configurada.</li>
-                                <li><strong>Costos Venta</strong>: suma de todo lo que se va en la venta — comisiones del canal, descuentos, recargos por cupón, envío, recargo por cuotas.</li>
+                                <li><strong>Costos Venta</strong>: suma de todo lo que se va en la venta — comisiones del canal, comisión ML, costo oculto de plataforma, envío y recargo por cuotas.</li>
                                 <li><strong>Ingreso Neto Vendedor</strong>: lo que efectivamente recibís después de descontar IVA, impuestos y costos de venta. Fórmula: <span className="font-mono">PVP − IVA − impuestos − costos venta</span>.</li>
                                 <li><strong>Ganancia</strong>: beneficio real de la venta. Fórmula: <span className="font-mono">ingreso neto − costo producto</span>.</li>
                                 <li><strong>Margen s/PVP</strong>: <span className="font-mono">ganancia / PVP</span>. Cuánto representa la ganancia respecto al precio final.</li>

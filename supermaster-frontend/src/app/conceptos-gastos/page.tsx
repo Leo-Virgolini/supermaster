@@ -260,7 +260,7 @@ export default function ConceptosGastoPage() {
                             <ul className="ml-4 list-disc space-y-0.5">
                                 <li><strong>Nombre</strong>: identificador corto (ej: <span className="font-mono">ML_COMI</span>, <span className="font-mono">KG_DESC_5</span>).</li>
                                 <li><strong>Porcentaje</strong>: valor numérico que aplica al cálculo. Para <em>flags</em> (🚩) este valor se ignora.</li>
-                                <li><strong>Aplica Sobre</strong>: define la <em>matemática del PVP</em> — en qué etapa y con qué fórmula se aplica. Mirá la guía detallada en el botón <strong>ℹ</strong> de la toolbar para ver los 22 valores agrupados por etapa.</li>
+                                <li><strong>Aplica Sobre</strong>: define la <em>matemática del PVP</em> — en qué etapa y con qué fórmula se aplica. Mirá la guía detallada en el botón <strong>ℹ</strong> de la toolbar para ver los 20 valores agrupados por etapa.</li>
                                 <li>
                                     <strong>Naturaleza</strong>: define cómo el concepto <em>impacta los indicadores</em>{" "}
                                     (ganancia, márgenes, markup) — independiente de Aplica Sobre. Por defecto cada Aplica

@@ -227,7 +227,7 @@ const sections: Section[] = [
                         <li><strong>Costo + IVA</strong>: Base para el cálculo de precios.</li>
                         <li><strong>Proveedor</strong>: Determina a quién se le compra en la reposición.</li>
                         <li><strong>Clasificación Gral / Gastro</strong>: Categorías para filtros y reglas.</li>
-                        <li><strong>Es Máquina</strong>: Flag especial para reglas de canal.</li>
+                        <li><strong>Tag</strong>: Clasificación especial del producto (Máquina, Repuesto o Menaje) para reglas de canal.</li>
                     </ul>
                 </div>
                 <Tip>
@@ -287,7 +287,7 @@ const sections: Section[] = [
                             </thead>
                             <tbody className="text-amber-900 dark:text-amber-200">
                                 {[
-                                    { tabla: "Orígenes", donde: "Referencias > Orígenes", obligatoria: true },
+                                    { tabla: "Orígenes", donde: "Referencias > Orígenes", obligatoria: false },
                                     { tabla: "Clasif. Generales (Rubros)", donde: "Referencias > Clasificaciones", obligatoria: true },
                                     { tabla: "Tipos", donde: "Referencias > Tipos", obligatoria: true },
                                     { tabla: "Marcas", donde: "Referencias > Marcas", obligatoria: false },
@@ -308,7 +308,7 @@ const sections: Section[] = [
                         </table>
                     </div>
                     <Tip>
-                        Las tablas obligatorias (<strong>Origen</strong>, <strong>Clasif. General</strong> y <strong>Tipo</strong>)
+                        Las tablas obligatorias (<strong>Clasif. General</strong> y <strong>Tipo</strong>)
                         deben tener al menos un registro. Sin ellos no se puede guardar el producto.
                     </Tip>
                 </div>
@@ -382,13 +382,14 @@ const sections: Section[] = [
                         </Step>
                         <div className="ml-11 grid grid-cols-2 gap-2">
                             {[
-                                { campo: "Origen", desc: "País o región de procedencia", req: true },
+                                { campo: "Origen", desc: "País o región de procedencia", req: false },
                                 { campo: "Clasif. General", desc: "Rubro principal (ej: Cocina, Mesa, Bazar)", req: true },
                                 { campo: "Tipo", desc: "Tipología (ej: Olla, Sartén, Cuchillo)", req: true },
                                 { campo: "Marca", desc: "Marca comercial (ej: Tramontina, Oster)", req: false },
                                 { campo: "Proveedor", desc: "Proveedor que lo suministra", req: false },
                                 { campo: "Material", desc: "Material de fabricación (ej: Acero inox.)", req: false },
                                 { campo: "Clasif. Gastro", desc: "Subrubro gastronómico específico", req: false },
+                                { campo: "Tag", desc: "Clasificación especial: Máquina, Repuesto o Menaje", req: false },
                                 { campo: "MLA", desc: "Publicación de MercadoLibre asociada", req: false },
                             ].map(({ campo, desc, req }) => (
                                 <div key={campo} className="bg-white rounded border border-blue-100 p-2 dark:bg-slate-800 dark:border-blue-800">
@@ -567,7 +568,7 @@ const sections: Section[] = [
                         <li><strong>Reglas de Canal</strong>: Definen qué productos forman parte del canal (ver sección dedicada).</li>
                         <li><strong>Cuotas por Canal</strong>: Configuración de cuotas/intereses por canal.</li>
                         <li><strong>Reglas de Excepción</strong>: Excluir o incluir gastos específicos para combinaciones canal+producto.</li>
-                        <li><strong>Reglas de Descuento</strong>: Descuentos automáticos según canal y monto (ver sección dedicada).</li>
+                        <li><strong>Reglas de Descuento</strong>: Descuentos automáticos según canal (ver sección dedicada).</li>
                         <li><strong>Precios Inflados</strong>: Multiplicadores para precios inflados (ej: DOLAR_BLUE).</li>
                         <li><strong>Monitor de Precios</strong>: Vista comparativa de precios, márgenes y descuentos por canal (ver sección dedicada).</li>
                         <li><strong>Calculadora de Precios</strong>: Simulador del PVP de un producto hipotético en un canal (ver sección dedicada).</li>
@@ -995,8 +996,8 @@ const sections: Section[] = [
                     <ul className="list-disc list-inside space-y-1 text-gray-600">
                         <li><strong>Canal</strong>: El canal de venta al que aplica.</li>
                         <li><strong>Concepto</strong>: El concepto de cálculo asociado.</li>
-                        <li><strong>Cuotas</strong>: Cantidad de cuotas (ej: 3, 6, 12).</li>
-                        <li><strong>Porcentaje</strong>: Recargo o descuento que se aplica al precio.</li>
+                        <li><strong>Cuotas</strong>: Cantidad de cuotas. Convención: <strong>-1</strong> = Transferencia, <strong>0</strong> = Contado / sin cuotas, <strong>3, 6, 12...</strong> = cantidad de cuotas.</li>
+                        <li><strong>Porcentaje</strong>: Recargo (positivo) o descuento (negativo) que se aplica al precio.</li>
                     </ul>
                 </div>
                 <Tip>
@@ -1070,27 +1071,27 @@ const sections: Section[] = [
         content: (
             <div className="flex flex-col gap-4">
                 <p>
-                    Las <strong>Reglas de Descuento</strong> definen descuentos automáticos que se aplican según el canal de venta
-                    y un monto mínimo de compra. Cuando el PVP supera el monto mínimo, el descuento se aplica y se recalculan
-                    los márgenes.
+                    Las <strong>Reglas de Descuento</strong> definen descuentos automáticos que se aplican al PVP según el canal de venta.
+                    El descuento recalcula los márgenes y se refleja en el Monitor de Precios.
                 </p>
                 <div className="flex flex-col gap-2">
                     <p className="font-semibold">Campos principales:</p>
                     <ul className="list-disc list-inside space-y-1 text-gray-600">
-                        <li><strong>Canal</strong>: Canal de venta al que aplica la regla.</li>
-                        <li><strong>Catálogo</strong>: Catálogo al que aplica (opcional).</li>
-                        <li><strong>Clasif. General</strong>: Clasificación general para acotar (opcional).</li>
-                        <li><strong>Clasif. Gastro</strong>: Clasificación gastronómica para acotar (opcional).</li>
-                        <li><strong>Monto mínimo</strong>: PVP mínimo para que el descuento se active.</li>
+                        <li><strong>Canal</strong>: Canal de venta al que aplica la regla (obligatorio).</li>
+                        <li><strong>Catálogo</strong>: Campo de referencia (opcional). <em>Aún no acota el cálculo</em>.</li>
+                        <li><strong>Clasif. General</strong>: Campo de referencia (opcional). <em>Aún no acota el cálculo</em>.</li>
+                        <li><strong>Clasif. Gastro</strong>: Campo de referencia (opcional). <em>Aún no acota el cálculo</em>.</li>
+                        <li><strong>Monto mínimo</strong>: Monto de compra de referencia. Es <em>informativo</em>: se muestra junto al descuento pero no condiciona el cálculo.</li>
                         <li><strong>Descuento (%)</strong>: Porcentaje de descuento a aplicar sobre el PVP.</li>
-                        <li><strong>Prioridad</strong>: Orden de aplicación cuando coinciden varias reglas.</li>
+                        <li><strong>Prioridad</strong>: Ordena las reglas; la de menor número se muestra primero en las columnas del Monitor.</li>
                         <li><strong>Activo</strong>: Habilita o deshabilita la regla.</li>
                         <li><strong>Descripción</strong>: Nota interna para documentar la regla.</li>
                     </ul>
                 </div>
                 <Tip>
                     Los descuentos se ven reflejados en el Monitor de Precios en las columnas &quot;c/Desc&quot; (PVP, Ganancia, Costos Venta,
-                    Ingreso Neto, márgenes y markup con descuento aplicado).
+                    Ingreso Neto, márgenes y markup con descuento aplicado). Si hay varias reglas activas en un canal se calculan todas: el
+                    Monitor muestra una en las columnas (la de menor prioridad) y el resto en el tooltip de la columna de descuento.
                 </Tip>
                 <Tip>
                     La tabla se muestra por defecto <strong>ordenada por canal</strong> de manera ascendente, para agrupar las
@@ -1160,11 +1161,10 @@ const sections: Section[] = [
                     Aplicar.
                 </Warning>
 
-                <Warning>
-                    Si <strong>reiniciás el backend</strong> con pendientes acumulados, los flags se pierden
-                    (el estado vive en memoria). Si pasa eso, los precios pueden quedar desactualizados — corré
-                    &quot;Recalcular Todos&quot; del Monitor para sincronizar.
-                </Warning>
+                <Tip>
+                    El estado de los pendientes se guarda en la base de datos, así que <strong>sobrevive a reinicios del backend</strong>:
+                    los productos marcados como desactualizados siguen ahí hasta que apliques el recálculo.
+                </Tip>
             </div>
         ),
     },
@@ -1207,7 +1207,7 @@ const sections: Section[] = [
                     <ul className="list-disc list-inside space-y-1 text-gray-600">
                         <li><strong>PVP</strong>: precio final que paga el cliente (incluye IVA, impuestos, comisiones, recargo por cuotas).</li>
                         <li><strong>PVP Inflado</strong>: precio &quot;tachado&quot; cuando hay regla de inflado configurada.</li>
-                        <li><strong>Costos Venta</strong>: comisiones del canal + descuentos + envío + recargo por cuotas.</li>
+                        <li><strong>Costos Venta</strong>: comisiones del canal + comisión ML + costo oculto de plataforma + envío + recargo por cuotas.</li>
                         <li><strong>Ingreso Neto Vendedor</strong>: PVP − IVA − impuestos − costos venta.</li>
                         <li><strong>Ganancia</strong>: ingreso neto − costo producto.</li>
                         <li><strong>Margen s/PVP</strong> = ganancia / PVP.</li>
@@ -1255,8 +1255,8 @@ const sections: Section[] = [
                     <p className="font-semibold">Filtros en la barra superior:</p>
                     <ul className="list-disc list-inside space-y-1 text-gray-600">
                         <li><strong>Buscador</strong>: Filtra por SKU, MLA o nombre del producto.</li>
-                        <li><strong>Canal</strong>: Filtra por canal de venta (o &quot;Todos&quot;).</li>
-                        <li><strong>Cuotas</strong>: Filtra por plan de cuotas. Las opciones disponibles dependen del canal seleccionado.</li>
+                        <li><strong>Canal</strong>: Filtra por uno o varios canales (checkboxes) o &quot;Todos&quot;. Marcar &quot;Todos&quot; limpia el resto.</li>
+                        <li><strong>Cuotas</strong>: Filtra por plan de cuotas. Las opciones disponibles dependen del canal seleccionado. Con 2 o más canales seleccionados se fija en &quot;Todas&quot; y se deshabilita.</li>
                         <li><strong>Vista</strong>: Selector que cambia el conjunto de columnas visibles —
                             <em>Rentabilidad</em> (PVP + ganancia + costos),
                             <em>Edición</em> (foco en costos / IVA / márgenes editables),
@@ -1324,7 +1324,7 @@ const sections: Section[] = [
                 <Tip>
                     El botón <strong>&quot;Recalcular Todos&quot;</strong> (rojo, en el encabezado) recalcula los precios de todos los productos
                     en todos los canales. Tarda ~80 segundos y bloquea otros procesos del grupo BD. Usalo solo
-                    cuando hayas hecho cambios verdaderamente masivos o si reiniciaste el backend con pendientes.
+                    cuando hayas hecho cambios verdaderamente masivos o quieras forzar una resincronización completa.
                 </Tip>
                 <Tip>
                     Hacé clic en <strong>&quot;Fórmula&quot;</strong> en cualquier fila para ver el detalle paso a paso de cómo se calcula
@@ -1403,8 +1403,8 @@ const sections: Section[] = [
                 </p>
                 <div className="flex flex-col gap-3">
                     <Step n={1} title="Configurar parámetros">
-                        Se dividen en dos bloques: <strong>Períodos y pesos</strong> (meses de cobertura, días por período y peso de cada período)
-                        y <strong>Conexión DUX</strong> (ID empresa y sucursales de donde se obtienen stock y ventas). Guardá la configuración antes de calcular.
+                        Se dividen en dos bloques: <strong>Cálculo de demanda</strong> (meses de cobertura, días por período y peso de cada período)
+                        y <strong>Integración DUX</strong> (ID empresa y sucursales de donde se obtienen stock y ventas). Guardá con <strong>Guardar configuración</strong> antes de calcular.
                     </Step>
                     <Step n={2} title="Calcular Reposición">
                         Presioná <strong>Calcular reposición</strong>. El proceso es asíncrono y puede tardar varios minutos.
@@ -1463,7 +1463,7 @@ const sections: Section[] = [
                     </p>
                 </div>
                 <Tip>
-                    Podés exportar cualquier OC a Excel desde <strong>Herramientas Excel → Reposición → Descargar OC</strong> ingresando el ID de la orden.
+                    Podés exportar cualquier OC a Excel desde <strong>Reposición → Descargas → Orden de Compra</strong> ingresando el ID de la orden.
                 </Tip>
             </div>
         ),
@@ -1482,8 +1482,9 @@ const sections: Section[] = [
                         <p className="font-semibold text-blue-800">Importaciones</p>
                     </div>
                     <ul className="list-disc list-inside space-y-1 text-gray-600">
-                        <li><strong>Importar Costos</strong>: Actualiza costo, IVA y proveedor desde Excel. Dispara recálculo automático de precios.</li>
-                        <li><strong>Importar Migración</strong>: Solo para migración inicial. Puede sobrescribir datos masivamente.</li>
+                        <li><strong>Importación inicial (3 pasos)</strong>: (1) Importar Tablas Auxiliares, (2) Importar Productos (MASTER), (3) Enriquecer Productos (NUEVO MASTER). Ejecutar en orden.</li>
+                        <li><strong>Importar Costos</strong>: Actualiza costos, IVA y proveedor de productos existentes. Dispara recálculo automático de precios.</li>
+                        <li><strong>Limpiar Datos de la BD</strong>: Operación destructiva con doble confirmación; vacía tablas seleccionadas (con cascada de dependencias).</li>
                     </ul>
                     <Warning>
                         El campo en el formulario multipart debe llamarse <code className="bg-gray-100 px-1 rounded">archivo</code>.
@@ -1496,9 +1497,6 @@ const sections: Section[] = [
                     </div>
                     <ul className="list-disc list-inside space-y-1 text-gray-600">
                         <li><strong>Lista de Precios</strong>: Formatos completo, MercadoLibre, KT Hogar, KT Gastro. El formato <strong>Completo</strong> permite opcionalmente seleccionar un canal y cuotas para filtrar la exportación. Los demás formatos permiten elegir cuotas.</li>
-                        <li><strong>Catálogo</strong>: Precios filtrados por catálogo y canal. Requiere ID catálogo + ID canal.</li>
-                        <li><strong>Reposición → Sugerencias</strong>: Descarga el resultado del último cálculo de reposición.</li>
-                        <li><strong>Reposición → OC</strong>: Descarga una orden de compra específica por ID.</li>
                     </ul>
                 </div>
             </div>
@@ -1555,7 +1553,7 @@ const sections: Section[] = [
                 <SectionCard title="Generación Manual" icon={BookOpenIcon}>
                     <p>
                         Seleccionás un <strong>catálogo</strong>, <strong>canal</strong> y <strong>cuotas</strong>,
-                        junto con filtros opcionales (clasificación, tipo, marca, máquina). Podés configurar:
+                        junto con filtros opcionales (Clasif. General, Clasif. Gastro, Tipo, Marca y Tag: Máquina/Repuesto/Menaje). Podés configurar:
                     </p>
                     <ul className="list-disc pl-5 space-y-1 text-sm text-gray-600 dark:text-slate-400 mt-2">
                         <li>Título y subtítulo del documento</li>
@@ -1563,7 +1561,7 @@ const sections: Section[] = [
                         <li>Inclusión de imágenes y carátula</li>
                         <li>Productos por página y estética (Linea GE o KT)</li>
                         <li>Visibilidad, tamaño de fuente y color por columna (código, nombre, precio, UxB)</li>
-                        <li><strong>Ordenamiento múltiple</strong>: lista priorizada de campos (Clasif. General, Clasif. Gastro, Tipo, Marca) que se aplican en cascada</li>
+                        <li><strong>Ordenamiento múltiple</strong>: lista priorizada de campos (Clasif. General, Clasif. Gastro, Tipo, Marca, Tag) que se aplican en cascada</li>
                     </ul>
                 </SectionCard>
                 <SectionCard title="Configuración Global" icon={Cog6ToothIcon}>
@@ -1600,12 +1598,11 @@ const sections: Section[] = [
                     La integración con <strong>DUX ERP</strong> permite obtener, importar y exportar el catálogo de productos.
                 </p>
                 <div className="flex flex-col gap-3">
-                    <Step n={1} title="Obtener Productos de DUX">
-                        Descarga el catálogo del ERP a un área de staging local. No modifica nada en el sistema.
+                    <Step n={1} title="Sincronización manual">
+                        Importa el catálogo de DUX directamente a la tabla de productos del sistema (costo, IVA, proveedor, descripción), matcheando por SKU. Tiene dos modos: <strong>Incremental</strong> (solo items modificados desde la última corrida exitosa, usando el cursor) y <strong>Completo</strong> (baja todo el catálogo, ignora el cursor).
                     </Step>
-                    <Step n={2} title="Importar Productos al Sistema">
-                        Procesa los datos del Paso 1 y actualiza los productos existentes (costo, IVA, proveedor, descripcion). Los SKUs no encontrados se reportan en el resultado.
-                        Disponible solo después de completar el Paso 1.
+                    <Step n={2} title="Importación programada por horarios">
+                        Configurá horarios para que la importación incremental se dispare automáticamente. Cada disparo automático es incremental.
                     </Step>
                 </div>
                 <Warning>
@@ -1736,7 +1733,7 @@ const sections: Section[] = [
                         <li><strong>Usuario</strong>: Filtra por nombre completo o username.</li>
                         <li><strong>Acción</strong>: Alta, edición o baja.</li>
                         <li><strong>Campo</strong>: Se filtra con texto libre, útil porque cada entidad tiene muchos campos distintos.</li>
-                        <li><strong>Origen</strong>: Formulario, edición inline, monitor de precios, API o sistema.</li>
+                        <li><strong>Origen</strong>: Formulario, edición inline, tabla, monitor de precios, proceso, manual, API o sistema.</li>
                     </ul>
                 </div>
                 <Tip>
@@ -1789,7 +1786,7 @@ const sections: Section[] = [
         id: "automatizacion-precios",
         title: "Automatización de Precios KT",
         icon: BoltIcon,
-        summary: "Sincronización de precios entre DUX, MercadoLibre y TiendaNube con 9 pasos configurables.",
+        summary: "Sincronización de precios entre DUX, MercadoLibre y TiendaNube con 10 pasos configurables.",
         keywords: ["automatizacion", "sincronizar", "dux", "ml", "nube", "precios", "promociones", "envio"],
         content: (
             <div className="flex flex-col gap-4">
@@ -1803,28 +1800,29 @@ const sections: Section[] = [
                     <ul className="list-disc list-inside space-y-1 text-gray-600">
                         <li><strong>Configuracion</strong>: Parámetros de canales, cuotas, listas DUX y porcentajes de promoción. Cada valor es editable haciendo clic directamente. Cada canal tiene un checkbox &quot;Sin IVA&quot; para enviar precios sin IVA a DUX.</li>
                         <li><strong>Topes de Promocion por MLA</strong>: Lista de MLAs con porcentaje máximo de descuento individual. Sobreescribe los porcentajes globales de Deal/Seller Campaign/Smart para ese MLA específico. Se buscan MLAs existentes con autocompletado.</li>
-                        <li><strong>Pasos de Sincronizacion</strong>: 9 checkboxes que controlan qué pasos se ejecutan.</li>
+                        <li><strong>Pasos de Sincronizacion</strong>: 10 checkboxes que controlan qué pasos se ejecutan.</li>
                     </ul>
                 </div>
                 <div className="flex flex-col gap-2">
-                    <p className="font-semibold">Los 9 pasos (en orden de ejecución):</p>
+                    <p className="font-semibold">Los 10 pasos (en orden de ejecución):</p>
                     <ul className="list-disc list-inside space-y-1 text-gray-600">
                         <li><strong>1. Importar costos de DUX</strong>: Descarga productos de DUX ERP y actualiza costos, IVA, proveedor y descripción. La importación es incremental (solo productos modificados desde la última ejecución).</li>
-                        <li><strong>2. Calcular precios de envío</strong>: Calcula el costo de envío solo para MLAs que aún no tienen precio de envío asignado.</li>
-                        <li><strong>3. Quitar promociones en ML</strong>: Remueve items de todas las promociones activas en MercadoLibre antes de actualizar precios.</li>
-                        <li><strong>4. Subir a DUX (Mercado Libre)</strong>: Sube los precios calculados a la lista de precios de ML en DUX.</li>
-                        <li><strong>5. Subir a DUX (KT Gastro)</strong>: Sube precios de KT Gastro a DUX. Si &quot;Sin IVA&quot; está activado, quita el IVA del producto antes de subir.</li>
-                        <li><strong>6. Subir a DUX (KT Hogar)</strong>: Sube precios de KT Hogar a DUX.</li>
-                        <li><strong>7. Subir a Tienda Nube (KT Hogar)</strong>: Actualiza precios en TiendaNube solo para la tienda KT Hogar. Envía PVP inflado como precio tachado y PVP como precio real.</li>
-                        <li><strong>8. Modificar precios en ML</strong>: Modifica los precios de las publicaciones en MercadoLibre (con variaciones si las tiene).</li>
-                        <li><strong>9. Incluir en promociones ML</strong>: Agrega items a promociones DEAL, Seller Campaign y Smart, respetando topes individuales por MLA.</li>
+                        <li><strong>2. Sincronizar títulos KT Gastro desde Tienda Nube</strong>: Descarga el catálogo de KT Gastro desde Tienda Nube y actualiza el campo Título Web de los productos (match por SKU). Solo persiste los títulos que cambiaron.</li>
+                        <li><strong>3. Calcular precios de envío</strong>: Calcula el costo de envío solo para MLAs que aún no tienen precio de envío asignado.</li>
+                        <li><strong>4. Quitar promociones en ML</strong>: Remueve items de todas las promociones activas en MercadoLibre antes de actualizar precios.</li>
+                        <li><strong>5. Subir a DUX (Mercado Libre)</strong>: Sube los precios calculados a la lista de precios de ML en DUX.</li>
+                        <li><strong>6. Subir a DUX (KT Gastro)</strong>: Sube precios de KT Gastro a DUX. Si &quot;Sin IVA&quot; está activado, quita el IVA del producto antes de subir.</li>
+                        <li><strong>7. Subir a DUX (KT Hogar)</strong>: Sube precios de KT Hogar a DUX.</li>
+                        <li><strong>8. Subir a Tienda Nube (KT Hogar)</strong>: Actualiza precios en TiendaNube solo para la tienda KT Hogar. Envía PVP inflado como precio tachado y PVP como precio real.</li>
+                        <li><strong>9. Modificar precios en ML</strong>: Modifica los precios de las publicaciones en MercadoLibre (con variaciones si las tiene).</li>
+                        <li><strong>10. Incluir en promociones ML</strong>: Agrega items a promociones DEAL, Seller Campaign y Smart, respetando topes individuales por MLA.</li>
                     </ul>
                 </div>
                 <div className="flex flex-col gap-2">
                     <p className="font-semibold">Ejecución automática (n8n):</p>
                     <p className="text-gray-600">
                         El endpoint <code className="bg-gray-100 px-1 rounded dark:bg-slate-700">POST /api/automatizacion-precios/ejecutar</code> ejecuta
-                        los 9 pasos de forma sincrónica y retorna un JSON con los contadores de cada paso. No requiere body ni autenticación.
+                        los 10 pasos de forma sincrónica y retorna un JSON con los contadores de cada paso. No requiere body ni autenticación.
                     </p>
                 </div>
                 <Tip>
@@ -1875,7 +1873,7 @@ const sections: Section[] = [
         content: (
             <div className="flex flex-col gap-4">
                 <p>
-                    La pantalla de <strong>inicio de sesión</strong> muestra el logo de <strong>SuperMaster</strong> y
+                    La pantalla de <strong>inicio de sesión</strong> muestra los logos de <strong>Línea GE</strong> y <strong>Kitchen Tools</strong> y
                     un formulario con usuario y contraseña. Al ingresar correctamente, el sistema redirige a la home.
                 </p>
                 <Tip>

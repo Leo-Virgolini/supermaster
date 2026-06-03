@@ -179,8 +179,8 @@ export default function ReglasDescuentoPage() {
                 {ayudaAbierta && (
                     <div className="border-t border-blue-200 px-4 py-3 text-sm text-blue-900 dark:border-blue-800/60 dark:text-blue-100">
                         <p className="mb-3">
-                            Aplican <strong>descuentos automáticos al PVP</strong> cuando se cumplen ciertas condiciones (canal, catálogo, clasificación)
-                            y un <strong>monto mínimo de compra</strong>. Sirven para promociones tipo &quot;15% off en compras superiores a $100.000 en KT HOGAR&quot;.
+                            Aplican <strong>descuentos automáticos al PVP</strong> según el <strong>canal</strong> de la regla. Sirven para reflejar
+                            promociones tipo &quot;15% off en KT HOGAR&quot; en el cálculo de precios y en el Monitor.
                         </p>
 
                         <div className="mb-3 rounded-md bg-white/60 p-3 text-xs dark:bg-blue-950/40">
@@ -188,9 +188,9 @@ export default function ReglasDescuentoPage() {
                                 Ejemplo
                             </p>
                             <p>
-                                Regla: <span className="font-mono">canal = KT HOGAR, monto mínimo = $50.000, descuento = 10%</span>.
-                                Si un producto en KT HOGAR tiene PVP $80.000, se aplica un descuento del 10% → PVP con descuento ={" "}
-                                <span className="font-mono">$72.000</span>. Si el PVP es $30.000 (no llega al mínimo), no se aplica.
+                                Regla: <span className="font-mono">canal = KT HOGAR, descuento = 10%</span>.
+                                Si un producto en KT HOGAR tiene PVP $80.000, la columna PVP c/Desc muestra el 10% de descuento →{" "}
+                                <span className="font-mono">$72.000</span>. El monto mínimo, si se carga, se muestra como referencia informativa.
                             </p>
                         </div>
 
@@ -198,10 +198,10 @@ export default function ReglasDescuentoPage() {
                             <p className="mb-1 font-semibold">Campos clave:</p>
                             <ul className="ml-4 list-disc space-y-0.5">
                                 <li><strong>Canal</strong>: obligatorio. La regla solo aplica a precios de ese canal.</li>
-                                <li><strong>Catálogo / Clasif. Gral / Clasif. Gastro</strong>: filtros opcionales para acotar a un subconjunto de productos.</li>
-                                <li><strong>Monto Mínimo ($)</strong>: PVP debe ser ≥ a este valor para que se active.</li>
+                                <li><strong>Catálogo / Clasif. Gral / Clasif. Gastro</strong>: campos opcionales de referencia. <em>Aún no acotan el cálculo</em>: el descuento se aplica a todos los productos del canal (el filtrado por estos campos no está implementado en el motor de precios).</li>
+                                <li><strong>Monto Mínimo ($)</strong>: monto de compra de referencia. Es <em>informativo</em>: se muestra junto al descuento pero no condiciona el cálculo (el descuento c/Desc se calcula siempre).</li>
                                 <li><strong>Descuento (%)</strong>: porcentaje a descontar del PVP.</li>
-                                <li><strong>Prioridad</strong>: cuando varias reglas coinciden, gana la de prioridad más alta.</li>
+                                <li><strong>Prioridad</strong>: ordena las reglas; la de menor número se muestra primero en las columnas del Monitor (las demás van en el tooltip).</li>
                                 <li><strong>Activo</strong>: deshabilita la regla sin tener que borrarla.</li>
                             </ul>
                         </div>
@@ -209,7 +209,7 @@ export default function ReglasDescuentoPage() {
                         <div className="rounded-md border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900 dark:border-amber-700/60 dark:bg-amber-900/30 dark:text-amber-100">
                             Los descuentos se ven reflejados en el <strong>Monitor de Precios</strong> en las columnas con sufijo{" "}
                             <span className="font-mono">c/Desc</span> (PVP, Ganancia, Costos Venta, Ingreso Neto, márgenes y markup recalculados).
-                            Si configurás varias reglas, el sistema elige <strong>una sola</strong> según prioridad — no se acumulan.
+                            Si configurás varias reglas activas en un canal, se calculan <strong>todas</strong>: el Monitor muestra una en las columnas (la de menor prioridad) y el resto al pasar el mouse sobre la columna de descuento.
                         </div>
                     </div>
                 )}
@@ -294,7 +294,7 @@ export default function ReglasDescuentoPage() {
 
                     <div className="grid grid-cols-2 gap-4">
                         <label className="block">
-                            <span className="font-bold text-gray-700 text-sm">Prioridad (Mayor = gana)</span>
+                            <span className="font-bold text-gray-700 text-sm">Prioridad (Menor = se muestra primero)</span>
                             <input type="number" className="w-full border p-2 rounded" value={prioridad} onChange={e => setPrioridad(Number(e.target.value))} />
                         </label>
                         <label className="flex items-center gap-2 pt-6">

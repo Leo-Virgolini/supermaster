@@ -143,7 +143,7 @@ export default function PreciosInfladosPage() {
                                 Producto con PVP <span className="font-mono">$10.000</span>. Le asignás una regla de inflado{" "}
                                 <span className="font-mono">MULTIPLICADOR × 1.30</span>. El cliente verá{" "}
                                 <span className="font-mono line-through text-slate-500">$13.000</span>{" "}
-                                <span className="font-mono font-bold">$10.000</span> (30% off).
+                                <span className="font-mono font-bold">$10.000</span> (≈23% off).
                             </p>
                         </div>
 

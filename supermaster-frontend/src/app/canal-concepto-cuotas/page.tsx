@@ -202,9 +202,10 @@ export default function CanalConceptoCuotaPage() {
                         </div>
 
                         <p className="mb-3">
-                            El <strong>porcentaje</strong> se suma a los conceptos &quot;sobre PVP&quot; del canal y se aplica como divisor:{" "}
-                            <span className="font-mono">PVP = costo / (1 − (gastos% + cuota%) / 100)</span>. Un porcentaje positivo
-                            <em>aumenta</em> el PVP (interés) y uno negativo lo <em>reduce</em> (descuento por transferencia).
+                            El <strong>porcentaje</strong> se suma a los conceptos &quot;sobre PVP&quot; del canal. Si es positivo (interés) se aplica
+                            como divisor: <span className="font-mono">PVP = costo / (1 − (gastos% + cuota%) / 100)</span>, lo que <em>aumenta</em> el
+                            PVP. Si es negativo (descuento por transferencia), los gastos se aplican como divisor y el descuento como multiplicador:{" "}
+                            <span className="font-mono">PVP = costo / (1 − gastos% / 100) × (1 − |cuota%| / 100)</span>, lo que <em>reduce</em> el PVP.
                         </p>
 
                         <div className="rounded-md border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900 dark:border-amber-700/60 dark:bg-amber-900/30 dark:text-amber-100">

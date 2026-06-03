@@ -256,8 +256,8 @@ export default function ProductoCanalPreciosPage() {
                             </p>
                             <ul className="ml-4 list-disc space-y-0.5">
                                 <li><strong>Buscador</strong>: por SKU, MLA o nombre del producto.</li>
-                                <li><strong>Canal</strong>: filtra por un canal específico o &quot;Todos&quot;.</li>
-                                <li><strong>Cuotas</strong>: filtra por plan de cuotas. Las opciones dependen del canal seleccionado.</li>
+                                <li><strong>Canal</strong>: filtrá por uno o varios canales (checkboxes) o &quot;Todos&quot;. Marcar &quot;Todos&quot; limpia el resto.</li>
+                                <li><strong>Cuotas</strong>: filtra por plan de cuotas. Las opciones dependen del canal seleccionado. Con 2 o más canales seleccionados se fija en &quot;Todas&quot; y se deshabilita.</li>
                                 <li><strong>Vista</strong>: alterna entre <em>Rentabilidad</em>, <em>Edición</em>, <em>Descuentos</em> o <em>Completo</em> para mostrar diferentes grupos de columnas.</li>
                             </ul>
                         </div>

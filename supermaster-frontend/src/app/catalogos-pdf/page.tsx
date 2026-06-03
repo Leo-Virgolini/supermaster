@@ -22,8 +22,6 @@ import {
     DocumentDuplicateIcon,
     ClipboardDocumentIcon,
     ExclamationTriangleIcon,
-    BuildingStorefrontIcon,
-    BoltIcon,
     ClipboardDocumentListIcon,
     CalculatorIcon,
 } from "@heroicons/react/24/outline";

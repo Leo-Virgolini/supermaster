@@ -1027,11 +1027,41 @@ public class MercadoLibreService {
             return null;
         }
         JsonNode results = objectMapper.readTree(body).path("results");
-        if (results.isArray() && !results.isEmpty()) {
-            String mla = results.get(0).asString();
-            return (mla == null || mla.isBlank()) ? null : mla;
+        if (!results.isArray() || results.isEmpty()) {
+            return null;
+        }
+        // Solo nos quedamos con publicaciones TRADICIONALES (no de catálogo). Si el
+        // SKU está en varias publicaciones, devolvemos la primera tradicional.
+        for (JsonNode node : results) {
+            String mla = node.asString();
+            if (mla == null || mla.isBlank()) {
+                continue;
+            }
+            if (esPublicacionTradicional(mla)) {
+                return mla;
+            }
         }
         return null;
+    }
+
+    /**
+     * Determina si una publicación es tradicional (no de catálogo) leyendo el campo
+     * {@code catalog_listing} del ítem: true = catálogo, false/ausente = tradicional.
+     * Ante cualquier error de consulta devuelve false (no la tomamos por las dudas).
+     */
+    private boolean esPublicacionTradicional(String mlaCode) {
+        try {
+            String itemBody = retryHandler.get("/items/" + mlaCode + "?attributes=id,catalog_listing",
+                    () -> tokens.accessToken);
+            if (itemBody == null) {
+                return false;
+            }
+            JsonNode catalogListing = objectMapper.readTree(itemBody).path("catalog_listing");
+            return !catalogListing.asBoolean(false);
+        } catch (Exception e) {
+            log.warn("ML - No se pudo determinar el tipo de publicación de {}: {}", mlaCode, e.getMessage());
+            return false;
+        }
     }
 
     // ==================== MANEJO DE CREDENCIALES ====================

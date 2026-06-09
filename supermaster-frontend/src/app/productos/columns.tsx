@@ -15,6 +15,7 @@ import { EditableRelationCell } from "../components/EditableRelationCell/Editabl
 import { formatFechaAR, EMPTY } from "../utils/formatDate";
 import { getCatalogoColor, CATALOGO_BADGE_CLASS } from "../utils/catalogoColors";
 import TableActionButton, { getTableActionButtonClasses } from "../components/Table/core/TableActionButton";
+import ConfirmToggleCell from "../components/Table/core/ConfirmToggleCell";
 
 const FONT = {
     code: "font-mono text-[13px] tracking-tight font-semibold",
@@ -355,17 +356,16 @@ export function getColumns(onOpenDetalle: (producto: ProductoDTO) => void, canEd
     },
     {
         accessorKey: "esCombo", header: "Combo", meta: { editable: true },
-        cell: ({ getValue, row, column, table }) => {
-            const val = getValue() as boolean;
-            return (
-                <label className="inline-flex items-center cursor-pointer" title={val ? "Es combo — clic para quitar" : "No es combo — clic para marcar"}>
-                    <input type="checkbox" checked={val} onChange={(e) => (table.options.meta as any)?.updateData?.(row.index, column.id, e.target.checked)} className="sr-only peer" disabled={!canEdit} />
-                    <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold transition-colors ${val ? "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300" : "bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-slate-400"}`}>
-                        {val ? "Sí" : "No"}
-                    </span>
-                </label>
-            );
-        }
+        cell: ({ getValue, row, column, table }) => (
+            <ConfirmToggleCell
+                value={getValue() as boolean}
+                disabled={!canEdit}
+                trueClassName="bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300"
+                falseClassName="bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-slate-400"
+                titleFor={(v) => v ? "Es combo" : "No es combo"}
+                onConfirm={(newVal) => (table.options.meta as any)?.updateData?.(row.index, column.id, newVal)}
+            />
+        )
     },
     // --- ECONÓMICOS ---
     {
@@ -648,17 +648,16 @@ export function getColumns(onOpenDetalle: (producto: ProductoDTO) => void, canEd
     },
     {
         accessorKey: "activo", header: "Activo",
-        cell: ({ getValue, row, column, table }) => {
-            const val = getValue() as boolean;
-            return (
-                <label className={`inline-flex items-center ${canEdit ? "cursor-pointer" : "cursor-default"}`} title={canEdit ? (val ? "Activo — clic para desactivar" : "Inactivo — clic para activar") : (val ? "Activo" : "Inactivo")}>
-                    <input type="checkbox" checked={val} onChange={(e) => (table.options.meta as any)?.updateData?.(row.index, column.id, e.target.checked)} className="sr-only peer" disabled={!canEdit} />
-                    <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold transition-colors ${val ? "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300" : "bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-slate-400"}`}>
-                        {val ? "Sí" : "No"}
-                    </span>
-                </label>
-            );
-        }
+        cell: ({ getValue, row, column, table }) => (
+            <ConfirmToggleCell
+                value={getValue() as boolean}
+                disabled={!canEdit}
+                trueClassName="bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300"
+                falseClassName="bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-slate-400"
+                titleFor={(v) => v ? "Activo" : "Inactivo"}
+                onConfirm={(newVal) => (table.options.meta as any)?.updateData?.(row.index, column.id, newVal)}
+            />
+        )
     },
   ];
 }

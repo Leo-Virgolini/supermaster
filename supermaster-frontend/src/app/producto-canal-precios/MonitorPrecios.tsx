@@ -621,6 +621,66 @@ const getColumns = (
         },
     },
     {
+        accessorKey: "precioInfladoCodigo",
+        header: "Regla Inflado",
+        size: 180,
+        enableSorting: true,
+        meta: { center: true, editable: true },
+        cell: ({ row }) => {
+            const codigo = row.original.precioInfladoCodigo;
+            const tipo = row.original.precioInfladoTipo;
+            const valor = row.original.precioInfladoValor;
+            const tipoLabel = tipo === "MULTIPLICADOR" ? "×" : tipo === "DESCUENTO_PORC" ? "-%" : tipo === "DIVISOR" ? "÷" : tipo === "PRECIO_FIJO" ? "$" : "";
+            const displayName = codigo ? `${codigo} (${tipoLabel}${valor})` : "---";
+
+            const badge = (codigo: string | null, onClick?: () => void) => {
+                if (!codigo) return (
+                    <span onClick={onClick} className={`text-gray-300 ${onClick ? "cursor-pointer hover:text-violet-400" : ""}`}>
+                        {"—"}
+                    </span>
+                );
+                return (
+                    <span
+                        onClick={onClick}
+                        className={`inline-flex items-center gap-1 text-xs font-medium text-violet-600 bg-violet-50 border border-violet-200 px-2 py-0.5 rounded-full ${onClick ? "cursor-pointer hover:bg-violet-100 hover:border-violet-300 transition-colors" : ""}`}
+                        title={`${tipo}: ${valor}`}
+                    >
+                        {codigo} <span className="text-violet-400">({tipoLabel}{valor})</span>
+                    </span>
+                );
+            };
+
+            if (!onEditReglaInflada) return badge(codigo);
+
+            return (
+                <div className="flex items-center justify-center gap-1">
+                    <EditableRelationCell
+                        initialName={displayName}
+                        initialId={null}
+                        onSave={(newId) => onEditReglaInflada(row.original.id, row.original.canalId, newId)}
+                        loadOptions={loadReglasInflado}
+                        placeholder="Buscar regla..."
+                        endpoint="precios-inflados"
+                        labelKey="codigo"
+                        nullable
+                        disabled={!canEdit}
+                        renderDisplay={(_name, onClick) => badge(codigo, onClick)}
+                    />
+                    {codigo && (
+                        <button
+                            onClick={() => onEditReglaInflada(row.original.id, row.original.canalId, null)}
+                            disabled={!canEdit}
+                            className="shrink-0 text-gray-300 hover:text-red-500 transition-colors p-0.5 rounded hover:bg-red-50 disabled:cursor-default disabled:hover:text-gray-300 disabled:hover:bg-transparent"
+                            title="Quitar regla inflada"
+                        >
+                            <XMarkIcon className="w-3.5 h-3.5" />
+                        </button>
+                    )}
+                </div>
+            );
+        },
+    },
+    {
         accessorKey: "costo",
         header: "Costo",
         size: 100,
@@ -750,67 +810,6 @@ const getColumns = (
                 onSave={(val) => onEditField?.(row.original.id, row.original.canalId, "margenFijoMayorista", val!)}
             />
         ),
-    },
-    // --- Precios calculados ---
-    {
-        accessorKey: "precioInfladoCodigo",
-        header: "Regla Inflado",
-        size: 180,
-        enableSorting: true,
-        meta: { center: true, editable: true },
-        cell: ({ row }) => {
-            const codigo = row.original.precioInfladoCodigo;
-            const tipo = row.original.precioInfladoTipo;
-            const valor = row.original.precioInfladoValor;
-            const tipoLabel = tipo === "MULTIPLICADOR" ? "\u00d7" : tipo === "DESCUENTO_PORC" ? "-%" : tipo === "DIVISOR" ? "\u00f7" : tipo === "PRECIO_FIJO" ? "$" : "";
-            const displayName = codigo ? `${codigo} (${tipoLabel}${valor})` : "---";
-
-            const badge = (codigo: string | null, onClick?: () => void) => {
-                if (!codigo) return (
-                    <span onClick={onClick} className={`text-gray-300 ${onClick ? "cursor-pointer hover:text-violet-400" : ""}`}>
-                        {"\u2014"}
-                    </span>
-                );
-                return (
-                    <span
-                        onClick={onClick}
-                        className={`inline-flex items-center gap-1 text-xs font-medium text-violet-600 bg-violet-50 border border-violet-200 px-2 py-0.5 rounded-full ${onClick ? "cursor-pointer hover:bg-violet-100 hover:border-violet-300 transition-colors" : ""}`}
-                        title={`${tipo}: ${valor}`}
-                    >
-                        {codigo} <span className="text-violet-400">({tipoLabel}{valor})</span>
-                    </span>
-                );
-            };
-
-            if (!onEditReglaInflada) return badge(codigo);
-
-            return (
-                <div className="flex items-center justify-center gap-1">
-                    <EditableRelationCell
-                        initialName={displayName}
-                        initialId={null}
-                        onSave={(newId) => onEditReglaInflada(row.original.id, row.original.canalId, newId)}
-                        loadOptions={loadReglasInflado}
-                        placeholder="Buscar regla..."
-                        endpoint="precios-inflados"
-                        labelKey="codigo"
-                        nullable
-                        disabled={!canEdit}
-                        renderDisplay={(_name, onClick) => badge(codigo, onClick)}
-                    />
-                    {codigo && (
-                        <button
-                            onClick={() => onEditReglaInflada(row.original.id, row.original.canalId, null)}
-                            disabled={!canEdit}
-                            className="shrink-0 text-gray-300 hover:text-red-500 transition-colors p-0.5 rounded hover:bg-red-50 disabled:cursor-default disabled:hover:text-gray-300 disabled:hover:bg-transparent"
-                            title="Quitar regla inflada"
-                        >
-                            <XMarkIcon className="w-3.5 h-3.5" />
-                        </button>
-                    )}
-                </div>
-            );
-        },
     },
     // --- Resultados financieros ---
     {

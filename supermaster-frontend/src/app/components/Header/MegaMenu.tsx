@@ -39,7 +39,7 @@ const MenuItem = ({ href, label, icon, isActive, description, external = false, 
 
 	const content = (
 		<>
-			<span className={`mt-0.5 shrink-0 ${isActive ? "text-white" : "text-gray-400 dark:text-slate-500"}`}>
+			<span className={`mt-0.5 flex size-5 shrink-0 items-center justify-center ${isActive ? "text-white" : "text-gray-400 dark:text-slate-500"}`}>
 				{icon}
 			</span>
 			<span className="min-w-0 flex-1">

@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +50,13 @@ public class MlaServiceImpl implements MlaService {
     @Autowired
     private MercadoLibreService mercadoLibreService;
 
+    // Self-proxy: para que asegurarMla()/obtener() corran en su propia transacción
+    // aunque se invoquen desde otro método de este mismo bean (las llamadas this.*
+    // no pasan por el proxy de Spring y se saltarían @Transactional).
+    @Lazy
+    @Autowired
+    private MlaServiceImpl self;
+
     @Override
     @Transactional(readOnly = true)
     public Page<MlaDTO> listar(String search, Pageable pageable) {
@@ -71,6 +79,11 @@ public class MlaServiceImpl implements MlaService {
     @Transactional
     public MlaDTO crear(MlaCreateDTO dto) {
         Mla entity = mapper.toEntity(dto);
+        // La columna comision_porcentaje es DECIMAL(5,2): normalizamos por las dudas
+        // que llegue con más decimales desde el form de alta.
+        if (entity.getComisionPorcentaje() != null) {
+            entity.setComisionPorcentaje(entity.getComisionPorcentaje().setScale(2, RoundingMode.HALF_UP));
+        }
         repo.save(entity);
         auditoriaService.registrarCambios(
                 AuditoriaEntidad.MLA,
@@ -84,44 +97,57 @@ public class MlaServiceImpl implements MlaService {
     }
 
     @Override
-    @Transactional
     public MlaDTO obtenerOcrearPorSkuDesdeML(String sku) {
         MercadoLibreService.MlaPorSku resultado = mercadoLibreService.buscarMlaPorSku(sku);
         if (resultado == null || resultado.mla() == null || resultado.mla().isBlank()) {
             throw new NotFoundException("No se encontró una publicación tradicional de MercadoLibre para el SKU " + sku);
         }
         final String mlaCode = resultado.mla();
-        final String mlauNuevo = resultado.mlau();
 
-        // Aseguramos que exista el registro MLA antes de calcular envío/comisión,
-        // ya que esos procesos buscan y persisten sobre la entidad Mla.
-        Mla mla = repo.findFirstByMla(mlaCode).orElseGet(() -> {
-            Mla nuevo = new Mla();
-            nuevo.setMla(mlaCode);
-            nuevo.setMlau(mlauNuevo);
-            nuevo.setTopePromocion(0);
-            Mla guardado = repo.save(nuevo);
-            auditoriaService.registrarCambios(
-                    AuditoriaEntidad.MLA, guardado.getId(), guardado.getMla(),
-                    AuditoriaAccion.CREATE, Map.of(), capturarSnapshot(guardado));
-            return guardado;
-        });
+        // Creamos/aseguramos el MLA en una transacción aislada y corta (sin llamadas
+        // HTTP dentro). Así, si la consulta a ML falla después, el MLA ya quedó guardado
+        // y no arrastra esa transacción a rollback (UnexpectedRollbackException).
+        Integer mlaId = self.asegurarMla(mlaCode, resultado.mlau());
 
-        // Reutiliza los procesos existentes: calculan y persisten precio de envío
-        // y % de comisión sobre el MLA (con el mismo precio que usa ML hoy).
-        try {
-            mercadoLibreService.calcularCostoEnvioGratis(mlaCode);
-        } catch (Exception e) {
-            log.warn("ML - No se pudo calcular el costo de envío para {}: {}", mlaCode, e.getMessage());
-        }
+        // Envío y comisión con los procesos de ML, FUERA de la tx de creación (cada uno
+        // corre en su propia transacción; un fallo de ML no revierte el MLA recién creado).
+        // Orden importa: primero la comisión (no requiere producto asociado, usa el ítem
+        // de ML); luego el envío, que reutiliza esa comisión sin recalcularla.
+        // El envío solo se calcula si el MLA YA tiene un producto asociado (otro producto
+        // que comparte el MLA): calcularCostoEnvioGratis hace early-return si no lo tiene.
+        // Para un MLA nuevo sin producto, el frontend dispara el envío después de crear y
+        // asociar el producto del alta.
         try {
             mercadoLibreService.obtenerCostoVenta(mlaCode);
         } catch (Exception e) {
             log.warn("ML - No se pudo obtener el costo de venta para {}: {}", mlaCode, e.getMessage());
         }
+        try {
+            mercadoLibreService.calcularCostoEnvioGratis(mlaCode);
+        } catch (Exception e) {
+            log.warn("ML - No se pudo calcular el costo de envío para {}: {}", mlaCode, e.getMessage());
+        }
 
-        Mla actualizado = repo.findById(mla.getId()).orElse(mla);
-        return mapper.toDTO(actualizado);
+        return self.obtener(mlaId);
+    }
+
+    /**
+     * Crea (o devuelve, si ya existe) el MLA por su código, en su PROPIA transacción
+     * y sin llamadas externas dentro. Devuelve el id del MLA.
+     */
+    @Transactional
+    public Integer asegurarMla(String mlaCode, String mlau) {
+        return repo.findFirstByMla(mlaCode).map(Mla::getId).orElseGet(() -> {
+            Mla nuevo = new Mla();
+            nuevo.setMla(mlaCode);
+            nuevo.setMlau(mlau);
+            nuevo.setTopePromocion(0);
+            Mla guardado = repo.save(nuevo);
+            auditoriaService.registrarCambios(
+                    AuditoriaEntidad.MLA, guardado.getId(), guardado.getMla(),
+                    AuditoriaAccion.CREATE, Map.of(), capturarSnapshot(guardado));
+            return guardado.getId();
+        });
     }
 
     @Override

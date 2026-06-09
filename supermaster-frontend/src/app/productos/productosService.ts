@@ -196,15 +196,32 @@ export const createMlaAPI = async (data: { mla: string; mlau?: string | null; pr
 	return await res.json();
 };
 
+// Dispara en ML el cálculo del precio de envío del MLA del producto. Requiere que el
+// producto YA esté asociado al MLA (por eso se llama después de crear el producto):
+// el cálculo de envío necesita el PVP del producto.
+export const calcularEnvioMlaAPI = async (productoId: number): Promise<void> => {
+	const res = await fetchAPI(`${API_BASE_URL}/api/ml/costo-envio?productoId=${productoId}`, { method: "POST" });
+	if (!res.ok) throw new Error(await extraerMensajeError(res, "No se pudo calcular el envío del MLA"));
+};
+
+export type ExportDuxResultDTO = {
+	productosEnviados: number;
+	idProceso: number;
+	errores: string[];
+};
+
 // Sube (exporta) productos a Dux por SKU. El backend mapea los datos del producto
 // a los campos del ítem de Dux (cod_item, descripción, costo, IVA, combo, etc.).
-export const exportarProductosADuxAPI = async (skus: string[]): Promise<void> => {
+// Devuelve el resultado: el backend responde 200 incluso si no se exportó nada
+// (con `errores` poblado), así que hay que revisar `productosEnviados`.
+export const exportarProductosADuxAPI = async (skus: string[]): Promise<ExportDuxResultDTO> => {
 	const res = await fetchAPI(`${API_BASE_URL}/api/dux/exportar-productos`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ skus }),
 	});
 	if (!res.ok) throw new Error(await extraerMensajeError(res, "No se pudo subir el producto a Dux"));
+	return await res.json();
 };
 
 // Sugiere el menor SKU libre del rango (individual vs combo). Devuelve null si el rango está lleno.

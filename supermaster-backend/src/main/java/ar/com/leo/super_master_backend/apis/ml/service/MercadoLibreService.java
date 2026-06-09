@@ -1020,7 +1020,8 @@ public class MercadoLibreService {
         } catch (IOException e) {
             throw new BadRequestException("No se pudo obtener el usuario de MercadoLibre: " + e.getMessage());
         }
-        String path = "/users/" + userId + "/items/search?seller_sku="
+        // status=active: ignoramos publicaciones pausadas/cerradas que reusen el SKU.
+        String path = "/users/" + userId + "/items/search?status=active&seller_sku="
                 + URLEncoder.encode(sku.trim(), StandardCharsets.UTF_8);
         String body = retryHandler.get(path, () -> tokens.accessToken);
         if (body == null) {

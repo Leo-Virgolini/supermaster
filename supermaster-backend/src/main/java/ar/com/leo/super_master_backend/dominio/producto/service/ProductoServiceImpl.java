@@ -220,6 +220,13 @@ public class ProductoServiceImpl implements ProductoService {
         long min = esCombo ? 5_000_000L : 1_000_000L;
         long max = esCombo ? 5_999_999L : 1_999_999L;
 
+        // Atajo para el caso común: si el mínimo del rango está libre, ya es el menor
+        // disponible. Es una consulta por SKU exacto (usa índice) y evita el scan del
+        // rango (CAST + REGEXP, sin índice) en cada apertura del modal / toggle de combo.
+        if (productoRepository.findBySku(String.valueOf(min)).isEmpty()) {
+            return String.valueOf(min);
+        }
+
         // SKU usados del rango, ordenados ascendentemente. Buscamos el primer
         // entero que no esté ocupado empezando desde el mínimo del rango.
         List<Long> usados = productoRepository.findSkusNumericosEnRango(min, max);

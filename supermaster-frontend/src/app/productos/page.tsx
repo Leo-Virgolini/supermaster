@@ -20,8 +20,8 @@ import ProductosFilterPanel, { ProductosFilterToggle } from "./ProductosFilterBa
 import {
     getProductosForExportAPI, getSiguienteSkuAPI, getMlaPorSkuAPI, createMlaAPI,
     searchMarcas, searchClasifGral, searchClasifGastro, searchTipos, searchProveedores, searchOrigenes, searchMateriales, searchMlas,
-    searchCatalogos, searchAptos, searchClientes, addProductoCatalogoAPI, addProductoAptoAPI, addProductoClienteAPI,
-    exportarProductosADuxAPI,
+    searchCatalogos, searchAptos, searchClientes, searchCanales, addProductoCatalogoAPI, addProductoAptoAPI, addProductoClienteAPI,
+    exportarProductosADuxAPI, calcularEnvioMlaAPI,
 } from "./productosService";
 import { updateProductoMargenAPI } from "./productoMargenService";
 import MultiAsyncSelect, { type MultiOption } from "../components/MultiAsyncSelect/MultiAsyncSelect";
@@ -350,6 +350,16 @@ export default function ProductosPage() {
         proveedorIds: (q: string) => searchProveedores(q, 9999),
         origenIds: (q: string) => searchOrigenes(q, 9999),
         materialIds: (q: string) => searchMateriales(q, 9999),
+        catalogoIds: (q: string) => searchCatalogos(q, 9999),
+        aptoIds: (q: string) => searchAptos(q, 9999),
+        clienteIds: (q: string) => searchClientes(q, 9999),
+        canalIds: (q: string) => searchCanales(q, 9999),
+        mlaIds: (q: string) => searchMlas(q, 9999),
+        tags: async () => [
+            { id: "MAQUINA", label: "Máquina" },
+            { id: "REPUESTO", label: "Repuesto" },
+            { id: "MENAJE", label: "Menaje" },
+        ],
     }), []);
 
     useEffect(() => {
@@ -564,12 +574,23 @@ export default function ProductosPage() {
                 tag: tag || null,
                 marcaId, origenId, clasifGralId: clasifGralId!, clasifGastroId, tipoId: tipoId!, proveedorId, materialId, mlaId: mlaIdFinal
             };
-            await createProducto(payload, asociarMargenYRelaciones);
+            const creado = await createProducto(payload, asociarMargenYRelaciones);
+            // Si el producto quedó asociado a un MLA, ahora SÍ se puede calcular su
+            // precio de envío (el cálculo necesita el producto). Se dispara en segundo
+            // plano; el resultado se refleja luego en el Monitor de Precios.
+            if (mlaIdFinal && creado?.id) {
+                calcularEnvioMlaAPI(creado.id).catch(() => { /* se recalcula luego desde ML */ });
+            }
             // Subida a Dux (opcional, no invalida el producto ya creado).
             if (subirADux && canExportarDux) {
                 try {
-                    await exportarProductosADuxAPI([sku.trim()]);
-                    notificar.success(`Producto ${sku.trim()} enviado a Dux`);
+                    const resultadoDux = await exportarProductosADuxAPI([sku.trim()]);
+                    if (resultadoDux.productosEnviados > 0) {
+                        notificar.success(`Producto ${sku.trim()} enviado a Dux`);
+                    } else {
+                        const detalle = resultadoDux.errores?.length ? `: ${resultadoDux.errores.join("; ")}` : "";
+                        notificar.error(`El producto se creó, pero no se subió a Dux${detalle}`);
+                    }
                 } catch (e) {
                     notificar.error(e instanceof Error ? `El producto se creó, pero falló al subirlo a Dux: ${e.message}` : "El producto se creó, pero falló al subirlo a Dux");
                 }
@@ -1129,24 +1150,24 @@ export default function ProductosPage() {
                                         {obteniendoMla ? "Trayendo de MercadoLibre..." : "Autocompletar desde MercadoLibre"}
                                     </button>
                                 </div>
-                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
-                                    <label className="block">
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
+                                    <label className="block xl:col-span-3">
                                         <span className={fieldLabelClassName}>Código MLA</span>
                                         <input type="text" className={inputBaseClassName} value={mlaCodigo} onChange={e => setMlaCodigo(e.target.value)} placeholder="MLA123456789" />
                                     </label>
-                                    <label className="block">
+                                    <label className="block xl:col-span-3">
                                         <span className={fieldLabelClassName}>MLAU</span>
                                         <input type="text" className={inputBaseClassName} value={mlaMlau} onChange={e => setMlaMlau(e.target.value)} placeholder="Opcional" />
                                     </label>
-                                    <label className="block">
+                                    <label className="block xl:col-span-2">
                                         <span className={fieldLabelClassName}>Precio envío</span>
                                         <input type="number" min={0} className={inputBaseClassName} value={mlaPrecioEnvio} onChange={e => setMlaPrecioEnvio(e.target.value === "" ? "" : Number(e.target.value))} placeholder="0" />
                                     </label>
-                                    <label className="block">
+                                    <label className="block xl:col-span-2">
                                         <span className={fieldLabelClassName}>Comisión (%)</span>
                                         <input type="number" min={0} step={0.5} className={inputBaseClassName} value={mlaComision} onChange={e => setMlaComision(e.target.value === "" ? "" : Number(e.target.value))} placeholder="0" />
                                     </label>
-                                    <label className="block">
+                                    <label className="block xl:col-span-2">
                                         <span className={fieldLabelClassName}>Tope promoción</span>
                                         <input type="number" min={0} className={inputBaseClassName} value={mlaTope} onChange={e => setMlaTope(e.target.value === "" ? "" : Number(e.target.value))} placeholder="0" />
                                     </label>

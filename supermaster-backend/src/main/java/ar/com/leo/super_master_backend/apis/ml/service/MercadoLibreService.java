@@ -1009,7 +1009,7 @@ public class MercadoLibreService {
      * (campo {@code seller_sku}) consultando la API de búsqueda de items del seller.
      * Devuelve null si no hay coincidencias.
      */
-    public String buscarMlaCodePorSku(String sku) {
+    public MlaPorSku buscarMlaPorSku(String sku) {
         if (sku == null || sku.isBlank()) {
             return null;
         }
@@ -1030,38 +1030,69 @@ public class MercadoLibreService {
         if (!results.isArray() || results.isEmpty()) {
             return null;
         }
-        // Solo nos quedamos con publicaciones TRADICIONALES (no de catálogo). Si el
-        // SKU está en varias publicaciones, devolvemos la primera tradicional.
+        // Solo nos quedamos con publicaciones TRADICIONALES (no de catálogo). Si el SKU
+        // está en varias, devolvemos la primera tradicional con su MLAU. Una sola
+        // consulta por candidato trae el tipo de publicación y el MLAU juntos.
         for (JsonNode node : results) {
-            String mla = node.asString();
-            if (mla == null || mla.isBlank()) {
+            String mla = textoOpcional(node);
+            if (mla == null) {
                 continue;
             }
-            if (esPublicacionTradicional(mla)) {
-                return mla;
+            JsonNode item = obtenerItemNode(mla, "id,catalog_listing,user_product_id,variations");
+            if (item == null) {
+                continue; // ante la duda no la tomamos
+            }
+            boolean esCatalogo = item.path("catalog_listing").asBoolean(false);
+            if (esCatalogo) {
+                continue;
+            }
+            return new MlaPorSku(mla, extraerMlau(item));
+        }
+        return null;
+    }
+
+    /** Resultado de la búsqueda por SKU: el código MLA tradicional y su MLAU (puede ser null). */
+    public record MlaPorSku(String mla, String mlau) {
+    }
+
+    /** Consulta un ítem de ML pidiendo solo los attributes indicados. Devuelve null ante error. */
+    private JsonNode obtenerItemNode(String mlaCode, String attributes) {
+        try {
+            verificarTokens();
+            String itemBody = retryHandler.get("/items/" + mlaCode + "?attributes=" + attributes,
+                    () -> tokens.accessToken);
+            return itemBody == null ? null : objectMapper.readTree(itemBody);
+        } catch (Exception e) {
+            log.warn("ML - No se pudo consultar el ítem {}: {}", mlaCode, e.getMessage());
+            return null;
+        }
+    }
+
+    /** Extrae el MLAU ({@code user_product_id}) de un ítem: a nivel ítem o de su primera variación. */
+    private String extraerMlau(JsonNode item) {
+        String mlau = textoOpcional(item.path("user_product_id"));
+        if (mlau != null) {
+            return mlau;
+        }
+        JsonNode variations = item.path("variations");
+        if (variations.isArray()) {
+            for (JsonNode v : variations) {
+                String vMlau = textoOpcional(v.path("user_product_id"));
+                if (vMlau != null) {
+                    return vMlau;
+                }
             }
         }
         return null;
     }
 
-    /**
-     * Determina si una publicación es tradicional (no de catálogo) leyendo el campo
-     * {@code catalog_listing} del ítem: true = catálogo, false/ausente = tradicional.
-     * Ante cualquier error de consulta devuelve false (no la tomamos por las dudas).
-     */
-    private boolean esPublicacionTradicional(String mlaCode) {
-        try {
-            String itemBody = retryHandler.get("/items/" + mlaCode + "?attributes=id,catalog_listing",
-                    () -> tokens.accessToken);
-            if (itemBody == null) {
-                return false;
-            }
-            JsonNode catalogListing = objectMapper.readTree(itemBody).path("catalog_listing");
-            return !catalogListing.asBoolean(false);
-        } catch (Exception e) {
-            log.warn("ML - No se pudo determinar el tipo de publicación de {}: {}", mlaCode, e.getMessage());
-            return false;
+    /** Devuelve el texto de un nodo, o null si está ausente, es null o queda vacío. */
+    private static String textoOpcional(JsonNode node) {
+        if (node == null || node.isMissingNode() || node.isNull()) {
+            return null;
         }
+        String value = node.asString();
+        return (value == null || value.isBlank()) ? null : value;
     }
 
     // ==================== MANEJO DE CREDENCIALES ====================

@@ -86,16 +86,19 @@ public class MlaServiceImpl implements MlaService {
     @Override
     @Transactional
     public MlaDTO obtenerOcrearPorSkuDesdeML(String sku) {
-        String mlaCode = mercadoLibreService.buscarMlaCodePorSku(sku);
-        if (mlaCode == null || mlaCode.isBlank()) {
-            throw new NotFoundException("No se encontró una publicación de MercadoLibre para el SKU " + sku);
+        MercadoLibreService.MlaPorSku resultado = mercadoLibreService.buscarMlaPorSku(sku);
+        if (resultado == null || resultado.mla() == null || resultado.mla().isBlank()) {
+            throw new NotFoundException("No se encontró una publicación tradicional de MercadoLibre para el SKU " + sku);
         }
+        final String mlaCode = resultado.mla();
+        final String mlauNuevo = resultado.mlau();
 
         // Aseguramos que exista el registro MLA antes de calcular envío/comisión,
         // ya que esos procesos buscan y persisten sobre la entidad Mla.
         Mla mla = repo.findFirstByMla(mlaCode).orElseGet(() -> {
             Mla nuevo = new Mla();
             nuevo.setMla(mlaCode);
+            nuevo.setMlau(mlauNuevo);
             nuevo.setTopePromocion(0);
             Mla guardado = repo.save(nuevo);
             auditoriaService.registrarCambios(

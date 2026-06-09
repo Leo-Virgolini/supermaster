@@ -21,6 +21,16 @@ public interface ProductoRepository extends JpaRepository<Producto, Integer>, Jp
     List<Producto> findBySkuIn(List<String> skus);
 
     /**
+     * Devuelve, ordenados ascendentemente, los SKU numéricos existentes dentro de un
+     * rango [min, max]. Filtra los SKU no numéricos (REGEXP) y castea a entero para
+     * poder buscar el menor hueco disponible. Usado para autocompletar el SKU libre.
+     */
+    @Query(value = "SELECT CAST(p.sku AS UNSIGNED) FROM productos p " +
+            "WHERE p.sku REGEXP '^[0-9]+$' AND CAST(p.sku AS UNSIGNED) BETWEEN :min AND :max " +
+            "ORDER BY CAST(p.sku AS UNSIGNED)", nativeQuery = true)
+    List<Long> findSkusNumericosEnRango(@Param("min") long min, @Param("max") long max);
+
+    /**
      * Obtiene un producto con sus relaciones necesarias para evaluar reglas de canal_concepto_regla.
      * Usa LEFT JOIN FETCH para cargar marca, clasifGral, clasifGastro y tipo de forma eager.
      */

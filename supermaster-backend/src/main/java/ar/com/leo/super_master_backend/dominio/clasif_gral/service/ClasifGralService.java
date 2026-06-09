@@ -2,8 +2,8 @@ package ar.com.leo.super_master_backend.dominio.clasif_gral.service;
 
 import ar.com.leo.super_master_backend.dominio.clasif_gral.dto.ClasifGralCreateDTO;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.dto.ClasifGralDTO;
-import ar.com.leo.super_master_backend.dominio.clasif_gral.dto.ClasifGralUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.dto.ClasifGralPatchDTO;
+import ar.com.leo.super_master_backend.dominio.clasif_gral.dto.ClasifGralUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoResumenDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

@@ -59,11 +59,18 @@ export function useProductos(pageIndex: number, pageSize: number, filters: Recor
 		void getProductos();
 	}, [getProductos]);
 
-	const createProducto = async (data: ProductoCreateDTO) => {
+	const createProducto = async (
+		data: ProductoCreateDTO,
+		afterCreate?: (productoId: number) => Promise<void>,
+	) => {
 		try {
 			const result = await createProductoAPI(data, "FORM");
+			// Asociaciones (margen, catálogos, aptos, clientes) ANTES del refetch
+			// para que la tabla ya las refleje al recargar.
+			if (afterCreate) await afterCreate(result.id);
 			await getProductos();
 			notificar.success(`[Productos] Registro #${result.id} creado`);
+			return result;
 		} catch (e: unknown) {
 			notificar.error(e instanceof Error ? e.message : "Error al crear");
 			throw e;

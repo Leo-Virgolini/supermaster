@@ -1,15 +1,13 @@
 package ar.com.leo.super_master_backend.dominio.regla_descuento.mapper;
 
-import ar.com.leo.super_master_backend.dominio.canal.entity.Canal;
-import ar.com.leo.super_master_backend.dominio.catalogo.entity.Catalogo;
-import ar.com.leo.super_master_backend.dominio.clasif_gastro.entity.ClasifGastro;
-import ar.com.leo.super_master_backend.dominio.clasif_gral.entity.ClasifGral;
 import ar.com.leo.super_master_backend.config.GlobalMapperConfig;
 import ar.com.leo.super_master_backend.dominio.regla_descuento.dto.ReglaDescuentoCreateDTO;
 import ar.com.leo.super_master_backend.dominio.regla_descuento.dto.ReglaDescuentoDTO;
 import ar.com.leo.super_master_backend.dominio.regla_descuento.dto.ReglaDescuentoUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.regla_descuento.entity.ReglaDescuento;
-import org.mapstruct.*;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
 
 @Mapper(config = GlobalMapperConfig.class)
 public interface ReglaDescuentoMapper {

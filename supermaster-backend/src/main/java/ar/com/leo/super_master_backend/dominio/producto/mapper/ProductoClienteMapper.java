@@ -1,9 +1,7 @@
 package ar.com.leo.super_master_backend.dominio.producto.mapper;
 
-import ar.com.leo.super_master_backend.dominio.cliente.entity.Cliente;
 import ar.com.leo.super_master_backend.config.GlobalMapperConfig;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoClienteDTO;
-import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCliente;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;

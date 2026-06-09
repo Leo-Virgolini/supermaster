@@ -1,11 +1,11 @@
 package ar.com.leo.super_master_backend.dominio.canal.mapper;
 
+import ar.com.leo.super_master_backend.config.GlobalMapperConfig;
 import ar.com.leo.super_master_backend.dominio.canal.dto.CanalConceptoCuotaCreateDTO;
 import ar.com.leo.super_master_backend.dominio.canal.dto.CanalConceptoCuotaDTO;
 import ar.com.leo.super_master_backend.dominio.canal.dto.CanalConceptoCuotaUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.canal.entity.Canal;
 import ar.com.leo.super_master_backend.dominio.canal.entity.CanalConceptoCuota;
-import ar.com.leo.super_master_backend.config.GlobalMapperConfig;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;

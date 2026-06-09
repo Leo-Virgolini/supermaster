@@ -1,9 +1,12 @@
 package ar.com.leo.super_master_backend.dominio.producto.service;
 
 import ar.com.leo.super_master_backend.dominio.apto.entity.Apto;
+import ar.com.leo.super_master_backend.dominio.apto.repository.AptoRepository;
 import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaAccion;
 import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaEntidad;
 import ar.com.leo.super_master_backend.dominio.auditoria.service.AuditoriaService;
+import ar.com.leo.super_master_backend.dominio.common.exception.ConflictException;
+import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoAptoDTO;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoApto;
@@ -11,9 +14,6 @@ import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoAptoId;
 import ar.com.leo.super_master_backend.dominio.producto.mapper.ProductoAptoMapper;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoAptoRepository;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoRepository;
-import ar.com.leo.super_master_backend.dominio.apto.repository.AptoRepository;
-import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
-import ar.com.leo.super_master_backend.dominio.common.exception.ConflictException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

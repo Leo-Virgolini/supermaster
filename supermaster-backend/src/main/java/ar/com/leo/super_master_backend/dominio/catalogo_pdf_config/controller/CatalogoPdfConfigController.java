@@ -1,5 +1,6 @@
 package ar.com.leo.super_master_backend.dominio.catalogo_pdf_config.controller;
 
+import ar.com.leo.super_master_backend.config.Permisos;
 import ar.com.leo.super_master_backend.dominio.catalogo_pdf_config.dto.CatalogoPdfConfigCreateDTO;
 import ar.com.leo.super_master_backend.dominio.catalogo_pdf_config.dto.CatalogoPdfConfigDTO;
 import ar.com.leo.super_master_backend.dominio.catalogo_pdf_config.dto.CatalogoPdfConfigUpdateDTO;
@@ -16,7 +17,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
-import ar.com.leo.super_master_backend.config.Permisos;
 
 @RestController
 @RequiredArgsConstructor

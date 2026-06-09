@@ -1,11 +1,13 @@
 package ar.com.leo.super_master_backend.dominio.clasif_gastro.mapper;
 
+import ar.com.leo.super_master_backend.config.GlobalMapperConfig;
 import ar.com.leo.super_master_backend.dominio.clasif_gastro.dto.ClasifGastroCreateDTO;
 import ar.com.leo.super_master_backend.dominio.clasif_gastro.dto.ClasifGastroDTO;
 import ar.com.leo.super_master_backend.dominio.clasif_gastro.dto.ClasifGastroUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.clasif_gastro.entity.ClasifGastro;
-import ar.com.leo.super_master_backend.config.GlobalMapperConfig;
-import org.mapstruct.*;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
 
 @Mapper(config = GlobalMapperConfig.class)
 public interface ClasifGastroMapper {

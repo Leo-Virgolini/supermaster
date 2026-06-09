@@ -6,6 +6,8 @@ import Table, { getInitialPageSize } from "../components/Table/core/Table";
 import SearchInput from "../components/SearchInput/SearchInput";
 import Modal from "../components/Modal/Modal";
 import Button from "../components/Button/Button";
+import CreateButton from "../components/Button/CreateButton";
+import DeleteButton from "../components/Button/DeleteButton";
 import AsyncSelect from "../components/AsyncSelect/AsyncSelect";
 import { useCanalRegla } from "./useCanalRegla";
 import { getCanalReglasAPI } from "./canalReglaService";
@@ -13,7 +15,7 @@ import { getColumns } from "./columns";
 import { CanalReglaDTO, CanalReglaUpsertDTO, TipoRegla } from "./types";
 import { searchMarcas, searchClasifGral, searchClasifGastro, searchTipos } from "../productos/productosService";
 import { type SortingState } from "@tanstack/react-table";
-import { FunnelIcon, PlusIcon, TrashIcon, CheckIcon, XMarkIcon, InformationCircleIcon, ChevronDownIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
+import { FunnelIcon, CheckIcon, XMarkIcon, InformationCircleIcon, ChevronDownIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import ErrorBanner from "../components/ErrorBanner/ErrorBanner";
 import { confirmDialog } from "../utils/confirmDialog";
 import { useAuth } from "../context/AuthContext";
@@ -172,15 +174,13 @@ export default function CanalReglaPage() {
                 </h1>
                 <div className="flex gap-2">
                     {Object.keys(rowSelection).length > 0 && canEdit && (
-                        <Button variant="danger" onClick={handleDelete}>
-                            <TrashIcon className="w-4 h-4" />
+                        <DeleteButton onClick={handleDelete}>
                             Borrar ({Object.keys(rowSelection).length})
-                        </Button>
+                        </DeleteButton>
                     )}
-                    <Button variant="dark" onClick={handleCreate} disabled={!canEdit}>
-                        <PlusIcon className="w-4 h-4" />
+                    <CreateButton onClick={handleCreate} disabled={!canEdit}>
                         Crear Regla
-                    </Button>
+                    </CreateButton>
                 </div>
             </div>
 

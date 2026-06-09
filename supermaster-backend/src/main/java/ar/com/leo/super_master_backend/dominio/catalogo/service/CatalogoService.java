@@ -2,8 +2,8 @@ package ar.com.leo.super_master_backend.dominio.catalogo.service;
 
 import ar.com.leo.super_master_backend.dominio.catalogo.dto.CatalogoCreateDTO;
 import ar.com.leo.super_master_backend.dominio.catalogo.dto.CatalogoDTO;
-import ar.com.leo.super_master_backend.dominio.catalogo.dto.CatalogoUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.catalogo.dto.CatalogoPatchDTO;
+import ar.com.leo.super_master_backend.dominio.catalogo.dto.CatalogoUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoResumenDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

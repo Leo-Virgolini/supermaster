@@ -12,7 +12,6 @@ import {
     Bars3BottomLeftIcon,
     ArrowUpIcon,
     ArrowDownIcon,
-    PlusIcon,
     PencilSquareIcon,
     TrashIcon,
     PhotoIcon,
@@ -27,6 +26,7 @@ import {
 } from "@heroicons/react/24/outline";
 import AsyncSelect from "../components/AsyncSelect/AsyncSelect";
 import Button from "../components/Button/Button";
+import CreateButton from "../components/Button/CreateButton";
 import Modal from "../components/Modal/Modal";
 import { API_BASE_URL } from "../config/runtime";
 import { useAuth } from "../context/AuthContext";
@@ -1143,9 +1143,9 @@ export default function CatalogosPdfPage() {
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        <Button text="Crear automatización PDF" variant="dark" onClick={openCreateConfigModal}>
-                            <PlusIcon className="w-4 h-4" />
-                        </Button>
+                        <CreateButton onClick={openCreateConfigModal}>
+                            Crear automatización PDF
+                        </CreateButton>
                         <Button text={cargandoConfigsPdf ? "Actualizando..." : "Recargar"} variant="light" onClick={cargarConfigsPdf} disabled={cargandoConfigsPdf}>
                             <ArrowDownTrayIcon className="w-4 h-4" />
                         </Button>

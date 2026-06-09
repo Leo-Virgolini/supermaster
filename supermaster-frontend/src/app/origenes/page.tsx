@@ -2,13 +2,15 @@
 
 import { useMemo, useState } from "react";
 import ErrorBanner from "../components/ErrorBanner/ErrorBanner";
-import { GlobeAltIcon, PlusIcon, TrashIcon, CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { GlobeAltIcon, CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { confirmDialog } from "../utils/confirmDialog";
 
 // Componentes visuales
 import Table, { getInitialPageSize } from "../components/Table/core/Table";
 import SearchInput from "../components/SearchInput/SearchInput";
 import Button from "../components/Button/Button";
+import CreateButton from "../components/Button/CreateButton";
+import DeleteButton from "../components/Button/DeleteButton";
 import Modal from "../components/Modal/Modal";
 
 // Lógica de negocio (Hooks y Columnas)
@@ -151,19 +153,13 @@ export default function OrigenesPage() {
                 <div className="flex gap-2 items-center">
                     {/* Botón Borrar (Solo aparece si hay selección) */}
                     {canEdit && hasSelection && (
-                        <Button variant="danger" onClick={handleDelete}>
-                            <TrashIcon className="w-4 h-4" />
+                        <DeleteButton onClick={handleDelete}>
                             Borrar ({selectedIds.length})
-                        </Button>
+                        </DeleteButton>
                     )}
-                    <Button
-                        variant="dark"
-                        onClick={() => setIsModalOpen(true)}
-                        disabled={!canEdit}
-                    >
-                        <PlusIcon className="w-4 h-4" />
+                    <CreateButton onClick={() => setIsModalOpen(true)} disabled={!canEdit}>
                         Crear Origen
-                    </Button>
+                    </CreateButton>
                 </div>
             </div>
 

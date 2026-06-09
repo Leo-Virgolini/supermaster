@@ -2,8 +2,8 @@ package ar.com.leo.super_master_backend.dominio.regla_descuento.service;
 
 import ar.com.leo.super_master_backend.dominio.regla_descuento.dto.ReglaDescuentoCreateDTO;
 import ar.com.leo.super_master_backend.dominio.regla_descuento.dto.ReglaDescuentoDTO;
-import ar.com.leo.super_master_backend.dominio.regla_descuento.dto.ReglaDescuentoUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.regla_descuento.dto.ReglaDescuentoPatchDTO;
+import ar.com.leo.super_master_backend.dominio.regla_descuento.dto.ReglaDescuentoUpdateDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 

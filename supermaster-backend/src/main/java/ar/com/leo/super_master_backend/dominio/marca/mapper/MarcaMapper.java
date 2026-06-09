@@ -5,7 +5,9 @@ import ar.com.leo.super_master_backend.dominio.marca.dto.MarcaCreateDTO;
 import ar.com.leo.super_master_backend.dominio.marca.dto.MarcaDTO;
 import ar.com.leo.super_master_backend.dominio.marca.dto.MarcaUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.marca.entity.Marca;
-import org.mapstruct.*;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
 
 @Mapper(config = GlobalMapperConfig.class)
 public interface MarcaMapper {

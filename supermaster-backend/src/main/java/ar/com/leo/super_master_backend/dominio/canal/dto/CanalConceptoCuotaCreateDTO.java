@@ -1,11 +1,7 @@
 package ar.com.leo.super_master_backend.dominio.canal.dto;
 
-import jakarta.validation.constraints.DecimalMax;
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
-import jakarta.validation.constraints.PositiveOrZero;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
+
 import java.math.BigDecimal;
 
 public record CanalConceptoCuotaCreateDTO(

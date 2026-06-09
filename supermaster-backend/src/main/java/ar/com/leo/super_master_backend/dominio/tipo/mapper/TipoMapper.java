@@ -5,7 +5,9 @@ import ar.com.leo.super_master_backend.dominio.tipo.dto.TipoCreateDTO;
 import ar.com.leo.super_master_backend.dominio.tipo.dto.TipoDTO;
 import ar.com.leo.super_master_backend.dominio.tipo.dto.TipoUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.tipo.entity.Tipo;
-import org.mapstruct.*;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
 
 @Mapper(config = GlobalMapperConfig.class)
 public interface TipoMapper {

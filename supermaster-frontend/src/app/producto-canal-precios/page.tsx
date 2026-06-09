@@ -1,6 +1,7 @@
 "use client";
 import { getErrorMessage } from "@/lib/errors";
 import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { ComputerDesktopIcon, ArrowPathIcon, XMarkIcon, InformationCircleIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
 import Modal from "../components/Modal/Modal";
@@ -46,7 +47,10 @@ export default function ProductoCanalPreciosPage() {
             localStorage.setItem("pageSize_monitor-precios", String(pageSize));
         } catch { /* QuotaExceededError o modo privado — ignorar, no es crítico */ }
     }, [pageSize]);
-    const [search, setSearch] = useState("");
+    // Filtro inicial por URL (?q=SKU o ?search=SKU), p. ej. al venir desde el
+    // botón "Ver precios en Monitor" del detalle de producto.
+    const searchParams = useSearchParams();
+    const [search, setSearch] = useState(() => searchParams.get("q") ?? searchParams.get("search") ?? "");
     const [sorting, setSorting] = useState<SortingState>([]);
 
     const mappedSorting = useMemo(

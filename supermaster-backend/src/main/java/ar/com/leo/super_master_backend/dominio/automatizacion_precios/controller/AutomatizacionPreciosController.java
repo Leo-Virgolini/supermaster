@@ -1,5 +1,6 @@
 package ar.com.leo.super_master_backend.dominio.automatizacion_precios.controller;
 
+import ar.com.leo.super_master_backend.config.Permisos;
 import ar.com.leo.super_master_backend.dominio.automatizacion_precios.dto.SincronizacionConfigDTO;
 import ar.com.leo.super_master_backend.dominio.automatizacion_precios.dto.SincronizacionRequestDTO;
 import ar.com.leo.super_master_backend.dominio.automatizacion_precios.dto.SincronizacionResultDTO;
@@ -17,7 +18,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import ar.com.leo.super_master_backend.config.Permisos;
 
 @Slf4j
 @RestController

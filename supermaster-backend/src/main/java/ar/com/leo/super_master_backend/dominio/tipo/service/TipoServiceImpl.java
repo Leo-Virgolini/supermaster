@@ -5,17 +5,16 @@ import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaEntidad
 import ar.com.leo.super_master_backend.dominio.auditoria.service.AuditoriaService;
 import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
-import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
-import ar.com.leo.super_master_backend.dominio.tipo.dto.TipoCreateDTO;
-import ar.com.leo.super_master_backend.dominio.tipo.dto.TipoDTO;
-import ar.com.leo.super_master_backend.dominio.tipo.dto.TipoUpdateDTO;
-import ar.com.leo.super_master_backend.dominio.tipo.dto.TipoPatchDTO;
-import ar.com.leo.super_master_backend.dominio.tipo.entity.Tipo;
-import ar.com.leo.super_master_backend.dominio.tipo.mapper.TipoMapper;
-import ar.com.leo.super_master_backend.dominio.tipo.repository.TipoRepository;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoResumenDTO;
 import ar.com.leo.super_master_backend.dominio.producto.mapper.ProductoMapper;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoRepository;
+import ar.com.leo.super_master_backend.dominio.tipo.dto.TipoCreateDTO;
+import ar.com.leo.super_master_backend.dominio.tipo.dto.TipoDTO;
+import ar.com.leo.super_master_backend.dominio.tipo.dto.TipoPatchDTO;
+import ar.com.leo.super_master_backend.dominio.tipo.dto.TipoUpdateDTO;
+import ar.com.leo.super_master_backend.dominio.tipo.entity.Tipo;
+import ar.com.leo.super_master_backend.dominio.tipo.mapper.TipoMapper;
+import ar.com.leo.super_master_backend.dominio.tipo.repository.TipoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,6 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 
 @Service
 @RequiredArgsConstructor

@@ -5,11 +5,10 @@ import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaEntidad
 import ar.com.leo.super_master_backend.dominio.auditoria.service.AuditoriaService;
 import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
-import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 import ar.com.leo.super_master_backend.dominio.marca.dto.MarcaCreateDTO;
 import ar.com.leo.super_master_backend.dominio.marca.dto.MarcaDTO;
-import ar.com.leo.super_master_backend.dominio.marca.dto.MarcaUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.marca.dto.MarcaPatchDTO;
+import ar.com.leo.super_master_backend.dominio.marca.dto.MarcaUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.marca.entity.Marca;
 import ar.com.leo.super_master_backend.dominio.marca.mapper.MarcaMapper;
 import ar.com.leo.super_master_backend.dominio.marca.repository.MarcaRepository;
@@ -25,6 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 
 @Service
 @RequiredArgsConstructor

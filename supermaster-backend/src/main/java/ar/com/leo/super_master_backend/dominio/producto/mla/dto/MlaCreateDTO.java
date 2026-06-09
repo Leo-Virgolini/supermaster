@@ -13,6 +13,8 @@ public record MlaCreateDTO(
         String mlau,
         @PositiveOrZero(message = "El precio de envío debe ser mayor o igual a 0")
         BigDecimal precioEnvio,
+        @PositiveOrZero(message = "La comisión debe ser mayor o igual a 0")
+        BigDecimal comisionPorcentaje,
         @PositiveOrZero(message = "El tope de promoción debe ser mayor o igual a 0")
         Integer topePromocion
 ) {

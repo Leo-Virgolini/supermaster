@@ -3,12 +3,14 @@ import { getErrorMessage } from "@/lib/errors";
 import { useState } from "react";
 import { toast } from "sonner";
 import { notificar } from "../utils/notificar";
-import { ShoppingCartIcon, PlusIcon, TrashIcon, CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { ShoppingCartIcon, CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { confirmDialog } from "../utils/confirmDialog";
 import { type SortingState } from "@tanstack/react-table";
 import Table, { getInitialPageSize } from "../components/Table/core/Table";
 import SearchInput from "../components/SearchInput/SearchInput";
 import Button from "../components/Button/Button";
+import CreateButton from "../components/Button/CreateButton";
+import DeleteButton from "../components/Button/DeleteButton";
 import Modal from "../components/Modal/Modal";
 import AsyncSelect from "../components/AsyncSelect/AsyncSelect";
 import { useOrdenesCompra } from "./useOrdenesCompra";
@@ -285,22 +287,19 @@ export default function OrdenesCompraPage() {
 
         <div className="flex gap-2 items-center">
           {hasSelection && canEdit && (
-            <Button variant="danger" onClick={handleDelete}>
-              <TrashIcon className="w-4 h-4" />
+            <DeleteButton onClick={handleDelete}>
               Borrar ({selectedIds.length})
-            </Button>
+            </DeleteButton>
           )}
-          <Button
+          <CreateButton
             onClick={() => {
               resetNuevaOrdenForm();
               setIsNuevaOrdenOpen(true);
             }}
-            variant="dark"
             disabled={!canEdit}
           >
-            <PlusIcon className="w-4 h-4" />
             Crear Orden de Compra
-          </Button>
+          </CreateButton>
         </div>
       </div>
 

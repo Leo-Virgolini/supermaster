@@ -19,17 +19,11 @@ import {
     ProductoMargenDTO,
 } from "./productoMargenService";
 import { confirmDialog } from "../utils/confirmDialog";
-import { notificar } from "../utils/notificar";
 import { formatFechaAR } from "../utils/formatDate";
-import {
-    getProductoPreciosAPI,
-    calcularPreciosAPI,
-} from "../producto-canal-precios/productoCanalPreciosService";
-import type { ProductoCanalPrecioDTO } from "../producto-canal-precios/types";
 import type { AuditoriaCambioDTO } from "../auditoria/types";
 import { getProductoAuditoriaAPI } from "./productosService";
 
-type TabId = "aptos" | "catalogos" | "clientes" | "margen" | "preciosInflados" | "precios" | "historial";
+type TabId = "aptos" | "catalogos" | "clientes" | "margen" | "preciosInflados" | "historial";
 
 interface Props {
     isOpen: boolean;
@@ -474,161 +468,6 @@ function MargenTab({ productoId }: MargenTabProps) {
     );
 }
 
-// ---- Tab Precios ----
-const formatARS = (n: number) =>
-    `$${n.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-function PreciosTab({ productoId }: { productoId: number }) {
-    const [data, setData] = useState<ProductoCanalPrecioDTO | null>(null);
-    const [margen, setMargen] = useState<ProductoMargenDTO | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isCalculating, setIsCalculating] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-
-    const load = useCallback(async () => {
-        setIsLoading(true);
-        setError(null);
-        try {
-            const [preciosData, margenData] = await Promise.all([
-                getProductoPreciosAPI(productoId),
-                getProductoMargenAPI(productoId),
-            ]);
-            setData(preciosData);
-            setMargen(margenData);
-        } catch (e: unknown) {
-            setError(getErrorMessage(e));
-        } finally {
-            setIsLoading(false);
-        }
-    }, [productoId]);
-
-    useEffect(() => { load(); }, [load]);
-
-    const handleCalcular = async () => {
-        setIsCalculating(true);
-        try {
-            await calcularPreciosAPI(productoId);
-            await load();
-            notificar.success("Precios calculados.");
-        } catch (e: unknown) {
-            notificar.error("Error al calcular: " + getErrorMessage(e));
-        } finally {
-            setIsCalculating(false);
-        }
-    };
-
-    return (
-        <div className="flex flex-col gap-4">
-            {error && <div className="p-3 bg-red-100 text-red-700 rounded text-sm">{error}</div>}
-
-            <div className="flex justify-between items-center flex-wrap gap-2">
-                {data && (
-                    <p className="text-xs text-gray-400">
-                        Costo: <span className="text-gray-600 dark:text-slate-300 font-medium">{formatARS(data.costo)}</span>
-                        {" · "}IVA: <span className="text-gray-600 dark:text-slate-300 font-medium">{data.iva}%</span>
-                        {margen && (margen.margenMinorista != null || margen.margenMayorista != null) && (
-                            <>
-                                {margen.margenMinorista != null && (
-                                    <>{" · "}Mrg. Min: <span className="text-gray-600 dark:text-slate-300 font-medium">{margen.margenMinorista}%</span></>
-                                )}
-                                {margen.margenMayorista != null && (
-                                    <>{" · "}Mrg. May: <span className="text-gray-600 dark:text-slate-300 font-medium">{margen.margenMayorista}%</span></>
-                                )}
-                                {margen.margenFijoMinorista != null && (
-                                    <>{" · "}Fijo Min: <span className="text-gray-600 dark:text-slate-300 font-medium">{formatARS(margen.margenFijoMinorista)}</span></>
-                                )}
-                                {margen.margenFijoMayorista != null && (
-                                    <>{" · "}Fijo May: <span className="text-gray-600 dark:text-slate-300 font-medium">{formatARS(margen.margenFijoMayorista)}</span></>
-                                )}
-                            </>
-                        )}
-                    </p>
-                )}
-                <button
-                    onClick={handleCalcular}
-                    disabled={isCalculating}
-                    className="ml-auto text-xs px-3 py-1.5 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition font-medium inline-flex items-center gap-1.5"
-                >
-                    <ArrowPathIcon className={`w-3.5 h-3.5 ${isCalculating ? "animate-spin" : ""}`} />
-                    {isCalculating ? "Recalculando..." : "Recalcular precios"}
-                </button>
-            </div>
-
-            {isLoading ? (
-                <p className="text-sm text-gray-400 text-center py-8">Cargando...</p>
-            ) : !data || data.canales.length === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-8">
-                    Sin precios calculados. Hacé click en "Calcular precios".
-                </p>
-            ) : (
-                <div className="flex flex-col gap-5">
-                    {data.canales.map((canal) => (
-                        <div key={canal.canalId}>
-                            <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 border-b border-gray-100 pb-1">
-                                {canal.canalNombre}
-                            </h4>
-                            <div className="overflow-x-auto">
-                                <table className="text-xs border-collapse whitespace-nowrap">
-                                    <thead>
-                                        <tr className="text-gray-500">
-                                            <th className="text-left px-2 py-1 font-semibold bg-gray-50 dark:bg-slate-800">Cuotas</th>
-                                            <th className="text-right px-2 py-1 font-semibold bg-emerald-50 dark:bg-emerald-900/20">PVP</th>
-                                            <th className="text-right px-2 py-1 font-semibold bg-emerald-50 dark:bg-emerald-900/20">Inflado</th>
-                                            <th className="text-right px-2 py-1 font-semibold bg-amber-50 dark:bg-amber-900/20">Ganancia</th>
-                                            <th className="text-right px-2 py-1 font-semibold bg-blue-50 dark:bg-blue-900/20">Costos Venta</th>
-                                            <th className="text-right px-2 py-1 font-semibold bg-blue-50 dark:bg-blue-900/20">Ingreso Neto</th>
-                                            <th className="text-right px-2 py-1 font-semibold bg-purple-50 dark:bg-purple-900/20">Mrg s/PVP</th>
-                                            <th className="text-right px-2 py-1 font-semibold bg-purple-50 dark:bg-purple-900/20">Mrg s/IN</th>
-                                            <th className="text-right px-2 py-1 font-semibold bg-purple-50 dark:bg-purple-900/20">Markup</th>
-                                            <th className="text-right px-2 py-1 font-semibold bg-gray-50 dark:bg-slate-800">F. Cálculo</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {canal.precios.map((precio, i) => {
-                                            const ganColor = precio.ganancia >= 0 ? "text-teal-600" : "text-red-600";
-                                            const dash = <span className="text-gray-300">—</span>;
-                                            return (
-                                                <tr key={i} className="border-t border-gray-100">
-                                                    <td className="px-2 py-1.5 text-gray-700 bg-gray-50/50 dark:bg-slate-800/50">{precio.descripcion}</td>
-                                                    <td className="px-2 py-1.5 text-right font-mono font-semibold text-green-700 bg-emerald-50/50 dark:bg-emerald-900/10">{formatARS(precio.pvp)}</td>
-                                                    <td className="px-2 py-1.5 text-right font-mono text-blue-600 bg-emerald-50/50 dark:bg-emerald-900/10">
-                                                        {precio.pvpInflado != null ? formatARS(precio.pvpInflado) : dash}
-                                                    </td>
-                                                    <td className={`px-2 py-1.5 text-right font-semibold font-mono ${ganColor} bg-amber-50/50 dark:bg-amber-900/10`}>
-                                                        {formatARS(precio.ganancia)}
-                                                    </td>
-                                                    <td className="px-2 py-1.5 text-right font-mono text-gray-500 bg-blue-50/50 dark:bg-blue-900/10">
-                                                        {precio.costosVenta != null ? formatARS(precio.costosVenta) : dash}
-                                                    </td>
-                                                    <td className="px-2 py-1.5 text-right font-mono text-gray-600 bg-blue-50/50 dark:bg-blue-900/10">
-                                                        {precio.ingresoNetoVendedor != null ? formatARS(precio.ingresoNetoVendedor) : dash}
-                                                    </td>
-                                                    <td className={`px-2 py-1.5 text-right ${ganColor} bg-purple-50/50 dark:bg-purple-900/10`}>
-                                                        {precio.margenSobrePvp.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
-                                                    </td>
-                                                    <td className={`px-2 py-1.5 text-right ${precio.margenSobreIngresoNeto != null ? ganColor : "text-gray-300"} bg-purple-50/50 dark:bg-purple-900/10`}>
-                                                        {precio.margenSobreIngresoNeto != null ? `${precio.margenSobreIngresoNeto.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : dash}
-                                                    </td>
-                                                    <td className="px-2 py-1.5 text-right text-gray-600 bg-purple-50/50 dark:bg-purple-900/10">
-                                                        {precio.markupPorcentaje != null ? `${precio.markupPorcentaje.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : dash}
-                                                    </td>
-                                                    <td className="px-2 py-1.5 text-right text-gray-400 bg-gray-50/50 dark:bg-slate-800/50">
-                                                        {formatFechaAR(precio.fechaUltimoCalculo ?? null)}
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-}
-
 function HistorialTab({ productoId, productoSku }: { productoId: number; productoSku: string }) {
     const [items, setItems] = useState<AuditoriaCambioDTO[]>([]);
     const [total, setTotal] = useState(0);
@@ -791,7 +630,6 @@ function HistorialTab({ productoId, productoSku }: { productoId: number; product
 
 // ---- Modal principal ----
 const TABS: { id: TabId; label: string }[] = [
-    { id: "precios", label: "Precios" },
     { id: "margen", label: "Margen" },
     { id: "preciosInflados", label: "Precios Inflados" },
     { id: "historial", label: "Historial" },
@@ -801,10 +639,10 @@ const TABS: { id: TabId; label: string }[] = [
 ];
 
 export default function ProductoDetalleModal({ isOpen, onClose, productoId, productoSku }: Props) {
-    const [activeTab, setActiveTab] = useState<TabId>("precios");
+    const [activeTab, setActiveTab] = useState<TabId>("margen");
 
     useEffect(() => {
-        if (isOpen) setActiveTab("precios");
+        if (isOpen) setActiveTab("margen");
     }, [isOpen]);
 
     return (
@@ -870,7 +708,6 @@ export default function ProductoDetalleModal({ isOpen, onClose, productoId, prod
                     )}
                     {activeTab === "margen" && <MargenTab productoId={productoId} />}
                     {activeTab === "preciosInflados" && <PreciosInfladosTab productoId={productoId} />}
-                    {activeTab === "precios" && <PreciosTab productoId={productoId} />}
                     {activeTab === "historial" && <HistorialTab productoId={productoId} productoSku={productoSku} />}
                 </div>
             </div>

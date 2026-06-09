@@ -3,11 +3,13 @@ import { getErrorMessage } from "@/lib/errors";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { notificar } from "../utils/notificar";
-import { UserIcon, PlusIcon, TrashIcon, CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { UserIcon, CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { confirmDialog } from "../utils/confirmDialog";
 import Table, { getInitialPageSize } from "../components/Table/core/Table";
 import SearchInput from "../components/SearchInput/SearchInput";
 import Button from "../components/Button/Button";
+import CreateButton from "../components/Button/CreateButton";
+import DeleteButton from "../components/Button/DeleteButton";
 import Modal from "../components/Modal/Modal";
 import { useAuth } from "../context/AuthContext";
 import { useClientes } from "./useClientes";
@@ -119,15 +121,13 @@ export default function ClientesPage() {
                 </div>
                 <div className="flex gap-2 items-center">
                     {canEdit && hasSelection && (
-                        <Button variant="danger" onClick={handleDelete}>
-                            <TrashIcon className="w-4 h-4" />
+                        <DeleteButton onClick={handleDelete}>
                             Borrar ({selectedIds.length})
-                        </Button>
+                        </DeleteButton>
                     )}
-                    <Button onClick={() => setIsModalOpen(true)} variant="dark" disabled={!canEdit}>
-                        <PlusIcon className="w-4 h-4" />
+                    <CreateButton onClick={() => setIsModalOpen(true)} disabled={!canEdit}>
                         Crear Cliente
-                    </Button>
+                    </CreateButton>
                 </div>
             </div>
 

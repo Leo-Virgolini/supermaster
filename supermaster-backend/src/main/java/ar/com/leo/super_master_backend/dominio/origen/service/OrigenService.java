@@ -2,8 +2,8 @@ package ar.com.leo.super_master_backend.dominio.origen.service;
 
 import ar.com.leo.super_master_backend.dominio.origen.dto.OrigenCreateDTO;
 import ar.com.leo.super_master_backend.dominio.origen.dto.OrigenDTO;
-import ar.com.leo.super_master_backend.dominio.origen.dto.OrigenUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.origen.dto.OrigenPatchDTO;
+import ar.com.leo.super_master_backend.dominio.origen.dto.OrigenUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoResumenDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

@@ -19,12 +19,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -57,14 +52,34 @@ public class AuditoriaServiceImpl implements AuditoriaService {
             Map<String, String> estadoNuevo,
             String origenExplicito
     ) {
-        LinkedHashSet<String> campos = new LinkedHashSet<>();
-        campos.addAll(estadoAnterior.keySet());
-        campos.addAll(estadoNuevo.keySet());
-
         AuditoriaUsuario usuarioActual = resolverUsuarioActual();
         String origen = (origenExplicito != null && !origenExplicito.isBlank())
                 ? origenExplicito.trim().toUpperCase()
                 : resolverOrigen();
+
+        // Una baja se registra como un ÚNICO evento (no una fila por cada campo del
+        // registro borrado). La columna 'campo' es NOT NULL, así que usamos "—".
+        if (accion == AuditoriaAccion.DELETE) {
+            AuditoriaCambio baja = new AuditoriaCambio();
+            baja.setEntidad(entidad);
+            baja.setEntidadId(entidadId);
+            baja.setEntidadCodigo(entidadCodigo);
+            baja.setAccion(accion);
+            baja.setCampo("—");
+            baja.setValorAnterior(null);
+            baja.setValorNuevo(null);
+            baja.setUsuarioId(usuarioActual.usuarioId());
+            baja.setUsuarioUsername(usuarioActual.username());
+            baja.setUsuarioNombreCompleto(usuarioActual.nombreCompleto());
+            baja.setOrigen(origen);
+            baja.setFechaHora(LocalDateTime.now());
+            auditoriaCambioRepository.save(baja);
+            return;
+        }
+
+        LinkedHashSet<String> campos = new LinkedHashSet<>();
+        campos.addAll(estadoAnterior.keySet());
+        campos.addAll(estadoNuevo.keySet());
         List<AuditoriaCambio> registros = new ArrayList<>();
 
         for (String campo : campos) {

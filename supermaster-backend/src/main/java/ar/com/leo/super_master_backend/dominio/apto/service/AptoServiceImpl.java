@@ -1,19 +1,17 @@
 package ar.com.leo.super_master_backend.dominio.apto.service;
 
-import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaAccion;
-import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaEntidad;
-import ar.com.leo.super_master_backend.dominio.auditoria.service.AuditoriaService;
 import ar.com.leo.super_master_backend.dominio.apto.dto.AptoCreateDTO;
 import ar.com.leo.super_master_backend.dominio.apto.dto.AptoDTO;
-import ar.com.leo.super_master_backend.dominio.apto.dto.AptoUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.apto.dto.AptoPatchDTO;
+import ar.com.leo.super_master_backend.dominio.apto.dto.AptoUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.apto.entity.Apto;
 import ar.com.leo.super_master_backend.dominio.apto.mapper.AptoMapper;
 import ar.com.leo.super_master_backend.dominio.apto.repository.AptoRepository;
+import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaAccion;
+import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaEntidad;
+import ar.com.leo.super_master_backend.dominio.auditoria.service.AuditoriaService;
 import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
-import ar.com.leo.super_master_backend.dominio.common.exception.ConflictException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
-import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoResumenDTO;
 import ar.com.leo.super_master_backend.dominio.producto.mapper.ProductoMapper;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoAptoRepository;
@@ -26,6 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 
 @Service
 @RequiredArgsConstructor

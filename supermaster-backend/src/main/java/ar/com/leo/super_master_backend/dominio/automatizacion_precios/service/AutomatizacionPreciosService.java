@@ -1,7 +1,7 @@
 package ar.com.leo.super_master_backend.dominio.automatizacion_precios.service;
 
-import ar.com.leo.super_master_backend.apis.dux.service.DuxService;
 import ar.com.leo.super_master_backend.apis.dux.dto.ImportDuxResultDTO;
+import ar.com.leo.super_master_backend.apis.dux.service.DuxService;
 import ar.com.leo.super_master_backend.apis.ml.dto.CostoEnvioResponseDTO;
 import ar.com.leo.super_master_backend.apis.ml.service.MercadoLibreService;
 import ar.com.leo.super_master_backend.apis.nube.service.TiendaNubeService;
@@ -21,14 +21,15 @@ import ar.com.leo.super_master_backend.dominio.producto.mla.entity.Mla;
 import ar.com.leo.super_master_backend.dominio.producto.mla.repository.MlaRepository;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoCanalPrecioRepository;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoRepository;
-import org.springframework.transaction.annotation.Transactional;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.core.task.AsyncTaskExecutor;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
@@ -36,19 +37,13 @@ import tools.jackson.databind.node.ObjectNode;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.stream.Collectors;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.*;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
-import jakarta.annotation.PostConstruct;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service

@@ -4,20 +4,27 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { notificar } from "../utils/notificar";
-import { BookmarkIcon, CheckIcon, CubeIcon, PlusIcon, TrashIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { BookmarkIcon, CheckIcon, CloudArrowDownIcon, CubeIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { API_BASE_URL } from "../config/runtime";
 import { confirmDialog } from "../utils/confirmDialog";
 import Table, { getInitialPageSize } from "../components/Table/core/Table";
 import SearchInput from "../components/SearchInput/SearchInput";
 import Button from "../components/Button/Button";
+import CreateButton from "../components/Button/CreateButton";
+import DeleteButton from "../components/Button/DeleteButton";
 import Modal from "../components/Modal/Modal";
 import AsyncSelect from "../components/AsyncSelect/AsyncSelect";
 import { useAuth } from "../context/AuthContext";
 import { useProductos } from "./useProductos";
+import ProductosFilterPanel, { ProductosFilterToggle } from "./ProductosFilterBar";
 import {
-    getProductosForExportAPI,
+    getProductosForExportAPI, getSiguienteSkuAPI, getMlaPorSkuAPI, createMlaAPI,
     searchMarcas, searchClasifGral, searchClasifGastro, searchTipos, searchProveedores, searchOrigenes, searchMateriales, searchMlas,
+    searchCatalogos, searchAptos, searchClientes, addProductoCatalogoAPI, addProductoAptoAPI, addProductoClienteAPI,
+    exportarProductosADuxAPI,
 } from "./productosService";
+import { updateProductoMargenAPI } from "./productoMargenService";
+import MultiAsyncSelect, { type MultiOption } from "../components/MultiAsyncSelect/MultiAsyncSelect";
 import { getColumns } from "./columns";
 import { ProductoCreateDTO, ProductoDTO, ProductoPatchDTO } from "./types";
 import { type SortingState } from "@tanstack/react-table";
@@ -79,6 +86,21 @@ function ImagePickerModal({ onSelect, onClose }: { onSelect: (name: string) => v
             controller.abort();
         };
     }, [search, load]);
+
+    // Escape cierra SOLO este selector, no el modal del producto que está detrás.
+    // Lo capturamos en fase de captura y frenamos la propagación antes de que
+    // llegue al listener (en bubble) del Modal del producto.
+    useEffect(() => {
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "Escape") {
+                e.stopImmediatePropagation();
+                e.stopPropagation();
+                onClose();
+            }
+        };
+        window.addEventListener("keydown", onKeyDown, true);
+        return () => window.removeEventListener("keydown", onKeyDown, true);
+    }, [onClose]);
 
     return (
         <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
@@ -159,6 +181,7 @@ function writeProductosViews(views: ProductosView[]) {
 export default function ProductosPage() {
     const { hasPermiso } = useAuth();
     const canEditProductos = hasPermiso("PRODUCTOS_EDITAR");
+    const canExportarDux = hasPermiso("INTEGRACIONES_EDITAR");
     const searchParams = useSearchParams();
     const getSearchParamValue = useCallback(() => searchParams.get("search") ?? searchParams.get("q") ?? "", [searchParams]);
     const [pageIndex, setPageIndex] = useState(0);
@@ -180,6 +203,17 @@ export default function ProductosPage() {
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [columnVisibilityVersion, setColumnVisibilityVersion] = useState(0);
     const [activeOverrides, setActiveOverrides] = useState<Record<number, boolean>>({});
+    const [filtrosExpanded, setFiltrosExpanded] = useState(() => {
+        if (typeof window === "undefined") return false;
+        return window.localStorage.getItem("productos_filtros_expandido") === "1";
+    });
+    const toggleFiltros = () => {
+        setFiltrosExpanded((prev) => {
+            const next = !prev;
+            if (typeof window !== "undefined") window.localStorage.setItem("productos_filtros_expandido", next ? "1" : "0");
+            return next;
+        });
+    };
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -188,10 +222,14 @@ export default function ProductosPage() {
 
     // --- Campos del Formulario ---
     const [sku, setSku] = useState("");
+    // Último SKU autocompletado: nos deja saber si el usuario lo editó a mano
+    // (en cuyo caso no lo pisamos al cambiar "Es Combo").
+    const [lastSuggestedSku, setLastSuggestedSku] = useState("");
     const [codExt, setCodExt] = useState("");
     const [tituloWeb, setTituloWeb] = useState("");
     const [descripcion, setDescripcion] = useState("");
     const [esCombo, setEsCombo] = useState(false);
+    const [subirADux, setSubirADux] = useState(true);
     const [uxb, setUxb] = useState(1);
     const [activo, setActivo] = useState(true);
     const [imagenUrl, setImagenUrl] = useState("");
@@ -212,6 +250,25 @@ export default function ProductosPage() {
     const [proveedorId, setProveedorId] = useState<number | null>(null);
     const [materialId, setMaterialId] = useState<number | null>(null);
     const [mlaId, setMlaId] = useState<number | null>(null);
+    const [mlaDisplay, setMlaDisplay] = useState("");
+    // Panel "Nuevo MLA" dentro del alta de producto.
+    const [showNuevoMla, setShowNuevoMla] = useState(false);
+    const [mlaCodigo, setMlaCodigo] = useState("");
+    const [mlaMlau, setMlaMlau] = useState("");
+    const [mlaPrecioEnvio, setMlaPrecioEnvio] = useState<number | "">("");
+    const [mlaTope, setMlaTope] = useState<number | "">("");
+    const [mlaComision, setMlaComision] = useState<number | "">("");
+    const [obteniendoMla, setObteniendoMla] = useState(false);
+    const [creandoMla, setCreandoMla] = useState(false);
+    // Márgenes (se asocian tras crear el producto)
+    const [margenMinorista, setMargenMinorista] = useState<number | "">("");
+    const [margenMayorista, setMargenMayorista] = useState<number | "">("");
+    const [margenFijoMinorista, setMargenFijoMinorista] = useState<number | "">("");
+    const [margenFijoMayorista, setMargenFijoMayorista] = useState<number | "">("");
+    // Relaciones N-a-N (se asocian tras crear el producto)
+    const [catalogosSel, setCatalogosSel] = useState<MultiOption[]>([]);
+    const [aptosSel, setAptosSel] = useState<MultiOption[]>([]);
+    const [clientesSel, setClientesSel] = useState<MultiOption[]>([]);
     const [moq, setMoq] = useState<number | "">("");
     const [stock, setStock] = useState<number | "">(0);
     const [tagReposicion, setTagReposicion] = useState<"" | "PRIO" | "LIQ">("");
@@ -444,10 +501,58 @@ export default function ProductosPage() {
         return Object.keys(errors).length === 0;
     };
 
+    // Tras crear el producto: guarda los márgenes (si hay) y asocia catálogos,
+    // aptos y clientes. Los errores acá no invalidan el producto ya creado.
+    const asociarMargenYRelaciones = async (productoId: number) => {
+        // Solo enviamos los márgenes cargados (omitimos los vacíos en vez de
+        // mandarlos como null). Así se puede crear con uno solo: el backend
+        // defaultea a 0 el margen ausente. Mandar null explícito daba error.
+        const margenDto: { margenMinorista?: number; margenMayorista?: number; margenFijoMinorista?: number; margenFijoMayorista?: number } = {};
+        if (margenMinorista !== "") margenDto.margenMinorista = margenMinorista;
+        if (margenMayorista !== "") margenDto.margenMayorista = margenMayorista;
+        if (margenFijoMinorista !== "") margenDto.margenFijoMinorista = margenFijoMinorista;
+        if (margenFijoMayorista !== "") margenDto.margenFijoMayorista = margenFijoMayorista;
+        if (Object.keys(margenDto).length > 0) {
+            try {
+                await updateProductoMargenAPI(productoId, margenDto);
+            } catch {
+                notificar.error("El producto se creó, pero falló al guardar los márgenes");
+            }
+        }
+        try {
+            await Promise.all([
+                ...catalogosSel.map((c) => addProductoCatalogoAPI(productoId, Number(c.id))),
+                ...aptosSel.map((a) => addProductoAptoAPI(productoId, Number(a.id))),
+                ...clientesSel.map((c) => addProductoClienteAPI(productoId, Number(c.id))),
+            ]);
+        } catch {
+            notificar.error("El producto se creó, pero falló al asociar algún catálogo/apto/cliente");
+        }
+    };
+
     const handleCreate = async () => {
         if (!validateForm()) return;
         try {
             setIsSaving(true);
+            // Fallback: si el usuario cargó un MLA nuevo a mano pero no lo asoció
+            // (ni con "Crear" ni con "Obtener de ML"), lo creamos ahora.
+            let mlaIdFinal = mlaId;
+            if (showNuevoMla && mlaCodigo.trim() && !mlaId) {
+                try {
+                    const mlaCreado = await createMlaAPI({
+                        mla: mlaCodigo.trim(),
+                        mlau: mlaMlau.trim() || null,
+                        precioEnvio: mlaPrecioEnvio === "" ? null : mlaPrecioEnvio,
+                        comisionPorcentaje: mlaComision === "" ? null : mlaComision,
+                        topePromocion: mlaTope === "" ? 0 : mlaTope,
+                    });
+                    mlaIdFinal = mlaCreado.id;
+                } catch (e) {
+                    notificar.error(e instanceof Error ? e.message : "Error al crear el MLA");
+                    setIsSaving(false);
+                    return;
+                }
+            }
             const payload: ProductoCreateDTO = {
                 sku: sku.trim(), codExt, tituloWeb: tituloWeb.trim(), descripcion: descripcion.trim(), esCombo, uxb, activo, imagenUrl,
                 capacidad, largo: largo || null, ancho: ancho || null, alto: alto || null,
@@ -457,22 +562,122 @@ export default function ProductosPage() {
                 moq: moq !== "" ? moq : null,
                 tagReposicion: tagReposicion || null,
                 tag: tag || null,
-                marcaId, origenId, clasifGralId: clasifGralId!, clasifGastroId, tipoId: tipoId!, proveedorId, materialId, mlaId
+                marcaId, origenId, clasifGralId: clasifGralId!, clasifGastroId, tipoId: tipoId!, proveedorId, materialId, mlaId: mlaIdFinal
             };
-            await createProducto(payload);
+            await createProducto(payload, asociarMargenYRelaciones);
+            // Subida a Dux (opcional, no invalida el producto ya creado).
+            if (subirADux && canExportarDux) {
+                try {
+                    await exportarProductosADuxAPI([sku.trim()]);
+                    notificar.success(`Producto ${sku.trim()} enviado a Dux`);
+                } catch (e) {
+                    notificar.error(e instanceof Error ? `El producto se creó, pero falló al subirlo a Dux: ${e.message}` : "El producto se creó, pero falló al subirlo a Dux");
+                }
+            }
             resetForm();
             setIsModalOpen(false);
         } catch (e) { /* hook already toasts */ } finally { setIsSaving(false); }
     };
 
+    // Pide al backend el menor SKU libre del rango y lo carga en el form.
+    // Si el rango está lleno (sku null) deja el campo vacío y avisa.
+    const cargarSkuSugerido = useCallback(async (combo: boolean) => {
+        try {
+            const sugerido = await getSiguienteSkuAPI(combo);
+            if (sugerido) {
+                setSku(sugerido);
+                setLastSuggestedSku(sugerido);
+                setFormErrors((p) => ({ ...p, sku: "" }));
+            } else {
+                setLastSuggestedSku("");
+                toast.warning(`No hay SKU libre en el rango ${combo ? "5000000–5999999" : "1000000–1999999"}. Cargalo manualmente.`);
+            }
+        } catch {
+            // Silencioso: el usuario siempre puede tipear el SKU a mano.
+        }
+    }, []);
+
+    const handleAbrirCrear = () => {
+        setIsModalOpen(true);
+        void cargarSkuSugerido(esCombo);
+    };
+
+    // Al cambiar "Es Combo" recalculamos el SKU sólo si el campo está vacío o
+    // sigue siendo el que sugerimos (no pisamos un SKU escrito a mano).
+    const handleToggleCombo = (next: boolean) => {
+        setEsCombo(next);
+        if (sku === "" || sku === lastSuggestedSku) {
+            void cargarSkuSugerido(next);
+        }
+    };
+
+    const aplicarMlaEnForm = (mla: { id: number; mla: string; mlau: string | null; precioEnvio: number | null; comisionPorcentaje: number | null; topePromocion: number | null }) => {
+        setMlaId(mla.id);
+        setMlaDisplay(mla.mla);
+        setMlaCodigo(mla.mla);
+        setMlaMlau(mla.mlau ?? "");
+        setMlaPrecioEnvio(mla.precioEnvio ?? "");
+        setMlaTope(mla.topePromocion ?? "");
+        setMlaComision(mla.comisionPorcentaje ?? "");
+    };
+
+    // Busca la publicación en ML por el SKU del form: crea/asegura el MLA, calcula
+    // envío + comisión y lo deja seleccionado.
+    const handleObtenerMlaDeML = async () => {
+        if (!sku.trim()) {
+            toast.error("Cargá primero el SKU para buscar en MercadoLibre");
+            return;
+        }
+        setObteniendoMla(true);
+        try {
+            const mla = await getMlaPorSkuAPI(sku.trim());
+            aplicarMlaEnForm(mla);
+            notificar.success(`MLA ${mla.mla} obtenido de MercadoLibre`);
+        } catch (e) {
+            notificar.error(e instanceof Error ? e.message : "Error al obtener el MLA");
+        } finally {
+            setObteniendoMla(false);
+        }
+    };
+
+    // Crea un MLA manual con los datos cargados y lo deja seleccionado.
+    const handleCrearMla = async () => {
+        if (!mlaCodigo.trim()) {
+            toast.error("Ingresá el código MLA");
+            return;
+        }
+        setCreandoMla(true);
+        try {
+            const mla = await createMlaAPI({
+                mla: mlaCodigo.trim(),
+                mlau: mlaMlau.trim() || null,
+                precioEnvio: mlaPrecioEnvio === "" ? null : mlaPrecioEnvio,
+                comisionPorcentaje: mlaComision === "" ? null : mlaComision,
+                topePromocion: mlaTope === "" ? 0 : mlaTope,
+            });
+            setMlaId(mla.id);
+            setMlaDisplay(mla.mla);
+            notificar.success(`MLA ${mla.mla} creado`);
+            setShowNuevoMla(false);
+        } catch (e) {
+            notificar.error(e instanceof Error ? e.message : "Error al crear el MLA");
+        } finally {
+            setCreandoMla(false);
+        }
+    };
+
     const resetForm = () => {
-        setSku(""); setCodExt(""); setTituloWeb(""); setDescripcion(""); setImagenUrl("");
-        setEsCombo(false); setUxb(1); setActivo(true);
+        setSku(""); setLastSuggestedSku(""); setCodExt(""); setTituloWeb(""); setDescripcion(""); setImagenUrl("");
+        setEsCombo(false); setUxb(1); setActivo(true); setSubirADux(true);
         setCapacidad(""); setLargo(""); setAncho(""); setAlto(""); setDiamboca(""); setDiambase(""); setEspesor("");
         setCosto(0); setIva(21.0);
         setMarcaId(null); setOrigenId(null); setClasifGralId(null); setClasifGastroId(null);
         setTipoId(null); setProveedorId(null); setMaterialId(null); setMlaId(null);
         setMoq(""); setStock(0); setTagReposicion(""); setTag("");
+        setMlaDisplay(""); setShowNuevoMla(false);
+        setMlaCodigo(""); setMlaMlau(""); setMlaPrecioEnvio(""); setMlaTope(""); setMlaComision("");
+        setMargenMinorista(""); setMargenMayorista(""); setMargenFijoMinorista(""); setMargenFijoMayorista("");
+        setCatalogosSel([]); setAptosSel([]); setClientesSel([]);
         setFormErrors({});
     };
 
@@ -541,6 +746,25 @@ export default function ProductosPage() {
         setPageIndex(0);
     };
 
+    // Variante usada por el panel de filtros: recibe el apiParam ya resuelto
+    // (no pasa por apiMapping) y el valor con su tipo final — array para
+    // multi-selección, valor único o null para los segmentados.
+    const handlePanelFilterChange = (apiParam: string, value: unknown, labels?: Record<string, string>) => {
+        if (labels) {
+            setFilterValueLabels((prev) => ({ ...prev, [apiParam]: labels }));
+        }
+        setFilters((prev: Record<string, unknown>) => {
+            const newFilters = { ...prev };
+            if (value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0)) {
+                delete newFilters[apiParam];
+            } else {
+                newFilters[apiParam] = value;
+            }
+            return newFilters;
+        });
+        setPageIndex(0);
+    };
+
     const sectionClassName = "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900";
     const sectionTitleClassName = "text-base font-semibold text-slate-900 dark:text-slate-100";
     const sectionDescriptionClassName = "mt-1 text-xs text-slate-500 dark:text-slate-400";
@@ -586,21 +810,33 @@ export default function ProductosPage() {
                 </div>
                 <div className="flex gap-2 items-center">
                     {canEditProductos && hasSelection && (
-                        <Button variant="danger" onClick={handleDelete}>
-                            <TrashIcon className="w-4 h-4" />
+                        <DeleteButton onClick={handleDelete}>
                             Borrar ({selectedIds.length})
-                        </Button>
+                        </DeleteButton>
                     )}
-                    <Button onClick={() => setIsModalOpen(true)} variant="dark" disabled={!canEditProductos}>
-                        <PlusIcon className="w-4 h-4" />
+                    <CreateButton onClick={handleAbrirCrear} disabled={!canEditProductos}>
                         Crear Producto
-                    </Button>
+                    </CreateButton>
                 </div>
             </div>
 
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
                 <Table
-                    searchSlot={<SearchInput placeholder="Buscar producto por SKU, MLA, cód. ext. o descripción..." onSearch={(val) => { if (val !== filters.search) handleGlobalSearch(val); }} initialValue={filters.search} className="w-[28rem] max-w-full" />}
+                    searchSlot={(
+                        <div className="flex items-center gap-2">
+                            <SearchInput placeholder="Buscar producto por SKU, MLA, cód. ext. o descripción..." onSearch={(val) => { if (val !== filters.search) handleGlobalSearch(val); }} initialValue={filters.search} className="w-[28rem] max-w-full" />
+                            <ProductosFilterToggle expanded={filtrosExpanded} onToggle={toggleFiltros} activeCount={activeFilterEntries.length} />
+                        </div>
+                    )}
+                    belowToolbarSlot={filtrosExpanded ? (
+                        <ProductosFilterPanel
+                            filters={filters}
+                            filterValueLabels={filterValueLabels}
+                            onFilterChange={handlePanelFilterChange}
+                            onClearAll={clearAllFilters}
+                            activeCount={activeFilterEntries.length}
+                        />
+                    ) : null}
                     tableId="productos"
                     data={productos}
                     isLoading={isLoading}
@@ -657,7 +893,7 @@ export default function ProductosPage() {
             <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); resetForm(); }} title="Nuevo Producto" size="xl"
                 footer={<><Button variant="light" onClick={() => { setIsModalOpen(false); resetForm(); }}><XMarkIcon className="w-4 h-4" /> Cancelar</Button><Button variant="dark" onClick={handleCreate} disabled={isSaving}><CheckIcon className="w-4 h-4" /> {isSaving ? "Creando Producto..." : "Crear Producto"}</Button></>}>
                 <div className="flex flex-col gap-5 text-sm">
-                    {Object.keys(formErrors).length > 0 && (
+                    {Object.values(formErrors).some(Boolean) && (
                         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-300">
                             Revisá los campos marcados antes de guardar.
                         </div>
@@ -667,6 +903,29 @@ export default function ProductosPage() {
                         <legend className={sectionTitleClassName}>Identificación</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Datos principales para reconocer el producto en la tabla y en web.</p>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                            {/* Estado y atributos del producto */}
+                            <div className={checkboxCardClassName}>
+                                <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={activo} onChange={e => setActivo(e.target.checked)} id="activo" />
+                                <label htmlFor="activo" className="cursor-pointer">Activo al crear</label>
+                            </div>
+                            <div className={checkboxCardClassName}>
+                                <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={esCombo} onChange={e => handleToggleCombo(e.target.checked)} id="esCombo" />
+                                <label htmlFor="esCombo" className="cursor-pointer">Es Combo</label>
+                            </div>
+                            {canExportarDux && (
+                                <div className={checkboxCardClassName} title="Al crear, sube el producto a Dux con sus datos (código, descripción, costo, IVA, combo, etc.)">
+                                    <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirADux} onChange={e => setSubirADux(e.target.checked)} id="subirADux" />
+                                    <label htmlFor="subirADux" className="cursor-pointer">Subir a Dux al crear</label>
+                                </div>
+                            )}
+                            <label className="block">
+                                <span className={fieldLabelClassName}>UxB</span>
+                                <input type="number" min={1} className={`${inputBaseClassName} ${formErrors.uxb ? inputErrorClassName : ""}`} value={uxb} onChange={e => { setUxb(Number(e.target.value)); if (formErrors.uxb) setFormErrors(p => ({ ...p, uxb: "" })); }} />
+                                {formErrors.uxb && <p className="mt-1 text-xs text-red-500">{formErrors.uxb}</p>}
+                            </label>
+                            {!canExportarDux && <div className="hidden xl:block" aria-hidden="true" />}
+
+                            {/* Identificadores */}
                             <label className="block">
                                 <span className={fieldLabelClassName}>SKU <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span></span>
                                 <input type="text" className={`${inputBaseClassName} ${formErrors.sku ? inputErrorClassName : ""}`} value={sku} onChange={e => { setSku(e.target.value); if (formErrors.sku) setFormErrors(p => ({ ...p, sku: "" })); }} placeholder="Ej: CUT-001" autoFocus required />
@@ -678,14 +937,16 @@ export default function ProductosPage() {
                             </label>
                             <label className="block md:col-span-2">
                                 <span className={fieldLabelClassName}>Título Web <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span></span>
-                                <input type="text" className={`${inputBaseClassName} ${formErrors.tituloWeb ? inputErrorClassName : ""}`} value={tituloWeb} onChange={e => { setTituloWeb(e.target.value); if (formErrors.tituloWeb) setFormErrors(p => ({ ...p, tituloWeb: "" })); }} placeholder="Nombre corto para web" />
+                                <input type="text" className={`${inputBaseClassName} ${formErrors.tituloWeb ? inputErrorClassName : ""}`} value={tituloWeb} onChange={e => { setTituloWeb(e.target.value); if (formErrors.tituloWeb) setFormErrors(p => ({ ...p, tituloWeb: "" })); }} placeholder="Nombre corto para web" required />
                                 {formErrors.tituloWeb && <p className="mt-1 text-xs text-red-500">{formErrors.tituloWeb}</p>}
                             </label>
                             <label className="block xl:col-span-4">
                                 <span className={fieldLabelClassName}>Descripción <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span></span>
-                                <input type="text" className={`${inputBaseClassName} ${formErrors.descripcion ? inputErrorClassName : ""}`} value={descripcion} onChange={e => { setDescripcion(e.target.value); if (formErrors.descripcion) setFormErrors(p => ({ ...p, descripcion: "" })); }} placeholder="Descripción detallada" />
+                                <input type="text" className={`${inputBaseClassName} ${formErrors.descripcion ? inputErrorClassName : ""}`} value={descripcion} onChange={e => { setDescripcion(e.target.value); if (formErrors.descripcion) setFormErrors(p => ({ ...p, descripcion: "" })); }} placeholder="Descripción detallada" required />
                                 {formErrors.descripcion && <p className="mt-1 text-xs text-red-500">{formErrors.descripcion}</p>}
                             </label>
+
+                            {/* Imagen */}
                             <div className="block xl:col-span-4">
                                 <span className={fieldLabelClassName}>Imagen</span>
                                 <div className="mt-1 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-700 dark:bg-slate-800/70">
@@ -721,19 +982,6 @@ export default function ProductosPage() {
                                     </div>
                                 </div>
                             </div>
-                            <div className={checkboxCardClassName}>
-                                <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={esCombo} onChange={e => setEsCombo(e.target.checked)} id="esCombo" />
-                                <label htmlFor="esCombo" className="cursor-pointer">Es Combo</label>
-                            </div>
-                            <label className="block">
-                                <span className={fieldLabelClassName}>UxB</span>
-                                <input type="number" min={1} className={`${inputBaseClassName} ${formErrors.uxb ? inputErrorClassName : ""}`} value={uxb} onChange={e => { setUxb(Number(e.target.value)); if (formErrors.uxb) setFormErrors(p => ({ ...p, uxb: "" })); }} />
-                                {formErrors.uxb && <p className="mt-1 text-xs text-red-500">{formErrors.uxb}</p>}
-                            </label>
-                            <div className={checkboxCardClassName}>
-                                <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={activo} onChange={e => setActivo(e.target.checked)} id="activo" />
-                                <label htmlFor="activo" className="cursor-pointer">Activo al crear</label>
-                            </div>
                         </div>
                     </fieldset>
 
@@ -744,20 +992,20 @@ export default function ProductosPage() {
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <label className="block">
                                 <span className={fieldLabelClassName}>Costo Base ($) <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span></span>
-                                <input type="number" min={0} className={`${inputBaseClassName} ${formErrors.costo ? inputErrorClassName : ""}`} value={costo} onChange={e => { setCosto(Number(e.target.value)); if (formErrors.costo) setFormErrors(p => ({ ...p, costo: "" })); }} />
+                                <input type="number" min={0} className={`${inputBaseClassName} ${formErrors.costo ? inputErrorClassName : ""}`} value={costo} onChange={e => { setCosto(Number(e.target.value)); if (formErrors.costo) setFormErrors(p => ({ ...p, costo: "" })); }} required />
                                 {formErrors.costo && <p className="mt-1 text-xs text-red-500">{formErrors.costo}</p>}
                             </label>
                             <label className="block">
                                 <span className={fieldLabelClassName}>IVA (%) <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span></span>
-                                <input
-                                    type="number"
-                                    min={0}
-                                    max={100}
-                                    step={0.5}
-                                    className={inputBaseClassName}
+                                <select
+                                    className={selectBaseClassName}
                                     value={iva}
                                     onChange={e => setIva(Number(e.target.value))}
-                                />
+                                    required
+                                >
+                                    <option value={21}>21%</option>
+                                    <option value={10.5}>10,5%</option>
+                                </select>
                             </label>
                         </div>
                     </fieldset>
@@ -766,25 +1014,54 @@ export default function ProductosPage() {
                         <legend className={sectionTitleClassName}>Reposición y Stock</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Disponibilidad inicial y prioridades de compra.</p>
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                            <label className="block">
+                            <label className="flex flex-col">
                                 <span className={fieldLabelClassName}>Stock inicial</span>
-                                <input type="number" min={0} className={inputBaseClassName} value={stock} onChange={e => setStock(e.target.value === "" ? "" : Number(e.target.value))} placeholder="0" />
+                                <div className="mt-auto">
+                                    <input type="number" min={0} className={inputBaseClassName} value={stock} onChange={e => setStock(e.target.value === "" ? "" : Number(e.target.value))} placeholder="0" />
+                                </div>
                             </label>
-                            <label className="block">
+                            <label className="flex flex-col">
                                 <span className={fieldLabelClassName}>MOQ (mín. pedido)</span>
-                                <input type="number" min={0} className={inputBaseClassName} value={moq} onChange={e => setMoq(e.target.value === "" ? "" : Number(e.target.value))} placeholder="0" />
+                                <div className="mt-auto">
+                                    <input type="number" min={0} className={inputBaseClassName} value={moq} onChange={e => setMoq(e.target.value === "" ? "" : Number(e.target.value))} placeholder="0" />
+                                </div>
                             </label>
-                            <label className="block">
+                            <label className="flex flex-col">
                                 <span className={fieldLabelClassName}>Prioridad de reposición</span>
-                                <select className={selectBaseClassName} value={tagReposicion} onChange={e => setTagReposicion(e.target.value as "" | "PRIO" | "LIQ")}>
-                                    <option value="">Sin tag</option>
-                                    <option value="PRIO">PRIO — Prioritaria</option>
-                                    <option value="LIQ">LIQ — Liquidación</option>
-                                </select>
+                                <div className="mt-auto">
+                                    <select className={selectBaseClassName} value={tagReposicion} onChange={e => setTagReposicion(e.target.value as "" | "PRIO" | "LIQ")}>
+                                        <option value="">Sin tag</option>
+                                        <option value="PRIO">PRIO — Prioritaria</option>
+                                        <option value="LIQ">LIQ — Liquidación</option>
+                                    </select>
+                                </div>
                             </label>
                         </div>
                     </fieldset>
                     </div>
+
+                    <fieldset className={sectionClassName}>
+                        <legend className={sectionTitleClassName}>Márgenes</legend>
+                        <p className={`${sectionDescriptionClassName} mb-4`}>Márgenes minorista y mayorista (porcentaje) y sus valores fijos. Opcionales.</p>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                            <label className="block">
+                                <span className={fieldLabelClassName}>Margen minorista (%)</span>
+                                <input type="number" step={0.5} className={inputBaseClassName} value={margenMinorista} onChange={e => setMargenMinorista(e.target.value === "" ? "" : Number(e.target.value))} placeholder="Sin definir" />
+                            </label>
+                            <label className="block">
+                                <span className={fieldLabelClassName}>Margen mayorista (%)</span>
+                                <input type="number" step={0.5} className={inputBaseClassName} value={margenMayorista} onChange={e => setMargenMayorista(e.target.value === "" ? "" : Number(e.target.value))} placeholder="Sin definir" />
+                            </label>
+                            <label className="block">
+                                <span className={fieldLabelClassName}>Margen fijo minorista</span>
+                                <input type="number" step={0.5} className={inputBaseClassName} value={margenFijoMinorista} onChange={e => setMargenFijoMinorista(e.target.value === "" ? "" : Number(e.target.value))} placeholder="Sin definir" />
+                            </label>
+                            <label className="block">
+                                <span className={fieldLabelClassName}>Margen fijo mayorista</span>
+                                <input type="number" step={0.5} className={inputBaseClassName} value={margenFijoMayorista} onChange={e => setMargenFijoMayorista(e.target.value === "" ? "" : Number(e.target.value))} placeholder="Sin definir" />
+                            </label>
+                        </div>
+                    </fieldset>
 
                     <fieldset className={sectionClassName}>
                         <legend className={sectionTitleClassName}>Clasificación y Relaciones</legend>
@@ -803,7 +1080,6 @@ export default function ProductosPage() {
                             </div>
                             <AsyncSelect label="Proveedor" loadOptions={searchProveedores} onChange={(v) => setProveedorId(v ? Number(v) : null)} value={proveedorId} placeholder="Buscar proveedor" inputClassName={inputBaseClassName} />
                             <AsyncSelect label="Material" loadOptions={searchMateriales} onChange={(v) => setMaterialId(v ? Number(v) : null)} value={materialId} placeholder="Buscar material" inputClassName={inputBaseClassName} />
-                            <AsyncSelect label="MLA" loadOptions={searchMlas} onChange={(v) => setMlaId(v ? Number(v) : null)} value={mlaId} placeholder="Buscar MLA" inputClassName={inputBaseClassName} />
                             <label className="block">
                                 <span className={fieldLabelClassName}>Tag</span>
                                 <select className={selectBaseClassName} value={tag} onChange={e => setTag(e.target.value as "" | "MAQUINA" | "REPUESTO" | "MENAJE")}>
@@ -814,6 +1090,74 @@ export default function ProductosPage() {
                                 </select>
                             </label>
                         </div>
+                    </fieldset>
+
+                    <fieldset className={sectionClassName}>
+                        <legend className={sectionTitleClassName}>Catálogos, Aptos y Clientes</legend>
+                        <p className={`${sectionDescriptionClassName} mb-4`}>Asociaciones múltiples. Buscá y agregá los que correspondan.</p>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                            <MultiAsyncSelect label="Catálogos" loadOptions={(q) => searchCatalogos(q)} value={catalogosSel} onChange={setCatalogosSel} placeholder="Buscar catálogo" inputClassName={inputBaseClassName} />
+                            <MultiAsyncSelect label="Aptos" loadOptions={(q) => searchAptos(q)} value={aptosSel} onChange={setAptosSel} placeholder="Buscar apto" inputClassName={inputBaseClassName} />
+                            <MultiAsyncSelect label="Clientes" loadOptions={(q) => searchClientes(q)} value={clientesSel} onChange={setClientesSel} placeholder="Buscar cliente" inputClassName={inputBaseClassName} />
+                        </div>
+                    </fieldset>
+
+                    <fieldset className={sectionClassName}>
+                        <legend className={sectionTitleClassName}>MercadoLibre</legend>
+                        <p className={`${sectionDescriptionClassName} mb-4`}>Publicación de MercadoLibre (MLA) asociada al producto.</p>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                            <div>
+                                <AsyncSelect label="MLA" loadOptions={searchMlas} onChange={(v, label) => { setMlaId(v ? Number(v) : null); setMlaDisplay(label ?? ""); }} value={mlaId} displayValue={mlaDisplay} placeholder="Buscar MLA" inputClassName={inputBaseClassName} />
+                                <button type="button" onClick={() => setShowNuevoMla((s) => !s)} className="mt-1 text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400">
+                                    {showNuevoMla ? "− Cerrar nuevo MLA" : "+ Nuevo MLA"}
+                                </button>
+                            </div>
+                        </div>
+
+                        {showNuevoMla && (
+                            <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50/50 p-4 dark:border-blue-800 dark:bg-blue-900/15">
+                                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Nuevo MLA</span>
+                                    <button
+                                        type="button"
+                                        onClick={handleObtenerMlaDeML}
+                                        disabled={obteniendoMla || !sku.trim()}
+                                        title={!sku.trim() ? "Cargá primero el SKU" : "Trae el MLA y sus datos desde tu publicación de MercadoLibre"}
+                                        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-400 px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:from-amber-300 hover:to-yellow-300 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        <CloudArrowDownIcon className={`h-4 w-4 ${obteniendoMla ? "animate-pulse" : ""}`} />
+                                        {obteniendoMla ? "Trayendo de MercadoLibre..." : "Autocompletar desde MercadoLibre"}
+                                    </button>
+                                </div>
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+                                    <label className="block">
+                                        <span className={fieldLabelClassName}>Código MLA</span>
+                                        <input type="text" className={inputBaseClassName} value={mlaCodigo} onChange={e => setMlaCodigo(e.target.value)} placeholder="MLA123456789" />
+                                    </label>
+                                    <label className="block">
+                                        <span className={fieldLabelClassName}>MLAU</span>
+                                        <input type="text" className={inputBaseClassName} value={mlaMlau} onChange={e => setMlaMlau(e.target.value)} placeholder="Opcional" />
+                                    </label>
+                                    <label className="block">
+                                        <span className={fieldLabelClassName}>Precio envío</span>
+                                        <input type="number" min={0} className={inputBaseClassName} value={mlaPrecioEnvio} onChange={e => setMlaPrecioEnvio(e.target.value === "" ? "" : Number(e.target.value))} placeholder="0" />
+                                    </label>
+                                    <label className="block">
+                                        <span className={fieldLabelClassName}>Comisión (%)</span>
+                                        <input type="number" min={0} step={0.5} className={inputBaseClassName} value={mlaComision} onChange={e => setMlaComision(e.target.value === "" ? "" : Number(e.target.value))} placeholder="0" />
+                                    </label>
+                                    <label className="block">
+                                        <span className={fieldLabelClassName}>Tope promoción</span>
+                                        <input type="number" min={0} className={inputBaseClassName} value={mlaTope} onChange={e => setMlaTope(e.target.value === "" ? "" : Number(e.target.value))} placeholder="0" />
+                                    </label>
+                                </div>
+                                <div className="mt-3 flex justify-end">
+                                    <Button variant="dark" onClick={handleCrearMla} disabled={creandoMla || !mlaCodigo.trim()}>
+                                        {creandoMla ? "Creando..." : "Crear y usar este MLA"}
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
                     </fieldset>
 
                     <fieldset className={sectionClassName}>

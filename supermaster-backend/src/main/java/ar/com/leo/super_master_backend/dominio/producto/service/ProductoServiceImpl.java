@@ -11,43 +11,22 @@ import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestExcept
 import ar.com.leo.super_master_backend.dominio.common.exception.ConflictException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
 import ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService;
-import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 import ar.com.leo.super_master_backend.dominio.marca.entity.Marca;
 import ar.com.leo.super_master_backend.dominio.material.entity.Material;
 import ar.com.leo.super_master_backend.dominio.origen.entity.Origen;
+import ar.com.leo.super_master_backend.dominio.producto.dto.*;
+import ar.com.leo.super_master_backend.dominio.producto.entity.*;
+import ar.com.leo.super_master_backend.dominio.producto.mapper.ProductoMapper;
 import ar.com.leo.super_master_backend.dominio.producto.mla.entity.Mla;
+import ar.com.leo.super_master_backend.dominio.producto.repository.*;
+import ar.com.leo.super_master_backend.dominio.proveedor.entity.Proveedor;
 import ar.com.leo.super_master_backend.dominio.regla_descuento.entity.ReglaDescuento;
 import ar.com.leo.super_master_backend.dominio.regla_descuento.repository.ReglaDescuentoRepository;
-import ar.com.leo.super_master_backend.dominio.producto.dto.*;
-import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
-import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCanalPrecio;
-import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoApto;
-import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCatalogo;
-import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCliente;
-import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoMargen;
-import ar.com.leo.super_master_backend.dominio.producto.entity.Tag;
-import ar.com.leo.super_master_backend.dominio.producto.mapper.ProductoMapper;
-import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCanalPrecioInflado;
-import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoCanalPrecioInfladoRepository;
-import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoCanalPrecioRepository;
-import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoMargenRepository;
-import ar.com.leo.super_master_backend.dominio.producto.repository.PrecioSpecifications;
-import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoAptoRepository;
-import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoCatalogoRepository;
-import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoClienteRepository;
-import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoRepository;
-import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoSpecifications;
-import ar.com.leo.super_master_backend.dominio.proveedor.entity.Proveedor;
 import ar.com.leo.super_master_backend.dominio.reposicion.entity.TagReposicion;
 import ar.com.leo.super_master_backend.dominio.tipo.entity.Tipo;
-import jakarta.persistence.criteria.Expression;
-import jakarta.persistence.criteria.Join;
-import jakarta.persistence.criteria.JoinType;
-import jakarta.persistence.criteria.Order;
-import jakarta.persistence.criteria.Path;
-import jakarta.persistence.criteria.Root;
-import jakarta.persistence.criteria.Subquery;
+import jakarta.persistence.criteria.*;
 import lombok.RequiredArgsConstructor;
+import org.openapitools.jackson.nullable.JsonNullable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -55,7 +34,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.openapitools.jackson.nullable.JsonNullable;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -63,6 +41,8 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 
 @Service
 @RequiredArgsConstructor
@@ -232,6 +212,27 @@ public class ProductoServiceImpl implements ProductoService {
         return productoRepository.findBySku(sku)
                 .map(productoMapper::toDTO)
                 .orElseThrow(() -> new NotFoundException("Producto no encontrado"));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public String siguienteSkuLibre(boolean esCombo) {
+        long min = esCombo ? 5_000_000L : 1_000_000L;
+        long max = esCombo ? 5_999_999L : 1_999_999L;
+
+        // SKU usados del rango, ordenados ascendentemente. Buscamos el primer
+        // entero que no esté ocupado empezando desde el mínimo del rango.
+        List<Long> usados = productoRepository.findSkusNumericosEnRango(min, max);
+        long esperado = min;
+        for (Long n : usados) {
+            if (n == null || n < esperado) continue;
+            if (n == esperado) {
+                esperado++;
+            } else {
+                break; // hueco encontrado en 'esperado'
+            }
+        }
+        return esperado <= max ? String.valueOf(esperado) : null;
     }
 
     @Override

@@ -1,10 +1,8 @@
 package ar.com.leo.super_master_backend.dominio.producto.mla.controller;
 
-import ar.com.leo.super_master_backend.dominio.producto.mla.dto.MlaCreateDTO;
-import ar.com.leo.super_master_backend.dominio.producto.mla.dto.MlaDTO;
-import ar.com.leo.super_master_backend.dominio.producto.mla.dto.MlaTopePromocionDTO;
-import ar.com.leo.super_master_backend.dominio.producto.mla.dto.MlaUpdateDTO;
-import ar.com.leo.super_master_backend.dominio.producto.mla.dto.MlaPatchDTO;
+import ar.com.leo.super_master_backend.config.Permisos;
+import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoResumenDTO;
+import ar.com.leo.super_master_backend.dominio.producto.mla.dto.*;
 import ar.com.leo.super_master_backend.dominio.producto.mla.service.MlaService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
@@ -18,8 +16,6 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
 import java.util.List;
-import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoResumenDTO;
-import ar.com.leo.super_master_backend.config.Permisos;
 
 @RestController
 @RequiredArgsConstructor
@@ -39,6 +35,16 @@ public class MlaController {
     public ResponseEntity<MlaDTO> obtener(
             @PathVariable @Positive(message = "El ID debe ser positivo") Integer id) {
         return ResponseEntity.ok(mlaService.obtener(id));
+    }
+
+    /**
+     * Busca en MercadoLibre la publicación del SKU, crea/asegura el MLA y le calcula
+     * precio de envío y comisión. Usado por el alta de producto para autocompletar el MLA.
+     */
+    @GetMapping("/por-sku-ml")
+    @PreAuthorize(Permisos.MLAS_EDITAR)
+    public ResponseEntity<MlaDTO> obtenerPorSkuDesdeML(@RequestParam String sku) {
+        return ResponseEntity.ok(mlaService.obtenerOcrearPorSkuDesdeML(sku));
     }
 
     @PostMapping

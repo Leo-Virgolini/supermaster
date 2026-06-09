@@ -6,11 +6,10 @@ import ar.com.leo.super_master_backend.dominio.auditoria.service.AuditoriaServic
 import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
 import ar.com.leo.super_master_backend.dominio.common.exception.ConflictException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
-import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 import ar.com.leo.super_master_backend.dominio.config_automatizacion.dto.ConfigAutomatizacionCreateDTO;
 import ar.com.leo.super_master_backend.dominio.config_automatizacion.dto.ConfigAutomatizacionDTO;
-import ar.com.leo.super_master_backend.dominio.config_automatizacion.dto.ConfigAutomatizacionUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.config_automatizacion.dto.ConfigAutomatizacionPatchDTO;
+import ar.com.leo.super_master_backend.dominio.config_automatizacion.dto.ConfigAutomatizacionUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.config_automatizacion.entity.ConfigAutomatizacion;
 import ar.com.leo.super_master_backend.dominio.config_automatizacion.mapper.ConfigAutomatizacionMapper;
 import ar.com.leo.super_master_backend.dominio.config_automatizacion.repository.ConfigAutomatizacionRepository;
@@ -23,6 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+
+import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 
 @Service
 @RequiredArgsConstructor

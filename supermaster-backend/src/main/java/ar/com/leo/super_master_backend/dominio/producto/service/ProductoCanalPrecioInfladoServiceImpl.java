@@ -7,6 +7,8 @@ import ar.com.leo.super_master_backend.dominio.canal.repository.CanalRepository;
 import ar.com.leo.super_master_backend.dominio.common.exception.ConflictException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
 import ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService;
+import ar.com.leo.super_master_backend.dominio.precio_inflado.entity.PrecioInflado;
+import ar.com.leo.super_master_backend.dominio.precio_inflado.repository.PrecioInfladoRepository;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoCanalPrecioInfladoCreateDTO;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoCanalPrecioInfladoDTO;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoCanalPrecioInfladoUpdateDTO;
@@ -14,8 +16,6 @@ import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCanalPrec
 import ar.com.leo.super_master_backend.dominio.producto.mapper.ProductoCanalPrecioInfladoMapper;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoCanalPrecioInfladoRepository;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoRepository;
-import ar.com.leo.super_master_backend.dominio.precio_inflado.entity.PrecioInflado;
-import ar.com.leo.super_master_backend.dominio.precio_inflado.repository.PrecioInfladoRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;

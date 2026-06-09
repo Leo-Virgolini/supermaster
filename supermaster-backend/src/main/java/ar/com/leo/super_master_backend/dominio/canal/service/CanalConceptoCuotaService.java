@@ -2,8 +2,8 @@ package ar.com.leo.super_master_backend.dominio.canal.service;
 
 import ar.com.leo.super_master_backend.dominio.canal.dto.CanalConceptoCuotaCreateDTO;
 import ar.com.leo.super_master_backend.dominio.canal.dto.CanalConceptoCuotaDTO;
-import ar.com.leo.super_master_backend.dominio.canal.dto.CanalConceptoCuotaUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.canal.dto.CanalConceptoCuotaPatchDTO;
+import ar.com.leo.super_master_backend.dominio.canal.dto.CanalConceptoCuotaUpdateDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 

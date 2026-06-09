@@ -1,9 +1,10 @@
 package ar.com.leo.super_master_backend.dominio.producto.dto;
 
-import java.math.BigDecimal;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 import org.openapitools.jackson.nullable.JsonNullable;
+
+import java.math.BigDecimal;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = false)

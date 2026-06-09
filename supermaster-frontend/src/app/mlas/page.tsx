@@ -5,11 +5,13 @@ import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useMemo } from "react";
 import { notificar } from "../utils/notificar";
-import { CurrencyDollarIcon, PlusIcon, TrashIcon, CheckIcon, XMarkIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
+import { CurrencyDollarIcon, CheckIcon, XMarkIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
 import { confirmDialog } from "../utils/confirmDialog";
 import Table, { getInitialPageSize } from "../components/Table/core/Table";
 import SearchInput from "../components/SearchInput/SearchInput";
 import Button from "../components/Button/Button";
+import CreateButton from "../components/Button/CreateButton";
+import DeleteButton from "../components/Button/DeleteButton";
 import Modal from "../components/Modal/Modal";
 import { useAuth } from "../context/AuthContext";
 import { useProcesoActivo } from "../context/ProcesoActivoContext";
@@ -208,10 +210,9 @@ export default function MlasPage() {
                 </div>
                 <div className="flex gap-2 items-center">
                     {canEdit && selectedIds.length > 0 && (
-                        <Button variant="danger" onClick={handleDelete}>
-                            <TrashIcon className="w-4 h-4" />
+                        <DeleteButton onClick={handleDelete}>
                             Borrar ({selectedIds.length})
-                        </Button>
+                        </DeleteButton>
                     )}
                     <button
                         type="button"
@@ -227,10 +228,9 @@ export default function MlasPage() {
                         <ArrowPathIcon className={`w-4 h-4 transition-transform group-hover:rotate-180 group-disabled:rotate-0 ${showMasivo ? "rotate-180" : ""}`} />
                         <span>{showMasivo ? "Ocultar Masivo" : "Recálculo Masivo"}</span>
                     </button>
-                    <Button variant="dark" onClick={() => setIsModalOpen(true)} disabled={!canEdit}>
-                        <PlusIcon className="w-4 h-4" />
+                    <CreateButton onClick={() => setIsModalOpen(true)} disabled={!canEdit}>
                         Crear MLA
-                    </Button>
+                    </CreateButton>
                 </div>
             </div>
 

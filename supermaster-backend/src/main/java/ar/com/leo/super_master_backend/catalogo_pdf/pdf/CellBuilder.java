@@ -1,21 +1,12 @@
 package ar.com.leo.super_master_backend.catalogo_pdf.pdf;
 
-import ar.com.leo.super_master_backend.catalogo_pdf.pdf.components.CodigoComponent;
-import ar.com.leo.super_master_backend.catalogo_pdf.pdf.components.ImagenComponent;
-import ar.com.leo.super_master_backend.catalogo_pdf.pdf.components.NombreComponent;
-import ar.com.leo.super_master_backend.catalogo_pdf.pdf.components.PrecioComponent;
-import ar.com.leo.super_master_backend.catalogo_pdf.pdf.components.SeparatorComponent;
-import ar.com.leo.super_master_backend.catalogo_pdf.pdf.components.UxbComponent;
+import ar.com.leo.super_master_backend.catalogo_pdf.pdf.components.*;
 import ar.com.leo.super_master_backend.catalogo_pdf.pdf.stats.PdfGenerationStats;
 import ar.com.leo.super_master_backend.catalogo_pdf.pdf.theme.ThemeSpec;
 import com.itextpdf.kernel.colors.Color;
 import com.itextpdf.kernel.colors.DeviceRgb;
 import com.itextpdf.layout.borders.Border;
-import com.itextpdf.layout.element.Cell;
-import com.itextpdf.layout.element.Div;
-import com.itextpdf.layout.element.Image;
-import com.itextpdf.layout.element.Paragraph;
-import com.itextpdf.layout.element.Table;
+import com.itextpdf.layout.element.*;
 import com.itextpdf.layout.properties.HorizontalAlignment;
 import com.itextpdf.layout.properties.UnitValue;
 import com.itextpdf.layout.properties.VerticalAlignment;

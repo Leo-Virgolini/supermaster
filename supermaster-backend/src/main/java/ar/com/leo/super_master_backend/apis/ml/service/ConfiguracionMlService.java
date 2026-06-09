@@ -1,12 +1,12 @@
 package ar.com.leo.super_master_backend.apis.ml.service;
 
+import ar.com.leo.super_master_backend.apis.ml.dto.ConfiguracionMlDTO;
+import ar.com.leo.super_master_backend.apis.ml.entity.ConfiguracionMl;
+import ar.com.leo.super_master_backend.apis.ml.repository.ConfiguracionMlRepository;
 import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaAccion;
 import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaEntidad;
 import ar.com.leo.super_master_backend.dominio.auditoria.service.AuditoriaService;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
-import ar.com.leo.super_master_backend.apis.ml.dto.ConfiguracionMlDTO;
-import ar.com.leo.super_master_backend.apis.ml.entity.ConfiguracionMl;
-import ar.com.leo.super_master_backend.apis.ml.repository.ConfiguracionMlRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

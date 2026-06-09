@@ -1,9 +1,10 @@
 package ar.com.leo.super_master_backend.dominio.canal.controller;
 
+import ar.com.leo.super_master_backend.config.Permisos;
 import ar.com.leo.super_master_backend.dominio.canal.dto.CanalConceptoCuotaCreateDTO;
 import ar.com.leo.super_master_backend.dominio.canal.dto.CanalConceptoCuotaDTO;
-import ar.com.leo.super_master_backend.dominio.canal.dto.CanalConceptoCuotaUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.canal.dto.CanalConceptoCuotaPatchDTO;
+import ar.com.leo.super_master_backend.dominio.canal.dto.CanalConceptoCuotaUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.canal.service.CanalConceptoCuotaService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
@@ -17,7 +18,6 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
 import java.util.List;
-import ar.com.leo.super_master_backend.config.Permisos;
 
 @RestController
 @RequiredArgsConstructor

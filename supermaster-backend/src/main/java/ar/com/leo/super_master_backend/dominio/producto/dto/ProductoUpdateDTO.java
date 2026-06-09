@@ -2,11 +2,8 @@ package ar.com.leo.super_master_backend.dominio.producto.dto;
 
 import ar.com.leo.super_master_backend.dominio.producto.entity.Tag;
 import ar.com.leo.super_master_backend.dominio.reposicion.entity.TagReposicion;
-import jakarta.validation.constraints.DecimalMax;
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Positive;
-import jakarta.validation.constraints.PositiveOrZero;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
+
 import java.math.BigDecimal;
 
 public record ProductoUpdateDTO(

@@ -1,14 +1,14 @@
 package ar.com.leo.super_master_backend.dominio.regla_descuento.entity;
 
 import ar.com.leo.super_master_backend.dominio.canal.entity.Canal;
+import ar.com.leo.super_master_backend.dominio.catalogo.entity.Catalogo;
 import ar.com.leo.super_master_backend.dominio.clasif_gastro.entity.ClasifGastro;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.entity.ClasifGral;
-import ar.com.leo.super_master_backend.dominio.catalogo.entity.Catalogo;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import lombok.NoArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.OnDelete;

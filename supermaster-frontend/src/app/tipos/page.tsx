@@ -2,11 +2,13 @@
 
 import { useState, useMemo } from "react";
 import ErrorBanner from "../components/ErrorBanner/ErrorBanner";
-import { AdjustmentsHorizontalIcon, PlusIcon, TrashIcon, CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { AdjustmentsHorizontalIcon, CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { confirmDialog } from "../utils/confirmDialog";
 import Table, { getInitialPageSize } from "../components/Table/core/Table";
 import SearchInput from "../components/SearchInput/SearchInput";
 import Button from "../components/Button/Button";
+import CreateButton from "../components/Button/CreateButton";
+import DeleteButton from "../components/Button/DeleteButton";
 import Modal from "../components/Modal/Modal";
 import AsyncSelect from "../components/AsyncSelect/AsyncSelect";
 import { useTipos } from "./useTipos";
@@ -145,19 +147,13 @@ export default function TiposPage() {
 
                 <div className="flex gap-2 items-center">
                     {canEdit && hasSelection && (
-                        <Button variant="danger" onClick={handleDelete}>
-                            <TrashIcon className="w-4 h-4" />
+                        <DeleteButton onClick={handleDelete}>
                             Borrar ({selectedIds.length})
-                        </Button>
+                        </DeleteButton>
                     )}
-                    <Button
-                        variant="dark"
-                        onClick={() => setIsModalOpen(true)}
-                        disabled={!canEdit}
-                    >
-                        <PlusIcon className="w-4 h-4" />
+                    <CreateButton onClick={() => setIsModalOpen(true)} disabled={!canEdit}>
                         Crear Tipo
-                    </Button>
+                    </CreateButton>
                 </div>
             </div>
 

@@ -1,5 +1,6 @@
 package ar.com.leo.super_master_backend.dominio.auditoria.controller;
 
+import ar.com.leo.super_master_backend.config.Permisos;
 import ar.com.leo.super_master_backend.dominio.auditoria.dto.AuditoriaCambioDTO;
 import ar.com.leo.super_master_backend.dominio.auditoria.service.AuditoriaService;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +17,6 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import ar.com.leo.super_master_backend.config.Permisos;
 
 @RestController
 @RequiredArgsConstructor

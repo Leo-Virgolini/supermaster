@@ -1,12 +1,8 @@
 package ar.com.leo.super_master_backend.dominio.producto.controller;
 
+import ar.com.leo.super_master_backend.config.Permisos;
 import ar.com.leo.super_master_backend.dominio.producto.dto.EstadisticasDTO;
-import ar.com.leo.super_master_backend.dominio.producto.dto.EstadisticasDTO.MargenesPorCuotasDTO;
-import ar.com.leo.super_master_backend.dominio.producto.dto.EstadisticasDTO.ProductoMargenNegativo;
-import ar.com.leo.super_master_backend.dominio.producto.dto.EstadisticasDTO.ProductosPorCatalogo;
-import ar.com.leo.super_master_backend.dominio.producto.dto.EstadisticasDTO.ProductosPorProveedor;
-import ar.com.leo.super_master_backend.dominio.producto.dto.EstadisticasDTO.ResumenDTO;
-import ar.com.leo.super_master_backend.dominio.producto.dto.EstadisticasDTO.CuotaDisponibleDTO;
+import ar.com.leo.super_master_backend.dominio.producto.dto.EstadisticasDTO.*;
 import ar.com.leo.super_master_backend.dominio.producto.service.EstadisticasService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -17,7 +13,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import ar.com.leo.super_master_backend.config.Permisos;
 
 @RestController
 @RequiredArgsConstructor

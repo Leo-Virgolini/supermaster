@@ -1,9 +1,10 @@
 package ar.com.leo.super_master_backend.dominio.regla_descuento.controller;
 
+import ar.com.leo.super_master_backend.config.Permisos;
 import ar.com.leo.super_master_backend.dominio.regla_descuento.dto.ReglaDescuentoCreateDTO;
 import ar.com.leo.super_master_backend.dominio.regla_descuento.dto.ReglaDescuentoDTO;
-import ar.com.leo.super_master_backend.dominio.regla_descuento.dto.ReglaDescuentoUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.regla_descuento.dto.ReglaDescuentoPatchDTO;
+import ar.com.leo.super_master_backend.dominio.regla_descuento.dto.ReglaDescuentoUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.regla_descuento.service.ReglaDescuentoService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
@@ -17,7 +18,6 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
 import java.util.List;
-import ar.com.leo.super_master_backend.config.Permisos;
 
 @RestController
 @RequiredArgsConstructor

@@ -1,6 +1,5 @@
 package ar.com.leo.super_master_backend.dominio.producto.entity;
 
-import ar.com.leo.super_master_backend.dominio.reposicion.entity.TagReposicion;
 import ar.com.leo.super_master_backend.dominio.clasif_gastro.entity.ClasifGastro;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.entity.ClasifGral;
 import ar.com.leo.super_master_backend.dominio.marca.entity.Marca;
@@ -8,14 +7,15 @@ import ar.com.leo.super_master_backend.dominio.material.entity.Material;
 import ar.com.leo.super_master_backend.dominio.origen.entity.Origen;
 import ar.com.leo.super_master_backend.dominio.producto.mla.entity.Mla;
 import ar.com.leo.super_master_backend.dominio.proveedor.entity.Proveedor;
+import ar.com.leo.super_master_backend.dominio.reposicion.entity.TagReposicion;
 import ar.com.leo.super_master_backend.dominio.tipo.entity.Tipo;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import org.hibernate.annotations.BatchSize;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

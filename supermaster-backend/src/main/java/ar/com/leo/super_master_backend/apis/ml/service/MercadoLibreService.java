@@ -10,8 +10,6 @@ import ar.com.leo.super_master_backend.apis.ml.entity.ConfiguracionMl;
 import ar.com.leo.super_master_backend.apis.ml.model.MLCredentials;
 import ar.com.leo.super_master_backend.apis.ml.model.Producto;
 import ar.com.leo.super_master_backend.apis.ml.model.TokensML;
-import ar.com.leo.super_master_backend.dominio.common.service.EstadoProcesoMasivo;
-import ar.com.leo.super_master_backend.dominio.common.service.ProcesoGlobalService;
 import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaAccion;
 import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaEntidad;
 import ar.com.leo.super_master_backend.dominio.auditoria.service.AuditoriaService;
@@ -21,6 +19,8 @@ import ar.com.leo.super_master_backend.dominio.common.dto.ProcesoMasivoEstadoDTO
 import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
 import ar.com.leo.super_master_backend.dominio.common.exception.ServiceNotConfiguredException;
+import ar.com.leo.super_master_backend.dominio.common.service.EstadoProcesoMasivo;
+import ar.com.leo.super_master_backend.dominio.common.service.ProcesoGlobalService;
 import ar.com.leo.super_master_backend.dominio.producto.calculo.dto.PrecioCalculadoDTO;
 import ar.com.leo.super_master_backend.dominio.producto.calculo.service.CalculoPrecioService;
 import ar.com.leo.super_master_backend.dominio.producto.calculo.service.RecalculoPrecioFacade;
@@ -46,19 +46,12 @@ import tools.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
-import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -800,27 +793,30 @@ public class MercadoLibreService {
             return;
         }
 
+        // La columna comision_porcentaje es DECIMAL(5,2): normalizamos a 2 decimales.
+        BigDecimal porcentajeNormalizado = porcentaje.setScale(2, RoundingMode.HALF_UP);
+
         LocalDateTime ahora = LocalDateTime.now();
         for (Mla mla : mlas) {
             BigDecimal comisionAnterior = mla.getComisionPorcentaje();
 
-            mla.setComisionPorcentaje(porcentaje);
+            mla.setComisionPorcentaje(porcentajeNormalizado);
             mla.setFechaCalculoComision(ahora);
             mlaRepository.save(mla);
 
             Map<String, String> anterior = new LinkedHashMap<>();
             anterior.put("comisionPorcentaje", comisionAnterior != null ? comisionAnterior.toPlainString() : null);
             Map<String, String> nuevo = new LinkedHashMap<>();
-            nuevo.put("comisionPorcentaje", porcentaje.toPlainString());
+            nuevo.put("comisionPorcentaje", porcentajeNormalizado.toPlainString());
             // Origen PROCESS: el valor lo calcula el motor de costos de ML (no es edición
             // manual). Explícito porque el cálculo masivo corre en @Async (sin request).
             auditoriaService.registrarCambios(AuditoriaEntidad.MLA, mla.getId(), mlaCode, AuditoriaAccion.UPDATE, anterior, nuevo, "PROCESS");
 
-            if (comisionAnterior == null || comisionAnterior.compareTo(porcentaje) != 0) {
+            if (comisionAnterior == null || comisionAnterior.compareTo(porcentajeNormalizado) != 0) {
                 programarRecalculoMlaPostCommit(mla.getId());
             }
         }
-        log.info("ML - Porcentaje de comisión guardado para MLA {} ({} registros): {}%", mlaCode, mlas.size(), porcentaje);
+        log.info("ML - Porcentaje de comisión guardado para MLA {} ({} registros): {}%", mlaCode, mlas.size(), porcentajeNormalizado);
     }
 
     /**
@@ -1006,6 +1002,36 @@ public class MercadoLibreService {
         } catch (Exception e) {
             throw new IOException("Error parseando userId de ML", e);
         }
+    }
+
+    /**
+     * Busca el código MLA de una publicación a partir del SKU del vendedor
+     * (campo {@code seller_sku}) consultando la API de búsqueda de items del seller.
+     * Devuelve null si no hay coincidencias.
+     */
+    public String buscarMlaCodePorSku(String sku) {
+        if (sku == null || sku.isBlank()) {
+            return null;
+        }
+        verificarTokens();
+        final String userId;
+        try {
+            userId = getUserId();
+        } catch (IOException e) {
+            throw new BadRequestException("No se pudo obtener el usuario de MercadoLibre: " + e.getMessage());
+        }
+        String path = "/users/" + userId + "/items/search?seller_sku="
+                + URLEncoder.encode(sku.trim(), StandardCharsets.UTF_8);
+        String body = retryHandler.get(path, () -> tokens.accessToken);
+        if (body == null) {
+            return null;
+        }
+        JsonNode results = objectMapper.readTree(body).path("results");
+        if (results.isArray() && !results.isEmpty()) {
+            String mla = results.get(0).asString();
+            return (mla == null || mla.isBlank()) ? null : mla;
+        }
+        return null;
     }
 
     // ==================== MANEJO DE CREDENCIALES ====================

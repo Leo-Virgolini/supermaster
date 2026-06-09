@@ -1,5 +1,6 @@
 package ar.com.leo.super_master_backend.dominio.orden_compra.controller;
 
+import ar.com.leo.super_master_backend.config.Permisos;
 import ar.com.leo.super_master_backend.dominio.orden_compra.dto.*;
 import ar.com.leo.super_master_backend.dominio.orden_compra.entity.EstadoOrdenCompra;
 import ar.com.leo.super_master_backend.dominio.orden_compra.service.OrdenCompraService;
@@ -14,7 +15,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
-import ar.com.leo.super_master_backend.config.Permisos;
 
 @RestController
 @RequiredArgsConstructor

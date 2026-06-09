@@ -1,24 +1,23 @@
 package ar.com.leo.super_master_backend.dominio.producto.mla.service;
 
+import ar.com.leo.super_master_backend.apis.ml.service.MercadoLibreService;
 import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaAccion;
 import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaEntidad;
 import ar.com.leo.super_master_backend.dominio.auditoria.service.AuditoriaService;
 import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
 import ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService;
-import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoResumenDTO;
 import ar.com.leo.super_master_backend.dominio.producto.mapper.ProductoMapper;
-import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoRepository;
-import ar.com.leo.super_master_backend.dominio.producto.mla.dto.MlaCreateDTO;
-import ar.com.leo.super_master_backend.dominio.producto.mla.dto.MlaDTO;
-import ar.com.leo.super_master_backend.dominio.producto.mla.dto.MlaTopePromocionDTO;
-import ar.com.leo.super_master_backend.dominio.producto.mla.dto.MlaUpdateDTO;
-import ar.com.leo.super_master_backend.dominio.producto.mla.dto.MlaPatchDTO;
+import ar.com.leo.super_master_backend.dominio.producto.mla.dto.*;
 import ar.com.leo.super_master_backend.dominio.producto.mla.entity.Mla;
 import ar.com.leo.super_master_backend.dominio.producto.mla.mapper.MlaMapper;
 import ar.com.leo.super_master_backend.dominio.producto.mla.repository.MlaRepository;
+import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -30,6 +29,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
+
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MlaServiceImpl implements MlaService {
@@ -40,6 +42,12 @@ public class MlaServiceImpl implements MlaService {
     private final ProductoRepository productoRepository;
     private final ProductoMapper productoMapper;
     private final AuditoriaService auditoriaService;
+
+    // Inyección @Lazy para evitar cualquier ciclo de dependencias en el arranque
+    // (MercadoLibreService arrastra muchas dependencias del dominio de cálculo).
+    @Lazy
+    @Autowired
+    private MercadoLibreService mercadoLibreService;
 
     @Override
     @Transactional(readOnly = true)
@@ -73,6 +81,44 @@ public class MlaServiceImpl implements MlaService {
                 capturarSnapshot(entity)
         );
         return mapper.toDTO(entity);
+    }
+
+    @Override
+    @Transactional
+    public MlaDTO obtenerOcrearPorSkuDesdeML(String sku) {
+        String mlaCode = mercadoLibreService.buscarMlaCodePorSku(sku);
+        if (mlaCode == null || mlaCode.isBlank()) {
+            throw new NotFoundException("No se encontró una publicación de MercadoLibre para el SKU " + sku);
+        }
+
+        // Aseguramos que exista el registro MLA antes de calcular envío/comisión,
+        // ya que esos procesos buscan y persisten sobre la entidad Mla.
+        Mla mla = repo.findFirstByMla(mlaCode).orElseGet(() -> {
+            Mla nuevo = new Mla();
+            nuevo.setMla(mlaCode);
+            nuevo.setTopePromocion(0);
+            Mla guardado = repo.save(nuevo);
+            auditoriaService.registrarCambios(
+                    AuditoriaEntidad.MLA, guardado.getId(), guardado.getMla(),
+                    AuditoriaAccion.CREATE, Map.of(), capturarSnapshot(guardado));
+            return guardado;
+        });
+
+        // Reutiliza los procesos existentes: calculan y persisten precio de envío
+        // y % de comisión sobre el MLA (con el mismo precio que usa ML hoy).
+        try {
+            mercadoLibreService.calcularCostoEnvioGratis(mlaCode);
+        } catch (Exception e) {
+            log.warn("ML - No se pudo calcular el costo de envío para {}: {}", mlaCode, e.getMessage());
+        }
+        try {
+            mercadoLibreService.obtenerCostoVenta(mlaCode);
+        } catch (Exception e) {
+            log.warn("ML - No se pudo obtener el costo de venta para {}: {}", mlaCode, e.getMessage());
+        }
+
+        Mla actualizado = repo.findById(mla.getId()).orElse(mla);
+        return mapper.toDTO(actualizado);
     }
 
     @Override

@@ -6,13 +6,11 @@ import ar.com.leo.super_master_backend.dominio.producto.entity.Tag;
 import ar.com.leo.super_master_backend.dominio.reposicion.entity.TagReposicion;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
-import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 
 /**

@@ -1,12 +1,7 @@
 package ar.com.leo.super_master_backend.dominio.producto.service;
 
 import ar.com.leo.super_master_backend.dominio.producto.dto.EstadisticasDTO;
-import ar.com.leo.super_master_backend.dominio.producto.dto.EstadisticasDTO.MargenesPorCuotasDTO;
-import ar.com.leo.super_master_backend.dominio.producto.dto.EstadisticasDTO.ProductoMargenNegativo;
-import ar.com.leo.super_master_backend.dominio.producto.dto.EstadisticasDTO.ProductosPorCatalogo;
-import ar.com.leo.super_master_backend.dominio.producto.dto.EstadisticasDTO.ProductosPorProveedor;
-import ar.com.leo.super_master_backend.dominio.producto.dto.EstadisticasDTO.ResumenDTO;
-import ar.com.leo.super_master_backend.dominio.producto.dto.EstadisticasDTO.CuotaDisponibleDTO;
+import ar.com.leo.super_master_backend.dominio.producto.dto.EstadisticasDTO.*;
 
 import java.util.List;
 

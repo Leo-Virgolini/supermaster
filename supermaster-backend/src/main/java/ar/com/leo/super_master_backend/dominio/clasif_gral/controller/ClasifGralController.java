@@ -1,10 +1,12 @@
 package ar.com.leo.super_master_backend.dominio.clasif_gral.controller;
 
+import ar.com.leo.super_master_backend.config.Permisos;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.dto.ClasifGralCreateDTO;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.dto.ClasifGralDTO;
-import ar.com.leo.super_master_backend.dominio.clasif_gral.dto.ClasifGralUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.dto.ClasifGralPatchDTO;
+import ar.com.leo.super_master_backend.dominio.clasif_gral.dto.ClasifGralUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.service.ClasifGralService;
+import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoResumenDTO;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
@@ -17,8 +19,6 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
 import java.util.List;
-import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoResumenDTO;
-import ar.com.leo.super_master_backend.config.Permisos;
 
 @RestController
 @RequiredArgsConstructor

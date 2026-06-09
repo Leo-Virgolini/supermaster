@@ -1,12 +1,9 @@
 package ar.com.leo.super_master_backend.dominio.producto.mapper;
 
-import ar.com.leo.super_master_backend.dominio.canal.entity.Canal;
 import ar.com.leo.super_master_backend.config.GlobalMapperConfig;
-import ar.com.leo.super_master_backend.dominio.precio_inflado.entity.PrecioInflado;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoCanalPrecioInfladoCreateDTO;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoCanalPrecioInfladoDTO;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoCanalPrecioInfladoUpdateDTO;
-import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCanalPrecioInflado;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;

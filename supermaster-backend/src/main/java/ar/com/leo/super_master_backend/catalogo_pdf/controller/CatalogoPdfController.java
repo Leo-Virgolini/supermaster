@@ -4,7 +4,9 @@ import ar.com.leo.super_master_backend.catalogo_pdf.dto.CatalogoPdfRequestDTO;
 import ar.com.leo.super_master_backend.catalogo_pdf.dto.CatalogoPdfResultDTO;
 import ar.com.leo.super_master_backend.catalogo_pdf.dto.GenerarTodosResultDTO;
 import ar.com.leo.super_master_backend.catalogo_pdf.service.CatalogoPdfService;
+import ar.com.leo.super_master_backend.config.Permisos;
 import ar.com.leo.super_master_backend.dominio.common.response.ErrorResponse;
+import ar.com.leo.super_master_backend.dominio.producto.entity.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,22 +15,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import ar.com.leo.super_master_backend.dominio.producto.entity.Tag;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import ar.com.leo.super_master_backend.config.Permisos;
 
 @Slf4j
 @RestController

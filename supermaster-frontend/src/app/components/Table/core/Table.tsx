@@ -38,6 +38,10 @@ type Props = {
     globalFilter: string;
     setGlobalFilter: (value: string) => void;
     searchSlot?: React.ReactNode;
+    /** Contenido que se muestra como fila debajo de la toolbar (p. ej. un panel de filtros desplegable). */
+    belowToolbarSlot?: React.ReactNode;
+    /** Estilo con líneas de grilla (bordes verticales entre columnas) y zebra más marcado. */
+    bordered?: boolean;
 
     // Fase 3: paginación y sorting controlados desde fuera
     pageIndex: number;
@@ -95,6 +99,8 @@ const Table = ({
     emptyMessage = "No hay registros para mostrar.",
     isLoading = false,
     searchSlot,
+    belowToolbarSlot,
+    bordered = true,
     renderSubRow,
     totalRecords,
     onExportAll,
@@ -345,6 +351,16 @@ const Table = ({
         }
     }, [onExportAll, table, exportFilename, tableId]);
 
+    // Estilo "bordered" (default): líneas verticales entre columnas, separadores
+    // horizontales marcados y zebra azul. Pasar bordered={false} para el estilo sutil.
+    const cellBorder = bordered ? "border-r border-gray-200 dark:border-slate-700 last:border-r-0" : "";
+    const rowBorder = bordered
+        ? "border-b border-gray-200 dark:border-slate-700"
+        : "border-b border-gray-100/80 dark:border-slate-700/60";
+    const zebra = bordered
+        ? "even:bg-blue-50/60 dark:even:bg-blue-900/15 hover:bg-blue-100/70 dark:hover:bg-blue-900/30"
+        : "even:bg-gray-50/60 dark:even:bg-slate-700/40 hover:bg-blue-50/70 dark:hover:bg-blue-900/20";
+
     return (
         <EditingCellProvider>
         <div className={`relative flex flex-col w-full flex-1 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm overflow-hidden ${isFullscreen ? "!fixed !inset-0 !z-[100] !rounded-none !m-0" : ""}`}>
@@ -399,6 +415,9 @@ const Table = ({
                 </div>
             </div>
 
+            {/* Panel desplegable opcional debajo de la toolbar (p. ej. filtros) */}
+            {belowToolbarSlot}
+
             {/* Barra de filtros y ordenamiento activos */}
             {(effectiveFilterSlot || sorting.length > 0) && (
                 <div className="shrink-0 px-4 py-1.5 border-b border-gray-200 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800/40 flex items-center gap-3 flex-wrap">
@@ -448,7 +467,7 @@ const Table = ({
                                         // bg-gray-100 va en el <th> (no solo en el <thead>) porque position:sticky
                                         // en thead crea capas independientes por celda — sin bg propio se ve el
                                         // contenido al hacer scroll. Hover usa un tono más oscuro para feedback.
-                                        className={`relative py-1 px-3 whitespace-nowrap group text-center transition-colors leading-none align-middle bg-gray-100 dark:bg-slate-700 ${(header.column.columnDef.meta as any)?.headerClassName ?? ""} ${
+                                        className={`relative py-1 px-3 whitespace-nowrap group text-center transition-colors leading-none align-middle bg-gray-100 dark:bg-slate-700 ${cellBorder} ${(header.column.columnDef.meta as any)?.headerClassName ?? ""} ${
                                             isLoading
                                                 ? "cursor-wait opacity-70"
                                                 : "cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-600"
@@ -518,9 +537,9 @@ const Table = ({
                     <tbody>
                         {isLoading ? (
                             Array.from({ length: 10 }).map((_, i) => (
-                                <tr key={i} className="border-b border-gray-100/80 dark:border-slate-700/60 even:bg-gray-50/60 dark:even:bg-slate-700/40">
+                                <tr key={i} className={`${rowBorder} ${zebra}`}>
                                     {table.getVisibleLeafColumns().map((col) => (
-                                        <td key={col.id} className="py-1 px-3 text-center leading-none align-middle">
+                                        <td key={col.id} className={`py-1 px-3 text-center leading-none align-middle ${cellBorder}`}>
                                             <div className="h-4 rounded bg-gray-200 dark:bg-slate-700 animate-pulse mx-auto max-w-[80%]" />
                                         </td>
                                     ))}
@@ -569,11 +588,11 @@ const Table = ({
                                     const hasCustomBackground = customRowClassName.trim().length > 0;
                                     return (
                                         <Fragment key={row.id}>
-                                            <tr className={`border-b border-gray-100/80 dark:border-slate-700/60 text-gray-700 dark:text-slate-200 transition-colors ${hasCustomBackground ? "" : "even:bg-gray-50/60 dark:even:bg-slate-700/40 hover:bg-blue-50/70 dark:hover:bg-blue-900/20"} ${customRowClassName}`}>
+                                            <tr className={`${rowBorder} text-gray-700 dark:text-slate-200 transition-colors ${hasCustomBackground ? "" : zebra} ${customRowClassName}`}>
                                                 {row.getVisibleCells().map((cell) => (
                                                     <td
                                                         key={cell.id}
-                                                        className={`py-1 px-3 text-center leading-none align-middle transition-colors ${
+                                                        className={`py-1 px-3 text-center leading-none align-middle transition-colors ${cellBorder} ${
                                                             updatedCellKey === cell.id
                                                                 ? "bg-emerald-50/80 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-500/10 dark:ring-emerald-500/30"
                                                                 : ""
@@ -599,9 +618,9 @@ const Table = ({
                                 })}
                                 {/* Filas vacías para rellenar el espacio hasta pageSize */}
                                 {Array.from({ length: Math.max(0, pageSize - table.getRowModel().rows.length) }).map((_, i) => (
-                                    <tr key={`ghost-${i}`} className="border-b border-gray-100/80 dark:border-slate-700/60 even:bg-gray-50/30 dark:even:bg-slate-700/25">
+                                    <tr key={`ghost-${i}`} className={`${rowBorder} ${bordered ? "even:bg-blue-50/60 dark:even:bg-blue-900/15" : "even:bg-gray-50/30 dark:even:bg-slate-700/25"}`}>
                                         {table.getVisibleLeafColumns().map((col) => (
-                                            <td key={col.id} className="py-1 px-3 h-[30px]" />
+                                            <td key={col.id} className={`py-1 px-3 h-[30px] ${cellBorder}`} />
                                         ))}
                                     </tr>
                                 ))}

@@ -1,11 +1,13 @@
 package ar.com.leo.super_master_backend.dominio.clasif_gral.mapper;
 
+import ar.com.leo.super_master_backend.config.GlobalMapperConfig;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.dto.ClasifGralCreateDTO;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.dto.ClasifGralDTO;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.dto.ClasifGralUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.entity.ClasifGral;
-import ar.com.leo.super_master_backend.config.GlobalMapperConfig;
-import org.mapstruct.*;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
 
 @Mapper(config = GlobalMapperConfig.class)
 public interface ClasifGralMapper {

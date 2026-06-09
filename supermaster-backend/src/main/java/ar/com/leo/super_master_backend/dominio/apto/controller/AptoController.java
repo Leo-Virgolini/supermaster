@@ -1,9 +1,10 @@
 package ar.com.leo.super_master_backend.dominio.apto.controller;
 
+import ar.com.leo.super_master_backend.config.Permisos;
 import ar.com.leo.super_master_backend.dominio.apto.dto.AptoCreateDTO;
 import ar.com.leo.super_master_backend.dominio.apto.dto.AptoDTO;
-import ar.com.leo.super_master_backend.dominio.apto.dto.AptoUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.apto.dto.AptoPatchDTO;
+import ar.com.leo.super_master_backend.dominio.apto.dto.AptoUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.apto.service.AptoService;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoResumenDTO;
 import jakarta.validation.Valid;
@@ -18,7 +19,6 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
 import java.util.List;
-import ar.com.leo.super_master_backend.config.Permisos;
 
 @RestController
 @RequiredArgsConstructor

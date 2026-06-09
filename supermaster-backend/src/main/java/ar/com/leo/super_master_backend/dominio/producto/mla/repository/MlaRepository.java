@@ -1,11 +1,10 @@
 package ar.com.leo.super_master_backend.dominio.producto.mla.repository;
 
 import ar.com.leo.super_master_backend.dominio.producto.mla.entity.Mla;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;

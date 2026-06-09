@@ -1,9 +1,10 @@
 package ar.com.leo.super_master_backend.dominio.canal.controller;
 
+import ar.com.leo.super_master_backend.config.Permisos;
 import ar.com.leo.super_master_backend.dominio.canal.dto.CanalConceptoReglaCreateDTO;
 import ar.com.leo.super_master_backend.dominio.canal.dto.CanalConceptoReglaDTO;
-import ar.com.leo.super_master_backend.dominio.canal.dto.CanalConceptoReglaUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.canal.dto.CanalConceptoReglaPatchDTO;
+import ar.com.leo.super_master_backend.dominio.canal.dto.CanalConceptoReglaUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.canal.service.CanalConceptoReglaService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
@@ -17,7 +18,6 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
 import java.util.List;
-import ar.com.leo.super_master_backend.config.Permisos;
 
 @RestController
 @RequiredArgsConstructor

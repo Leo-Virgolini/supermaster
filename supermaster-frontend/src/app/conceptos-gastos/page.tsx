@@ -1,8 +1,10 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { notificar } from "../utils/notificar";
-import { CalculatorIcon, InformationCircleIcon, PlusIcon, TrashIcon, CheckIcon, XMarkIcon, ChevronDownIcon, FunnelIcon } from "@heroicons/react/24/outline";
+import { CalculatorIcon, InformationCircleIcon, CheckIcon, XMarkIcon, ChevronDownIcon, FunnelIcon } from "@heroicons/react/24/outline";
 import { confirmDialog } from "../utils/confirmDialog";
+import CreateButton from "../components/Button/CreateButton";
+import DeleteButton from "../components/Button/DeleteButton";
 import Table, { getInitialPageSize } from "../components/Table/core/Table";
 import SearchInput from "../components/SearchInput/SearchInput";
 import Button from "../components/Button/Button";
@@ -207,19 +209,13 @@ export default function ConceptosGastoPage() {
 
                 <div className="flex gap-2 items-center">
                     {canEdit && hasSelection && (
-                        <Button variant="danger" onClick={handleDelete}>
-                            <TrashIcon className="w-4 h-4" />
+                        <DeleteButton onClick={handleDelete}>
                             Borrar ({selectedIds.length})
-                        </Button>
+                        </DeleteButton>
                     )}
-                    <Button
-                        variant="dark"
-                        onClick={() => setIsModalOpen(true)}
-                        disabled={!canEdit}
-                    >
-                        <PlusIcon className="w-4 h-4" />
+                    <CreateButton onClick={() => setIsModalOpen(true)} disabled={!canEdit}>
                         Crear Concepto
-                    </Button>
+                    </CreateButton>
                 </div>
             </div>
 

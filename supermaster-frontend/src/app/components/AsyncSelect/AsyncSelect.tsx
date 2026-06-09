@@ -192,6 +192,8 @@ export default function AsyncSelect({ label, placeholder, loadOptions, onChange,
                 ref={inputRef}
                 id={inputId}
                 type="text"
+                autoComplete="off"
+                spellCheck={false}
                 className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 p-2 border ${inputClassName}`}
                 placeholder={placeholder || "Escribí para buscar..."}
                 value={inputValue}

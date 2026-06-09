@@ -1,9 +1,11 @@
 package ar.com.leo.super_master_backend.dominio.tipo.controller;
 
+import ar.com.leo.super_master_backend.config.Permisos;
+import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoResumenDTO;
 import ar.com.leo.super_master_backend.dominio.tipo.dto.TipoCreateDTO;
 import ar.com.leo.super_master_backend.dominio.tipo.dto.TipoDTO;
-import ar.com.leo.super_master_backend.dominio.tipo.dto.TipoUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.tipo.dto.TipoPatchDTO;
+import ar.com.leo.super_master_backend.dominio.tipo.dto.TipoUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.tipo.service.TipoService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
@@ -17,8 +19,6 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
 import java.util.List;
-import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoResumenDTO;
-import ar.com.leo.super_master_backend.config.Permisos;
 
 @RestController
 @RequiredArgsConstructor

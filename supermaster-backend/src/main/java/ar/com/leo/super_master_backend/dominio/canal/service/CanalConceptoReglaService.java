@@ -2,8 +2,8 @@ package ar.com.leo.super_master_backend.dominio.canal.service;
 
 import ar.com.leo.super_master_backend.dominio.canal.dto.CanalConceptoReglaCreateDTO;
 import ar.com.leo.super_master_backend.dominio.canal.dto.CanalConceptoReglaDTO;
-import ar.com.leo.super_master_backend.dominio.canal.dto.CanalConceptoReglaUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.canal.dto.CanalConceptoReglaPatchDTO;
+import ar.com.leo.super_master_backend.dominio.canal.dto.CanalConceptoReglaUpdateDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 

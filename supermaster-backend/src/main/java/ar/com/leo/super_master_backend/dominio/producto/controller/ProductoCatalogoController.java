@@ -1,5 +1,6 @@
 package ar.com.leo.super_master_backend.dominio.producto.controller;
 
+import ar.com.leo.super_master_backend.config.Permisos;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoCatalogoDTO;
 import ar.com.leo.super_master_backend.dominio.producto.service.ProductoCatalogoService;
 import jakarta.validation.constraints.Positive;
@@ -11,7 +12,6 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
 import java.util.List;
-import ar.com.leo.super_master_backend.config.Permisos;
 
 @RestController
 @RequiredArgsConstructor

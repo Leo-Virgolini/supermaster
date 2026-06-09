@@ -10,7 +10,9 @@ import { useReglasDescuento } from "./useReglasDescuento";
 import { getReglasAPI } from "./reglasDescuentoService";
 import { getColumns } from "./columns";
 import { type SortingState } from "@tanstack/react-table";
-import { TrashIcon, TagIcon, PlusIcon, CheckIcon, XMarkIcon, InformationCircleIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
+import { TagIcon, CheckIcon, XMarkIcon, InformationCircleIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
+import CreateButton from "../components/Button/CreateButton";
+import DeleteButton from "../components/Button/DeleteButton";
 import { confirmDialog } from "../utils/confirmDialog";
 import AsyncSelect from "../components/AsyncSelect/AsyncSelect";
 import { useAuth } from "../context/AuthContext";
@@ -152,15 +154,13 @@ export default function ReglasDescuentoPage() {
                 </div>
                 <div className="flex gap-2 items-center">
                     {canEdit && hasSelection && (
-                        <Button variant="danger" onClick={handleDelete}>
-                            <TrashIcon className="w-4 h-4" />
+                        <DeleteButton onClick={handleDelete}>
                             Borrar ({selectedIds.length})
-                        </Button>
+                        </DeleteButton>
                     )}
-                    <Button onClick={() => setIsModalOpen(true)} variant="dark" disabled={!canEdit}>
-                        <PlusIcon className="w-4 h-4" />
+                    <CreateButton onClick={() => setIsModalOpen(true)} disabled={!canEdit}>
                         Crear Regla de Descuento
-                    </Button>
+                    </CreateButton>
                 </div>
             </div>
 

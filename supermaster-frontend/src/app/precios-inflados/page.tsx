@@ -1,7 +1,9 @@
 "use client";
 import { useMemo, useState } from "react";
-import { ArrowTrendingUpIcon, PlusIcon, TrashIcon, CheckIcon, XMarkIcon, InformationCircleIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
+import { ArrowTrendingUpIcon, CheckIcon, XMarkIcon, InformationCircleIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
 import ErrorBanner from "../components/ErrorBanner/ErrorBanner";
+import CreateButton from "../components/Button/CreateButton";
+import DeleteButton from "../components/Button/DeleteButton";
 import { confirmDialog } from "../utils/confirmDialog";
 import { notificar } from "../utils/notificar";
 import Table, { getInitialPageSize } from "../components/Table/core/Table";
@@ -103,15 +105,13 @@ export default function PreciosInfladosPage() {
                 </h1>
                 <div className="flex gap-2">
                     {canEdit && Object.keys(rowSelection).length > 0 && (
-                        <Button variant="danger" onClick={handleDelete}>
-                            <TrashIcon className="w-4 h-4" />
+                        <DeleteButton onClick={handleDelete}>
                             Borrar ({Object.keys(rowSelection).length})
-                        </Button>
+                        </DeleteButton>
                     )}
-                    <Button variant="dark" onClick={() => setIsModalOpen(true)} disabled={!canEdit}>
-                        <PlusIcon className="w-4 h-4" />
+                    <CreateButton onClick={() => setIsModalOpen(true)} disabled={!canEdit}>
                         Crear Precio Inflado
-                    </Button>
+                    </CreateButton>
                 </div>
             </div>
 

@@ -1,9 +1,10 @@
 package ar.com.leo.super_master_backend.dominio.precio_inflado.dto;
 
+import ar.com.leo.super_master_backend.dominio.precio_inflado.entity.TipoPrecioInflado;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 import org.openapitools.jackson.nullable.JsonNullable;
-import ar.com.leo.super_master_backend.dominio.precio_inflado.entity.TipoPrecioInflado;
+
 import java.math.BigDecimal;
 
 @Data

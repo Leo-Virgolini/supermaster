@@ -6,9 +6,7 @@ import {
     CheckIcon,
     KeyIcon,
     ShieldCheckIcon,
-    TrashIcon,
     UserGroupIcon,
-    UserPlusIcon,
     XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { notificar } from "../utils/notificar";
@@ -18,6 +16,8 @@ import { confirmDialog } from "../utils/confirmDialog";
 import Table, { getInitialPageSize } from "../components/Table/core/Table";
 import SearchInput from "../components/SearchInput/SearchInput";
 import Button from "../components/Button/Button";
+import CreateButton from "../components/Button/CreateButton";
+import DeleteButton from "../components/Button/DeleteButton";
 import Modal from "../components/Modal/Modal";
 import { getColumns } from "./columns";
 import { useUsuarios } from "./useUsuarios";
@@ -388,8 +388,8 @@ export default function UsuariosPage() {
                     </p>
                 </div>
                 <div className="flex gap-2 items-center">
-                    {hasSelection && canEdit ? <Button variant="danger" onClick={handleDelete}><TrashIcon className="w-4 h-4" /> Borrar ({selectedIds.length})</Button> : null}
-                    {canEdit ? <Button variant="dark" onClick={openCreate}><UserPlusIcon className="w-4 h-4" /> Crear Usuario</Button> : null}
+                    {hasSelection && canEdit ? <DeleteButton onClick={handleDelete}>Borrar ({selectedIds.length})</DeleteButton> : null}
+                    {canEdit ? <CreateButton onClick={openCreate}>Crear Usuario</CreateButton> : null}
                 </div>
             </div>
 

@@ -5,19 +5,18 @@ import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaEntidad
 import ar.com.leo.super_master_backend.dominio.auditoria.service.AuditoriaService;
 import ar.com.leo.super_master_backend.dominio.catalogo.dto.CatalogoCreateDTO;
 import ar.com.leo.super_master_backend.dominio.catalogo.dto.CatalogoDTO;
-import ar.com.leo.super_master_backend.dominio.catalogo.dto.CatalogoUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.catalogo.dto.CatalogoPatchDTO;
+import ar.com.leo.super_master_backend.dominio.catalogo.dto.CatalogoUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.catalogo.entity.Catalogo;
 import ar.com.leo.super_master_backend.dominio.catalogo.mapper.CatalogoMapper;
 import ar.com.leo.super_master_backend.dominio.catalogo.repository.CatalogoRepository;
 import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
 import ar.com.leo.super_master_backend.dominio.common.exception.ConflictException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
-import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
-import ar.com.leo.super_master_backend.dominio.regla_descuento.repository.ReglaDescuentoRepository;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoResumenDTO;
 import ar.com.leo.super_master_backend.dominio.producto.mapper.ProductoMapper;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoCatalogoRepository;
+import ar.com.leo.super_master_backend.dominio.regla_descuento.repository.ReglaDescuentoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -28,6 +27,8 @@ import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 
 @Service
 @RequiredArgsConstructor

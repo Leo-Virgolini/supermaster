@@ -1,5 +1,6 @@
 package ar.com.leo.super_master_backend.dominio.producto.calculo.controller;
 
+import ar.com.leo.super_master_backend.config.Permisos;
 import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaAccion;
 import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaEntidad;
 import ar.com.leo.super_master_backend.dominio.auditoria.service.AuditoriaService;
@@ -8,14 +9,7 @@ import ar.com.leo.super_master_backend.dominio.common.dto.RecalculoPendienteDTO;
 import ar.com.leo.super_master_backend.dominio.common.service.AplicadorPendientesService;
 import ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService;
 import ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteSseService;
-import org.springframework.http.MediaType;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-import jakarta.servlet.http.HttpServletResponse;
-import ar.com.leo.super_master_backend.dominio.producto.calculo.dto.CalculoResultadoDTO;
-import ar.com.leo.super_master_backend.dominio.producto.calculo.dto.FormulaCalculoDTO;
-import ar.com.leo.super_master_backend.dominio.producto.calculo.dto.RecalculoMasivoResultDTO;
-import ar.com.leo.super_master_backend.dominio.producto.calculo.dto.SimulacionPrecioInputDTO;
-import ar.com.leo.super_master_backend.dominio.producto.calculo.dto.SimulacionResultadoDTO;
+import ar.com.leo.super_master_backend.dominio.producto.calculo.dto.*;
 import ar.com.leo.super_master_backend.dominio.producto.calculo.service.CalculoPrecioService;
 import ar.com.leo.super_master_backend.dominio.producto.dto.CanalPreciosDTO;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoConPreciosDTO;
@@ -23,22 +17,24 @@ import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoFilter;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Tag;
 import ar.com.leo.super_master_backend.dominio.producto.service.ProductoService;
 import ar.com.leo.super_master_backend.dominio.reposicion.entity.TagReposicion;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
-import ar.com.leo.super_master_backend.config.Permisos;
 
 @RestController
 @RequiredArgsConstructor

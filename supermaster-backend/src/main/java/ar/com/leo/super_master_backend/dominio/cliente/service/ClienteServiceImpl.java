@@ -3,15 +3,13 @@ package ar.com.leo.super_master_backend.dominio.cliente.service;
 import ar.com.leo.super_master_backend.dominio.auditoria.dto.AuditoriaCambioDTO;
 import ar.com.leo.super_master_backend.dominio.cliente.dto.ClienteCreateDTO;
 import ar.com.leo.super_master_backend.dominio.cliente.dto.ClienteDTO;
-import ar.com.leo.super_master_backend.dominio.cliente.dto.ClienteUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.cliente.dto.ClientePatchDTO;
+import ar.com.leo.super_master_backend.dominio.cliente.dto.ClienteUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.cliente.entity.Cliente;
 import ar.com.leo.super_master_backend.dominio.cliente.mapper.ClienteMapper;
 import ar.com.leo.super_master_backend.dominio.cliente.repository.ClienteRepository;
 import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
-import ar.com.leo.super_master_backend.dominio.common.exception.ConflictException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
-import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoResumenDTO;
 import ar.com.leo.super_master_backend.dominio.producto.mapper.ProductoMapper;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoClienteRepository;
@@ -22,6 +20,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+
+import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.leerStringRequerido;
+import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.presente;
 
 @Service
 @RequiredArgsConstructor

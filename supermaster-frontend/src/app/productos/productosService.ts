@@ -160,6 +160,61 @@ export const getProductosForExportAPI = async (page: number, size: number, filte
 
 	return { ...json, content };
 };
+export type MlaResumenDTO = {
+	id: number;
+	mla: string;
+	mlau: string | null;
+	precioEnvio: number | null;
+	comisionPorcentaje: number | null;
+	topePromocion: number | null;
+};
+
+const extraerMensajeError = async (res: Response, fallback: string): Promise<string> => {
+	try {
+		const j = await res.json();
+		if (j?.message) return j.message as string;
+	} catch { /* sin body JSON */ }
+	return fallback;
+};
+
+// Busca en MercadoLibre la publicación del SKU, crea/asegura el MLA y le calcula
+// envío + comisión. Devuelve el MLA resultante (ya persistido).
+export const getMlaPorSkuAPI = async (sku: string): Promise<MlaResumenDTO> => {
+	const res = await fetchAPI(`${API_BASE_URL}/api/mlas/por-sku-ml?sku=${encodeURIComponent(sku)}`);
+	if (!res.ok) throw new Error(await extraerMensajeError(res, "No se pudo obtener el MLA desde MercadoLibre"));
+	return await res.json();
+};
+
+// Crea un MLA manualmente con los datos cargados en el alta de producto.
+export const createMlaAPI = async (data: { mla: string; mlau?: string | null; precioEnvio?: number | null; comisionPorcentaje?: number | null; topePromocion?: number | null }): Promise<MlaResumenDTO> => {
+	const res = await fetchAPI(`${API_BASE_URL}/api/mlas`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(data),
+	});
+	if (!res.ok) throw new Error(await extraerMensajeError(res, "No se pudo crear el MLA"));
+	return await res.json();
+};
+
+// Sube (exporta) productos a Dux por SKU. El backend mapea los datos del producto
+// a los campos del ítem de Dux (cod_item, descripción, costo, IVA, combo, etc.).
+export const exportarProductosADuxAPI = async (skus: string[]): Promise<void> => {
+	const res = await fetchAPI(`${API_BASE_URL}/api/dux/exportar-productos`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ skus }),
+	});
+	if (!res.ok) throw new Error(await extraerMensajeError(res, "No se pudo subir el producto a Dux"));
+};
+
+// Sugiere el menor SKU libre del rango (individual vs combo). Devuelve null si el rango está lleno.
+export const getSiguienteSkuAPI = async (esCombo: boolean): Promise<string | null> => {
+	const res = await fetchAPI(`${API_URL}/siguiente-sku?esCombo=${esCombo}`);
+	if (!res.ok) throw new Error("Error al obtener el siguiente SKU");
+	const json = await res.json();
+	return typeof json?.sku === "string" ? json.sku : null;
+};
+
 export const createProductoAPI = async (data: ProductoCreateDTO, origin: ProductoAuditOrigin = "API") => {
 	const response = await fetchAPI(API_URL, {
 		method: "POST",
@@ -186,6 +241,17 @@ export const deleteProductoAPI = async (id: number, origin: ProductoAuditOrigin 
 	if (!response.ok) throw new Error("Error al eliminar");
 	return true;
 };
+
+// Asocia una relación N-a-N al producto (catalogos | aptos | clientes).
+// Ignora 409 (ya existe) para que la operación sea idempotente.
+const asociarRelacion = async (productoId: number, tipo: "catalogos" | "aptos" | "clientes", relId: number) => {
+	const res = await fetchAPI(`${API_URL}/${productoId}/${tipo}/${relId}`, { method: "POST", allowedStatuses: [409] });
+	if (!res.ok && res.status !== 409) throw new Error(`Error al asociar ${tipo}`);
+};
+
+export const addProductoCatalogoAPI = (productoId: number, catalogoId: number) => asociarRelacion(productoId, "catalogos", catalogoId);
+export const addProductoAptoAPI = (productoId: number, aptoId: number) => asociarRelacion(productoId, "aptos", aptoId);
+export const addProductoClienteAPI = (productoId: number, clienteId: number) => asociarRelacion(productoId, "clientes", clienteId);
 
 export const getProductoAuditoriaAPI = async (
 	id: number,
@@ -262,7 +328,7 @@ export const searchTipos = (q: string, size?: number) => fetchOptions("tipos", q
 export const searchProveedores = (q: string, size?: number) => fetchOptions("proveedores", q, "nombre", size);
 export const searchMateriales = (q: string, size?: number) => fetchOptions("materiales", q, "nombre", size);
 export const searchMlas = (q: string, size?: number) => fetchOptions("mlas", q, "mla", size);
-export const searchCanales = (q: string) => fetchOptions("canales", q, "nombre");
+export const searchCanales = (q: string, size?: number) => fetchOptions("canales", q, "nombre", size);
 export const searchCatalogos = (q: string, size?: number) => fetchOptions("catalogos", q, "nombre", size);
 export const searchAptos = (q: string, size?: number) => fetchOptions("aptos", q, "nombre", size);
 export const searchClientes = (q: string, size?: number) => fetchOptions("clientes", q, "nombre", size);

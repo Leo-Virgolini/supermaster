@@ -2,8 +2,8 @@ package ar.com.leo.super_master_backend.dominio.canal.service;
 
 import ar.com.leo.super_master_backend.dominio.canal.dto.CanalCreateDTO;
 import ar.com.leo.super_master_backend.dominio.canal.dto.CanalDTO;
-import ar.com.leo.super_master_backend.dominio.canal.dto.CanalUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.canal.dto.CanalPatchDTO;
+import ar.com.leo.super_master_backend.dominio.canal.dto.CanalUpdateDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 

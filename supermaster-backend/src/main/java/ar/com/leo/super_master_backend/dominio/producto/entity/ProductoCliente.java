@@ -3,8 +3,8 @@ package ar.com.leo.super_master_backend.dominio.producto.entity;
 import ar.com.leo.super_master_backend.dominio.cliente.entity.Cliente;
 import jakarta.persistence.*;
 import lombok.Getter;
-import lombok.Setter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 

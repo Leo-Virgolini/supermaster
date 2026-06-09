@@ -1,22 +1,11 @@
 package ar.com.leo.super_master_backend.dominio.producto.service;
 
-import java.math.BigDecimal;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-
 import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaAccion;
 import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaEntidad;
 import ar.com.leo.super_master_backend.dominio.auditoria.service.AuditoriaService;
 import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
-import org.openapitools.jackson.nullable.JsonNullable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
 import ar.com.leo.super_master_backend.dominio.common.service.RecalculoPendienteService;
-import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoMargenDTO;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoMargenPatchDTO;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
@@ -25,6 +14,17 @@ import ar.com.leo.super_master_backend.dominio.producto.mapper.ProductoMargenMap
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoMargenRepository;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoRepository;
 import lombok.RequiredArgsConstructor;
+import org.openapitools.jackson.nullable.JsonNullable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+
+import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 
 @Service
 @RequiredArgsConstructor

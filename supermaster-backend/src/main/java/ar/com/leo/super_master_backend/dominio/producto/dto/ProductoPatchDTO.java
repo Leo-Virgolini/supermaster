@@ -1,10 +1,11 @@
 package ar.com.leo.super_master_backend.dominio.producto.dto;
 
+import ar.com.leo.super_master_backend.dominio.producto.entity.Tag;
+import ar.com.leo.super_master_backend.dominio.reposicion.entity.TagReposicion;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 import org.openapitools.jackson.nullable.JsonNullable;
-import ar.com.leo.super_master_backend.dominio.producto.entity.Tag;
-import ar.com.leo.super_master_backend.dominio.reposicion.entity.TagReposicion;
+
 import java.math.BigDecimal;
 
 @Data

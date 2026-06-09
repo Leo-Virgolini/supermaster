@@ -1,11 +1,7 @@
 package ar.com.leo.super_master_backend.dominio.producto.calculo.service;
 
 import ar.com.leo.super_master_backend.dominio.common.dto.ProcesoMasivoEstadoDTO;
-import ar.com.leo.super_master_backend.dominio.producto.calculo.dto.FormulaCalculoDTO;
-import ar.com.leo.super_master_backend.dominio.producto.calculo.dto.PrecioCalculadoDTO;
-import ar.com.leo.super_master_backend.dominio.producto.calculo.dto.RecalculoMasivoResultDTO;
-import ar.com.leo.super_master_backend.dominio.producto.calculo.dto.SimulacionPrecioInputDTO;
-import ar.com.leo.super_master_backend.dominio.producto.calculo.dto.SimulacionResultadoDTO;
+import ar.com.leo.super_master_backend.dominio.producto.calculo.dto.*;
 import ar.com.leo.super_master_backend.dominio.producto.dto.CanalPreciosDTO;
 
 import java.math.BigDecimal;

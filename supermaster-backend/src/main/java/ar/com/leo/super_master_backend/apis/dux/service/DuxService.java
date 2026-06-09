@@ -18,16 +18,16 @@ import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoRepos
 import ar.com.leo.super_master_backend.dominio.proveedor.entity.Proveedor;
 import ar.com.leo.super_master_backend.dominio.proveedor.repository.ProveedorRepository;
 import jakarta.annotation.PostConstruct;
-import org.springframework.transaction.annotation.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -61,7 +61,7 @@ public class DuxService {
     private final DuxProperties properties;
     private final ObjectMapper objectMapper;
 
-    @org.springframework.beans.factory.annotation.Value("${app.secrets-dir}")
+    @Value("${app.secrets-dir}")
     private String secretsDir;
     private final ProductoRepository productoRepository;
     private final ProveedorRepository proveedorRepository;
@@ -1293,6 +1293,7 @@ public class DuxService {
                 itemDux.put("item", producto.getDescripcion() != null ? producto.getDescripcion() : "");
                 itemDux.put("tipo_producto", tipo);
                 itemDux.put("habilitado", Boolean.TRUE.equals(producto.getActivo()) ? "S" : "N");
+                itemDux.put("id_moneda", 1); // 1 = Pesos argentinos (ARS)
 
                 if (producto.getCosto() != null) {
                     itemDux.put("costo", producto.getCosto().doubleValue());
@@ -1305,6 +1306,10 @@ public class DuxService {
                 }
                 if (producto.getUxb() != null) {
                     itemDux.put("ctd_unidades_por_bulto", producto.getUxb());
+                }
+                // Título web → descripción larga de Dux (dato que antes no se enviaba).
+                if (producto.getTituloWeb() != null && !producto.getTituloWeb().isBlank()) {
+                    itemDux.put("descripcion", producto.getTituloWeb());
                 }
 
                 productosJson.add(itemDux);

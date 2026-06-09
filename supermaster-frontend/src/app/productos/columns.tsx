@@ -2,7 +2,8 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { useState, useEffect } from "react";
-import { EyeIcon } from "@heroicons/react/24/outline";
+import Link from "next/link";
+import { EyeIcon, ChartBarIcon } from "@heroicons/react/24/outline";
 import {
     searchMarcas, searchClasifGral, searchClasifGastro, searchTipos,
     searchProveedores, searchOrigenes, searchMateriales, searchMlas
@@ -13,7 +14,7 @@ import EditableCell from "../components/Table/core/EditableCell";
 import { EditableRelationCell } from "../components/EditableRelationCell/EditableRelationCell";
 import { formatFechaAR, EMPTY } from "../utils/formatDate";
 import { getCatalogoColor, CATALOGO_BADGE_CLASS } from "../utils/catalogoColors";
-import TableActionButton from "../components/Table/core/TableActionButton";
+import TableActionButton, { getTableActionButtonClasses } from "../components/Table/core/TableActionButton";
 
 const FONT = {
     code: "font-mono text-[13px] tracking-tight font-semibold",
@@ -279,18 +280,28 @@ export function getColumns(onOpenDetalle: (producto: ProductoDTO) => void, canEd
     {
         id: "detalle",
         header: "Detalle",
-        size: 60,
+        size: 92,
         enableSorting: false,
         enableColumnFilter: false,
         cell: ({ row }) => (
-            <TableActionButton
-                onClick={() => onOpenDetalle(row.original)}
-                title="Ver detalle del producto"
-                icon={<EyeIcon className="w-3.5 h-3.5" />}
-                tone="primary"
-            >
-                Detalle
-            </TableActionButton>
+            <div className="flex flex-col items-stretch gap-1">
+                <TableActionButton
+                    onClick={() => onOpenDetalle(row.original)}
+                    title="Ver detalle del producto"
+                    icon={<EyeIcon className="w-3.5 h-3.5" />}
+                    tone="primary"
+                >
+                    Detalle
+                </TableActionButton>
+                <Link
+                    href={`/producto-canal-precios?q=${encodeURIComponent(row.original.sku)}`}
+                    title="Ver precios de este producto en el Monitor"
+                    className={getTableActionButtonClasses("accent")}
+                >
+                    <ChartBarIcon className="w-3.5 h-3.5" />
+                    Precios
+                </Link>
+            </div>
         ),
     },
 

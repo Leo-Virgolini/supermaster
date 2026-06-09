@@ -1,11 +1,6 @@
 package ar.com.leo.super_master_backend.dominio.producto.calculo.service;
 
-import ar.com.leo.super_master_backend.dominio.canal.entity.Canal;
-import ar.com.leo.super_master_backend.dominio.canal.entity.CanalConcepto;
-import ar.com.leo.super_master_backend.dominio.canal.entity.CanalConceptoCuota;
-import ar.com.leo.super_master_backend.dominio.canal.entity.CanalConceptoId;
-import ar.com.leo.super_master_backend.dominio.canal.entity.CanalConceptoRegla;
-import ar.com.leo.super_master_backend.dominio.canal.entity.TipoRegla;
+import ar.com.leo.super_master_backend.dominio.canal.entity.*;
 import ar.com.leo.super_master_backend.dominio.canal.repository.CanalConceptoCuotaRepository;
 import ar.com.leo.super_master_backend.dominio.canal.repository.CanalConceptoReglaRepository;
 import ar.com.leo.super_master_backend.dominio.canal.repository.CanalConceptoRepository;
@@ -36,7 +31,6 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

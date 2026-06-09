@@ -1,5 +1,6 @@
 package ar.com.leo.super_master_backend.dominio.canal.controller;
 
+import ar.com.leo.super_master_backend.config.Permisos;
 import ar.com.leo.super_master_backend.dominio.canal.dto.CanalConceptoDTO;
 import ar.com.leo.super_master_backend.dominio.canal.service.CanalConceptoService;
 import jakarta.validation.constraints.Positive;
@@ -10,7 +11,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
-import ar.com.leo.super_master_backend.config.Permisos;
 
 @RestController
 @RequiredArgsConstructor

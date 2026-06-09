@@ -1,5 +1,7 @@
 package ar.com.leo.super_master_backend.dominio.ml.service;
 
+import ar.com.leo.super_master_backend.apis.ml.entity.ConfiguracionMl;
+import ar.com.leo.super_master_backend.apis.ml.repository.ConfiguracionMlRepository;
 import ar.com.leo.super_master_backend.apis.ml.service.ConfiguracionMlService;
 import ar.com.leo.super_master_backend.dominio.canal.entity.Canal;
 import ar.com.leo.super_master_backend.dominio.canal.entity.CanalConcepto;
@@ -11,8 +13,6 @@ import ar.com.leo.super_master_backend.dominio.clasif_gral.repository.ClasifGral
 import ar.com.leo.super_master_backend.dominio.concepto_calculo.entity.AplicaSobre;
 import ar.com.leo.super_master_backend.dominio.concepto_calculo.entity.ConceptoCalculo;
 import ar.com.leo.super_master_backend.dominio.concepto_calculo.repository.ConceptoCalculoRepository;
-import ar.com.leo.super_master_backend.apis.ml.entity.ConfiguracionMl;
-import ar.com.leo.super_master_backend.apis.ml.repository.ConfiguracionMlRepository;
 import ar.com.leo.super_master_backend.dominio.origen.entity.Origen;
 import ar.com.leo.super_master_backend.dominio.origen.repository.OrigenRepository;
 import ar.com.leo.super_master_backend.dominio.producto.calculo.dto.PrecioCalculadoDTO;

@@ -5,14 +5,13 @@ import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaEntidad
 import ar.com.leo.super_master_backend.dominio.auditoria.service.AuditoriaService;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.dto.ClasifGralCreateDTO;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.dto.ClasifGralDTO;
-import ar.com.leo.super_master_backend.dominio.clasif_gral.dto.ClasifGralUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.dto.ClasifGralPatchDTO;
+import ar.com.leo.super_master_backend.dominio.clasif_gral.dto.ClasifGralUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.entity.ClasifGral;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.mapper.ClasifGralMapper;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.repository.ClasifGralRepository;
 import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
-import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoResumenDTO;
 import ar.com.leo.super_master_backend.dominio.producto.mapper.ProductoMapper;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoRepository;
@@ -25,6 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 
 @Service
 @RequiredArgsConstructor

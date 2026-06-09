@@ -2,11 +2,13 @@
 
 import { useState, useMemo } from "react";
 import ErrorBanner from "../components/ErrorBanner/ErrorBanner";
-import { Squares2X2Icon, PlusIcon, TrashIcon, CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { Squares2X2Icon, CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
 
 // Componentes visuales
 import Table, { getInitialPageSize } from "../components/Table/core/Table";
 import Button from "../components/Button/Button";
+import CreateButton from "../components/Button/CreateButton";
+import DeleteButton from "../components/Button/DeleteButton";
 import Modal from "../components/Modal/Modal";
 
 // Lógica de negocio (Hooks y Columnas)
@@ -165,19 +167,13 @@ export default function ClasificacionesPage() {
                 <div className="flex gap-2 items-center">
                     {/* Botón Borrar (Solo aparece si hay selección) */}
                     {canEdit && hasSelection && (
-                        <Button variant="danger" onClick={handleDelete}>
-                            <TrashIcon className="w-4 h-4" />
+                        <DeleteButton onClick={handleDelete}>
                             Borrar ({selectedIds.length})
-                        </Button>
+                        </DeleteButton>
                     )}
-                    <Button
-                        variant="dark"
-                        onClick={() => setIsModalOpen(true)}
-                        disabled={!canEdit}
-                    >
-                        <PlusIcon className="w-4 h-4" />
+                    <CreateButton onClick={() => setIsModalOpen(true)} disabled={!canEdit}>
                         Crear Clasificación
-                    </Button>
+                    </CreateButton>
                 </div>
             </div>
 

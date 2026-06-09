@@ -1,11 +1,8 @@
 package ar.com.leo.super_master_backend.dominio.producto.controller;
 
+import ar.com.leo.super_master_backend.config.Permisos;
 import ar.com.leo.super_master_backend.dominio.auditoria.dto.AuditoriaCambioDTO;
-import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoCreateDTO;
-import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoDTO;
-import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoFilter;
-import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoUpdateDTO;
-import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoPatchDTO;
+import ar.com.leo.super_master_backend.dominio.producto.dto.*;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Tag;
 import ar.com.leo.super_master_backend.dominio.producto.service.ProductoAuditoriaService;
 import ar.com.leo.super_master_backend.dominio.producto.service.ProductoService;
@@ -24,7 +21,6 @@ import java.math.BigDecimal;
 import java.net.URI;
 import java.time.LocalDate;
 import java.util.List;
-import ar.com.leo.super_master_backend.config.Permisos;
 
 @RestController
 @RequiredArgsConstructor
@@ -206,6 +202,17 @@ public class ProductoController {
     // =====================================================
     // CRUD
     // =====================================================
+
+    /**
+     * Sugiere el menor SKU libre del rango según el tipo de producto.
+     * Usado por el formulario de alta para autocompletar el SKU.
+     */
+    @GetMapping("/siguiente-sku")
+    @PreAuthorize(Permisos.PRODUCTOS_EDITAR)
+    public ResponseEntity<ProductoSiguienteSkuDTO> siguienteSku(
+            @RequestParam(defaultValue = "false") boolean esCombo) {
+        return ResponseEntity.ok(new ProductoSiguienteSkuDTO(productoService.siguienteSkuLibre(esCombo)));
+    }
 
     @PostMapping
     @PreAuthorize(Permisos.PRODUCTOS_EDITAR)

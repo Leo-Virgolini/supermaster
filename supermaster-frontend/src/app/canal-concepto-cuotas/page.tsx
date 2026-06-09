@@ -11,8 +11,10 @@ import { useCanalConceptoCuota } from "./useCanalConceptoCuota";
 import { getCuotasAPI } from "./canalConceptoCuotaService";
 import { getColumns } from "./columns";
 import { type SortingState } from "@tanstack/react-table";
-import { CreditCardIcon, PlusIcon, TrashIcon, CheckIcon, XMarkIcon, InformationCircleIcon, ChevronDownIcon, FunnelIcon } from "@heroicons/react/24/outline";
+import { CreditCardIcon, CheckIcon, XMarkIcon, InformationCircleIcon, ChevronDownIcon, FunnelIcon } from "@heroicons/react/24/outline";
 import ErrorBanner from "../components/ErrorBanner/ErrorBanner";
+import CreateButton from "../components/Button/CreateButton";
+import DeleteButton from "../components/Button/DeleteButton";
 import { confirmDialog } from "../utils/confirmDialog";
 import { notificar } from "../utils/notificar";
 import { CanalConceptoCuotaPatchDTO } from "./types";
@@ -159,15 +161,13 @@ export default function CanalConceptoCuotaPage() {
                 </h1>
                 <div className="flex gap-2">
                     {canEdit && Object.keys(rowSelection).length > 0 && (
-                        <Button variant="danger" onClick={handleDelete}>
-                            <TrashIcon className="w-4 h-4" />
+                        <DeleteButton onClick={handleDelete}>
                             Borrar ({Object.keys(rowSelection).length})
-                        </Button>
+                        </DeleteButton>
                     )}
-                    <Button variant="dark" onClick={() => setIsModalOpen(true)} disabled={!canEdit}>
-                        <PlusIcon className="w-4 h-4" />
+                    <CreateButton onClick={() => setIsModalOpen(true)} disabled={!canEdit}>
                         Crear Cuota
-                    </Button>
+                    </CreateButton>
                 </div>
             </div>
 

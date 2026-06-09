@@ -5,7 +5,6 @@ import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaEntidad
 import ar.com.leo.super_master_backend.dominio.auditoria.service.AuditoriaService;
 import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
-import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 import ar.com.leo.super_master_backend.dominio.orden_compra.dto.*;
 import ar.com.leo.super_master_backend.dominio.orden_compra.entity.EstadoOrdenCompra;
 import ar.com.leo.super_master_backend.dominio.orden_compra.entity.OrdenCompra;
@@ -20,22 +19,19 @@ import ar.com.leo.super_master_backend.dominio.proveedor.repository.ProveedorRep
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
+import org.openapitools.jackson.nullable.JsonNullable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.openapitools.jackson.nullable.JsonNullable;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
+import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 import static ar.com.leo.super_master_backend.dominio.orden_compra.entity.EstadoOrdenCompra.*;
 
 @Service

@@ -1,12 +1,7 @@
 package ar.com.leo.super_master_backend.dominio.producto.service;
 
 import ar.com.leo.super_master_backend.dominio.auditoria.dto.AuditoriaCambioDTO;
-import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoConPreciosDTO;
-import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoCreateDTO;
-import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoDTO;
-import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoFilter;
-import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoUpdateDTO;
-import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoPatchDTO;
+import ar.com.leo.super_master_backend.dominio.producto.dto.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -29,6 +24,13 @@ public interface ProductoService {
     void eliminar(Integer id);
 
     ProductoDTO obtenerPorSku(String sku);
+
+    /**
+     * Calcula el menor SKU numérico libre dentro del rango correspondiente:
+     * 1000000–1999999 para productos individuales y 5000000–5999999 para combos.
+     * @return el SKU libre como String, o null si el rango está completo.
+     */
+    String siguienteSkuLibre(boolean esCombo);
 
     Page<AuditoriaCambioDTO> listarAuditoria(Integer productoId, Pageable pageable);
 

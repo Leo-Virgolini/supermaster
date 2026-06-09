@@ -15,7 +15,9 @@ import { clonarConceptosDeCanalAPI } from "./canalConceptosService";
 import { getColumns } from "./columns";
 import { CanalDTO } from "./types";
 import { type SortingState } from "@tanstack/react-table";
-import { ChartBarIcon, PlusIcon, TrashIcon, CheckIcon, XMarkIcon, InformationCircleIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
+import { ChartBarIcon, CheckIcon, XMarkIcon, InformationCircleIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
+import CreateButton from "../components/Button/CreateButton";
+import DeleteButton from "../components/Button/DeleteButton";
 import { confirmDialog } from "../utils/confirmDialog";
 import { useAuth } from "../context/AuthContext";
 
@@ -171,19 +173,13 @@ export default function CanalesPage() {
 
                 <div className="flex gap-2 items-center">
                     {canEdit && hasSelection && (
-                        <Button variant="danger" onClick={handleDelete}>
-                            <TrashIcon className="w-4 h-4" />
+                        <DeleteButton onClick={handleDelete}>
                             Borrar ({selectedIds.length})
-                        </Button>
+                        </DeleteButton>
                     )}
-                    <Button
-                        variant="dark"
-                        onClick={() => setIsModalOpen(true)}
-                        disabled={!canEdit}
-                    >
-                        <PlusIcon className="w-4 h-4" />
+                    <CreateButton onClick={() => setIsModalOpen(true)} disabled={!canEdit}>
                         Crear Canal
-                    </Button>
+                    </CreateButton>
                 </div>
             </div>
 

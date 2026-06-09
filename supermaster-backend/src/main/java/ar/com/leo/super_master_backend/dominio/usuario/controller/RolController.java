@@ -1,5 +1,6 @@
 package ar.com.leo.super_master_backend.dominio.usuario.controller;
 
+import ar.com.leo.super_master_backend.config.Permisos;
 import ar.com.leo.super_master_backend.dominio.usuario.dto.PermisoDTO;
 import ar.com.leo.super_master_backend.dominio.usuario.dto.RolDTO;
 import ar.com.leo.super_master_backend.dominio.usuario.dto.RolPermisosUpdateDTO;
@@ -11,7 +12,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import ar.com.leo.super_master_backend.config.Permisos;
 
 @RestController
 @RequiredArgsConstructor

@@ -3,9 +3,9 @@ package ar.com.leo.super_master_backend.dominio.producto.entity;
 import ar.com.leo.super_master_backend.dominio.catalogo.entity.Catalogo;
 import jakarta.persistence.*;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.OnDelete;
-import lombok.NoArgsConstructor;
 import org.hibernate.annotations.OnDeleteAction;
 
 @Getter

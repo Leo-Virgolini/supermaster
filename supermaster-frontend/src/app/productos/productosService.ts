@@ -221,7 +221,7 @@ export const createProductoAPI = async (data: ProductoCreateDTO, origin: Product
 		headers: withAuditOrigin(origin, { "Content-Type": "application/json" }),
 		body: JSON.stringify(cleanPayload(data)),
 	});
-	if (!response.ok) throw new Error("Error al crear producto");
+	if (!response.ok) throw new Error(await extraerMensajeError(response, "Error al crear producto"));
 	return await response.json();
 };
 export const updateProductoAPI = async (id: number, data: ProductoPatchDTO, origin: ProductoAuditOrigin = "API") => {

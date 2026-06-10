@@ -410,7 +410,7 @@ export function getColumns(onOpenDetalle: (producto: ProductoDTO) => void, canEd
         id: "marca", accessorFn: (row) => row.marcaId, header: "Marca", size: 140, meta: { editable: true },
         cell: ({ row, table }) => (
             <EditableRelationCell
-                initialName={(row.original as any).marcaNombre}
+                fullName={row.original.marcaNombreCompleto}
                 initialId={row.original.marcaId}
                 loadOptions={searchMarcas}
                 placeholder="Marca..."
@@ -426,7 +426,7 @@ export function getColumns(onOpenDetalle: (producto: ProductoDTO) => void, canEd
         id: "tipo", accessorFn: (row) => row.tipoId, header: "Tipo", meta: { editable: true },
         cell: ({ row, table }) => (
             <EditableRelationCell
-                initialName={(row.original as any).tipoNombre}
+                fullName={row.original.tipoNombreCompleto}
                 initialId={row.original.tipoId}
                 loadOptions={searchTipos}
                 placeholder="Tipo..."
@@ -441,7 +441,7 @@ export function getColumns(onOpenDetalle: (producto: ProductoDTO) => void, canEd
         id: "rubro", accessorFn: (row) => row.clasifGralId, header: "Clasif. Gral.", size: 150, meta: { editable: true },
         cell: ({ row, table }) => (
             <EditableRelationCell
-                initialName={(row.original as any).clasifGralNombre}
+                fullName={row.original.clasifGralNombreCompleto}
                 initialId={row.original.clasifGralId}
                 loadOptions={searchClasifGral}
                 placeholder="Rubro..."
@@ -456,7 +456,7 @@ export function getColumns(onOpenDetalle: (producto: ProductoDTO) => void, canEd
         id: "subrubro", accessorFn: (row) => row.clasifGastroId, header: "Clasif. Gastro", size: 150, meta: { editable: true },
         cell: ({ row, table }) => (
             <EditableRelationCell
-                initialName={(row.original as any).clasifGastroNombre}
+                fullName={row.original.clasifGastroNombreCompleto}
                 initialId={row.original.clasifGastroId}
                 loadOptions={searchClasifGastro}
                 placeholder="Gastro..."

@@ -73,6 +73,10 @@ public interface ProductoMapper {
                 entity.getMaterial() != null ? entity.getMaterial().getId() : null,
                 entity.getMla() != null ? entity.getMla().getId() : null,
                 entity.getMla() != null ? entity.getMla().getMla() : null,
+                buildNombreCompleto(entity.getMarca()),
+                buildNombreCompleto(entity.getTipo()),
+                buildNombreCompleto(entity.getClasifGral()),
+                buildNombreCompleto(entity.getClasifGastro()),
                 entity.getCapacidad(),
                 entity.getLargo(),
                 entity.getAncho(),
@@ -120,6 +124,34 @@ public interface ProductoMapper {
                     .sorted()
                     .toList()
                 : List.of();
+    }
+
+    // ================================================================
+    // PATHS JERÁRQUICOS "ABUELO > PADRE > HIJO"
+    // Navegan recursivamente la cadena de padres de cada entidad jerárquica.
+    // ================================================================
+    default String buildNombreCompleto(Marca m) {
+        if (m == null) return null;
+        if (m.getPadre() == null) return m.getNombre();
+        return buildNombreCompleto(m.getPadre()) + " > " + m.getNombre();
+    }
+
+    default String buildNombreCompleto(Tipo t) {
+        if (t == null) return null;
+        if (t.getPadre() == null) return t.getNombre();
+        return buildNombreCompleto(t.getPadre()) + " > " + t.getNombre();
+    }
+
+    default String buildNombreCompleto(ClasifGral c) {
+        if (c == null) return null;
+        if (c.getPadre() == null) return c.getNombre();
+        return buildNombreCompleto(c.getPadre()) + " > " + c.getNombre();
+    }
+
+    default String buildNombreCompleto(ClasifGastro c) {
+        if (c == null) return null;
+        if (c.getPadre() == null) return c.getNombre();
+        return buildNombreCompleto(c.getPadre()) + " > " + c.getNombre();
     }
 
     // ================================================================

@@ -58,6 +58,13 @@ export interface ProductoDTO {
 	materialNombre?: string;
 	mlaNombre?: string;
 
+	// Paths jerárquicos completos "ABUELO > PADRE > HIJO" (del backend) para
+	// mostrar la herencia en la tabla sin un fetch por celda.
+	marcaNombreCompleto?: string | null;
+	tipoNombreCompleto?: string | null;
+	clasifGralNombreCompleto?: string | null;
+	clasifGastroNombreCompleto?: string | null;
+
 	// Márgenes (vienen de producto_margen, expuestos para edición inline)
 	margenMinorista?: number | null;
 	margenMayorista?: number | null;

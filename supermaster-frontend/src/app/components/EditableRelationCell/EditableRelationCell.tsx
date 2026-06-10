@@ -2,6 +2,7 @@ import { useEffect, useId, useRef } from "react";
 import { CheckIcon, XMarkIcon } from "@heroicons/react/20/solid";
 import { NoSymbolIcon } from "@heroicons/react/24/outline";
 import AsyncSelect from "../AsyncSelect/AsyncSelect";
+import { renderHierarchyLabel } from "../HierarchyLabel/HierarchyLabel";
 import { getNombreById } from "../../productos/productosService";
 import { useEditingCell } from "../Table/core/EditingCellContext";
 import { useState } from "react";
@@ -13,8 +14,9 @@ type RelationOption = {
 };
 
 export const EditableRelationCell = ({
-    initialName,
+    initialName = "",
     initialId,
+    fullName,
     onSave,
     loadOptions,
     placeholder,
@@ -26,8 +28,15 @@ export const EditableRelationCell = ({
     inputClassName = "",
     disabled = false,
 }: {
-    initialName: string;
+    initialName?: string;
     initialId: number | null;
+    /**
+     * Path jerárquico completo "ABUELO > PADRE > HIJO" ya resuelto por el caller
+     * (ej. la tabla de productos lo trae del backend). Si se provee, se muestra
+     * la herencia completa SIN un fetch por celda; el nombre corto para el input
+     * se deriva del último segmento.
+     */
+    fullName?: string | null;
     onSave: (newId: number | null) => void;
     loadOptions: (inputValue: string) => Promise<RelationOption[]>;
     placeholder: string;
@@ -53,6 +62,17 @@ export const EditableRelationCell = ({
     useEffect(() => {
         let isMounted = true;
         const fetchName = async () => {
+            // El caller ya nos pasó el path completo (ej. tabla de productos):
+            // lo usamos directo, sin fetch. El nombre corto para el input se
+            // deriva del último segmento.
+            if (fullName && fullName !== "---") {
+                const corto = fullName.includes(" > ") ? (fullName.split(" > ").pop() ?? fullName) : fullName;
+                if (isMounted) {
+                    setCurrentName(corto);
+                    setCurrentFullName(fullName);
+                }
+                return;
+            }
             if (initialId && (!initialName || initialName === "---")) {
                 setCurrentName("...");
                 setCurrentFullName(null);
@@ -77,7 +97,7 @@ export const EditableRelationCell = ({
         };
         fetchName();
         return () => { isMounted = false; };
-    }, [initialId, initialName, endpoint, labelKey]);
+    }, [initialId, initialName, fullName, endpoint, labelKey]);
 
     useEffect(() => () => {
         if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
@@ -167,7 +187,7 @@ export const EditableRelationCell = ({
         return (
             <div className="relative" onKeyDownCapture={handleEditorKeyDownCapture}>
                 <div className="invisible px-2 py-1 text-sm">{currentName}</div>
-                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 flex items-center gap-1 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded shadow-lg px-1 py-0.5 min-w-[280px]">
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 flex items-center gap-1 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded shadow-lg px-1 py-0.5 min-w-[340px]">
                     <div className="flex-1 min-w-0">
                         <AsyncSelect
                             label=""
@@ -240,6 +260,12 @@ export const EditableRelationCell = ({
     const baseTooltip = currentFullName ?? `ID: ${initialId || "N/A"}`;
     const tooltipDisplay = disabled ? baseTooltip : `${baseTooltip} - Click para editar`;
 
+    // Para entidades jerárquicas mostramos el path completo (ancestros + hijo);
+    // el último nivel va en negrita. `currentFullName` solo se puebla cuando hay
+    // herencia real (con " > "), así que las relaciones planas se ven igual.
+    const displayFull = currentFullName ?? currentName;
+    const mostrarJerarquia = currentName !== "---" && displayFull.includes(" > ");
+
     return (
         <div
             onClick={() => { if (!disabled) setEditingId(myId); }}
@@ -254,7 +280,7 @@ export const EditableRelationCell = ({
             } ${displayClassName}`}
             title={tooltipDisplay}
         >
-            {currentName}
+            {mostrarJerarquia ? renderHierarchyLabel(displayFull) : currentName}
         </div>
     );
 };

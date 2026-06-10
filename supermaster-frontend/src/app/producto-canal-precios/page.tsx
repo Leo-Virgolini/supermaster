@@ -37,14 +37,14 @@ export default function ProductoCanalPreciosPage() {
     // Estados básicos
     const [pageIndex, setPageIndex] = useState(0);
     const [pageSize, setPageSize] = useState(() => {
-        if (typeof window === "undefined") return 20;
-        const saved = localStorage.getItem("pageSize_monitor-precios");
-        return saved ? Number(saved) : 20;
+        if (typeof window === "undefined") return 100;
+        const saved = localStorage.getItem("pageSize_v2_monitor-precios");
+        return saved ? Number(saved) : 100;
     });
 
     useEffect(() => {
         try {
-            localStorage.setItem("pageSize_monitor-precios", String(pageSize));
+            localStorage.setItem("pageSize_v2_monitor-precios", String(pageSize));
         } catch { /* QuotaExceededError o modo privado — ignorar, no es crítico */ }
     }, [pageSize]);
     // Filtro inicial por URL (?q=SKU o ?search=SKU), p. ej. al venir desde el
@@ -297,7 +297,7 @@ export default function ProductoCanalPreciosPage() {
                         </div>
 
                         <div className="rounded-md border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900 dark:border-amber-700/60 dark:bg-amber-900/30 dark:text-amber-100">
-                            <strong>Recalcular Todos</strong> (botón rojo arriba a la derecha) recalcula todos los productos en todos los canales.
+                            <strong>Recalcular Todos</strong> (botón azul arriba a la derecha) recalcula todos los productos en todos los canales.
                             Tarda varios minutos y bloquea otros procesos. Usalo solo cuando hayas hecho cambios masivos a costos, márgenes o reglas.
                         </div>
                     </div>

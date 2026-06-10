@@ -259,7 +259,7 @@ export default function AuditoriaPage() {
     const searchParams = useSearchParams();
     const [items, setItems] = useState<AuditoriaCambioDTO[]>([]);
     const [pageIndex, setPageIndex] = useState(0);
-    const [pageSize, setPageSize] = useState(20);
+    const [pageSize, setPageSize] = useState(100);
     // Refs para preservar el scroll horizontal/vertical al paginar.
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const savedScrollPos = useRef<{ left: number; top: number } | null>(null);

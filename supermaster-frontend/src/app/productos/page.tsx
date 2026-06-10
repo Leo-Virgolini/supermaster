@@ -911,7 +911,7 @@ export default function ProductosPage() {
             </div>
 
             {/* MODAL CREAR PRODUCTO */}
-            <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); resetForm(); }} title="Nuevo Producto" size="xl"
+            <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); resetForm(); }} title="Nuevo Producto" size="xl" closeOnEscape={false}
                 footer={<><Button variant="light" onClick={() => { setIsModalOpen(false); resetForm(); }}><XMarkIcon className="w-4 h-4" /> Cancelar</Button><Button variant="dark" onClick={handleCreate} disabled={isSaving}><CheckIcon className="w-4 h-4" /> {isSaving ? "Creando Producto..." : "Crear Producto"}</Button></>}>
                 <div className="flex flex-col gap-5 text-sm">
                     {Object.values(formErrors).some(Boolean) && (

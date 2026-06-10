@@ -19,10 +19,10 @@ import { EditingCellProvider } from "./EditingCellContext";
 import { exportToExcel, buildExportColumns } from "../../../utils/exportCSV";
 
 /** Lee el pageSize guardado en localStorage para evitar un re-fetch al montar. */
-export function getInitialPageSize(tableId: string, fallback = 10): number {
+export function getInitialPageSize(tableId: string, fallback = 100): number {
     if (typeof window === "undefined") return fallback;
     try {
-        const saved = localStorage.getItem(`pageSize_${tableId}`);
+        const saved = localStorage.getItem(`pageSize_v2_${tableId}`);
         if (saved) {
             const parsed = Number(saved);
             if (parsed > 0) return parsed;
@@ -209,7 +209,7 @@ const Table = ({
     useEffect(() => {
         if (typeof window === "undefined") return;
         try {
-            const saved = localStorage.getItem(`pageSize_${tableId}`);
+            const saved = localStorage.getItem(`pageSize_v2_${tableId}`);
             if (saved) {
                 const parsed = Number(saved);
                 if (parsed > 0 && parsed !== pageSize) onPageSizeChange(parsed);
@@ -220,7 +220,7 @@ const Table = ({
 
     useEffect(() => {
         if (typeof window === "undefined") return;
-        localStorage.setItem(`pageSize_${tableId}`, String(pageSize));
+        localStorage.setItem(`pageSize_v2_${tableId}`, String(pageSize));
     }, [pageSize, tableId]);
 
     const table = useReactTable({
@@ -616,14 +616,8 @@ const Table = ({
                                         </Fragment>
                                     );
                                 })}
-                                {/* Filas vacías para rellenar el espacio hasta pageSize */}
-                                {Array.from({ length: Math.max(0, pageSize - table.getRowModel().rows.length) }).map((_, i) => (
-                                    <tr key={`ghost-${i}`} className={`${rowBorder} ${bordered ? "even:bg-blue-50/60 dark:even:bg-blue-900/15" : "even:bg-gray-50/30 dark:even:bg-slate-700/25"}`}>
-                                        {table.getVisibleLeafColumns().map((col) => (
-                                            <td key={col.id} className={`py-1 px-3 h-[30px] ${cellBorder}`} />
-                                        ))}
-                                    </tr>
-                                ))}
+                                {/* No rellenamos con filas vacías: la tabla muestra solo las filas
+                                    reales de la página actual, sin "fantasmas" en blanco. */}
                             </>
                         )}
                     </tbody>

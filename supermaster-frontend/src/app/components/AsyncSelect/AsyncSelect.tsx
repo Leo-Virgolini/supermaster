@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useEffect, useId, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { renderHierarchyLabel } from "../HierarchyLabel/HierarchyLabel";
 
 type Option = {
     id: number | string;
@@ -28,9 +30,28 @@ export default function AsyncSelect({ label, placeholder, loadOptions, onChange,
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const listRef = useRef<HTMLUListElement>(null);
     const hasPrefetchedRef = useRef(false);
     const inputId = useId();
     const listboxId = useId();
+
+    /**
+     * Posición del dropdown. Lo renderizamos en un portal con position:fixed para
+     * que flote por encima de todo y NO quede atrapado/recortado dentro de
+     * contenedores con overflow (modales, celdas de tabla). Sin esto, el dropdown
+     * forzaba scroll dentro del modal o se cortaba en las celdas inline.
+     */
+    const [menuPos, setMenuPos] = useState<{ top: number; left: number; width: number } | null>(null);
+
+    const updateMenuPos = useCallback(() => {
+        if (!inputRef.current) return;
+        const rect = inputRef.current.getBoundingClientRect();
+        const width = Math.max(rect.width, 320); // mínimo ~20rem para que entren los paths largos
+        let left = rect.left;
+        if (left + width > window.innerWidth - 8) left = window.innerWidth - width - 8;
+        if (left < 8) left = 8;
+        setMenuPos({ top: rect.bottom + 4, left, width });
+    }, []);
 
     useEffect(() => {
         if (displayValue !== undefined) {
@@ -50,7 +71,10 @@ export default function AsyncSelect({ label, placeholder, loadOptions, onChange,
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+            const target = event.target as Node;
+            const insideContainer = containerRef.current?.contains(target);
+            const insideList = listRef.current?.contains(target);
+            if (!insideContainer && !insideList) {
                 setIsOpen(false);
                 setActiveIndex(-1);
             }
@@ -59,6 +83,19 @@ export default function AsyncSelect({ label, placeholder, loadOptions, onChange,
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
+
+    // Mantener el dropdown pegado al input mientras está abierto (al scrollear o
+    // redimensionar la ventana recalculamos su posición fija).
+    useEffect(() => {
+        if (!isOpen) return;
+        updateMenuPos();
+        window.addEventListener("scroll", updateMenuPos, true);
+        window.addEventListener("resize", updateMenuPos);
+        return () => {
+            window.removeEventListener("scroll", updateMenuPos, true);
+            window.removeEventListener("resize", updateMenuPos);
+        };
+    }, [isOpen, updateMenuPos]);
 
     useEffect(() => {
         return () => {
@@ -126,29 +163,6 @@ export default function AsyncSelect({ label, placeholder, loadOptions, onChange,
         setActiveIndex(-1);
     };
 
-    /**
-     * Render del label de una opción. El último segmento (o el único si no hay
-     * jerarquía) es el valor efectivamente seleccionable y se muestra en
-     * negrita. Cuando hay path "ABUELO > PADRE > HIJO", los ancestros se
-     * muestran en gris suave antes del hijo.
-     */
-    const renderOptionLabel = (text: string) => {
-        const parts = text.split(" > ");
-        const last = parts[parts.length - 1];
-        const ancestors = parts.slice(0, -1);
-        return (
-            <>
-                {ancestors.map((part, i) => (
-                    <span key={i} className="text-slate-400 dark:text-slate-500">
-                        {part}
-                        <span className="mx-1">›</span>
-                    </span>
-                ))}
-                <span className="font-semibold text-slate-900 dark:text-slate-100">{last}</span>
-            </>
-        );
-    };
-
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (!isOpen && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
             setIsOpen(true);
@@ -211,11 +225,13 @@ export default function AsyncSelect({ label, placeholder, loadOptions, onChange,
                 autoFocus={autoFocus}
             />
 
-            {isOpen && (
+            {isOpen && menuPos && createPortal(
                 <ul
+                    ref={listRef}
                     id={listboxId}
                     role="listbox"
-                    className="absolute z-50 w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 mt-1 rounded-md shadow-lg max-h-60 overflow-auto"
+                    style={{ position: "fixed", top: menuPos.top, left: menuPos.left, width: menuPos.width, zIndex: 9999 }}
+                    className="bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-md shadow-lg max-h-80 overflow-y-auto overflow-x-hidden"
                 >
                     {isLoading ? (
                         <li className="p-2 text-gray-500 dark:text-slate-400 text-sm">Buscando...</li>
@@ -226,18 +242,19 @@ export default function AsyncSelect({ label, placeholder, loadOptions, onChange,
                                 key={opt.id}
                                 role="option"
                                 aria-selected={index === activeIndex}
-                                className={`p-2 cursor-pointer text-gray-700 dark:text-slate-200 ${index === activeIndex ? "bg-blue-50 dark:bg-slate-700" : "hover:bg-blue-50 dark:hover:bg-slate-700"}`}
+                                className={`p-2 cursor-pointer break-words text-gray-700 dark:text-slate-200 ${index === activeIndex ? "bg-blue-50 dark:bg-slate-700" : "hover:bg-blue-50 dark:hover:bg-slate-700"}`}
                                 onClick={() => handleSelect(opt)}
                                 onMouseDown={(e) => e.preventDefault()}
                                 onMouseEnter={() => setActiveIndex(index)}
                             >
-                                {renderOptionLabel(opt.label)}
+                                {renderHierarchyLabel(opt.label)}
                             </li>
                         ))
                     ) : (
                         <li className="p-2 text-gray-500 dark:text-slate-400 text-sm">No hay resultados</li>
                     )}
-                </ul>
+                </ul>,
+                document.body
             )}
         </div>
     );

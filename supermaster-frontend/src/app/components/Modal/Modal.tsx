@@ -12,6 +12,7 @@ type ModalProps = {
     footer?: React.ReactNode;
     size?: ModalSize;
     blurBackdrop?: boolean;
+    closeOnEscape?: boolean;
 };
 
 const sizeClasses: Record<ModalSize, string> = {
@@ -30,6 +31,7 @@ const Modal = ({
     footer,
     size = "lg",
     blurBackdrop = false,
+    closeOnEscape = true,
 }: ModalProps) => {
     const dialogRef = useRef<HTMLDivElement>(null);
     const titleId = useId();
@@ -75,7 +77,7 @@ const Modal = ({
         document.body.style.overflow = "hidden";
 
         const handleEsc = (e: KeyboardEvent) => {
-            if (e.key === "Escape") onCloseRef.current();
+            if (e.key === "Escape" && closeOnEscape) onCloseRef.current();
         };
 
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -114,7 +116,7 @@ const Modal = ({
             window.removeEventListener("keydown", handleKeyDown);
             previouslyFocusedRef.current?.focus();
         };
-    }, [isOpen]);
+    }, [isOpen, closeOnEscape]);
 
     if (!isOpen) return null;
 
@@ -134,7 +136,7 @@ const Modal = ({
                 aria-labelledby={titleId}
                 tabIndex={-1}
                 data-modal-kind={modalKind}
-                className={`relative w-full ${sizeClasses[size]} max-h-[90vh] flex flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900`}
+                className={`relative w-full ${sizeClasses[size]} max-h-[95vh] flex flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900`}
             >
                 {/* Header fijo */}
                 <div className="shrink-0 flex items-start justify-between gap-4 border-b border-slate-200 bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950 px-6 py-4 text-white dark:border-slate-700">

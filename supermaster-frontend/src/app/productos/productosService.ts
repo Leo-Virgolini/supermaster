@@ -91,6 +91,10 @@ const cleanPayload = <T extends object>(data: T): T => {
 	delete clean.proveedorNombre;
 	delete clean.materialNombre;
 	delete clean.mlaNombre;
+	delete clean.marcaNombreCompleto;
+	delete clean.tipoNombreCompleto;
+	delete clean.clasifGralNombreCompleto;
+	delete clean.clasifGastroNombreCompleto;
 	delete clean.fechaCreacion;
 	delete clean.fechaModificacion;
 	delete clean.fechaUltimoCosto;

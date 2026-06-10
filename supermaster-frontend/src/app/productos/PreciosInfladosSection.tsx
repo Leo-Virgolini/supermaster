@@ -30,6 +30,7 @@ type FormState = {
     fechaDesde: string;
     fechaHasta: string;
     observaciones: string;
+    activo: boolean;
     modo: "nuevo" | "editar";
 };
 
@@ -41,6 +42,7 @@ type Row = {
     fechaDesde: string | null;
     fechaHasta: string | null;
     observaciones: string | null;
+    activo: boolean;
     estado: "Activo" | "Inactivo" | "Pendiente";
 };
 
@@ -91,6 +93,7 @@ export function PreciosInfladosSection({ productoId, value, onChange }: Props) {
             fechaDesde: a.fechaDesde,
             fechaHasta: a.fechaHasta,
             observaciones: a.observaciones,
+            activo: a.activo,
             estado: a.activo ? "Activo" : "Inactivo",
         }))
         : (value ?? []).map(d => ({
@@ -100,6 +103,7 @@ export function PreciosInfladosSection({ productoId, value, onChange }: Props) {
             fechaDesde: d.fechaDesde,
             fechaHasta: d.fechaHasta,
             observaciones: d.observaciones,
+            activo: true,
             estado: "Pendiente",
         }));
 
@@ -107,7 +111,7 @@ export function PreciosInfladosSection({ productoId, value, onChange }: Props) {
 
     const abrirNuevo = () => {
         setError(null);
-        setForm({ canalId: "", precioInfladoId: "", fechaDesde: "", fechaHasta: "", observaciones: "", modo: "nuevo" });
+        setForm({ canalId: "", precioInfladoId: "", fechaDesde: "", fechaHasta: "", observaciones: "", activo: true, modo: "nuevo" });
     };
 
     const abrirEditar = (r: Row) => {
@@ -118,6 +122,7 @@ export function PreciosInfladosSection({ productoId, value, onChange }: Props) {
             fechaDesde: r.fechaDesde ?? "",
             fechaHasta: r.fechaHasta ?? "",
             observaciones: r.observaciones ?? "",
+            activo: r.activo,
             modo: "editar",
         });
     };
@@ -145,7 +150,7 @@ export function PreciosInfladosSection({ productoId, value, onChange }: Props) {
             if (form.modo === "nuevo") {
                 await asignarPrecioInfladoAPI(productoId!, canalId, precioInfladoId, { fechaDesde, fechaHasta, observaciones });
             } else {
-                await actualizarPrecioInfladoAPI(productoId!, canalId, { precioInfladoId, fechaDesde, fechaHasta, observaciones });
+                await actualizarPrecioInfladoAPI(productoId!, canalId, { precioInfladoId, activo: form.activo, fechaDesde, fechaHasta, observaciones });
             }
             await recargarLive();
             setForm(null);

@@ -33,7 +33,7 @@ public class PrecioInflado {
         private TipoPrecioInflado tipo;
 
         @NotNull
-        @Column(name = "valor", nullable = false, precision = 6, scale = 3)
+        @Column(name = "valor", nullable = false, precision = 15, scale = 3)
         private BigDecimal valor;
 
         public PrecioInflado(Integer id) {

@@ -1075,7 +1075,7 @@ export default function ProductosPage() {
             </div>
 
             {/* MODAL CREAR / EDITAR PRODUCTO */}
-            <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); resetForm(); setEditandoProductoId(null); }} title={editandoProductoId ? "Editar Producto" : "Nuevo Producto"} size="2xl" closeOnEscape={false}
+            <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); resetForm(); setEditandoProductoId(null); }} title={editandoProductoId ? "Editar Producto" : "Nuevo Producto"} size="3xl" closeOnEscape={false}
                 footer={<><Button variant="light" onClick={() => { setIsModalOpen(false); resetForm(); setEditandoProductoId(null); }}><XMarkIcon className="w-4 h-4" /> Cancelar</Button><Button variant="dark" onClick={editandoProductoId ? handleGuardarEdicion : handleCreate} disabled={isSaving}><CheckIcon className="w-4 h-4" /> {isSaving ? (editandoProductoId ? "Guardando..." : "Creando Producto...") : (editandoProductoId ? "Guardar Cambios" : "Crear Producto")}</Button></>}>
                 <div className="flex flex-col gap-5 text-sm">
                     {Object.values(formErrors).some(Boolean) && (

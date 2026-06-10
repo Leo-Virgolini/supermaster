@@ -18,7 +18,7 @@ import { useAuth } from "../context/AuthContext";
 import { useProductos } from "./useProductos";
 import ProductosFilterPanel, { ProductosFilterToggle } from "./ProductosFilterBar";
 import {
-    getProductosForExportAPI, getSiguienteSkuAPI, getMlaPorSkuAPI, createMlaAPI,
+    getProductosForExportAPI, getSiguienteSkuAPI, existeSkuAPI, getMlaPorSkuAPI, createMlaAPI,
     searchMarcas, searchClasifGral, searchClasifGastro, searchTipos, searchProveedores, searchOrigenes, searchMateriales, searchMlas,
     searchCatalogos, searchAptos, searchClientes, searchCanales, addProductoCatalogoAPI, addProductoAptoAPI, addProductoClienteAPI,
     exportarProductosADuxAPI, calcularEnvioMlaAPI,
@@ -225,6 +225,8 @@ export default function ProductosPage() {
     // Último SKU autocompletado: nos deja saber si el usuario lo editó a mano
     // (en cuyo caso no lo pisamos al cambiar "Es Combo").
     const [lastSuggestedSku, setLastSuggestedSku] = useState("");
+    // Aviso en vivo: true si el SKU tipeado ya pertenece a otro producto.
+    const [skuYaExiste, setSkuYaExiste] = useState(false);
     const [codExt, setCodExt] = useState("");
     const [tituloWeb, setTituloWeb] = useState("");
     const [descripcion, setDescripcion] = useState("");
@@ -502,7 +504,7 @@ export default function ProductosPage() {
         else if (tituloWeb.trim().length > 100) errors.tituloWeb = "Máximo 100 caracteres";
         if (costo < 0) errors.costo = "El costo no puede ser negativo";
         if (uxb < 1) errors.uxb = "UxB debe ser al menos 1";
-        if (!clasifGralId) errors.clasifGralId = "La clasificación general es obligatoria";
+        if (!clasifGralId && !clasifGastroId) errors.clasificacion = "Seleccioná al menos una clasificación (general o gastronómica)";
         if (!tipoId) errors.tipoId = "El tipo es obligatorio";
         if (largo.length > 45) errors.largo = "Máximo 45 caracteres";
         if (ancho.length > 45) errors.ancho = "Máximo 45 caracteres";
@@ -631,6 +633,24 @@ export default function ProductosPage() {
             void cargarSkuSugerido(next);
         }
     };
+
+    // Aviso en vivo de SKU duplicado: con un pequeño debounce consultamos al
+    // backend si el SKU tipeado ya pertenece a otro producto. Solo mientras el
+    // modal de alta está abierto; abortamos la consulta anterior al re-tipear.
+    useEffect(() => {
+        if (!isModalOpen) { setSkuYaExiste(false); return; }
+        const valor = sku.trim();
+        if (!valor) { setSkuYaExiste(false); return; }
+        const controller = new AbortController();
+        const t = setTimeout(async () => {
+            try {
+                setSkuYaExiste(await existeSkuAPI(valor, controller.signal));
+            } catch {
+                // Silencioso: si falla la verificación, el backend igual rechaza al crear.
+            }
+        }, 400);
+        return () => { clearTimeout(t); controller.abort(); };
+    }, [sku, isModalOpen]);
 
     const aplicarMlaEnForm = (mla: { id: number; mla: string; mlau: string | null; precioEnvio: number | null; comisionPorcentaje: number | null; topePromocion: number | null }) => {
         setMlaId(mla.id);
@@ -911,7 +931,7 @@ export default function ProductosPage() {
             </div>
 
             {/* MODAL CREAR PRODUCTO */}
-            <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); resetForm(); }} title="Nuevo Producto" size="xl" closeOnEscape={false}
+            <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); resetForm(); }} title="Nuevo Producto" size="2xl" closeOnEscape={false}
                 footer={<><Button variant="light" onClick={() => { setIsModalOpen(false); resetForm(); }}><XMarkIcon className="w-4 h-4" /> Cancelar</Button><Button variant="dark" onClick={handleCreate} disabled={isSaving}><CheckIcon className="w-4 h-4" /> {isSaving ? "Creando Producto..." : "Crear Producto"}</Button></>}>
                 <div className="flex flex-col gap-5 text-sm">
                     {Object.values(formErrors).some(Boolean) && (
@@ -949,8 +969,10 @@ export default function ProductosPage() {
                             {/* Identificadores */}
                             <label className="block">
                                 <span className={fieldLabelClassName}>SKU <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span></span>
-                                <input type="text" className={`${inputBaseClassName} ${formErrors.sku ? inputErrorClassName : ""}`} value={sku} onChange={e => { setSku(e.target.value); if (formErrors.sku) setFormErrors(p => ({ ...p, sku: "" })); }} placeholder="Ej: CUT-001" autoFocus required />
-                                {formErrors.sku && <p className="mt-1 text-xs text-red-500">{formErrors.sku}</p>}
+                                <input type="text" className={`${inputBaseClassName} ${formErrors.sku ? inputErrorClassName : (skuYaExiste ? "border-amber-400 bg-amber-50 dark:bg-amber-900/20" : "")}`} value={sku} onChange={e => { setSku(e.target.value); if (formErrors.sku) setFormErrors(p => ({ ...p, sku: "" })); }} placeholder="Ej: CUT-001" autoFocus required />
+                                {formErrors.sku
+                                    ? <p className="mt-1 text-xs text-red-500">{formErrors.sku}</p>
+                                    : skuYaExiste && <p className="mt-1 text-xs font-medium text-amber-600 dark:text-amber-400">⚠ Ya existe un producto con este SKU</p>}
                             </label>
                             <label className="block">
                                 <span className={fieldLabelClassName}>Cód. Ext.</span>
@@ -1091,10 +1113,12 @@ export default function ProductosPage() {
                             <AsyncSelect label="Marca" loadOptions={searchMarcas} onChange={(v) => setMarcaId(v ? Number(v) : null)} value={marcaId} placeholder="Buscar marca" inputClassName={inputBaseClassName} />
                             <AsyncSelect label="Origen" loadOptions={searchOrigenes} onChange={(v) => setOrigenId(v ? Number(v) : null)} value={origenId} placeholder="Buscar origen" inputClassName={inputBaseClassName} />
                             <div>
-                                <AsyncSelect label={<>Clasif. Gral <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span></>} loadOptions={searchClasifGral} onChange={(v) => { setClasifGralId(v ? Number(v) : null); if (formErrors.clasifGralId) setFormErrors(p => ({ ...p, clasifGralId: "" })); }} value={clasifGralId} placeholder="Buscar clasificación" inputClassName={`${inputBaseClassName} ${formErrors.clasifGralId ? inputErrorClassName : ""}`} />
-                                {formErrors.clasifGralId && <p className="mt-1 text-xs text-red-500">{formErrors.clasifGralId}</p>}
+                                <AsyncSelect label={<>Clasif. Gral <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">al menos una</span></>} loadOptions={searchClasifGral} onChange={(v) => { setClasifGralId(v ? Number(v) : null); if (formErrors.clasificacion) setFormErrors(p => ({ ...p, clasificacion: "" })); }} value={clasifGralId} placeholder="Buscar clasificación" inputClassName={`${inputBaseClassName} ${formErrors.clasificacion ? inputErrorClassName : ""}`} />
+                                {formErrors.clasificacion && <p className="mt-1 text-xs text-red-500">{formErrors.clasificacion}</p>}
                             </div>
-                            <AsyncSelect label="Clasif. Gastro" loadOptions={searchClasifGastro} onChange={(v) => setClasifGastroId(v ? Number(v) : null)} value={clasifGastroId} placeholder="Buscar clasificación" inputClassName={inputBaseClassName} />
+                            <div>
+                                <AsyncSelect label={<>Clasif. Gastro <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">al menos una</span></>} loadOptions={searchClasifGastro} onChange={(v) => { setClasifGastroId(v ? Number(v) : null); if (formErrors.clasificacion) setFormErrors(p => ({ ...p, clasificacion: "" })); }} value={clasifGastroId} placeholder="Buscar clasificación" inputClassName={`${inputBaseClassName} ${formErrors.clasificacion ? inputErrorClassName : ""}`} />
+                            </div>
                             <div>
                                 <AsyncSelect label={<>Tipo <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span></>} loadOptions={searchTipos} onChange={(v) => { setTipoId(v ? Number(v) : null); if (formErrors.tipoId) setFormErrors(p => ({ ...p, tipoId: "" })); }} value={tipoId} placeholder="Buscar tipo" inputClassName={`${inputBaseClassName} ${formErrors.tipoId ? inputErrorClassName : ""}`} />
                                 {formErrors.tipoId && <p className="mt-1 text-xs text-red-500">{formErrors.tipoId}</p>}

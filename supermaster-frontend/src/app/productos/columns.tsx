@@ -446,6 +446,7 @@ export function getColumns(onOpenDetalle: (producto: ProductoDTO) => void, canEd
                 loadOptions={searchClasifGral}
                 placeholder="Rubro..."
                 endpoint="clasif-gral"
+                nullable
                 displayClassName={FONT.relation}
                 disabled={!canEdit}
                 onSave={(newId) => (table.options.meta as any)?.updateData?.(row.index, "clasifGralId", newId)}

@@ -97,6 +97,7 @@ public class ProductoServiceImpl implements ProductoService {
         }
 
         Producto entity = productoMapper.toEntity(dto);
+        validarAlMenosUnaClasificacion(entity);
         productoRepository.save(entity);
         productoAuditoriaService.registrarCreacion(entity);
         return productoMapper.toDTO(entity);
@@ -124,6 +125,7 @@ public class ProductoServiceImpl implements ProductoService {
         Tag tagAnterior = entity.getTag();
 
         productoMapper.updateEntityFromDTO(dto, entity);
+        validarAlMenosUnaClasificacion(entity);
         productoRepository.save(entity);
         productoAuditoriaService.registrarActualizacion(id, estadoAnterior, entity);
 
@@ -169,6 +171,7 @@ public class ProductoServiceImpl implements ProductoService {
         Tag tagAnterior = entity.getTag();
 
         aplicarPatch(entity, patchDto);
+        validarAlMenosUnaClasificacion(entity);
         productoRepository.save(entity);
         productoAuditoriaService.registrarActualizacion(id, estadoAnterior, entity);
 
@@ -212,6 +215,12 @@ public class ProductoServiceImpl implements ProductoService {
         return productoRepository.findBySku(sku)
                 .map(productoMapper::toDTO)
                 .orElseThrow(() -> new NotFoundException("Producto no encontrado"));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean existeSku(String sku) {
+        return sku != null && !sku.isBlank() && productoRepository.existsBySku(sku.trim());
     }
 
     @Override
@@ -1105,6 +1114,18 @@ public class ProductoServiceImpl implements ProductoService {
                 && !presente(patchDto.getTag());
     }
 
+    /**
+     * Regla de negocio: un producto debe tener al menos una clasificación
+     * (general o gastronómica). Se valida sobre la entidad ya armada, cubriendo
+     * crear, actualizar y patch.
+     */
+    private void validarAlMenosUnaClasificacion(Producto entity) {
+        if (entity.getClasifGral() == null && entity.getClasifGastro() == null) {
+            throw new BadRequestException(
+                    "El producto debe tener al menos una clasificación: general o gastronómica.");
+        }
+    }
+
     private void aplicarPatch(Producto entity, ProductoPatchDTO patchDto) {
         if (presente(patchDto.getSku())) {
             entity.setSku(leerStringRequerido(patchDto.getSku(), "sku", 45));
@@ -1145,7 +1166,8 @@ public class ProductoServiceImpl implements ProductoService {
             entity.setOrigen(origenId != null ? new Origen(origenId) : null);
         }
         if (presente(patchDto.getClasifGralId())) {
-            entity.setClasifGral(new ClasifGral(leerIdRequerido(patchDto.getClasifGralId(), "clasifGralId")));
+            Integer clasifGralId = leerIdOpcional(patchDto.getClasifGralId(), "clasifGralId");
+            entity.setClasifGral(clasifGralId != null ? new ClasifGral(clasifGralId) : null);
         }
         if (presente(patchDto.getClasifGastroId())) {
             Integer clasifGastroId = leerIdOpcional(patchDto.getClasifGastroId(), "clasifGastroId");

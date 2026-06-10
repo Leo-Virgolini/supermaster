@@ -160,7 +160,7 @@ public interface ProductoMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "marca", expression = "java(dto.marcaId() != null ? new Marca(dto.marcaId()) : null)")
     @Mapping(target = "origen", expression = "java(dto.origenId() != null ? new Origen(dto.origenId()) : null)")
-    @Mapping(target = "clasifGral", expression = "java(new ClasifGral(dto.clasifGralId()))")
+    @Mapping(target = "clasifGral", expression = "java(dto.clasifGralId() != null ? new ClasifGral(dto.clasifGralId()) : null)")
     @Mapping(target = "clasifGastro", expression = "java(dto.clasifGastroId() != null ? new ClasifGastro(dto.clasifGastroId()) : null)")
     @Mapping(target = "tipo", expression = "java(new Tipo(dto.tipoId()))")
     @Mapping(target = "proveedor", expression = "java(dto.proveedorId() != null ? new Proveedor(dto.proveedorId()) : null)")

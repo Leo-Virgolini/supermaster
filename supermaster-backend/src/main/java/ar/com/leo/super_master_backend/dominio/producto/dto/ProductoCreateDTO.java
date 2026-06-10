@@ -33,7 +33,6 @@ public record ProductoCreateDTO(
         Integer marcaId,
         @Positive(message = "El ID de origen debe ser positivo")
         Integer origenId,
-        @NotNull(message = "El ID de clasificación general es obligatorio")
         @Positive(message = "El ID de clasificación general debe ser positivo")
         Integer clasifGralId,
         @Positive(message = "El ID de clasificación gastro debe ser positivo")

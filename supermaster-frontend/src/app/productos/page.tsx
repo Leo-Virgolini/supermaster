@@ -1,5 +1,4 @@
 "use client";
-import dynamic from "next/dynamic";
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -30,13 +29,12 @@ import {
     getAllAptosAPI, getAllCatalogosAPI, getAllClientesAPI,
 } from "./productoSubRecursosService";
 import MultiAsyncSelect, { type MultiOption } from "../components/MultiAsyncSelect/MultiAsyncSelect";
+import { PreciosInfladosSection } from "./PreciosInfladosSection";
+import { HistorialSection } from "./HistorialSection";
 import { getColumns } from "./columns";
 import { ProductoCreateDTO, ProductoDTO, ProductoPatchDTO } from "./types";
 import { type SortingState } from "@tanstack/react-table";
 
-const ProductoDetalleModal = dynamic(() => import("./ProductoDetalleModal"), {
-    loading: () => null,
-});
 
 const PRODUCTOS_VIEWS_STORAGE_KEY = "productos_saved_views_v1";
 type ProductosView = {
@@ -222,7 +220,6 @@ export default function ProductosPage() {
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [detalleProducto, setDetalleProducto] = useState<ProductoDTO | null>(null);
     const [isImagePickerOpen, setIsImagePickerOpen] = useState(false);
 
     // --- Campos del Formulario ---
@@ -287,6 +284,8 @@ export default function ProductosPage() {
     const [clientesSel, setClientesSel] = useState<MultiOption[]>([]);
     // null = modo crear; con id = modo editar (mismo modal/form).
     const [editandoProductoId, setEditandoProductoId] = useState<number | null>(null);
+    // Tab activo del panel en modo edición: form de datos o historial de cambios.
+    const [panelTab, setPanelTab] = useState<"datos" | "historial">("datos");
     // Ref estable hacia abrirEdicion (definida más abajo) para usarla en el
     // useMemo de columnas sin invalidar la memoización en cada render.
     const abrirEdicionRef = useRef<(p: ProductoDTO) => void>(() => {});
@@ -333,7 +332,7 @@ export default function ProductosPage() {
     const hasSelection = selectedIds.length > 0;
 
     const columns = useMemo(
-        () => getColumns((producto) => setDetalleProducto(producto), (producto) => abrirEdicionRef.current(producto), canEditProductos),
+        () => getColumns((producto) => abrirEdicionRef.current(producto), canEditProductos),
         [canEditProductos]
     );
 
@@ -628,6 +627,7 @@ export default function ProductosPage() {
     // Abre el modal en modo edición: precarga todos los campos del producto.
     const abrirEdicion = async (producto: ProductoDTO) => {
         setEditandoProductoId(producto.id);
+        setPanelTab("datos");
         setSku(producto.sku ?? "");
         setCodExt(producto.codExt ?? "");
         setTituloWeb(producto.tituloWeb ?? "");
@@ -761,6 +761,7 @@ export default function ProductosPage() {
     }, []);
 
     const handleAbrirCrear = () => {
+        setPanelTab("datos");
         setIsModalOpen(true);
         void cargarSkuSugerido(esCombo);
     };
@@ -1077,7 +1078,28 @@ export default function ProductosPage() {
             {/* MODAL CREAR / EDITAR PRODUCTO */}
             <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); resetForm(); setEditandoProductoId(null); }} title={editandoProductoId ? "Editar Producto" : "Nuevo Producto"} size="3xl" closeOnEscape={false}
                 footer={<><Button variant="light" onClick={() => { setIsModalOpen(false); resetForm(); setEditandoProductoId(null); }}><XMarkIcon className="w-4 h-4" /> Cancelar</Button><Button variant="dark" onClick={editandoProductoId ? handleGuardarEdicion : handleCreate} disabled={isSaving}><CheckIcon className="w-4 h-4" /> {isSaving ? (editandoProductoId ? "Guardando..." : "Creando Producto...") : (editandoProductoId ? "Guardar Cambios" : "Crear Producto")}</Button></>}>
-                <div className="flex flex-col gap-5 text-sm">
+                <div className="text-sm">
+                    {/* Tabs solo en modo edición: Datos (form) e Historial */}
+                    {editandoProductoId && (
+                        <div className="mb-5 flex border-b border-slate-200 dark:border-slate-700">
+                            {([["datos", "Datos"], ["historial", "Historial"]] as const).map(([id, label]) => (
+                                <button
+                                    key={id}
+                                    type="button"
+                                    onClick={() => setPanelTab(id)}
+                                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${panelTab === id ? "border-blue-600 text-blue-700 dark:text-blue-300" : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700"}`}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
+                    {editandoProductoId && panelTab === "historial" && (
+                        <HistorialSection productoId={editandoProductoId} productoSku={sku} />
+                    )}
+
+                    <div className={`flex-col gap-5 ${editandoProductoId && panelTab === "historial" ? "hidden" : "flex"}`}>
                     {Object.values(formErrors).some(Boolean) && (
                         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-300">
                             Revisá los campos marcados antes de guardar.
@@ -1386,6 +1408,16 @@ export default function ProductosPage() {
                             </label>
                         </div>
                     </fieldset>
+
+                    {/* Precios inflados por canal: solo en edición (requiere producto existente) */}
+                    {editandoProductoId && (
+                        <fieldset className={sectionClassName}>
+                            <legend className={sectionTitleClassName}>Precios Inflados por Canal</legend>
+                            <p className={`${sectionDescriptionClassName} mb-4`}>Asigná, cambiá o quitá el precio inflado de este producto en cada canal.</p>
+                            <PreciosInfladosSection productoId={editandoProductoId} />
+                        </fieldset>
+                    )}
+                    </div>
                 </div>
             </Modal>
 
@@ -1395,14 +1427,6 @@ export default function ProductosPage() {
                     onClose={() => setIsImagePickerOpen(false)}
                 />
             )}
-
-            {/* MODAL DETALLE */}
-            <ProductoDetalleModal
-                isOpen={detalleProducto !== null}
-                onClose={() => setDetalleProducto(null)}
-                productoId={detalleProducto?.id ?? 0}
-                productoSku={detalleProducto?.sku ?? ""}
-            />
 
             <Modal
                 isOpen={isViewModalOpen}

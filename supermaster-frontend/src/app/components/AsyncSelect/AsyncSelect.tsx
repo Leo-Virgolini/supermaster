@@ -25,6 +25,7 @@ export default function AsyncSelect({ label, placeholder, loadOptions, onChange,
     const [options, setOptions] = useState<Option[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
+    const [isFocused, setIsFocused] = useState(false);
     const [activeIndex, setActiveIndex] = useState(-1);
 
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -197,33 +198,54 @@ export default function AsyncSelect({ label, placeholder, loadOptions, onChange,
         }
     };
 
+    // Mostramos el valor seleccionado con formato (último hijo en negrita) solo
+    // cuando el campo no está enfocado; al enfocar se ve el texto plano editable.
+    const showOverlay = !isFocused && inputValue.trim() !== "";
+
     return (
         <div ref={containerRef} className="relative w-full">
             <label htmlFor={inputId} className="block text-gray-700 text-sm font-bold mb-1">
                 {label}
             </label>
-            <input
-                ref={inputRef}
-                id={inputId}
-                type="text"
-                autoComplete="off"
-                spellCheck={false}
-                className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 p-2 border ${inputClassName}`}
-                placeholder={placeholder || "Escribí para buscar..."}
-                value={inputValue}
-                onChange={(e) => handleInputChange(e.target.value)}
-                onFocus={() => {
-                    setIsOpen(true);
-                    void prefetchOptions();
-                }}
-                onKeyDown={handleKeyDown}
-                role="combobox"
-                aria-expanded={isOpen}
-                aria-controls={listboxId}
-                aria-autocomplete="list"
-                aria-activedescendant={activeIndex >= 0 ? `${listboxId}-option-${activeIndex}` : undefined}
-                autoFocus={autoFocus}
-            />
+            <div className="relative">
+                <input
+                    ref={inputRef}
+                    id={inputId}
+                    type="text"
+                    autoComplete="off"
+                    spellCheck={false}
+                    className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 p-2 border ${showOverlay ? "!text-transparent" : ""} ${inputClassName}`}
+                    placeholder={placeholder || "Escribí para buscar..."}
+                    value={inputValue}
+                    onChange={(e) => handleInputChange(e.target.value)}
+                    onFocus={() => {
+                        setIsFocused(true);
+                        setIsOpen(true);
+                        void prefetchOptions();
+                    }}
+                    onBlur={() => setIsFocused(false)}
+                    onKeyDown={handleKeyDown}
+                    role="combobox"
+                    aria-expanded={isOpen}
+                    aria-controls={listboxId}
+                    aria-autocomplete="list"
+                    aria-activedescendant={activeIndex >= 0 ? `${listboxId}-option-${activeIndex}` : undefined}
+                    autoFocus={autoFocus}
+                />
+                {/* Overlay con el valor seleccionado formateado (último hijo en
+                    negrita). Reusa el mismo className del input (mismo padding,
+                    tamaño y borde) para alinear el texto exactamente; el borde se
+                    fuerza transparente para no duplicar el del input. Solo cuando
+                    el campo no tiene foco; al enfocar se ve el texto plano editable. */}
+                {showOverlay && (
+                    <div
+                        aria-hidden="true"
+                        className={`pointer-events-none absolute inset-0 flex items-center !border-transparent !bg-transparent !shadow-none p-2 border ${inputClassName}`}
+                    >
+                        <span className="min-w-0 truncate">{renderHierarchyLabel(inputValue)}</span>
+                    </div>
+                )}
+            </div>
 
             {isOpen && menuPos && createPortal(
                 <ul

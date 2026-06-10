@@ -72,6 +72,13 @@ export interface ProductoCanalPrecioInfladoDTO {
     observaciones: string | null;
 }
 
+// Lista todas las asignaciones de precios inflados del producto (todos los canales).
+export const getProductoPreciosInfladosAPI = async (productoId: number): Promise<ProductoCanalPrecioInfladoDTO[]> => {
+    const res = await fetchAPI(`${BASE}/${productoId}/precios-inflados`);
+    if (!res.ok) throw new Error("Error al obtener precios inflados del producto");
+    return res.json();
+};
+
 export const getProductoPrecioInfladoPorCanalAPI = async (
     productoId: number,
     canalId: number,

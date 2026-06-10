@@ -25,6 +25,9 @@ public interface ProductoService {
 
     ProductoDTO obtenerPorSku(String sku);
 
+    /** Indica si ya existe un producto con ese SKU (para validación previa al alta). */
+    boolean existeSku(String sku);
+
     /**
      * Calcula el menor SKU numérico libre dentro del rango correspondiente:
      * 1000000–1999999 para productos individuales y 5000000–5999999 para combos.

@@ -1,12 +1,12 @@
 "use client";
 
 import { getErrorMessage } from "@/lib/errors";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Button from "../components/Button/Button";
 import { confirmDialog } from "../utils/confirmDialog";
 import { formatFechaAR } from "../utils/formatDate";
 import {
-    getProductoPrecioInfladoPorCanalAPI, asignarPrecioInfladoAPI, quitarPrecioInfladoAPI,
+    getProductoPrecioInfladoPorCanalAPI, getProductoPreciosInfladosAPI, asignarPrecioInfladoAPI, quitarPrecioInfladoAPI,
     getAllPreciosInfladosAPI, getAllCanalesAPI,
     ProductoCanalPrecioInfladoDTO,
 } from "./productoSubRecursosService";
@@ -16,6 +16,7 @@ import {
 export function PreciosInfladosSection({ productoId }: { productoId: number }) {
     const [canales, setCanales] = useState<{ id: number; nombre: string }[]>([]);
     const [preciosInflados, setPreciosInflados] = useState<{ id: number; nombre: string }[]>([]);
+    const [asignaciones, setAsignaciones] = useState<ProductoCanalPrecioInfladoDTO[]>([]);
     const [selectedCanalId, setSelectedCanalId] = useState<number | "">("");
     const [selectedPrecioId, setSelectedPrecioId] = useState<number | "">("");
     const [asignacionActual, setAsignacionActual] = useState<ProductoCanalPrecioInfladoDTO | null>(null);
@@ -27,11 +28,17 @@ export function PreciosInfladosSection({ productoId }: { productoId: number }) {
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Carga inicial: listas de canales y precios inflados
+    const recargarAsignaciones = useCallback(() => {
+        return getProductoPreciosInfladosAPI(productoId)
+            .then(setAsignaciones)
+            .catch((e) => setError(getErrorMessage(e)));
+    }, [productoId]);
+
+    // Carga inicial: listas de canales, precios inflados y asignaciones actuales
     useEffect(() => {
         setIsLoadingInit(true);
-        Promise.all([getAllCanalesAPI(), getAllPreciosInfladosAPI()])
-            .then(([cans, precios]) => { setCanales(cans); setPreciosInflados(precios); })
+        Promise.all([getAllCanalesAPI(), getAllPreciosInfladosAPI(), getProductoPreciosInfladosAPI(productoId)])
+            .then(([cans, precios, asigs]) => { setCanales(cans); setPreciosInflados(precios); setAsignaciones(asigs); })
             .catch((e) => setError(getErrorMessage(e)))
             .finally(() => setIsLoadingInit(false));
     }, [productoId]);
@@ -69,6 +76,7 @@ export function PreciosInfladosSection({ productoId }: { productoId: number }) {
                 { fechaDesde: fechaDesde || null, fechaHasta: fechaHasta || null, observaciones: observaciones || null },
             );
             setAsignacionActual(result);
+            await recargarAsignaciones();
         } catch (e: unknown) {
             setError(getErrorMessage(e));
         } finally {
@@ -85,6 +93,7 @@ export function PreciosInfladosSection({ productoId }: { productoId: number }) {
             await quitarPrecioInfladoAPI(productoId, Number(selectedCanalId));
             setAsignacionActual(null);
             setSelectedPrecioId("");
+            await recargarAsignaciones();
         } catch (e: unknown) {
             setError(getErrorMessage(e));
         } finally {
@@ -97,6 +106,45 @@ export function PreciosInfladosSection({ productoId }: { productoId: number }) {
     return (
         <div className="flex flex-col gap-4">
             {error && <div className="p-3 bg-red-100 text-red-700 rounded text-sm">{error}</div>}
+
+            {/* Resumen: precios inflados ya asignados (todos los canales) */}
+            <div className="rounded-lg border border-slate-200 dark:border-slate-700">
+                <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                    Asignaciones actuales
+                </div>
+                {asignaciones.length === 0 ? (
+                    <p className="px-3 py-3 text-sm text-gray-400">Este producto no tiene precios inflados asignados en ningún canal.</p>
+                ) : (
+                    <table className="w-full text-sm">
+                        <thead className="text-left text-xs text-slate-500">
+                            <tr>
+                                <th className="px-3 py-1.5 font-semibold">Canal</th>
+                                <th className="px-3 py-1.5 font-semibold">Precio inflado</th>
+                                <th className="px-3 py-1.5 font-semibold">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {asignaciones.map((a) => (
+                                <tr
+                                    key={a.id}
+                                    onClick={() => setSelectedCanalId(a.canalId)}
+                                    className="cursor-pointer border-t border-slate-100 hover:bg-blue-50/60 dark:border-slate-800 dark:hover:bg-blue-900/20"
+                                    title="Click para ver / editar esta asignación"
+                                >
+                                    <td className="px-3 py-1.5 text-slate-700 dark:text-slate-200">{canales.find(c => c.id === a.canalId)?.nombre ?? `Canal ${a.canalId}`}</td>
+                                    <td className="px-3 py-1.5 text-slate-700 dark:text-slate-200">
+                                        <span className="font-semibold">{a.precioInflado.codigo}</span>
+                                        <span className="ml-2 text-xs text-slate-500">({a.precioInflado.tipo} = {a.precioInflado.valor})</span>
+                                    </td>
+                                    <td className="px-3 py-1.5">
+                                        <span className={`text-xs font-medium ${a.activo ? "text-green-600" : "text-gray-400"}`}>{a.activo ? "Activo" : "Inactivo"}</span>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
+            </div>
 
             <p className="text-xs text-gray-500">Seleccioná un canal para ver o modificar su precio inflado asignado.</p>
 

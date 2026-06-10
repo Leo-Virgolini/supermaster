@@ -214,6 +214,16 @@ public class ProductoController {
         return ResponseEntity.ok(new ProductoSiguienteSkuDTO(productoService.siguienteSkuLibre(esCombo)));
     }
 
+    /**
+     * Indica si ya existe un producto con ese SKU. Usado por el formulario de
+     * alta para avisar en vivo (antes de enviar) si el SKU está ocupado.
+     */
+    @GetMapping("/existe-sku")
+    @PreAuthorize(Permisos.PRODUCTOS_VER)
+    public ResponseEntity<Boolean> existeSku(@RequestParam String sku) {
+        return ResponseEntity.ok(productoService.existeSku(sku));
+    }
+
     @PostMapping
     @PreAuthorize(Permisos.PRODUCTOS_EDITAR)
     public ResponseEntity<ProductoDTO> crear(@Valid @RequestBody ProductoCreateDTO dto) {

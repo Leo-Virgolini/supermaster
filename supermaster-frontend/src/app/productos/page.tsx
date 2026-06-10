@@ -520,6 +520,7 @@ export default function ProductosPage() {
         const errors: Record<string, string> = {};
         if (!sku.trim()) errors.sku = "El SKU es obligatorio";
         else if (sku.trim().length > 45) errors.sku = "Máximo 45 caracteres";
+        else if (!editandoProductoId && skuYaExiste) errors.sku = "Ya existe un producto con este SKU";
         if (!descripcion.trim()) errors.descripcion = "La descripción es obligatoria";
         else if (descripcion.trim().length > 100) errors.descripcion = "Máximo 100 caracteres";
         if (!tituloWeb.trim()) errors.tituloWeb = "El Título Web es obligatorio";
@@ -1077,7 +1078,7 @@ export default function ProductosPage() {
 
             {/* MODAL CREAR / EDITAR PRODUCTO */}
             <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); resetForm(); setEditandoProductoId(null); }} title={editandoProductoId ? "Editar Producto" : "Nuevo Producto"} size="3xl" closeOnEscape={false}
-                footer={<><Button variant="light" onClick={() => { setIsModalOpen(false); resetForm(); setEditandoProductoId(null); }}><XMarkIcon className="w-4 h-4" /> Cancelar</Button><Button variant="dark" onClick={editandoProductoId ? handleGuardarEdicion : handleCreate} disabled={isSaving}><CheckIcon className="w-4 h-4" /> {isSaving ? (editandoProductoId ? "Guardando..." : "Creando Producto...") : (editandoProductoId ? "Guardar Cambios" : "Crear Producto")}</Button></>}>
+                footer={<><Button variant="light" onClick={() => { setIsModalOpen(false); resetForm(); setEditandoProductoId(null); }}><XMarkIcon className="w-4 h-4" /> Cancelar</Button><Button variant="dark" onClick={editandoProductoId ? handleGuardarEdicion : handleCreate} disabled={isSaving || (!editandoProductoId && skuYaExiste)}><CheckIcon className="w-4 h-4" /> {isSaving ? (editandoProductoId ? "Guardando..." : "Creando Producto...") : (editandoProductoId ? "Guardar Cambios" : "Crear Producto")}</Button></>}>
                 <div className="text-sm">
                     {/* Tabs solo en modo edición: Datos (form) e Historial */}
                     {editandoProductoId && (

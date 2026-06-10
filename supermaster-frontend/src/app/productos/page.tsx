@@ -1,6 +1,6 @@
 "use client";
 import dynamic from "next/dynamic";
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { notificar } from "../utils/notificar";
@@ -21,9 +21,14 @@ import {
     getProductosForExportAPI, getSiguienteSkuAPI, existeSkuAPI, getMlaPorSkuAPI, createMlaAPI,
     searchMarcas, searchClasifGral, searchClasifGastro, searchTipos, searchProveedores, searchOrigenes, searchMateriales, searchMlas,
     searchCatalogos, searchAptos, searchClientes, searchCanales, addProductoCatalogoAPI, addProductoAptoAPI, addProductoClienteAPI,
+    removeProductoCatalogoAPI, removeProductoAptoAPI, removeProductoClienteAPI, updateProductoAPI, getNombreById,
     exportarProductosADuxAPI, calcularEnvioMlaAPI,
 } from "./productosService";
 import { updateProductoMargenAPI } from "./productoMargenService";
+import {
+    getProductoAptosAPI, getProductoCatalogosAPI, getProductoClientesAPI,
+    getAllAptosAPI, getAllCatalogosAPI, getAllClientesAPI,
+} from "./productoSubRecursosService";
 import MultiAsyncSelect, { type MultiOption } from "../components/MultiAsyncSelect/MultiAsyncSelect";
 import { getColumns } from "./columns";
 import { ProductoCreateDTO, ProductoDTO, ProductoPatchDTO } from "./types";
@@ -251,6 +256,15 @@ export default function ProductosPage() {
     const [tipoId, setTipoId] = useState<number | null>(null);
     const [proveedorId, setProveedorId] = useState<number | null>(null);
     const [materialId, setMaterialId] = useState<number | null>(null);
+    // Nombres a mostrar en los AsyncSelect de relación simple (necesario para
+    // precargar el valor en modo edición; el AsyncSelect no resuelve nombre por id).
+    const [marcaDisplay, setMarcaDisplay] = useState("");
+    const [origenDisplay, setOrigenDisplay] = useState("");
+    const [clasifGralDisplay, setClasifGralDisplay] = useState("");
+    const [clasifGastroDisplay, setClasifGastroDisplay] = useState("");
+    const [tipoDisplay, setTipoDisplay] = useState("");
+    const [proveedorDisplay, setProveedorDisplay] = useState("");
+    const [materialDisplay, setMaterialDisplay] = useState("");
     const [mlaId, setMlaId] = useState<number | null>(null);
     const [mlaDisplay, setMlaDisplay] = useState("");
     // Panel "Nuevo MLA" dentro del alta de producto.
@@ -271,6 +285,15 @@ export default function ProductosPage() {
     const [catalogosSel, setCatalogosSel] = useState<MultiOption[]>([]);
     const [aptosSel, setAptosSel] = useState<MultiOption[]>([]);
     const [clientesSel, setClientesSel] = useState<MultiOption[]>([]);
+    // null = modo crear; con id = modo editar (mismo modal/form).
+    const [editandoProductoId, setEditandoProductoId] = useState<number | null>(null);
+    // Ref estable hacia abrirEdicion (definida más abajo) para usarla en el
+    // useMemo de columnas sin invalidar la memoización en cada render.
+    const abrirEdicionRef = useRef<(p: ProductoDTO) => void>(() => {});
+    // Snapshot de N-a-N al abrir en edición, para calcular el diff al guardar.
+    const [catalogosOriginal, setCatalogosOriginal] = useState<MultiOption[]>([]);
+    const [aptosOriginal, setAptosOriginal] = useState<MultiOption[]>([]);
+    const [clientesOriginal, setClientesOriginal] = useState<MultiOption[]>([]);
     const [moq, setMoq] = useState<number | "">("");
     const [stock, setStock] = useState<number | "">(0);
     const [tagReposicion, setTagReposicion] = useState<"" | "PRIO" | "LIQ">("");
@@ -290,7 +313,7 @@ export default function ProductosPage() {
         setPageIndex(0);
     }, [getSearchParamValue, searchParams]);
 
-    const { productos, totalRecords, isLoading, createProducto, deleteProducto, updateProducto, updateProductoMargen } = useProductos(pageIndex, pageSize, filters, sorting);
+    const { productos, totalRecords, isLoading, createProducto, deleteProducto, updateProducto, updateProductoMargen, refresh } = useProductos(pageIndex, pageSize, filters, sorting);
     const pageCount = totalRecords > 0 ? Math.ceil(totalRecords / pageSize) : 1;
 
     const sortFieldMapping: Record<string, string> = {
@@ -310,7 +333,7 @@ export default function ProductosPage() {
     const hasSelection = selectedIds.length > 0;
 
     const columns = useMemo(
-        () => getColumns((producto) => setDetalleProducto(producto), canEditProductos),
+        () => getColumns((producto) => setDetalleProducto(producto), (producto) => abrirEdicionRef.current(producto), canEditProductos),
         [canEditProductos]
     );
 
@@ -602,6 +625,123 @@ export default function ProductosPage() {
         } catch (e) { /* hook already toasts */ } finally { setIsSaving(false); }
     };
 
+    // Abre el modal en modo edición: precarga todos los campos del producto.
+    const abrirEdicion = async (producto: ProductoDTO) => {
+        setEditandoProductoId(producto.id);
+        setSku(producto.sku ?? "");
+        setCodExt(producto.codExt ?? "");
+        setTituloWeb(producto.tituloWeb ?? "");
+        setDescripcion(producto.descripcion ?? "");
+        setImagenUrl(producto.imagenUrl ?? "");
+        setEsCombo(!!producto.esCombo);
+        setUxb(producto.uxb ?? 1);
+        setActivo(!!producto.activo);
+        setSubirADux(false);
+        setCapacidad(producto.capacidad ?? "");
+        setLargo(producto.largo ?? ""); setAncho(producto.ancho ?? ""); setAlto(producto.alto ?? "");
+        setDiamboca(producto.diamboca ?? ""); setDiambase(producto.diambase ?? ""); setEspesor(producto.espesor ?? "");
+        setCosto(producto.costo ?? 0); setIva(producto.iva ?? 21);
+        setStock(producto.stock ?? ""); setMoq(producto.moq ?? "");
+        setTagReposicion((producto.tagReposicion as "" | "PRIO" | "LIQ") ?? "");
+        setTag((producto.tag as "" | "MAQUINA" | "REPUESTO" | "MENAJE") ?? "");
+        setMarcaId(producto.marcaId ?? null); setOrigenId(producto.origenId ?? null);
+        setClasifGralId(producto.clasifGralId ?? null); setClasifGastroId(producto.clasifGastroId ?? null);
+        setTipoId(producto.tipoId ?? null); setProveedorId(producto.proveedorId ?? null);
+        setMaterialId(producto.materialId ?? null); setMlaId(producto.mlaId ?? null);
+        // Displays: marca/clasif/tipo traen *NombreCompleto; mla trae mlaNombre.
+        setMarcaDisplay(producto.marcaNombreCompleto ?? "");
+        setClasifGralDisplay(producto.clasifGralNombreCompleto ?? "");
+        setClasifGastroDisplay(producto.clasifGastroNombreCompleto ?? "");
+        setTipoDisplay(producto.tipoNombreCompleto ?? "");
+        setMlaDisplay(producto.mlaNombre ?? "");
+        // Origen/material/proveedor no traen nombre en el DTO: se resuelven por id.
+        setOrigenDisplay(""); setMaterialDisplay(""); setProveedorDisplay("");
+        setMargenMinorista(producto.margenMinorista ?? ""); setMargenMayorista(producto.margenMayorista ?? "");
+        setMargenFijoMinorista(producto.margenFijoMinorista ?? ""); setMargenFijoMayorista(producto.margenFijoMayorista ?? "");
+        setFormErrors({});
+        setCatalogosSel([]); setAptosSel([]); setClientesSel([]);
+        setCatalogosOriginal([]); setAptosOriginal([]); setClientesOriginal([]);
+        setShowNuevoMla(false);
+        setIsModalOpen(true);
+
+        // Nombres de origen/material/proveedor (no vienen en el DTO de la tabla).
+        if (producto.origenId) getNombreById("origenes", producto.origenId).then(r => setOrigenDisplay(r.nombre)).catch(() => {});
+        if (producto.materialId) getNombreById("materiales", producto.materialId).then(r => setMaterialDisplay(r.nombre)).catch(() => {});
+        if (producto.proveedorId) getNombreById("proveedores", producto.proveedorId).then(r => setProveedorDisplay(r.nombre)).catch(() => {});
+
+        // Relaciones N-a-N: los GET dan ids; cruzamos con getAll* para los nombres.
+        try {
+            const [aptosAsig, allAptos, catAsig, allCat, cliAsig, allCli] = await Promise.all([
+                getProductoAptosAPI(producto.id), getAllAptosAPI(),
+                getProductoCatalogosAPI(producto.id), getAllCatalogosAPI(),
+                getProductoClientesAPI(producto.id), getAllClientesAPI(),
+            ]);
+            const aptos: MultiOption[] = aptosAsig.map(a => ({ id: a.aptoId, label: allAptos.find(x => x.id === a.aptoId)?.nombre ?? String(a.aptoId) }));
+            const catalogos: MultiOption[] = catAsig.map(c => ({ id: c.catalogoId, label: allCat.find(x => x.id === c.catalogoId)?.nombre ?? String(c.catalogoId) }));
+            const clientes: MultiOption[] = cliAsig.map(c => ({ id: c.clienteId, label: allCli.find(x => x.id === c.clienteId)?.nombre ?? String(c.clienteId) }));
+            setAptosSel(aptos); setAptosOriginal(aptos);
+            setCatalogosSel(catalogos); setCatalogosOriginal(catalogos);
+            setClientesSel(clientes); setClientesOriginal(clientes);
+        } catch {
+            notificar.error("No se pudieron cargar catálogos/aptos/clientes del producto");
+        }
+    };
+    // Mantener la ref apuntando a la última versión de abrirEdicion.
+    abrirEdicionRef.current = abrirEdicion;
+
+    // Guarda la edición: PATCH del producto + márgenes + diff de relaciones N-a-N.
+    const handleGuardarEdicion = async () => {
+        if (!validateForm() || editandoProductoId == null) return;
+        try {
+            setIsSaving(true);
+            const id = editandoProductoId;
+            const patch = {
+                codExt, tituloWeb: tituloWeb.trim(), descripcion: descripcion.trim(), esCombo, uxb, activo, imagenUrl,
+                capacidad, largo: largo || null, ancho: ancho || null, alto: alto || null,
+                diamboca: diamboca || null, diambase: diambase || null, espesor: espesor || null,
+                costo, iva, stock: stock !== "" ? stock : null, moq: moq !== "" ? moq : null,
+                tagReposicion: tagReposicion || null, tag: tag || null,
+                marcaId, origenId, clasifGralId, clasifGastroId, tipoId, proveedorId, materialId, mlaId,
+            } as ProductoPatchDTO;
+            await updateProductoAPI(id, patch, "FORM");
+
+            await updateProductoMargenAPI(id, {
+                margenMinorista: margenMinorista === "" ? null : margenMinorista,
+                margenMayorista: margenMayorista === "" ? null : margenMayorista,
+                margenFijoMinorista: margenFijoMinorista === "" ? null : margenFijoMinorista,
+                margenFijoMayorista: margenFijoMayorista === "" ? null : margenFijoMayorista,
+            });
+
+            const diff = (orig: MultiOption[], curr: MultiOption[]) => {
+                const oid = new Set(orig.map(o => Number(o.id)));
+                const cid = new Set(curr.map(c => Number(c.id)));
+                return {
+                    add: curr.filter(c => !oid.has(Number(c.id))).map(c => Number(c.id)),
+                    remove: orig.filter(o => !cid.has(Number(o.id))).map(o => Number(o.id)),
+                };
+            };
+            const dCat = diff(catalogosOriginal, catalogosSel);
+            const dApt = diff(aptosOriginal, aptosSel);
+            const dCli = diff(clientesOriginal, clientesSel);
+            await Promise.all([
+                ...dCat.add.map(x => addProductoCatalogoAPI(id, x)),
+                ...dCat.remove.map(x => removeProductoCatalogoAPI(id, x)),
+                ...dApt.add.map(x => addProductoAptoAPI(id, x)),
+                ...dApt.remove.map(x => removeProductoAptoAPI(id, x)),
+                ...dCli.add.map(x => addProductoClienteAPI(id, x)),
+                ...dCli.remove.map(x => removeProductoClienteAPI(id, x)),
+            ]);
+
+            notificar.success(`Producto ${sku} actualizado`);
+            resetForm();
+            setEditandoProductoId(null);
+            setIsModalOpen(false);
+            await refresh();
+        } catch (e) {
+            notificar.error(e instanceof Error ? e.message : "Error al guardar los cambios");
+        } finally { setIsSaving(false); }
+    };
+
     // Pide al backend el menor SKU libre del rango y lo carga en el form.
     // Si el rango está lleno (sku null) deja el campo vacío y avisa.
     const cargarSkuSugerido = useCallback(async (combo: boolean) => {
@@ -638,7 +778,8 @@ export default function ProductosPage() {
     // backend si el SKU tipeado ya pertenece a otro producto. Solo mientras el
     // modal de alta está abierto; abortamos la consulta anterior al re-tipear.
     useEffect(() => {
-        if (!isModalOpen) { setSkuYaExiste(false); return; }
+        // En edición el SKU es solo lectura (es el del propio producto): no validamos duplicado.
+        if (!isModalOpen || editandoProductoId) { setSkuYaExiste(false); return; }
         const valor = sku.trim();
         if (!valor) { setSkuYaExiste(false); return; }
         const controller = new AbortController();
@@ -650,7 +791,7 @@ export default function ProductosPage() {
             }
         }, 400);
         return () => { clearTimeout(t); controller.abort(); };
-    }, [sku, isModalOpen]);
+    }, [sku, isModalOpen, editandoProductoId]);
 
     const aplicarMlaEnForm = (mla: { id: number; mla: string; mlau: string | null; precioEnvio: number | null; comisionPorcentaje: number | null; topePromocion: number | null }) => {
         setMlaId(mla.id);
@@ -714,6 +855,9 @@ export default function ProductosPage() {
         setCosto(0); setIva(21.0);
         setMarcaId(null); setOrigenId(null); setClasifGralId(null); setClasifGastroId(null);
         setTipoId(null); setProveedorId(null); setMaterialId(null); setMlaId(null);
+        setMarcaDisplay(""); setOrigenDisplay(""); setClasifGralDisplay(""); setClasifGastroDisplay("");
+        setTipoDisplay(""); setProveedorDisplay(""); setMaterialDisplay("");
+        setCatalogosOriginal([]); setAptosOriginal([]); setClientesOriginal([]);
         setMoq(""); setStock(0); setTagReposicion(""); setTag("");
         setMlaDisplay(""); setShowNuevoMla(false);
         setMlaCodigo(""); setMlaMlau(""); setMlaPrecioEnvio(""); setMlaTope(""); setMlaComision("");
@@ -930,9 +1074,9 @@ export default function ProductosPage() {
                 />
             </div>
 
-            {/* MODAL CREAR PRODUCTO */}
-            <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); resetForm(); }} title="Nuevo Producto" size="2xl" closeOnEscape={false}
-                footer={<><Button variant="light" onClick={() => { setIsModalOpen(false); resetForm(); }}><XMarkIcon className="w-4 h-4" /> Cancelar</Button><Button variant="dark" onClick={handleCreate} disabled={isSaving}><CheckIcon className="w-4 h-4" /> {isSaving ? "Creando Producto..." : "Crear Producto"}</Button></>}>
+            {/* MODAL CREAR / EDITAR PRODUCTO */}
+            <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); resetForm(); setEditandoProductoId(null); }} title={editandoProductoId ? "Editar Producto" : "Nuevo Producto"} size="2xl" closeOnEscape={false}
+                footer={<><Button variant="light" onClick={() => { setIsModalOpen(false); resetForm(); setEditandoProductoId(null); }}><XMarkIcon className="w-4 h-4" /> Cancelar</Button><Button variant="dark" onClick={editandoProductoId ? handleGuardarEdicion : handleCreate} disabled={isSaving}><CheckIcon className="w-4 h-4" /> {isSaving ? (editandoProductoId ? "Guardando..." : "Creando Producto...") : (editandoProductoId ? "Guardar Cambios" : "Crear Producto")}</Button></>}>
                 <div className="flex flex-col gap-5 text-sm">
                     {Object.values(formErrors).some(Boolean) && (
                         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-300">
@@ -969,7 +1113,7 @@ export default function ProductosPage() {
                             {/* Identificadores */}
                             <label className="block">
                                 <span className={fieldLabelClassName}>SKU <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span></span>
-                                <input type="text" className={`${inputBaseClassName} ${formErrors.sku ? inputErrorClassName : (skuYaExiste ? "border-amber-400 bg-amber-50 dark:bg-amber-900/20" : "")}`} value={sku} onChange={e => { setSku(e.target.value); if (formErrors.sku) setFormErrors(p => ({ ...p, sku: "" })); }} placeholder="Ej: CUT-001" autoFocus required />
+                                <input type="text" disabled={!!editandoProductoId} className={`${inputBaseClassName} ${editandoProductoId ? "cursor-not-allowed opacity-60" : ""} ${formErrors.sku ? inputErrorClassName : (skuYaExiste ? "border-amber-400 bg-amber-50 dark:bg-amber-900/20" : "")}`} value={sku} onChange={e => { setSku(e.target.value); if (formErrors.sku) setFormErrors(p => ({ ...p, sku: "" })); }} placeholder="Ej: CUT-001" autoFocus required />
                                 {formErrors.sku
                                     ? <p className="mt-1 text-xs text-red-500">{formErrors.sku}</p>
                                     : skuYaExiste && <p className="mt-1 text-xs font-medium text-amber-600 dark:text-amber-400">⚠ Ya existe un producto con este SKU</p>}
@@ -1110,21 +1254,21 @@ export default function ProductosPage() {
                         <legend className={sectionTitleClassName}>Clasificación y Relaciones</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Asociaciones maestras para filtros, navegación y reglas del sistema.</p>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                            <AsyncSelect label="Marca" loadOptions={searchMarcas} onChange={(v) => setMarcaId(v ? Number(v) : null)} value={marcaId} placeholder="Buscar marca" inputClassName={inputBaseClassName} />
-                            <AsyncSelect label="Origen" loadOptions={searchOrigenes} onChange={(v) => setOrigenId(v ? Number(v) : null)} value={origenId} placeholder="Buscar origen" inputClassName={inputBaseClassName} />
+                            <AsyncSelect label="Marca" loadOptions={searchMarcas} onChange={(v, label) => { setMarcaId(v ? Number(v) : null); setMarcaDisplay(v ? (label ?? "") : ""); }} value={marcaId} displayValue={marcaDisplay} placeholder="Buscar marca" inputClassName={inputBaseClassName} />
+                            <AsyncSelect label="Origen" loadOptions={searchOrigenes} onChange={(v, label) => { setOrigenId(v ? Number(v) : null); setOrigenDisplay(v ? (label ?? "") : ""); }} value={origenId} displayValue={origenDisplay} placeholder="Buscar origen" inputClassName={inputBaseClassName} />
                             <div>
-                                <AsyncSelect label={<>Clasif. Gral <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">al menos una</span></>} loadOptions={searchClasifGral} onChange={(v) => { setClasifGralId(v ? Number(v) : null); if (formErrors.clasificacion) setFormErrors(p => ({ ...p, clasificacion: "" })); }} value={clasifGralId} placeholder="Buscar clasificación" inputClassName={`${inputBaseClassName} ${formErrors.clasificacion ? inputErrorClassName : ""}`} />
+                                <AsyncSelect label={<>Clasif. Gral <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">al menos una</span></>} loadOptions={searchClasifGral} onChange={(v, label) => { setClasifGralId(v ? Number(v) : null); setClasifGralDisplay(v ? (label ?? "") : ""); if (formErrors.clasificacion) setFormErrors(p => ({ ...p, clasificacion: "" })); }} value={clasifGralId} displayValue={clasifGralDisplay} placeholder="Buscar clasificación" inputClassName={`${inputBaseClassName} ${formErrors.clasificacion ? inputErrorClassName : ""}`} />
                                 {formErrors.clasificacion && <p className="mt-1 text-xs text-red-500">{formErrors.clasificacion}</p>}
                             </div>
                             <div>
-                                <AsyncSelect label={<>Clasif. Gastro <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">al menos una</span></>} loadOptions={searchClasifGastro} onChange={(v) => { setClasifGastroId(v ? Number(v) : null); if (formErrors.clasificacion) setFormErrors(p => ({ ...p, clasificacion: "" })); }} value={clasifGastroId} placeholder="Buscar clasificación" inputClassName={`${inputBaseClassName} ${formErrors.clasificacion ? inputErrorClassName : ""}`} />
+                                <AsyncSelect label={<>Clasif. Gastro <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">al menos una</span></>} loadOptions={searchClasifGastro} onChange={(v, label) => { setClasifGastroId(v ? Number(v) : null); setClasifGastroDisplay(v ? (label ?? "") : ""); if (formErrors.clasificacion) setFormErrors(p => ({ ...p, clasificacion: "" })); }} value={clasifGastroId} displayValue={clasifGastroDisplay} placeholder="Buscar clasificación" inputClassName={`${inputBaseClassName} ${formErrors.clasificacion ? inputErrorClassName : ""}`} />
                             </div>
                             <div>
-                                <AsyncSelect label={<>Tipo <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span></>} loadOptions={searchTipos} onChange={(v) => { setTipoId(v ? Number(v) : null); if (formErrors.tipoId) setFormErrors(p => ({ ...p, tipoId: "" })); }} value={tipoId} placeholder="Buscar tipo" inputClassName={`${inputBaseClassName} ${formErrors.tipoId ? inputErrorClassName : ""}`} />
+                                <AsyncSelect label={<>Tipo <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span></>} loadOptions={searchTipos} onChange={(v, label) => { setTipoId(v ? Number(v) : null); setTipoDisplay(v ? (label ?? "") : ""); if (formErrors.tipoId) setFormErrors(p => ({ ...p, tipoId: "" })); }} value={tipoId} displayValue={tipoDisplay} placeholder="Buscar tipo" inputClassName={`${inputBaseClassName} ${formErrors.tipoId ? inputErrorClassName : ""}`} />
                                 {formErrors.tipoId && <p className="mt-1 text-xs text-red-500">{formErrors.tipoId}</p>}
                             </div>
-                            <AsyncSelect label="Proveedor" loadOptions={searchProveedores} onChange={(v) => setProveedorId(v ? Number(v) : null)} value={proveedorId} placeholder="Buscar proveedor" inputClassName={inputBaseClassName} />
-                            <AsyncSelect label="Material" loadOptions={searchMateriales} onChange={(v) => setMaterialId(v ? Number(v) : null)} value={materialId} placeholder="Buscar material" inputClassName={inputBaseClassName} />
+                            <AsyncSelect label="Proveedor" loadOptions={searchProveedores} onChange={(v, label) => { setProveedorId(v ? Number(v) : null); setProveedorDisplay(v ? (label ?? "") : ""); }} value={proveedorId} displayValue={proveedorDisplay} placeholder="Buscar proveedor" inputClassName={inputBaseClassName} />
+                            <AsyncSelect label="Material" loadOptions={searchMateriales} onChange={(v, label) => { setMaterialId(v ? Number(v) : null); setMaterialDisplay(v ? (label ?? "") : ""); }} value={materialId} displayValue={materialDisplay} placeholder="Buscar material" inputClassName={inputBaseClassName} />
                             <label className="block">
                                 <span className={fieldLabelClassName}>Tag</span>
                                 <select className={selectBaseClassName} value={tag} onChange={e => setTag(e.target.value as "" | "MAQUINA" | "REPUESTO" | "MENAJE")}>

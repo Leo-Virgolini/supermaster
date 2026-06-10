@@ -133,5 +133,6 @@ export function useProductos(pageIndex: number, pageSize: number, filters: Recor
 		updateProducto,
 		updateProductoMargen,
 		deleteProducto,
+		refresh: getProductos,
 	};
 }

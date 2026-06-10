@@ -236,6 +236,13 @@ export const getSiguienteSkuAPI = async (esCombo: boolean): Promise<string | nul
 	return typeof json?.sku === "string" ? json.sku : null;
 };
 
+/** Verifica si ya existe un producto con ese SKU (para avisar en el alta). */
+export const existeSkuAPI = async (sku: string, signal?: AbortSignal): Promise<boolean> => {
+	const res = await fetchAPI(`${API_URL}/existe-sku?sku=${encodeURIComponent(sku)}`, { signal });
+	if (!res.ok) throw new Error("Error al verificar el SKU");
+	return (await res.json()) === true;
+};
+
 export const createProductoAPI = async (data: ProductoCreateDTO, origin: ProductoAuditOrigin = "API") => {
 	const response = await fetchAPI(API_URL, {
 		method: "POST",
@@ -273,6 +280,16 @@ const asociarRelacion = async (productoId: number, tipo: "catalogos" | "aptos" |
 export const addProductoCatalogoAPI = (productoId: number, catalogoId: number) => asociarRelacion(productoId, "catalogos", catalogoId);
 export const addProductoAptoAPI = (productoId: number, aptoId: number) => asociarRelacion(productoId, "aptos", aptoId);
 export const addProductoClienteAPI = (productoId: number, clienteId: number) => asociarRelacion(productoId, "clientes", clienteId);
+
+// Quita una relación N-a-N del producto. Ignora 404 (ya no existe) para idempotencia.
+const desasociarRelacion = async (productoId: number, tipo: "catalogos" | "aptos" | "clientes", relId: number) => {
+	const res = await fetchAPI(`${API_URL}/${productoId}/${tipo}/${relId}`, { method: "DELETE", allowedStatuses: [404] });
+	if (!res.ok && res.status !== 404) throw new Error(`Error al quitar ${tipo}`);
+};
+
+export const removeProductoCatalogoAPI = (productoId: number, catalogoId: number) => desasociarRelacion(productoId, "catalogos", catalogoId);
+export const removeProductoAptoAPI = (productoId: number, aptoId: number) => desasociarRelacion(productoId, "aptos", aptoId);
+export const removeProductoClienteAPI = (productoId: number, clienteId: number) => desasociarRelacion(productoId, "clientes", clienteId);
 
 export const getProductoAuditoriaAPI = async (
 	id: number,

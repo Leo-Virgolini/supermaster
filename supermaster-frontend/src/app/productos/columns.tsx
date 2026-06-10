@@ -3,7 +3,7 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { EyeIcon, ChartBarIcon } from "@heroicons/react/24/outline";
+import { EyeIcon, ChartBarIcon, PencilSquareIcon } from "@heroicons/react/24/outline";
 import {
     searchMarcas, searchClasifGral, searchClasifGastro, searchTipos,
     searchProveedores, searchOrigenes, searchMateriales, searchMlas
@@ -266,7 +266,7 @@ function ImageUrlCell({ currentUrl, sku, onSave, disabled = false }: {
     );
 }
 
-export function getColumns(onOpenDetalle: (producto: ProductoDTO) => void, canEdit = true): ColumnDef<ProductoDTO>[] {
+export function getColumns(onOpenDetalle: (producto: ProductoDTO) => void, onEditarProducto: (producto: ProductoDTO) => void, canEdit = true): ColumnDef<ProductoDTO>[] {
   return [
     {
         id: "select",
@@ -286,6 +286,15 @@ export function getColumns(onOpenDetalle: (producto: ProductoDTO) => void, canEd
         enableColumnFilter: false,
         cell: ({ row }) => (
             <div className="flex flex-col items-stretch gap-1">
+                <TableActionButton
+                    onClick={() => onEditarProducto(row.original)}
+                    title="Editar producto"
+                    icon={<PencilSquareIcon className="w-3.5 h-3.5" />}
+                    tone="neutral"
+                    disabled={!canEdit}
+                >
+                    Editar
+                </TableActionButton>
                 <TableActionButton
                     onClick={() => onOpenDetalle(row.original)}
                     title="Ver detalle del producto"

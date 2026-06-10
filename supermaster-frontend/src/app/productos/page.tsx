@@ -649,7 +649,7 @@ export default function ProductosPage() {
         setEsCombo(!!producto.esCombo);
         setUxb(producto.uxb ?? 1);
         setActivo(!!producto.activo);
-        setSubirADux(false);
+        setSubirADux(true);
         setCapacidad(producto.capacidad ?? "");
         setLargo(producto.largo ?? ""); setAncho(producto.ancho ?? ""); setAlto(producto.alto ?? "");
         setDiamboca(producto.diamboca ?? ""); setDiambase(producto.diambase ?? ""); setEspesor(producto.espesor ?? "");

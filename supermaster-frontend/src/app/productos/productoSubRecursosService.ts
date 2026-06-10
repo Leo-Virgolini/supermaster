@@ -104,6 +104,20 @@ export const asignarPrecioInfladoAPI = async (
     return res.json();
 };
 
+export const actualizarPrecioInfladoAPI = async (
+    productoId: number,
+    canalId: number,
+    data: { precioInfladoId?: number; activo?: boolean; fechaDesde?: string | null; fechaHasta?: string | null; observaciones?: string | null },
+): Promise<ProductoCanalPrecioInfladoDTO> => {
+    const res = await fetchAPI(`${BASE}/${productoId}/canales/${canalId}/precios-inflados`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error("Error al actualizar precio inflado");
+    return res.json();
+};
+
 export const quitarPrecioInfladoAPI = async (productoId: number, canalId: number): Promise<void> => {
     const res = await fetchAPI(`${BASE}/${productoId}/canales/${canalId}/precios-inflados`, { method: "DELETE" });
     if (!res.ok) throw new Error("Error al quitar precio inflado");

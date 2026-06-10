@@ -2,31 +2,39 @@
 
 import { getErrorMessage } from "@/lib/errors";
 import { useState, useEffect, useCallback } from "react";
+import { PlusIcon, PencilSquareIcon, TrashIcon, XMarkIcon, CheckIcon } from "@heroicons/react/24/outline";
 import Button from "../components/Button/Button";
 import { confirmDialog } from "../utils/confirmDialog";
 import { formatFechaAR } from "../utils/formatDate";
 import {
-    getProductoPrecioInfladoPorCanalAPI, getProductoPreciosInfladosAPI, asignarPrecioInfladoAPI, quitarPrecioInfladoAPI,
+    getProductoPreciosInfladosAPI, asignarPrecioInfladoAPI, actualizarPrecioInfladoAPI, quitarPrecioInfladoAPI,
     getAllPreciosInfladosAPI, getAllCanalesAPI,
     ProductoCanalPrecioInfladoDTO,
 } from "./productoSubRecursosService";
 
+const inputCls = "w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:ring-blue-500/20";
+const labelCls = "mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300";
+
+type FormState = {
+    canalId: number | "";
+    precioInfladoId: number | "";
+    fechaDesde: string;
+    fechaHasta: string;
+    observaciones: string;
+    modo: "nuevo" | "editar";
+};
+
 // Gestión de precios inflados por canal de un producto.
-// La API es por canal: GET/POST/DELETE /api/productos/{id}/canales/{canalId}/precios-inflados
+// La tabla es el centro: cada fila se edita o quita; el formulario de
+// alta/edición aparece bajo demanda. POST para asignar, PUT para cambiar.
 export function PreciosInfladosSection({ productoId }: { productoId: number }) {
     const [canales, setCanales] = useState<{ id: number; nombre: string }[]>([]);
     const [preciosInflados, setPreciosInflados] = useState<{ id: number; nombre: string }[]>([]);
     const [asignaciones, setAsignaciones] = useState<ProductoCanalPrecioInfladoDTO[]>([]);
-    const [selectedCanalId, setSelectedCanalId] = useState<number | "">("");
-    const [selectedPrecioId, setSelectedPrecioId] = useState<number | "">("");
-    const [asignacionActual, setAsignacionActual] = useState<ProductoCanalPrecioInfladoDTO | null>(null);
-    const [fechaDesde, setFechaDesde] = useState("");
-    const [fechaHasta, setFechaHasta] = useState("");
-    const [observaciones, setObservaciones] = useState("");
-    const [isLoadingCanal, setIsLoadingCanal] = useState(false);
     const [isLoadingInit, setIsLoadingInit] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [form, setForm] = useState<FormState | null>(null);
 
     const recargarAsignaciones = useCallback(() => {
         return getProductoPreciosInfladosAPI(productoId)
@@ -34,7 +42,6 @@ export function PreciosInfladosSection({ productoId }: { productoId: number }) {
             .catch((e) => setError(getErrorMessage(e)));
     }, [productoId]);
 
-    // Carga inicial: listas de canales, precios inflados y asignaciones actuales
     useEffect(() => {
         setIsLoadingInit(true);
         Promise.all([getAllCanalesAPI(), getAllPreciosInfladosAPI(), getProductoPreciosInfladosAPI(productoId)])
@@ -43,39 +50,55 @@ export function PreciosInfladosSection({ productoId }: { productoId: number }) {
             .finally(() => setIsLoadingInit(false));
     }, [productoId]);
 
-    // Cuando cambia el canal seleccionado, busca la asignación actual
-    useEffect(() => {
-        if (!selectedCanalId) { setAsignacionActual(null); setSelectedPrecioId(""); setFechaDesde(""); setFechaHasta(""); setObservaciones(""); return; }
-        setIsLoadingCanal(true);
-        setError(null);
-        setSelectedPrecioId("");
-        setFechaDesde(""); setFechaHasta(""); setObservaciones("");
-        getProductoPrecioInfladoPorCanalAPI(productoId, Number(selectedCanalId))
-            .then((data) => {
-                setAsignacionActual(data);
-                if (data) {
-                    setSelectedPrecioId(data.precioInflado.id);
-                    setFechaDesde(data.fechaDesde ?? "");
-                    setFechaHasta(data.fechaHasta ?? "");
-                    setObservaciones(data.observaciones ?? "");
-                }
-            })
-            .catch((e) => setError(getErrorMessage(e)))
-            .finally(() => setIsLoadingCanal(false));
-    }, [selectedCanalId, productoId]);
+    const nombreCanal = (canalId: number) => canales.find(c => c.id === canalId)?.nombre ?? `Canal ${canalId}`;
 
-    const handleAsignar = async () => {
-        if (!selectedCanalId || !selectedPrecioId) return;
+    // Canales sin asignación (disponibles para una nueva).
+    const canalesLibres = canales.filter(c => !asignaciones.some(a => a.canalId === c.id));
+
+    const abrirNuevo = () => {
+        setError(null);
+        setForm({ canalId: "", precioInfladoId: "", fechaDesde: "", fechaHasta: "", observaciones: "", modo: "nuevo" });
+    };
+
+    const abrirEditar = (a: ProductoCanalPrecioInfladoDTO) => {
+        setError(null);
+        setForm({
+            canalId: a.canalId,
+            precioInfladoId: a.precioInflado.id,
+            fechaDesde: a.fechaDesde ?? "",
+            fechaHasta: a.fechaHasta ?? "",
+            observaciones: a.observaciones ?? "",
+            modo: "editar",
+        });
+    };
+
+    const guardar = async () => {
+        if (!form || !form.canalId || !form.precioInfladoId) return;
         setIsSaving(true);
         setError(null);
         try {
-            const result = await asignarPrecioInfladoAPI(
-                productoId,
-                Number(selectedCanalId),
-                Number(selectedPrecioId),
-                { fechaDesde: fechaDesde || null, fechaHasta: fechaHasta || null, observaciones: observaciones || null },
-            );
-            setAsignacionActual(result);
+            const extra = { fechaDesde: form.fechaDesde || null, fechaHasta: form.fechaHasta || null, observaciones: form.observaciones || null };
+            if (form.modo === "nuevo") {
+                await asignarPrecioInfladoAPI(productoId, Number(form.canalId), Number(form.precioInfladoId), extra);
+            } else {
+                await actualizarPrecioInfladoAPI(productoId, Number(form.canalId), { precioInfladoId: Number(form.precioInfladoId), ...extra });
+            }
+            await recargarAsignaciones();
+            setForm(null);
+        } catch (e: unknown) {
+            setError(getErrorMessage(e));
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const quitar = async (a: ProductoCanalPrecioInfladoDTO) => {
+        if (!(await confirmDialog({ title: "Quitar precio inflado", message: `¿Quitar el precio inflado de "${nombreCanal(a.canalId)}"?`, confirmText: "Quitar", variant: "danger" }))) return;
+        setIsSaving(true);
+        setError(null);
+        try {
+            await quitarPrecioInfladoAPI(productoId, a.canalId);
+            if (form?.canalId === a.canalId) setForm(null);
             await recargarAsignaciones();
         } catch (e: unknown) {
             setError(getErrorMessage(e));
@@ -84,60 +107,58 @@ export function PreciosInfladosSection({ productoId }: { productoId: number }) {
         }
     };
 
-    const handleQuitar = async () => {
-        if (!selectedCanalId) return;
-        if (!(await confirmDialog({ title: "Eliminar", message: "¿Quitar el precio inflado de este canal?", confirmText: "Eliminar", variant: "danger" }))) return;
-        setIsSaving(true);
-        setError(null);
-        try {
-            await quitarPrecioInfladoAPI(productoId, Number(selectedCanalId));
-            setAsignacionActual(null);
-            setSelectedPrecioId("");
-            await recargarAsignaciones();
-        } catch (e: unknown) {
-            setError(getErrorMessage(e));
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    if (isLoadingInit) return <p className="text-sm text-gray-400 text-center py-6">Cargando...</p>;
+    if (isLoadingInit) return <p className="py-6 text-center text-sm text-slate-400">Cargando...</p>;
 
     return (
         <div className="flex flex-col gap-4">
-            {error && <div className="p-3 bg-red-100 text-red-700 rounded text-sm">{error}</div>}
+            {error && <div className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-300">{error}</div>}
 
-            {/* Resumen: precios inflados ya asignados (todos los canales) */}
-            <div className="rounded-lg border border-slate-200 dark:border-slate-700">
-                <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                    Asignaciones actuales
+            {/* Tabla de asignaciones actuales */}
+            <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
+                <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2 dark:border-slate-700 dark:bg-slate-800">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">Asignaciones por canal</span>
+                    <Button variant="dark" onClick={abrirNuevo} disabled={canalesLibres.length === 0 || isSaving}>
+                        <PlusIcon className="h-4 w-4" /> Agregar
+                    </Button>
                 </div>
                 {asignaciones.length === 0 ? (
-                    <p className="px-3 py-3 text-sm text-gray-400">Este producto no tiene precios inflados asignados en ningún canal.</p>
+                    <p className="px-4 py-4 text-sm text-slate-400">Este producto no tiene precios inflados asignados en ningún canal.</p>
                 ) : (
                     <table className="w-full text-sm">
-                        <thead className="text-left text-xs text-slate-500">
-                            <tr>
-                                <th className="px-3 py-1.5 font-semibold">Canal</th>
-                                <th className="px-3 py-1.5 font-semibold">Precio inflado</th>
-                                <th className="px-3 py-1.5 font-semibold">Estado</th>
+                        <thead className="text-left text-xs text-slate-500 dark:text-slate-400">
+                            <tr className="border-b border-slate-100 dark:border-slate-800">
+                                <th className="px-4 py-2 font-semibold">Canal</th>
+                                <th className="px-4 py-2 font-semibold">Precio inflado</th>
+                                <th className="px-4 py-2 font-semibold">Vigencia</th>
+                                <th className="px-4 py-2 font-semibold">Estado</th>
+                                <th className="px-4 py-2 text-right font-semibold">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
                             {asignaciones.map((a) => (
-                                <tr
-                                    key={a.id}
-                                    onClick={() => setSelectedCanalId(a.canalId)}
-                                    className="cursor-pointer border-t border-slate-100 hover:bg-blue-50/60 dark:border-slate-800 dark:hover:bg-blue-900/20"
-                                    title="Click para ver / editar esta asignación"
-                                >
-                                    <td className="px-3 py-1.5 text-slate-700 dark:text-slate-200">{canales.find(c => c.id === a.canalId)?.nombre ?? `Canal ${a.canalId}`}</td>
-                                    <td className="px-3 py-1.5 text-slate-700 dark:text-slate-200">
+                                <tr key={a.id} className="border-t border-slate-100 dark:border-slate-800">
+                                    <td className="px-4 py-2 font-medium text-slate-700 dark:text-slate-200">{nombreCanal(a.canalId)}</td>
+                                    <td className="px-4 py-2 text-slate-700 dark:text-slate-200">
                                         <span className="font-semibold">{a.precioInflado.codigo}</span>
-                                        <span className="ml-2 text-xs text-slate-500">({a.precioInflado.tipo} = {a.precioInflado.valor})</span>
+                                        <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">({a.precioInflado.tipo} = {a.precioInflado.valor})</span>
                                     </td>
-                                    <td className="px-3 py-1.5">
-                                        <span className={`text-xs font-medium ${a.activo ? "text-green-600" : "text-gray-400"}`}>{a.activo ? "Activo" : "Inactivo"}</span>
+                                    <td className="px-4 py-2 text-xs text-slate-500 dark:text-slate-400">
+                                        {a.fechaDesde || a.fechaHasta
+                                            ? `${a.fechaDesde ? formatFechaAR(a.fechaDesde) : "…"} → ${a.fechaHasta ? formatFechaAR(a.fechaHasta) : "…"}`
+                                            : "Sin límite"}
+                                    </td>
+                                    <td className="px-4 py-2">
+                                        <span className={`text-xs font-medium ${a.activo ? "text-green-600 dark:text-green-400" : "text-slate-400"}`}>{a.activo ? "Activo" : "Inactivo"}</span>
+                                    </td>
+                                    <td className="px-4 py-2">
+                                        <div className="flex justify-end gap-1">
+                                            <button type="button" onClick={() => abrirEditar(a)} title="Editar" className="rounded-lg border border-slate-200 p-1.5 text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+                                                <PencilSquareIcon className="h-4 w-4" />
+                                            </button>
+                                            <button type="button" onClick={() => quitar(a)} disabled={isSaving} title="Quitar" className="rounded-lg border border-red-200 p-1.5 text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/30">
+                                                <TrashIcon className="h-4 w-4" />
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -146,110 +167,58 @@ export function PreciosInfladosSection({ productoId }: { productoId: number }) {
                 )}
             </div>
 
-            <p className="text-xs text-gray-500">Seleccioná un canal para ver o modificar su precio inflado asignado.</p>
-
-            {/* Selector de canal */}
-            <label className="block">
-                <span className="text-xs font-semibold text-gray-600">Canal</span>
-                <select
-                    className="w-full border border-gray-300 rounded p-2 text-sm mt-1"
-                    value={selectedCanalId}
-                    onChange={(e) => setSelectedCanalId(e.target.value ? Number(e.target.value) : "")}
-                >
-                    <option value="">-- Seleccionar canal --</option>
-                    {canales.map((c) => (
-                        <option key={c.id} value={c.id}>{c.nombre}</option>
-                    ))}
-                </select>
-            </label>
-
-            {/* Estado actual del canal seleccionado */}
-            {selectedCanalId && (
-                isLoadingCanal ? (
-                    <p className="text-sm text-gray-400 text-center py-2">Buscando asignación...</p>
-                ) : (
-                    <div className="border border-gray-200 rounded p-3 bg-gray-50">
-                        {asignacionActual ? (
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="flex flex-col gap-0.5">
-                                    <p className="text-xs text-gray-500 mb-0.5">Precio inflado actual</p>
-                                    <p className="font-semibold text-gray-800">
-                                        {asignacionActual.precioInflado.codigo}
-                                        <span className="text-xs text-gray-500 ml-2">
-                                            ({asignacionActual.precioInflado.tipo} = {asignacionActual.precioInflado.valor})
-                                        </span>
-                                    </p>
-                                    <span className={`text-xs font-medium ${asignacionActual.activo ? "text-green-600" : "text-gray-400"}`}>
-                                        {asignacionActual.activo ? "Activo" : "Inactivo"}
-                                    </span>
-                                    {(asignacionActual.fechaDesde || asignacionActual.fechaHasta) && (
-                                        <span className="text-xs text-gray-500">
-                                            {asignacionActual.fechaDesde && `Desde: ${formatFechaAR(asignacionActual.fechaDesde)}`}
-                                            {asignacionActual.fechaDesde && asignacionActual.fechaHasta && " · "}
-                                            {asignacionActual.fechaHasta && `Hasta: ${formatFechaAR(asignacionActual.fechaHasta)}`}
-                                        </span>
-                                    )}
-                                    {asignacionActual.observaciones && (
-                                        <span className="text-xs text-gray-500 italic">{asignacionActual.observaciones}</span>
-                                    )}
-                                </div>
-                                <button
-                                    onClick={handleQuitar}
-                                    disabled={isSaving}
-                                    className="text-red-500 hover:text-red-700 text-xs font-medium px-2 py-1 border border-red-200 rounded hover:bg-red-50 transition shrink-0"
-                                >
-                                    Quitar
-                                </button>
-                            </div>
-                        ) : (
-                            <p className="text-sm text-gray-400">Sin precio inflado asignado para este canal.</p>
-                        )}
-                    </div>
-                )
+            {canalesLibres.length === 0 && !form && (
+                <p className="text-xs text-slate-400">Todos los canales ya tienen un precio inflado asignado. Editá o quitá los existentes.</p>
             )}
 
-            {/* Selector de precio inflado + fecha/notas + botón asignar */}
-            {selectedCanalId && !isLoadingCanal && (
-                <div className="flex flex-col gap-3">
-                    <label className="block">
-                        <span className="text-xs font-semibold text-gray-600">
-                            {asignacionActual ? "Cambiar precio inflado" : "Asignar precio inflado"}
-                        </span>
-                        <select
-                            className="w-full border border-gray-300 rounded p-2 text-sm mt-1"
-                            value={selectedPrecioId}
-                            onChange={(e) => setSelectedPrecioId(e.target.value ? Number(e.target.value) : "")}
-                        >
-                            <option value="">-- Seleccionar --</option>
-                            {preciosInflados.map((p) => (
-                                <option key={p.id} value={p.id}>{p.nombre}</option>
-                            ))}
-                        </select>
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
+            {/* Formulario de alta / edición */}
+            {form && (
+                <div className="rounded-2xl border border-blue-200 bg-blue-50/40 p-4 dark:border-blue-900 dark:bg-blue-950/20">
+                    <div className="mb-3 flex items-center justify-between">
+                        <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                            {form.modo === "nuevo" ? "Nueva asignación" : `Editar asignación · ${nombreCanal(Number(form.canalId))}`}
+                        </h4>
+                        <button type="button" onClick={() => setForm(null)} title="Cerrar" className="text-slate-400 transition hover:text-slate-600 dark:hover:text-slate-200">
+                            <XMarkIcon className="h-5 w-5" />
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        {form.modo === "nuevo" && (
+                            <label className="block">
+                                <span className={labelCls}>Canal</span>
+                                <select className={inputCls} value={form.canalId} onChange={(e) => setForm({ ...form, canalId: e.target.value ? Number(e.target.value) : "" })}>
+                                    <option value="">-- Seleccionar canal --</option>
+                                    {canalesLibres.map((c) => (<option key={c.id} value={c.id}>{c.nombre}</option>))}
+                                </select>
+                            </label>
+                        )}
                         <label className="block">
-                            <span className="text-xs font-semibold text-gray-600">Fecha Desde</span>
-                            <input type="date" className="w-full border border-gray-300 rounded p-2 text-sm mt-1"
-                                value={fechaDesde} onChange={e => setFechaDesde(e.target.value)} />
+                            <span className={labelCls}>Precio inflado</span>
+                            <select className={inputCls} value={form.precioInfladoId} onChange={(e) => setForm({ ...form, precioInfladoId: e.target.value ? Number(e.target.value) : "" })}>
+                                <option value="">-- Seleccionar --</option>
+                                {preciosInflados.map((p) => (<option key={p.id} value={p.id}>{p.nombre}</option>))}
+                            </select>
                         </label>
                         <label className="block">
-                            <span className="text-xs font-semibold text-gray-600">Fecha Hasta</span>
-                            <input type="date" className="w-full border border-gray-300 rounded p-2 text-sm mt-1"
-                                value={fechaHasta} onChange={e => setFechaHasta(e.target.value)} />
+                            <span className={labelCls}>Fecha Desde</span>
+                            <input type="date" className={inputCls} value={form.fechaDesde} onChange={(e) => setForm({ ...form, fechaDesde: e.target.value })} />
+                        </label>
+                        <label className="block">
+                            <span className={labelCls}>Fecha Hasta</span>
+                            <input type="date" className={inputCls} value={form.fechaHasta} onChange={(e) => setForm({ ...form, fechaHasta: e.target.value })} />
+                        </label>
+                        <label className="block md:col-span-2">
+                            <span className={labelCls}>Observaciones</span>
+                            <input type="text" className={inputCls} value={form.observaciones} onChange={(e) => setForm({ ...form, observaciones: e.target.value })} placeholder="Observaciones..." />
                         </label>
                     </div>
-                    <label className="block">
-                        <span className="text-xs font-semibold text-gray-600">Observaciones</span>
-                        <input type="text" className="w-full border border-gray-300 rounded p-2 text-sm mt-1"
-                            value={observaciones} onChange={e => setObservaciones(e.target.value)} placeholder="Observaciones..." />
-                    </label>
-                    <div className="flex justify-end">
-                        <Button
-                            text={isSaving ? "Guardando..." : asignacionActual ? "Actualizar" : "Asignar"}
-                            variant="dark"
-                            onClick={handleAsignar}
-                            disabled={!selectedPrecioId || isSaving}
-                        />
+
+                    <div className="mt-3 flex justify-end gap-2">
+                        <Button variant="light" onClick={() => setForm(null)}><XMarkIcon className="h-4 w-4" /> Cancelar</Button>
+                        <Button variant="dark" onClick={guardar} disabled={!form.canalId || !form.precioInfladoId || isSaving}>
+                            <CheckIcon className="h-4 w-4" /> {isSaving ? "Guardando..." : (form.modo === "nuevo" ? "Asignar" : "Guardar")}
+                        </Button>
                     </div>
                 </div>
             )}

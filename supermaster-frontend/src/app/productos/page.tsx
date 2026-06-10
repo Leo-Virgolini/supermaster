@@ -1127,13 +1127,13 @@ export default function ProductosPage() {
                             {/* Estado y atributos del producto */}
                             <div className={checkboxCardClassName}>
                                 <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={activo} onChange={e => setActivo(e.target.checked)} id="activo" />
-                                <label htmlFor="activo" className="cursor-pointer">Activo al crear</label>
+                                <label htmlFor="activo" className="cursor-pointer">{editandoProductoId ? "Activo" : "Activo al crear"}</label>
                             </div>
                             <div className={checkboxCardClassName}>
                                 <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={esCombo} onChange={e => handleToggleCombo(e.target.checked)} id="esCombo" />
                                 <label htmlFor="esCombo" className="cursor-pointer">Es Combo</label>
                             </div>
-                            {canExportarDux && (
+                            {canExportarDux && !editandoProductoId && (
                                 <div className={checkboxCardClassName} title="Al crear, sube el producto a Dux con sus datos (código, descripción, costo, IVA, combo, etc.)">
                                     <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirADux} onChange={e => setSubirADux(e.target.checked)} id="subirADux" />
                                     <label htmlFor="subirADux" className="cursor-pointer">Subir a Dux al crear</label>
@@ -1144,7 +1144,7 @@ export default function ProductosPage() {
                                 <input type="number" min={1} className={`${inputBaseClassName} ${formErrors.uxb ? inputErrorClassName : ""}`} value={uxb} onChange={e => { setUxb(Number(e.target.value)); if (formErrors.uxb) setFormErrors(p => ({ ...p, uxb: "" })); }} />
                                 {formErrors.uxb && <p className="mt-1 text-xs text-red-500">{formErrors.uxb}</p>}
                             </label>
-                            {!canExportarDux && <div className="hidden xl:block" aria-hidden="true" />}
+                            {(!canExportarDux || editandoProductoId) && <div className="hidden xl:block" aria-hidden="true" />}
 
                             {/* Identificadores */}
                             <label className="block">

@@ -3,7 +3,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { notificar } from "../utils/notificar";
-import { BookmarkIcon, CheckIcon, CloudArrowDownIcon, CubeIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { BookmarkIcon, CheckIcon, CloudArrowDownIcon, CubeIcon, XMarkIcon, IdentificationIcon, CurrencyDollarIcon, ArchiveBoxIcon, ReceiptPercentIcon, Squares2X2Icon, UserGroupIcon, ShoppingBagIcon, BanknotesIcon } from "@heroicons/react/24/outline";
 import { API_BASE_URL } from "../config/runtime";
 import { confirmDialog } from "../utils/confirmDialog";
 import Table, { getInitialPageSize } from "../components/Table/core/Table";
@@ -953,7 +953,7 @@ export default function ProductosPage() {
     };
 
     const sectionClassName = "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900";
-    const sectionTitleClassName = "text-base font-semibold text-slate-900 dark:text-slate-100";
+    const sectionTitleClassName = "flex items-center gap-2 text-base font-semibold text-slate-900 dark:text-slate-100 [&_svg]:h-5 [&_svg]:w-5 [&_svg]:text-blue-500 dark:[&_svg]:text-blue-400";
     const sectionDescriptionClassName = "mt-1 text-xs text-slate-500 dark:text-slate-400";
     const fieldLabelClassName = "block text-sm font-semibold text-slate-700 dark:text-slate-200";
     const inputBaseClassName = "mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:ring-blue-500/20";
@@ -1108,7 +1108,7 @@ export default function ProductosPage() {
                     )}
 
                     <fieldset className={sectionClassName}>
-                        <legend className={sectionTitleClassName}>Identificación</legend>
+                        <legend className={sectionTitleClassName}><IdentificationIcon /> Identificación</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Datos principales para reconocer el producto en la tabla y en web.</p>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                             {/* Estado y atributos del producto */}
@@ -1197,12 +1197,15 @@ export default function ProductosPage() {
 
                     <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.05fr_0.95fr]">
                     <fieldset className={sectionClassName}>
-                        <legend className={sectionTitleClassName}>Económicos</legend>
+                        <legend className={sectionTitleClassName}><CurrencyDollarIcon /> Económicos</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Base mínima para costos y cálculo de precios.</p>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <label className="block">
-                                <span className={fieldLabelClassName}>Costo Base ($) <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span></span>
-                                <input type="number" min={0} className={`${inputBaseClassName} ${formErrors.costo ? inputErrorClassName : ""}`} value={costo} onChange={e => { setCosto(Number(e.target.value)); if (formErrors.costo) setFormErrors(p => ({ ...p, costo: "" })); }} required />
+                                <span className={fieldLabelClassName}>Costo Base <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span></span>
+                                <div className="relative">
+                                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-400">$</span>
+                                    <input type="number" min={0} className={`${inputBaseClassName} !pl-7 ${formErrors.costo ? inputErrorClassName : ""}`} value={costo} onChange={e => { setCosto(Number(e.target.value)); if (formErrors.costo) setFormErrors(p => ({ ...p, costo: "" })); }} required />
+                                </div>
                                 {formErrors.costo && <p className="mt-1 text-xs text-red-500">{formErrors.costo}</p>}
                             </label>
                             <label className="block">
@@ -1221,7 +1224,7 @@ export default function ProductosPage() {
                     </fieldset>
 
                     <fieldset className={sectionClassName}>
-                        <legend className={sectionTitleClassName}>Reposición y Stock</legend>
+                        <legend className={sectionTitleClassName}><ArchiveBoxIcon /> Reposición y Stock</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Disponibilidad inicial y prioridades de compra.</p>
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                             <label className="flex flex-col">
@@ -1251,7 +1254,7 @@ export default function ProductosPage() {
                     </div>
 
                     <fieldset className={sectionClassName}>
-                        <legend className={sectionTitleClassName}>Márgenes</legend>
+                        <legend className={sectionTitleClassName}><ReceiptPercentIcon /> Márgenes</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Márgenes minorista y mayorista (porcentaje) y sus valores fijos. Opcionales.</p>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                             <label className="block">
@@ -1274,7 +1277,7 @@ export default function ProductosPage() {
                     </fieldset>
 
                     <fieldset className={sectionClassName}>
-                        <legend className={sectionTitleClassName}>Clasificación y Relaciones</legend>
+                        <legend className={sectionTitleClassName}><Squares2X2Icon /> Clasificación y Relaciones</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Asociaciones maestras para filtros, navegación y reglas del sistema.</p>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                             <AsyncSelect label="Marca" loadOptions={searchMarcas} onChange={(v, label) => { setMarcaId(v ? Number(v) : null); setMarcaDisplay(v ? (label ?? "") : ""); }} value={marcaId} displayValue={marcaDisplay} placeholder="Buscar marca" inputClassName={inputBaseClassName} />
@@ -1305,7 +1308,7 @@ export default function ProductosPage() {
                     </fieldset>
 
                     <fieldset className={sectionClassName}>
-                        <legend className={sectionTitleClassName}>Catálogos, Aptos y Clientes</legend>
+                        <legend className={sectionTitleClassName}><UserGroupIcon /> Catálogos, Aptos y Clientes</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Asociaciones múltiples. Buscá y agregá los que correspondan.</p>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                             <MultiAsyncSelect label="Catálogos" loadOptions={(q) => searchCatalogos(q)} value={catalogosSel} onChange={setCatalogosSel} placeholder="Buscar catálogo" inputClassName={inputBaseClassName} />
@@ -1315,7 +1318,7 @@ export default function ProductosPage() {
                     </fieldset>
 
                     <fieldset className={sectionClassName}>
-                        <legend className={sectionTitleClassName}>MercadoLibre</legend>
+                        <legend className={sectionTitleClassName}><ShoppingBagIcon /> MercadoLibre</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Publicación de MercadoLibre (MLA) asociada al producto.</p>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                             <div>
@@ -1373,7 +1376,7 @@ export default function ProductosPage() {
                     </fieldset>
 
                     <fieldset className={sectionClassName}>
-                        <legend className={sectionTitleClassName}>Dimensiones Físicas</legend>
+                        <legend className={sectionTitleClassName}><CubeIcon /> Dimensiones Físicas</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Medidas y atributos técnicos para logística y catálogo.</p>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                             <label className="block">
@@ -1413,7 +1416,7 @@ export default function ProductosPage() {
                     {/* Precios inflados por canal: solo en edición (requiere producto existente) */}
                     {editandoProductoId && (
                         <fieldset className={sectionClassName}>
-                            <legend className={sectionTitleClassName}>Precios Inflados por Canal</legend>
+                            <legend className={sectionTitleClassName}><BanknotesIcon /> Precios Inflados por Canal</legend>
                             <p className={`${sectionDescriptionClassName} mb-4`}>Asigná, cambiá o quitá el precio inflado de este producto en cada canal.</p>
                             <PreciosInfladosSection productoId={editandoProductoId} />
                         </fieldset>

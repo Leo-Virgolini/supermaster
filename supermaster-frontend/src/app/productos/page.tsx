@@ -746,6 +746,24 @@ export default function ProductosPage() {
             ]);
 
             notificar.success(`Producto ${sku} actualizado`);
+
+            // Actualización en Dux (opcional, no invalida los cambios ya guardados).
+            // El endpoint de Dux (nuevoItem) hace upsert por cod_item: si el SKU ya
+            // existe, lo actualiza con los datos actuales del producto.
+            if (subirADux && canExportarDux) {
+                try {
+                    const resultadoDux = await exportarProductosADuxAPI([sku.trim()]);
+                    if (resultadoDux.productosEnviados > 0) {
+                        notificar.success(`Producto ${sku} actualizado en Dux`);
+                    } else {
+                        const detalle = resultadoDux.errores?.length ? `: ${resultadoDux.errores.join("; ")}` : "";
+                        notificar.error(`No se actualizó en Dux${detalle}`);
+                    }
+                } catch (e) {
+                    notificar.error(e instanceof Error ? `Falló la actualización en Dux: ${e.message}` : "Falló la actualización en Dux");
+                }
+            }
+
             resetForm();
             setEditandoProductoId(null);
             setIsModalOpen(false);
@@ -1133,10 +1151,10 @@ export default function ProductosPage() {
                                 <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={esCombo} onChange={e => handleToggleCombo(e.target.checked)} id="esCombo" />
                                 <label htmlFor="esCombo" className="cursor-pointer">Es Combo</label>
                             </div>
-                            {canExportarDux && !editandoProductoId && (
-                                <div className={checkboxCardClassName} title="Al crear, sube el producto a Dux con sus datos (código, descripción, costo, IVA, combo, etc.)">
+                            {canExportarDux && (
+                                <div className={checkboxCardClassName} title={editandoProductoId ? "Al guardar, actualiza el producto en Dux con sus datos actuales (descripción, costo, IVA, combo, activo, etc.)" : "Al crear, sube el producto a Dux con sus datos (código, descripción, costo, IVA, combo, etc.)"}>
                                     <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirADux} onChange={e => setSubirADux(e.target.checked)} id="subirADux" />
-                                    <label htmlFor="subirADux" className="cursor-pointer">Subir a Dux al crear</label>
+                                    <label htmlFor="subirADux" className="cursor-pointer">{editandoProductoId ? "Actualizar en Dux" : "Subir a Dux al crear"}</label>
                                 </div>
                             )}
                             <label className="block">
@@ -1144,7 +1162,7 @@ export default function ProductosPage() {
                                 <input type="number" min={1} className={`${inputBaseClassName} ${formErrors.uxb ? inputErrorClassName : ""}`} value={uxb} onChange={e => { setUxb(Number(e.target.value)); if (formErrors.uxb) setFormErrors(p => ({ ...p, uxb: "" })); }} />
                                 {formErrors.uxb && <p className="mt-1 text-xs text-red-500">{formErrors.uxb}</p>}
                             </label>
-                            {(!canExportarDux || editandoProductoId) && <div className="hidden xl:block" aria-hidden="true" />}
+                            {!canExportarDux && <div className="hidden xl:block" aria-hidden="true" />}
 
                             {/* Identificadores */}
                             <label className="block">

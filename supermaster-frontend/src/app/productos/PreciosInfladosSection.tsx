@@ -15,6 +15,15 @@ import {
 const inputCls = "w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:ring-blue-500/20";
 const labelCls = "mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300";
 
+/** Asignación pendiente (modo alta): se acumula en memoria y se asigna tras crear el producto. */
+export type PrecioInfladoDraft = {
+    canalId: number;
+    precioInfladoId: number;
+    fechaDesde: string | null;
+    fechaHasta: string | null;
+    observaciones: string | null;
+};
+
 type FormState = {
     canalId: number | "";
     precioInfladoId: number | "";
@@ -24,66 +33,121 @@ type FormState = {
     modo: "nuevo" | "editar";
 };
 
-// Gestión de precios inflados por canal de un producto.
-// La tabla es el centro: cada fila se edita o quita; el formulario de
-// alta/edición aparece bajo demanda. POST para asignar, PUT para cambiar.
-export function PreciosInfladosSection({ productoId }: { productoId: number }) {
+// Fila unificada que muestra la tabla, sea modo live (edición) o diferido (alta).
+type Row = {
+    canalId: number;
+    precioInfladoId: number;
+    precioLabel: string;
+    fechaDesde: string | null;
+    fechaHasta: string | null;
+    observaciones: string | null;
+    estado: "Activo" | "Inactivo" | "Pendiente";
+};
+
+type Props = {
+    /** Presente => modo live (edición): asigna/quita contra el backend. */
+    productoId?: number | null;
+    /** Modo diferido (alta): la lista se controla desde el padre y se asigna al crear. */
+    value?: PrecioInfladoDraft[];
+    onChange?: (v: PrecioInfladoDraft[]) => void;
+};
+
+export function PreciosInfladosSection({ productoId, value, onChange }: Props) {
+    const live = !!productoId;
+
     const [canales, setCanales] = useState<{ id: number; nombre: string }[]>([]);
     const [preciosInflados, setPreciosInflados] = useState<{ id: number; nombre: string }[]>([]);
-    const [asignaciones, setAsignaciones] = useState<ProductoCanalPrecioInfladoDTO[]>([]);
+    const [asignacionesLive, setAsignacionesLive] = useState<ProductoCanalPrecioInfladoDTO[]>([]);
     const [isLoadingInit, setIsLoadingInit] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [form, setForm] = useState<FormState | null>(null);
 
-    const recargarAsignaciones = useCallback(() => {
+    const recargarLive = useCallback(() => {
+        if (!productoId) return Promise.resolve();
         return getProductoPreciosInfladosAPI(productoId)
-            .then(setAsignaciones)
+            .then(setAsignacionesLive)
             .catch((e) => setError(getErrorMessage(e)));
     }, [productoId]);
 
     useEffect(() => {
         setIsLoadingInit(true);
-        Promise.all([getAllCanalesAPI(), getAllPreciosInfladosAPI(), getProductoPreciosInfladosAPI(productoId)])
-            .then(([cans, precios, asigs]) => { setCanales(cans); setPreciosInflados(precios); setAsignaciones(asigs); })
+        const base: Promise<unknown>[] = [getAllCanalesAPI().then(setCanales), getAllPreciosInfladosAPI().then(setPreciosInflados)];
+        if (productoId) base.push(getProductoPreciosInfladosAPI(productoId).then(setAsignacionesLive));
+        Promise.all(base)
             .catch((e) => setError(getErrorMessage(e)))
             .finally(() => setIsLoadingInit(false));
     }, [productoId]);
 
     const nombreCanal = (canalId: number) => canales.find(c => c.id === canalId)?.nombre ?? `Canal ${canalId}`;
+    const nombrePrecio = (id: number) => preciosInflados.find(p => p.id === id)?.nombre ?? `#${id}`;
 
-    // Canales sin asignación (disponibles para una nueva).
-    const canalesLibres = canales.filter(c => !asignaciones.some(a => a.canalId === c.id));
+    // Filas a mostrar, normalizadas según el modo.
+    const rows: Row[] = live
+        ? asignacionesLive.map(a => ({
+            canalId: a.canalId,
+            precioInfladoId: a.precioInflado.id,
+            precioLabel: `${a.precioInflado.codigo} (${a.precioInflado.tipo} = ${a.precioInflado.valor})`,
+            fechaDesde: a.fechaDesde,
+            fechaHasta: a.fechaHasta,
+            observaciones: a.observaciones,
+            estado: a.activo ? "Activo" : "Inactivo",
+        }))
+        : (value ?? []).map(d => ({
+            canalId: d.canalId,
+            precioInfladoId: d.precioInfladoId,
+            precioLabel: nombrePrecio(d.precioInfladoId),
+            fechaDesde: d.fechaDesde,
+            fechaHasta: d.fechaHasta,
+            observaciones: d.observaciones,
+            estado: "Pendiente",
+        }));
+
+    const canalesLibres = canales.filter(c => !rows.some(r => r.canalId === c.id));
 
     const abrirNuevo = () => {
         setError(null);
         setForm({ canalId: "", precioInfladoId: "", fechaDesde: "", fechaHasta: "", observaciones: "", modo: "nuevo" });
     };
 
-    const abrirEditar = (a: ProductoCanalPrecioInfladoDTO) => {
+    const abrirEditar = (r: Row) => {
         setError(null);
         setForm({
-            canalId: a.canalId,
-            precioInfladoId: a.precioInflado.id,
-            fechaDesde: a.fechaDesde ?? "",
-            fechaHasta: a.fechaHasta ?? "",
-            observaciones: a.observaciones ?? "",
+            canalId: r.canalId,
+            precioInfladoId: r.precioInfladoId,
+            fechaDesde: r.fechaDesde ?? "",
+            fechaHasta: r.fechaHasta ?? "",
+            observaciones: r.observaciones ?? "",
             modo: "editar",
         });
     };
 
     const guardar = async () => {
         if (!form || !form.canalId || !form.precioInfladoId) return;
+        const canalId = Number(form.canalId);
+        const precioInfladoId = Number(form.precioInfladoId);
+        const fechaDesde = form.fechaDesde || null;
+        const fechaHasta = form.fechaHasta || null;
+        const observaciones = form.observaciones || null;
+
+        if (!live) {
+            // Modo diferido: solo actualizamos la lista en memoria.
+            const draft: PrecioInfladoDraft = { canalId, precioInfladoId, fechaDesde, fechaHasta, observaciones };
+            const actual = value ?? [];
+            onChange?.(form.modo === "nuevo" ? [...actual, draft] : actual.map(d => d.canalId === canalId ? draft : d));
+            setForm(null);
+            return;
+        }
+
         setIsSaving(true);
         setError(null);
         try {
-            const extra = { fechaDesde: form.fechaDesde || null, fechaHasta: form.fechaHasta || null, observaciones: form.observaciones || null };
             if (form.modo === "nuevo") {
-                await asignarPrecioInfladoAPI(productoId, Number(form.canalId), Number(form.precioInfladoId), extra);
+                await asignarPrecioInfladoAPI(productoId!, canalId, precioInfladoId, { fechaDesde, fechaHasta, observaciones });
             } else {
-                await actualizarPrecioInfladoAPI(productoId, Number(form.canalId), { precioInfladoId: Number(form.precioInfladoId), ...extra });
+                await actualizarPrecioInfladoAPI(productoId!, canalId, { precioInfladoId, fechaDesde, fechaHasta, observaciones });
             }
-            await recargarAsignaciones();
+            await recargarLive();
             setForm(null);
         } catch (e: unknown) {
             setError(getErrorMessage(e));
@@ -92,14 +156,19 @@ export function PreciosInfladosSection({ productoId }: { productoId: number }) {
         }
     };
 
-    const quitar = async (a: ProductoCanalPrecioInfladoDTO) => {
-        if (!(await confirmDialog({ title: "Quitar precio inflado", message: `¿Quitar el precio inflado de "${nombreCanal(a.canalId)}"?`, confirmText: "Quitar", variant: "danger" }))) return;
+    const quitar = async (r: Row) => {
+        if (!live) {
+            onChange?.((value ?? []).filter(d => d.canalId !== r.canalId));
+            if (form?.canalId === r.canalId) setForm(null);
+            return;
+        }
+        if (!(await confirmDialog({ title: "Quitar precio inflado", message: `¿Quitar el precio inflado de "${nombreCanal(r.canalId)}"?`, confirmText: "Quitar", variant: "danger" }))) return;
         setIsSaving(true);
         setError(null);
         try {
-            await quitarPrecioInfladoAPI(productoId, a.canalId);
-            if (form?.canalId === a.canalId) setForm(null);
-            await recargarAsignaciones();
+            await quitarPrecioInfladoAPI(productoId!, r.canalId);
+            if (form?.canalId === r.canalId) setForm(null);
+            await recargarLive();
         } catch (e: unknown) {
             setError(getErrorMessage(e));
         } finally {
@@ -111,9 +180,12 @@ export function PreciosInfladosSection({ productoId }: { productoId: number }) {
 
     return (
         <div className="flex flex-col gap-4">
+            {!live && (
+                <p className="text-xs text-slate-500 dark:text-slate-400">Estas asignaciones se aplicarán al crear el producto.</p>
+            )}
             {error && <div className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-300">{error}</div>}
 
-            {/* Tabla de asignaciones actuales */}
+            {/* Tabla de asignaciones */}
             <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
                 <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2 dark:border-slate-700 dark:bg-slate-800">
                     <span className="text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">Asignaciones por canal</span>
@@ -121,8 +193,8 @@ export function PreciosInfladosSection({ productoId }: { productoId: number }) {
                         <PlusIcon className="h-4 w-4" /> Agregar
                     </Button>
                 </div>
-                {asignaciones.length === 0 ? (
-                    <p className="px-4 py-4 text-sm text-slate-400">Este producto no tiene precios inflados asignados en ningún canal.</p>
+                {rows.length === 0 ? (
+                    <p className="px-4 py-4 text-sm text-slate-400">Sin precios inflados asignados en ningún canal.</p>
                 ) : (
                     <table className="w-full text-sm">
                         <thead className="text-left text-xs text-slate-500 dark:text-slate-400">
@@ -135,27 +207,24 @@ export function PreciosInfladosSection({ productoId }: { productoId: number }) {
                             </tr>
                         </thead>
                         <tbody>
-                            {asignaciones.map((a) => (
-                                <tr key={a.id} className="border-t border-slate-100 dark:border-slate-800">
-                                    <td className="px-4 py-2 font-medium text-slate-700 dark:text-slate-200">{nombreCanal(a.canalId)}</td>
-                                    <td className="px-4 py-2 text-slate-700 dark:text-slate-200">
-                                        <span className="font-semibold">{a.precioInflado.codigo}</span>
-                                        <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">({a.precioInflado.tipo} = {a.precioInflado.valor})</span>
-                                    </td>
+                            {rows.map((r) => (
+                                <tr key={r.canalId} className="border-t border-slate-100 dark:border-slate-800">
+                                    <td className="px-4 py-2 font-medium text-slate-700 dark:text-slate-200">{nombreCanal(r.canalId)}</td>
+                                    <td className="px-4 py-2 text-slate-700 dark:text-slate-200">{r.precioLabel}</td>
                                     <td className="px-4 py-2 text-xs text-slate-500 dark:text-slate-400">
-                                        {a.fechaDesde || a.fechaHasta
-                                            ? `${a.fechaDesde ? formatFechaAR(a.fechaDesde) : "…"} → ${a.fechaHasta ? formatFechaAR(a.fechaHasta) : "…"}`
+                                        {r.fechaDesde || r.fechaHasta
+                                            ? `${r.fechaDesde ? formatFechaAR(r.fechaDesde) : "…"} → ${r.fechaHasta ? formatFechaAR(r.fechaHasta) : "…"}`
                                             : "Sin límite"}
                                     </td>
                                     <td className="px-4 py-2">
-                                        <span className={`text-xs font-medium ${a.activo ? "text-green-600 dark:text-green-400" : "text-slate-400"}`}>{a.activo ? "Activo" : "Inactivo"}</span>
+                                        <span className={`text-xs font-medium ${r.estado === "Activo" ? "text-green-600 dark:text-green-400" : r.estado === "Pendiente" ? "text-amber-600 dark:text-amber-400" : "text-slate-400"}`}>{r.estado}</span>
                                     </td>
                                     <td className="px-4 py-2">
                                         <div className="flex justify-end gap-1">
-                                            <button type="button" onClick={() => abrirEditar(a)} title="Editar" className="rounded-lg border border-slate-200 p-1.5 text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+                                            <button type="button" onClick={() => abrirEditar(r)} title="Editar" className="rounded-lg border border-slate-200 p-1.5 text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
                                                 <PencilSquareIcon className="h-4 w-4" />
                                             </button>
-                                            <button type="button" onClick={() => quitar(a)} disabled={isSaving} title="Quitar" className="rounded-lg border border-red-200 p-1.5 text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/30">
+                                            <button type="button" onClick={() => quitar(r)} disabled={isSaving} title="Quitar" className="rounded-lg border border-red-200 p-1.5 text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/30">
                                                 <TrashIcon className="h-4 w-4" />
                                             </button>
                                         </div>
@@ -167,8 +236,8 @@ export function PreciosInfladosSection({ productoId }: { productoId: number }) {
                 )}
             </div>
 
-            {canalesLibres.length === 0 && !form && (
-                <p className="text-xs text-slate-400">Todos los canales ya tienen un precio inflado asignado. Editá o quitá los existentes.</p>
+            {canalesLibres.length === 0 && !form && rows.length > 0 && (
+                <p className="text-xs text-slate-400">Todos los canales ya tienen un precio inflado. Editá o quitá los existentes.</p>
             )}
 
             {/* Formulario de alta / edición */}
@@ -217,7 +286,7 @@ export function PreciosInfladosSection({ productoId }: { productoId: number }) {
                     <div className="mt-3 flex justify-end gap-2">
                         <Button variant="light" onClick={() => setForm(null)}><XMarkIcon className="h-4 w-4" /> Cancelar</Button>
                         <Button variant="dark" onClick={guardar} disabled={!form.canalId || !form.precioInfladoId || isSaving}>
-                            <CheckIcon className="h-4 w-4" /> {isSaving ? "Guardando..." : (form.modo === "nuevo" ? "Asignar" : "Guardar")}
+                            <CheckIcon className="h-4 w-4" /> {isSaving ? "Guardando..." : (form.modo === "nuevo" ? "Agregar" : "Guardar")}
                         </Button>
                     </div>
                 </div>

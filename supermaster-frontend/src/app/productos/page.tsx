@@ -26,10 +26,10 @@ import {
 import { updateProductoMargenAPI } from "./productoMargenService";
 import {
     getProductoAptosAPI, getProductoCatalogosAPI, getProductoClientesAPI,
-    getAllAptosAPI, getAllCatalogosAPI, getAllClientesAPI,
+    getAllAptosAPI, getAllCatalogosAPI, getAllClientesAPI, asignarPrecioInfladoAPI,
 } from "./productoSubRecursosService";
 import MultiAsyncSelect, { type MultiOption } from "../components/MultiAsyncSelect/MultiAsyncSelect";
-import { PreciosInfladosSection } from "./PreciosInfladosSection";
+import { PreciosInfladosSection, type PrecioInfladoDraft } from "./PreciosInfladosSection";
 import { HistorialSection } from "./HistorialSection";
 import { getColumns } from "./columns";
 import { ProductoCreateDTO, ProductoDTO, ProductoPatchDTO } from "./types";
@@ -282,6 +282,8 @@ export default function ProductosPage() {
     const [catalogosSel, setCatalogosSel] = useState<MultiOption[]>([]);
     const [aptosSel, setAptosSel] = useState<MultiOption[]>([]);
     const [clientesSel, setClientesSel] = useState<MultiOption[]>([]);
+    // Precios inflados a asignar tras crear el producto (solo modo alta).
+    const [preciosInfladosSel, setPreciosInfladosSel] = useState<PrecioInfladoDraft[]>([]);
     // null = modo crear; con id = modo editar (mismo modal/form).
     const [editandoProductoId, setEditandoProductoId] = useState<number | null>(null);
     // Tab activo del panel en modo edición: form de datos o historial de cambios.
@@ -562,6 +564,16 @@ export default function ProductosPage() {
             ]);
         } catch {
             notificar.error("El producto se creó, pero falló al asociar algún catálogo/apto/cliente");
+        }
+        if (preciosInfladosSel.length > 0) {
+            try {
+                await Promise.all(preciosInfladosSel.map((d) => asignarPrecioInfladoAPI(
+                    productoId, d.canalId, d.precioInfladoId,
+                    { fechaDesde: d.fechaDesde, fechaHasta: d.fechaHasta, observaciones: d.observaciones },
+                )));
+            } catch {
+                notificar.error("El producto se creó, pero falló al asignar algún precio inflado");
+            }
         }
     };
 
@@ -865,6 +877,7 @@ export default function ProductosPage() {
         setMlaCodigo(""); setMlaMlau(""); setMlaPrecioEnvio(""); setMlaTope(""); setMlaComision("");
         setMargenMinorista(""); setMargenMayorista(""); setMargenFijoMinorista(""); setMargenFijoMayorista("");
         setCatalogosSel([]); setAptosSel([]); setClientesSel([]);
+        setPreciosInfladosSel([]);
         setFormErrors({});
     };
 
@@ -1413,14 +1426,14 @@ export default function ProductosPage() {
                         </div>
                     </fieldset>
 
-                    {/* Precios inflados por canal: solo en edición (requiere producto existente) */}
-                    {editandoProductoId && (
-                        <fieldset className={sectionClassName}>
-                            <legend className={sectionTitleClassName}><BanknotesIcon /> Precios Inflados por Canal</legend>
-                            <p className={`${sectionDescriptionClassName} mb-4`}>Asigná, cambiá o quitá el precio inflado de este producto en cada canal.</p>
-                            <PreciosInfladosSection productoId={editandoProductoId} />
-                        </fieldset>
-                    )}
+                    {/* Precios inflados por canal: en edición opera en vivo; en alta se difiere al crear */}
+                    <fieldset className={sectionClassName}>
+                        <legend className={sectionTitleClassName}><BanknotesIcon /> Precios Inflados por Canal</legend>
+                        <p className={`${sectionDescriptionClassName} mb-4`}>Asigná, cambiá o quitá el precio inflado de este producto en cada canal.</p>
+                        {editandoProductoId
+                            ? <PreciosInfladosSection productoId={editandoProductoId} />
+                            : <PreciosInfladosSection value={preciosInfladosSel} onChange={setPreciosInfladosSel} />}
+                    </fieldset>
                     </div>
                 </div>
             </Modal>

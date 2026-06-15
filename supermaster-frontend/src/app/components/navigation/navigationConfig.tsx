@@ -364,6 +364,15 @@ export const navigationSections: NavSectionConfig[] = [
         color: "orange",
         items: [
             {
+                href: "/campanias",
+                label: "Campañas Tienda Nube",
+                description: "Categorías de TN y precios de campaña por producto",
+                icon: BuildingStorefrontIcon,
+                color: "orange",
+                requiredPermission: "INTEGRACIONES_VER",
+                requiredRoles: ["ADMIN"],
+            },
+            {
                 href: "/operaciones-ml",
                 label: "Operaciones ML",
                 description: "Costos de envío, comisiones y configuración de envíos ML",

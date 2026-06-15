@@ -6,13 +6,16 @@ import EditableCell from "../../components/Table/core/EditableCell";
 
 export function getColumns(canEdit = true): ColumnDef<CampaniaProductoDTO>[] {
 	return [
-		{ accessorKey: "sku", header: "SKU", size: 120, enableColumnFilter: false },
-		{ accessorKey: "descripcion", header: "Descripción", enableColumnFilter: false },
+		// sku/descripcion/costo viven en el Producto asociado, no en CampaniaProducto:
+		// el backend no puede ordenar por ellas (PropertyReferenceException) → no ordenables.
+		{ accessorKey: "sku", header: "SKU", size: 120, enableColumnFilter: false, enableSorting: false },
+		{ accessorKey: "descripcion", header: "Descripción", enableColumnFilter: false, enableSorting: false },
 		{
 			accessorKey: "costo",
 			header: "Costo",
 			size: 110,
 			enableColumnFilter: false,
+			enableSorting: false,
 			cell: ({ getValue }) => {
 				const v = getValue() as number | null;
 				return v != null ? v.toLocaleString("es-AR", { style: "currency", currency: "ARS" }) : "—";

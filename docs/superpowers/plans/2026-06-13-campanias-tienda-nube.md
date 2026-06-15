@@ -78,7 +78,7 @@ CREATE TABLE supermaster.campania (
     observaciones      VARCHAR(255) NULL,
     CONSTRAINT uq_campania_tn_categoria UNIQUE (tn_categoria_id),
     CONSTRAINT fk_campania_canal FOREIGN KEY (id_canal)
-        REFERENCES supermaster.canales (id)
+        REFERENCES supermaster.canales (id_canal)
 );
 
 CREATE TABLE supermaster.campania_producto (
@@ -92,7 +92,7 @@ CREATE TABLE supermaster.campania_producto (
     CONSTRAINT fk_campprod_campania FOREIGN KEY (id_campania)
         REFERENCES supermaster.campania (id) ON DELETE CASCADE,
     CONSTRAINT fk_campprod_producto FOREIGN KEY (id_producto)
-        REFERENCES supermaster.productos (id) ON DELETE CASCADE
+        REFERENCES supermaster.productos (id_producto) ON DELETE CASCADE
 );
 
 CREATE INDEX idx_campania_producto_campania ON supermaster.campania_producto (id_campania);

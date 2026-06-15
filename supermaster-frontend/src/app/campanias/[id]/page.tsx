@@ -29,6 +29,7 @@ export default function CampaniaDetallePage() {
 
 	const handleUpdate = (rowIndex: number, _columnId: string, value: unknown) => {
 		const p = productos[rowIndex];
+		if (!p) return;
 		updatePrecio(p.id, value as number | null);
 	};
 

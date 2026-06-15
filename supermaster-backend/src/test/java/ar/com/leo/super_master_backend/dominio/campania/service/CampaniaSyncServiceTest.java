@@ -82,6 +82,7 @@ class CampaniaSyncServiceTest {
         verify(campaniaRepository, atLeastOnce()).save(campCaptor.capture());
         assertThat(campCaptor.getAllValues().get(0).getActiva()).isFalse();
         assertThat(campCaptor.getAllValues().get(0).getNombre()).isEqualTo("Día del Padre");
+        assertThat(campCaptor.getAllValues().get(0).getCanal()).isEqualTo(canalNube);
 
         verify(campaniaProductoRepository, times(2)).save(any(CampaniaProducto.class));
     }

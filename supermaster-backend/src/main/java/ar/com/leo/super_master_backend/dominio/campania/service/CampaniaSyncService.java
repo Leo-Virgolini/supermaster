@@ -12,6 +12,7 @@ import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundExceptio
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,10 +20,11 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class CampaniaSyncService {
 
-    /** Nombre del canal de precios asociado a la tienda KT HOGAR. */
+    /** Nombre del canal de precios de Tienda Nube. */
     public static final String CANAL_NUBE = "NUBE";
 
     private final TiendaNubeService tiendaNubeService;
@@ -60,6 +62,9 @@ public class CampaniaSyncService {
             campania = campaniaRepository.save(campania);
 
             List<String> skus = categoriaSkus.getOrDefault(tnCategoriaId, List.of());
+            if (skus.isEmpty() && nombre != null) {
+                log.info("Campaña '{}' (tnCategoriaId={}) sin productos tageados en TN", nombre, tnCategoriaId);
+            }
             productosVinculados += reconciliarProductos(campania, skus, ahora, skusSinMatch);
         }
 

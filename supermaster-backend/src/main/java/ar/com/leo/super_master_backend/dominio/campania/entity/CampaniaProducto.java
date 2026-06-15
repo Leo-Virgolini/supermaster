@@ -18,7 +18,8 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Entity
 @Table(name = "campania_producto", schema = "supermaster",
-        uniqueConstraints = @UniqueConstraint(name = "uq_campania_producto", columnNames = {"id_campania", "id_producto"}))
+        uniqueConstraints = @UniqueConstraint(name = "uq_campania_producto", columnNames = {"id_campania", "id_producto"}),
+        indexes = @Index(name = "idx_campania_producto_campania", columnList = "id_campania"))
 public class CampaniaProducto {
 
     @Id

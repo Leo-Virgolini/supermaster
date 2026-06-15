@@ -14,6 +14,6 @@ public record CampaniaDTO(
         Boolean activa,
         LocalDateTime fechaUltimaSync,
         String observaciones,
-        long cantidadProductos
+        Long cantidadProductos
 ) {
 }

@@ -556,6 +556,132 @@ public class TiendaNubeService {
     }
 
     /**
+     * Lista las categorías de la tienda. Devuelve id de categoría TN → nombre (idioma es).
+     * Las categorías cuyo name no tenga texto en es se omiten.
+     */
+    public Map<Long, String> listarCategorias(String storeName) {
+        verificarCredenciales();
+        StoreCredentials store = getStore(storeName);
+        if (store == null) {
+            log.warn("NUBE - Store '{}' no encontrada en credenciales", storeName);
+            return Map.of();
+        }
+
+        Map<Long, String> mapa = new LinkedHashMap<>();
+        String uri = String.format("/%s/categories?per_page=200", store.getStoreId());
+        int paginas = 0;
+
+        while (uri != null) {
+            NubeRetryHandler.HttpResponse httpResponse;
+            try {
+                httpResponse = retryHandler.getWithHeaders(uri, store.getAccessToken());
+            } catch (HttpClientErrorException e) {
+                if (e.getStatusCode().value() == 404 && e.getResponseBodyAsString().contains("Last page is 0")) {
+                    break;
+                }
+                log.warn("NUBE ({}) - Error listando categorías en página {}: {}. Abortando.",
+                        storeName, paginas + 1, e.getMessage());
+                return Map.of();
+            }
+
+            if (httpResponse.body() == null) break;
+
+            try {
+                JsonNode categorias = objectMapper.readTree(httpResponse.body());
+                if (!categorias.isArray() || categorias.isEmpty()) break;
+
+                for (JsonNode cat : categorias) {
+                    long id = cat.path("id").asLong(0);
+                    if (id == 0) continue;
+                    String nombre = extraerNombreProducto(cat.path("name"));
+                    if (nombre == null) continue;
+                    mapa.putIfAbsent(id, nombre);
+                }
+                paginas++;
+            } catch (Exception e) {
+                log.warn("NUBE ({}) - Error parseando categorías en página {}: {}. Abortando.",
+                        storeName, paginas + 1, e.getMessage());
+                return Map.of();
+            }
+
+            uri = parseLinkNext(httpResponse.headers());
+        }
+
+        log.info("NUBE ({}) - Categorías indexadas: {} ({} páginas)", storeName, mapa.size(), paginas);
+        return mapa;
+    }
+
+    /**
+     * Recorre los productos de la tienda y arma id de categoría TN → SKUs que la tienen.
+     * El array {@code categories} está a nivel producto; el SKU está a nivel variante:
+     * todas las variantes (SKUs) de un producto pertenecen a las categorías de ese producto.
+     */
+    public Map<Long, List<String>> mapearCategoriasASkus(String storeName) {
+        verificarCredenciales();
+        StoreCredentials store = getStore(storeName);
+        if (store == null) {
+            log.warn("NUBE - Store '{}' no encontrada en credenciales", storeName);
+            return Map.of();
+        }
+
+        Map<Long, List<String>> mapa = new LinkedHashMap<>();
+        String uri = String.format("/%s/products?per_page=200", store.getStoreId());
+        int paginas = 0;
+
+        while (uri != null) {
+            NubeRetryHandler.HttpResponse httpResponse;
+            try {
+                httpResponse = retryHandler.getWithHeaders(uri, store.getAccessToken());
+            } catch (HttpClientErrorException e) {
+                if (e.getStatusCode().value() == 404 && e.getResponseBodyAsString().contains("Last page is 0")) {
+                    break;
+                }
+                log.warn("NUBE ({}) - Error listando productos (categorías) en página {}: {}. Abortando.",
+                        storeName, paginas + 1, e.getMessage());
+                return Map.of();
+            }
+
+            if (httpResponse.body() == null) break;
+
+            try {
+                JsonNode products = objectMapper.readTree(httpResponse.body());
+                if (!products.isArray() || products.isEmpty()) break;
+
+                for (JsonNode product : products) {
+                    JsonNode categories = product.path("categories");
+                    if (!categories.isArray() || categories.isEmpty()) continue;
+
+                    JsonNode variants = product.path("variants");
+                    if (!variants.isArray()) continue;
+
+                    List<String> skus = new ArrayList<>();
+                    for (JsonNode variant : variants) {
+                        String sku = variant.path("sku").asString("");
+                        if (!sku.isBlank()) skus.add(sku);
+                    }
+                    if (skus.isEmpty()) continue;
+
+                    for (JsonNode cat : categories) {
+                        long catId = cat.path("id").asLong(0);
+                        if (catId == 0) continue;
+                        mapa.computeIfAbsent(catId, k -> new ArrayList<>()).addAll(skus);
+                    }
+                }
+                paginas++;
+            } catch (Exception e) {
+                log.warn("NUBE ({}) - Error parseando productos (categorías) en página {}: {}. Abortando.",
+                        storeName, paginas + 1, e.getMessage());
+                return Map.of();
+            }
+
+            uri = parseLinkNext(httpResponse.headers());
+        }
+
+        log.info("NUBE ({}) - Categorías con productos: {} ({} páginas)", storeName, mapa.size(), paginas);
+        return mapa;
+    }
+
+    /**
      * Lista todos los productos de una tienda y devuelve un mapa {@code sku → titulo} (uppercase).
      * El campo {@code name} de Tienda Nube puede ser objeto i18n (ej: {@code {"es": "..."}}) o string;
      * se prefiere "es" y, si no, se toma el primer valor no vacío.

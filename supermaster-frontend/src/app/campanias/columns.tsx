@@ -12,7 +12,7 @@ export function getColumns(canEdit = true): ColumnDef<CampaniaDTO>[] {
 		{ accessorKey: "nombre", header: "Campaña", enableColumnFilter: false },
 		{
 			accessorKey: "cantidadProductos",
-			header: "Productos",
+			header: "Cant. productos",
 			size: 90,
 			enableSorting: false,
 			enableColumnFilter: false,
@@ -25,7 +25,7 @@ export function getColumns(canEdit = true): ColumnDef<CampaniaDTO>[] {
 			cell: ({ getValue, row, table }) => (
 				<input
 					type="date"
-					defaultValue={(getValue() as string) ?? ""}
+					value={(getValue() as string | null) ?? ""}
 					disabled={!canEdit}
 					onChange={(e) =>
 						(table.options.meta as any)?.updateData?.(row.index, "fechaDesde", e.target.value || null)
@@ -43,7 +43,7 @@ export function getColumns(canEdit = true): ColumnDef<CampaniaDTO>[] {
 			cell: ({ getValue, row, table }) => (
 				<input
 					type="date"
-					defaultValue={(getValue() as string) ?? ""}
+					value={(getValue() as string | null) ?? ""}
 					disabled={!canEdit}
 					onChange={(e) =>
 						(table.options.meta as any)?.updateData?.(row.index, "fechaHasta", e.target.value || null)
@@ -83,7 +83,7 @@ export function getColumns(canEdit = true): ColumnDef<CampaniaDTO>[] {
 		},
 		{
 			id: "detalle",
-			header: "Productos",
+			header: "Detalle",
 			size: 110,
 			enableSorting: false,
 			cell: ({ row }) => (

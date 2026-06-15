@@ -21,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -568,7 +569,7 @@ public class TiendaNubeService {
         }
 
         Map<Long, String> mapa = new LinkedHashMap<>();
-        String uri = String.format("/%s/categories?per_page=200", store.getStoreId());
+        String uri = String.format("/%s/categories?per_page=200&fields=id,name", store.getStoreId());
         int paginas = 0;
 
         while (uri != null) {
@@ -579,7 +580,7 @@ public class TiendaNubeService {
                 if (e.getStatusCode().value() == 404 && e.getResponseBodyAsString().contains("Last page is 0")) {
                     break;
                 }
-                log.warn("NUBE ({}) - Error listando categorías en página {}: {}. Abortando.",
+                log.warn("NUBE ({}) - Error listando categorías en página {}: {}. Abortando paginación.",
                         storeName, paginas + 1, e.getMessage());
                 return Map.of();
             }
@@ -599,7 +600,7 @@ public class TiendaNubeService {
                 }
                 paginas++;
             } catch (Exception e) {
-                log.warn("NUBE ({}) - Error parseando categorías en página {}: {}. Abortando.",
+                log.warn("NUBE ({}) - Error parseando categorías en página {}: {}. Abortando paginación.",
                         storeName, paginas + 1, e.getMessage());
                 return Map.of();
             }
@@ -624,8 +625,8 @@ public class TiendaNubeService {
             return Map.of();
         }
 
-        Map<Long, List<String>> mapa = new LinkedHashMap<>();
-        String uri = String.format("/%s/products?per_page=200", store.getStoreId());
+        Map<Long, LinkedHashSet<String>> acumulador = new LinkedHashMap<>();
+        String uri = String.format("/%s/products?per_page=200&fields=id,categories,variants", store.getStoreId());
         int paginas = 0;
 
         while (uri != null) {
@@ -636,7 +637,7 @@ public class TiendaNubeService {
                 if (e.getStatusCode().value() == 404 && e.getResponseBodyAsString().contains("Last page is 0")) {
                     break;
                 }
-                log.warn("NUBE ({}) - Error listando productos (categorías) en página {}: {}. Abortando.",
+                log.warn("NUBE ({}) - Error listando productos (categorías) en página {}: {}. Abortando paginación.",
                         storeName, paginas + 1, e.getMessage());
                 return Map.of();
             }
@@ -664,17 +665,22 @@ public class TiendaNubeService {
                     for (JsonNode cat : categories) {
                         long catId = cat.path("id").asLong(0);
                         if (catId == 0) continue;
-                        mapa.computeIfAbsent(catId, k -> new ArrayList<>()).addAll(skus);
+                        acumulador.computeIfAbsent(catId, k -> new LinkedHashSet<>()).addAll(skus);
                     }
                 }
                 paginas++;
             } catch (Exception e) {
-                log.warn("NUBE ({}) - Error parseando productos (categorías) en página {}: {}. Abortando.",
+                log.warn("NUBE ({}) - Error parseando productos (categorías) en página {}: {}. Abortando paginación.",
                         storeName, paginas + 1, e.getMessage());
                 return Map.of();
             }
 
             uri = parseLinkNext(httpResponse.headers());
+        }
+
+        Map<Long, List<String>> mapa = new LinkedHashMap<>();
+        for (Map.Entry<Long, LinkedHashSet<String>> entry : acumulador.entrySet()) {
+            mapa.put(entry.getKey(), new ArrayList<>(entry.getValue()));
         }
 
         log.info("NUBE ({}) - Categorías con productos: {} ({} páginas)", storeName, mapa.size(), paginas);

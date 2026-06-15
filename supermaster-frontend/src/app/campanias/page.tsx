@@ -42,7 +42,7 @@ export default function CampaniasPage() {
 					<MegaphoneIcon className="w-8 h-8 text-gray-600" />
 					Campañas Tienda Nube
 				</h1>
-				<Button variant="dark" onClick={() => sincronizar()} disabled={!canEdit || isSyncing}>
+				<Button variant="dark" onClick={() => { void sincronizar(); }} disabled={!canEdit || isSyncing}>
 					<ArrowPathIcon className={`w-4 h-4 ${isSyncing ? "animate-spin" : ""}`} />
 					{isSyncing ? "Sincronizando..." : "Sincronizar"}
 				</Button>

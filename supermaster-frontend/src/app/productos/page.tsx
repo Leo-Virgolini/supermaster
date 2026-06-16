@@ -1327,7 +1327,7 @@ export default function ProductosPage() {
 
                     <fieldset className={sectionClassName}>
                         <legend className={sectionTitleClassName}><ReceiptPercentIcon /> Márgenes</legend>
-                        <p className={`${sectionDescriptionClassName} mb-4`}>Márgenes minorista y mayorista (porcentaje). Al menos uno obligatorio.</p>
+                        <p className={`${sectionDescriptionClassName} mb-4`}>Márgenes minorista y mayorista (porcentaje).{!esCombo ? " Al menos uno obligatorio." : " Opcionales para combos."}</p>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                             <label className="block">
                                 <span className={fieldLabelClassName}>Margen minorista (%)</span>

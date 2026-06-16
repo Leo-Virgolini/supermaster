@@ -45,15 +45,6 @@ public class ProductoMargen {
     private BigDecimal margenMayorista;
 
     // ---------------------------
-    // MÁRGENES FIJOS (en pesos)
-    // ---------------------------
-    @Column(name = "margen_fijo_minorista", precision = 10, scale = 2)
-    private BigDecimal margenFijoMinorista;
-
-    @Column(name = "margen_fijo_mayorista", precision = 10, scale = 2)
-    private BigDecimal margenFijoMayorista;
-
-    // ---------------------------
     // OBSERVACIONES
     // ---------------------------
     @Size(max = 300)

@@ -57,9 +57,6 @@ public record SimulacionPrecioInputDTO(
         @PositiveOrZero(message = "margenMayorista no puede ser negativo")
         BigDecimal margenMayorista,
 
-        BigDecimal margenFijoMinorista,
-        BigDecimal margenFijoMayorista,
-
         // ---------- Precio Inflado simulado ----------
         // Si ambos están seteados Y el canal tiene FLAG_APLICAR_PRECIO_INFLADO,
         // se calcula el pvpInflado en la respuesta. Sirve para previsualizar el

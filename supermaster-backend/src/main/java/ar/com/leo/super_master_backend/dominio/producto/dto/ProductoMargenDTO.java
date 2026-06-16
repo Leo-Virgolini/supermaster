@@ -16,10 +16,6 @@ public record ProductoMargenDTO(
         @DecimalMin(value = "0.0", inclusive = true, message = "El margen mayorista debe ser mayor o igual a 0")
         @DecimalMax(value = "999.999", inclusive = true, message = "El margen mayorista debe ser menor o igual a 999.999")
         BigDecimal margenMayorista,
-        @PositiveOrZero(message = "El margen fijo minorista debe ser mayor o igual a 0")
-        BigDecimal margenFijoMinorista,
-        @PositiveOrZero(message = "El margen fijo mayorista debe ser mayor o igual a 0")
-        BigDecimal margenFijoMayorista,
         @Size(max = 300)
         String observaciones
 ) {

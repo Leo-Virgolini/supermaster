@@ -11,8 +11,6 @@ import java.math.BigDecimal;
 public class ProductoMargenPatchDTO {
     private JsonNullable<BigDecimal> margenMinorista = JsonNullable.undefined();
     private JsonNullable<BigDecimal> margenMayorista = JsonNullable.undefined();
-    private JsonNullable<BigDecimal> margenFijoMinorista = JsonNullable.undefined();
-    private JsonNullable<BigDecimal> margenFijoMayorista = JsonNullable.undefined();
     private JsonNullable<String> observaciones = JsonNullable.undefined();
 }
 

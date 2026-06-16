@@ -567,12 +567,6 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
         }
 
         // ============================================
-        // PASO 6: Margen fijo (de producto_canal)
-        // ============================================
-        BigDecimal margenFijo = obtenerMargenFijo(productoMargen, conceptos);
-        // Nota: El margen fijo se aplicará al final sobre el PVP, no aquí
-
-        // ============================================
         // PASO 7: Calcular factor de impuestos (IMP)
         // ============================================
         // El IVA del producto solo se aplica si existe un concepto con aplicaSobre=IVA para el canal
@@ -720,13 +714,6 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
             BigDecimal descuentoFrac = descuentoConceptos.divide(CIEN, PRECISION_CALCULO, RoundingMode.HALF_UP);
             BigDecimal factorDescuento = BigDecimal.ONE.subtract(descuentoFrac);
             pvp = pvp.multiply(factorDescuento);
-        }
-
-        // ============================================
-        // PASO 12: Margen fijo
-        // ============================================
-        if (margenFijo.compareTo(BigDecimal.ZERO) > 0) {
-            pvp = pvp.add(margenFijo);
         }
 
         // ============================================
@@ -1333,19 +1320,6 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
         }
 
 
-        // Paso 12: Margen fijo
-        BigDecimal margenFijo = obtenerMargenFijo(productoMargen, conceptos);
-        if (margenFijo.compareTo(BigDecimal.ZERO) > 0) {
-            BigDecimal pvpAntesMargenFijo = pvp;
-            pvp = pvp.add(margenFijo);
-            pasos.add(new FormulaCalculoDTO.PasoCalculo(pasoNumero++,
-                    "Aplicar margen fijo",
-                    "PVP = PVP + MARGEN_FIJO",
-                    rd(pvp),
-                    String.format("%s + %s = %s", fmt(pvpAntesMargenFijo), fmt(margenFijo), fmt(pvp)),
-                    FormulaCalculoDTO.UNIDAD_MONEDA));
-        }
-
         // Paso 13: INFLACION_DIVISOR_FINAL (concepto)
         List<CanalConcepto> conceptosInflacion = conceptos.stream()
                 .filter(cc -> cc.getConcepto() != null
@@ -1440,9 +1414,6 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
         if (descuentoConceptos.compareTo(BigDecimal.ZERO) > 0) {
             List<String> nombresDescuento = obtenerNombresConceptos(conceptos, AplicaSobre.DESCUENTO_PORCENTUAL);
             formulaGeneral.append(" * (1 - ").append(formatearNombresConceptos(nombresDescuento)).append("/100)");
-        }
-        if (margenFijo.compareTo(BigDecimal.ZERO) > 0) {
-            formulaGeneral.append(" + MARGEN_FIJO");
         }
         if (!conceptosInflacion.isEmpty()) {
             List<String> nombresInflacion = obtenerNombresConceptos(conceptos, AplicaSobre.INFLACION_DIVISOR_FINAL);
@@ -1998,23 +1969,6 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
         }
         if (tipo == TipoMargenCanal.MINORISTA) {
             return productoMargen.getMargenMinorista() != null ? productoMargen.getMargenMinorista() : BigDecimal.ZERO;
-        }
-        // Si el canal no exige ningún margen específico, retorna ZERO
-        return BigDecimal.ZERO;
-    }
-
-    /**
-     * Obtiene el margen fijo según los conceptos del canal.
-     * - Si tiene MARGEN_MAYORISTA → usa margenFijoMayorista
-     * - Si tiene MARGEN_MINORISTA → usa margenFijoMinorista
-     */
-    private BigDecimal obtenerMargenFijo(ProductoMargen productoMargen, List<CanalConcepto> conceptos) {
-        TipoMargenCanal tipo = detectarTipoMargenRequerido(conceptos);
-        if (tipo == TipoMargenCanal.MAYORISTA) {
-            return productoMargen.getMargenFijoMayorista() != null ? productoMargen.getMargenFijoMayorista() : BigDecimal.ZERO;
-        }
-        if (tipo == TipoMargenCanal.MINORISTA) {
-            return productoMargen.getMargenFijoMinorista() != null ? productoMargen.getMargenFijoMinorista() : BigDecimal.ZERO;
         }
         // Si el canal no exige ningún margen específico, retorna ZERO
         return BigDecimal.ZERO;
@@ -2626,8 +2580,6 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
         ProductoMargen m = new ProductoMargen();
         m.setMargenMinorista(input.margenMinorista());
         m.setMargenMayorista(input.margenMayorista());
-        m.setMargenFijoMinorista(input.margenFijoMinorista());
-        m.setMargenFijoMayorista(input.margenFijoMayorista());
         return m;
     }
 

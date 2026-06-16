@@ -119,7 +119,6 @@ class CalculoPrecioFormulaTest {
                 null, null,                    // mlaPrecioEnvio, mlaComisionPorcentaje
                 new BigDecimal(margenMinorista),
                 new BigDecimal("30"),          // margenMayorista (no se usa en este canal)
-                null, null,                    // margenFijoMinorista, margenFijoMayorista
                 null, null                     // precioInflado tipo/valor
         );
     }
@@ -252,7 +251,6 @@ class CalculoPrecioFormulaTest {
                 null, null,                    // mlaPrecioEnvio, mlaComisionPorcentaje
                 new BigDecimal("50"),
                 new BigDecimal("30"),          // margenMayorista
-                null, null,                    // margenFijoMinorista, margenFijoMayorista
                 null, null                     // precioInflado tipo/valor
         );
 

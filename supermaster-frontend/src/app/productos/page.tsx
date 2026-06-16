@@ -289,6 +289,9 @@ export default function ProductosPage() {
     // Ref estable hacia abrirEdicion (definida más abajo) para usarla en el
     // useMemo de columnas sin invalidar la memoización en cada render.
     const abrirEdicionRef = useRef<(p: ProductoDTO) => void>(() => {});
+    // True si el usuario tocó la imagen a mano (la quitó o la eligió del picker):
+    // mientras esté en true, el autocompletado por SKU no la vuelve a pisar.
+    const imagenTocadaManualmenteRef = useRef(false);
     // Snapshot de N-a-N al abrir en edición, para calcular el diff al guardar.
     const [catalogosOriginal, setCatalogosOriginal] = useState<MultiOption[]>([]);
     const [aptosOriginal, setAptosOriginal] = useState<MultiOption[]>([]);
@@ -840,7 +843,7 @@ export default function ProductosPage() {
     // Autocompleta la imagen cuando el nombre del archivo coincide con el SKU.
     // Solo en alta y mientras el usuario no haya elegido una imagen a mano.
     useEffect(() => {
-        if (editandoProductoId) return;
+        if (!isModalOpen || editandoProductoId || imagenTocadaManualmenteRef.current) return;
         const skuTrim = sku.trim();
         if (!skuTrim || imagenUrl) return;
         const controller = new AbortController();
@@ -850,12 +853,14 @@ export default function ProductosPage() {
                 if (!res.ok) return;
                 const data = await res.json();
                 const archivos: string[] = Array.isArray(data?.archivos) ? data.archivos : [];
-                const match = archivos.find(a => a.replace(/\.[^.]+$/, "") === skuTrim);
+                // El backend filtra case-insensitive: comparamos en minúsculas para
+                // que abc123.png matchee el SKU ABC123 (y viceversa).
+                const match = archivos.find(a => a.replace(/\.[^.]+$/, "").toLowerCase() === skuTrim.toLowerCase());
                 if (match) setImagenUrl(match);
             } catch { /* abort o sin match: ignorar */ }
         }, 400);
         return () => { controller.abort(); clearTimeout(t); };
-    }, [sku, editandoProductoId, imagenUrl]);
+    }, [sku, isModalOpen, editandoProductoId, imagenUrl]);
 
     const aplicarMlaEnForm = (mla: { id: number; mla: string; mlau: string | null; precioEnvio: number | null; comisionPorcentaje: number | null; topePromocion: number | null }) => {
         setMlaId(mla.id);
@@ -928,6 +933,7 @@ export default function ProductosPage() {
         setMargenMinorista(""); setMargenMayorista("");
         setCatalogosSel([]); setAptosSel([]); setClientesSel([]);
         setPreciosInfladosSel([]);
+        imagenTocadaManualmenteRef.current = false;
         setFormErrors({});
     };
 
@@ -1249,7 +1255,7 @@ export default function ProductosPage() {
                                         <Button variant="dark" onClick={() => setIsImagePickerOpen(true)}>
                                             Seleccionar imagen
                                         </Button>
-                                        <Button variant="light" onClick={() => setImagenUrl("")} disabled={!imagenUrl}>
+                                        <Button variant="light" onClick={() => { imagenTocadaManualmenteRef.current = true; setImagenUrl(""); }} disabled={!imagenUrl}>
                                             Quitar imagen
                                         </Button>
                                     </div>
@@ -1499,7 +1505,7 @@ export default function ProductosPage() {
 
             {isImagePickerOpen && (
                 <ImagePickerModal
-                    onSelect={(name) => setImagenUrl(name)}
+                    onSelect={(name) => { imagenTocadaManualmenteRef.current = true; setImagenUrl(name); }}
                     onClose={() => setIsImagePickerOpen(false)}
                 />
             )}

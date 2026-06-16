@@ -244,7 +244,7 @@ export default function ProductosPage() {
     const [diamboca, setDiamboca] = useState("");
     const [diambase, setDiambase] = useState("");
     const [espesor, setEspesor] = useState("");
-    const [costo, setCosto] = useState(0);
+    const [costo, setCosto] = useState<number | "">("");
     const [iva, setIva] = useState(21.0);
     const [marcaId, setMarcaId] = useState<number | null>(null);
     const [origenId, setOrigenId] = useState<number | null>(null);
@@ -600,7 +600,7 @@ export default function ProductosPage() {
                 sku: sku.trim(), codExt, tituloWeb: tituloWeb.trim(), descripcion: descripcion.trim(), esCombo, uxb, activo, imagenUrl,
                 capacidad, largo: largo || null, ancho: ancho || null, alto: alto || null,
                 diamboca: diamboca || null, diambase: diambase || null, espesor: espesor || null,
-                costo, iva,
+                costo: costo === "" ? 0 : costo, iva,
                 stock: stock !== "" ? stock : null,
                 moq: moq !== "" ? moq : null,
                 tagReposicion: tagReposicion || null,
@@ -649,7 +649,7 @@ export default function ProductosPage() {
         setCapacidad(producto.capacidad ?? "");
         setLargo(producto.largo ?? ""); setAncho(producto.ancho ?? ""); setAlto(producto.alto ?? "");
         setDiamboca(producto.diamboca ?? ""); setDiambase(producto.diambase ?? ""); setEspesor(producto.espesor ?? "");
-        setCosto(producto.costo ?? 0); setIva(producto.iva ?? 21);
+        setCosto(producto.costo ?? ""); setIva(producto.iva ?? 21);
         setStock(producto.stock ?? ""); setMoq(producto.moq ?? "");
         setTagReposicion((producto.tagReposicion as "" | "PRIO" | "LIQ") ?? "");
         setTag((producto.tag as "" | "MAQUINA" | "REPUESTO" | "MENAJE") ?? "");
@@ -707,7 +707,7 @@ export default function ProductosPage() {
                 codExt, tituloWeb: tituloWeb.trim(), descripcion: descripcion.trim(), esCombo, uxb, activo, imagenUrl,
                 capacidad, largo: largo || null, ancho: ancho || null, alto: alto || null,
                 diamboca: diamboca || null, diambase: diambase || null, espesor: espesor || null,
-                costo, iva, stock: stock !== "" ? stock : null, moq: moq !== "" ? moq : null,
+                costo: costo === "" ? 0 : costo, iva, stock: stock !== "" ? stock : null, moq: moq !== "" ? moq : null,
                 tagReposicion: tagReposicion || null, tag: tag || null,
                 marcaId, origenId, clasifGralId, clasifGastroId, tipoId, proveedorId, materialId, mlaId,
             } as ProductoPatchDTO;
@@ -877,7 +877,7 @@ export default function ProductosPage() {
         setSku(""); setLastSuggestedSku(""); setCodExt(""); setTituloWeb(""); setDescripcion(""); setImagenUrl("");
         setEsCombo(false); setUxb(1); setActivo(true); setSubirADux(true);
         setCapacidad(""); setLargo(""); setAncho(""); setAlto(""); setDiamboca(""); setDiambase(""); setEspesor("");
-        setCosto(0); setIva(21.0);
+        setCosto(""); setIva(21.0);
         setMarcaId(null); setOrigenId(null); setClasifGralId(null); setClasifGastroId(null);
         setTipoId(null); setProveedorId(null); setMaterialId(null); setMlaId(null);
         setMarcaDisplay(""); setOrigenDisplay(""); setClasifGralDisplay(""); setClasifGastroDisplay("");
@@ -1228,7 +1228,7 @@ export default function ProductosPage() {
                                 <span className={fieldLabelClassName}>Costo Base <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span></span>
                                 <div className="relative">
                                     <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-400">$</span>
-                                    <input type="number" min={0} className={`${inputBaseClassName} !pl-7 ${formErrors.costo ? inputErrorClassName : ""}`} value={costo} onChange={e => { setCosto(Number(e.target.value)); if (formErrors.costo) setFormErrors(p => ({ ...p, costo: "" })); }} required />
+                                    <input type="number" min={0} className={`${inputBaseClassName} !pl-7 ${formErrors.costo ? inputErrorClassName : ""}`} value={costo} onChange={e => { setCosto(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.costo) setFormErrors(p => ({ ...p, costo: "" })); }} required />
                                 </div>
                                 {formErrors.costo && <p className="mt-1 text-xs text-red-500">{formErrors.costo}</p>}
                             </label>

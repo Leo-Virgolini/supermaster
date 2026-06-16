@@ -1222,32 +1222,31 @@ class RecalculoAutomaticoIntegrationTest {
     }
 
     // ===========================================
-    // TEST 23: ProductoMargen con margen fijo
+    // TEST 23: ProductoMargen — cambio de margen minorista
     // ===========================================
     @Test
     @Order(23)
-    @DisplayName("23. Recálculo automático al cambiar margen fijo del producto")
+    @DisplayName("23. Recálculo automático al cambiar margen minorista del producto")
     void testRecalculoPorCambioMargenFijo() {
         BigDecimal pvpInicial = obtenerPvpActual();
 
-        // Agregar margen fijo minorista
+        // Cambiar margen minorista a un valor diferente para forzar recálculo
         productoMargenService.guardar(
                 new ProductoMargenDTO(
                         productoMargen.getId(),
                         producto.getId(),
-                        new BigDecimal("50"),
+                        new BigDecimal("80"),
                         new BigDecimal("30"),
-                        new BigDecimal("200"), // margen fijo minorista
-                        null, null
+                        null
                 ));
         calculoPrecioService.recalcularYGuardarPrecioCanalTodasCuotas(producto.getId(), canal.getId());
 
         BigDecimal pvpNuevo = obtenerPvpActual();
 
         assertNotEquals(pvpInicial, pvpNuevo,
-                "El PVP debe cambiar al agregar margen fijo minorista");
+                "El PVP debe cambiar al modificar el margen minorista");
         assertTrue(pvpNuevo.compareTo(pvpInicial) > 0,
-                "El PVP debe aumentar al agregar margen fijo");
+                "El PVP debe aumentar al subir el margen minorista");
     }
 
     // ===========================================

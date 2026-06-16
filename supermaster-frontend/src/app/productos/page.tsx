@@ -525,10 +525,19 @@ export default function ProductosPage() {
         else if (descripcion.trim().length > 100) errors.descripcion = "Máximo 100 caracteres";
         if (!tituloWeb.trim()) errors.tituloWeb = "El Título Web es obligatorio";
         else if (tituloWeb.trim().length > 100) errors.tituloWeb = "Máximo 100 caracteres";
-        if (costo < 0) errors.costo = "El costo no puede ser negativo";
+        if (costo === "" || Number(costo) <= 0) errors.costo = "El costo debe ser mayor a 0";
         if (uxb < 1) errors.uxb = "UxB debe ser al menos 1";
         if (!clasifGralId && !clasifGastroId) errors.clasificacion = "Seleccioná al menos una clasificación (general o gastronómica)";
         if (!tipoId) errors.tipoId = "El tipo es obligatorio";
+        const tieneMargen = (margenMinorista !== "" && Number(margenMinorista) > 0) || (margenMayorista !== "" && Number(margenMayorista) > 0);
+        if (!tieneMargen) errors.margen = "Cargá al menos un margen (minorista o mayorista) mayor a 0";
+        if (!esCombo) {
+            if (!marcaId) errors.marcaId = "La marca es obligatoria";
+            if (!origenId) errors.origenId = "El origen es obligatorio";
+            if (!proveedorId) errors.proveedorId = "El proveedor es obligatorio";
+            if (!materialId) errors.materialId = "El material es obligatorio";
+            if (!tag) errors.tag = "El tag es obligatorio";
+        }
         if (largo.length > 45) errors.largo = "Máximo 45 caracteres";
         if (ancho.length > 45) errors.ancho = "Máximo 45 caracteres";
         if (alto.length > 45) errors.alto = "Máximo 45 caracteres";
@@ -1279,25 +1288,32 @@ export default function ProductosPage() {
 
                     <fieldset className={sectionClassName}>
                         <legend className={sectionTitleClassName}><ReceiptPercentIcon /> Márgenes</legend>
-                        <p className={`${sectionDescriptionClassName} mb-4`}>Márgenes minorista y mayorista (porcentaje). Opcionales.</p>
+                        <p className={`${sectionDescriptionClassName} mb-4`}>Márgenes minorista y mayorista (porcentaje). Al menos uno obligatorio.</p>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                             <label className="block">
-                                <span className={fieldLabelClassName}>Margen minorista (%)</span>
-                                <input type="number" step={0.5} className={inputBaseClassName} value={margenMinorista} onChange={e => setMargenMinorista(e.target.value === "" ? "" : Number(e.target.value))} placeholder="Sin definir" />
+                                <span className={fieldLabelClassName}>Margen minorista (%) <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span></span>
+                                <input type="number" step={0.5} className={`${inputBaseClassName} ${formErrors.margen ? inputErrorClassName : ""}`} value={margenMinorista} onChange={e => { setMargenMinorista(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.margen) setFormErrors(p => ({ ...p, margen: "" })); }} placeholder="Sin definir" />
                             </label>
                             <label className="block">
-                                <span className={fieldLabelClassName}>Margen mayorista (%)</span>
-                                <input type="number" step={0.5} className={inputBaseClassName} value={margenMayorista} onChange={e => setMargenMayorista(e.target.value === "" ? "" : Number(e.target.value))} placeholder="Sin definir" />
+                                <span className={fieldLabelClassName}>Margen mayorista (%) <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span></span>
+                                <input type="number" step={0.5} className={`${inputBaseClassName} ${formErrors.margen ? inputErrorClassName : ""}`} value={margenMayorista} onChange={e => { setMargenMayorista(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.margen) setFormErrors(p => ({ ...p, margen: "" })); }} placeholder="Sin definir" />
                             </label>
                         </div>
+                        {formErrors.margen && <p className="mt-2 text-xs text-red-500">{formErrors.margen}</p>}
                     </fieldset>
 
                     <fieldset className={sectionClassName}>
                         <legend className={sectionTitleClassName}><Squares2X2Icon /> Clasificación y Relaciones</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Asociaciones maestras para filtros, navegación y reglas del sistema.</p>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                            <AsyncSelect label="Marca" loadOptions={searchMarcas} onChange={(v, label) => { setMarcaId(v ? Number(v) : null); setMarcaDisplay(v ? (label ?? "") : ""); }} value={marcaId} displayValue={marcaDisplay} placeholder="Buscar marca" inputClassName={inputBaseClassName} />
-                            <AsyncSelect label="Origen" loadOptions={searchOrigenes} onChange={(v, label) => { setOrigenId(v ? Number(v) : null); setOrigenDisplay(v ? (label ?? "") : ""); }} value={origenId} displayValue={origenDisplay} placeholder="Buscar origen" inputClassName={inputBaseClassName} />
+                            <div>
+                                <AsyncSelect label={<>{!esCombo && <span style={{ color: "#dc2626" }} className="font-bold mr-0.5">*</span>}Marca</>} loadOptions={searchMarcas} onChange={(v, label) => { setMarcaId(v ? Number(v) : null); setMarcaDisplay(v ? (label ?? "") : ""); if (formErrors.marcaId) setFormErrors(p => ({ ...p, marcaId: "" })); }} value={marcaId} displayValue={marcaDisplay} placeholder="Buscar marca" inputClassName={`${inputBaseClassName} ${formErrors.marcaId ? inputErrorClassName : ""}`} />
+                                {formErrors.marcaId && <p className="mt-1 text-xs text-red-500">{formErrors.marcaId}</p>}
+                            </div>
+                            <div>
+                                <AsyncSelect label={<>{!esCombo && <span style={{ color: "#dc2626" }} className="font-bold mr-0.5">*</span>}Origen</>} loadOptions={searchOrigenes} onChange={(v, label) => { setOrigenId(v ? Number(v) : null); setOrigenDisplay(v ? (label ?? "") : ""); if (formErrors.origenId) setFormErrors(p => ({ ...p, origenId: "" })); }} value={origenId} displayValue={origenDisplay} placeholder="Buscar origen" inputClassName={`${inputBaseClassName} ${formErrors.origenId ? inputErrorClassName : ""}`} />
+                                {formErrors.origenId && <p className="mt-1 text-xs text-red-500">{formErrors.origenId}</p>}
+                            </div>
                             <div>
                                 <AsyncSelect label={<>Clasif. Gral <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">al menos una</span></>} loadOptions={searchClasifGral} onChange={(v, label) => { setClasifGralId(v ? Number(v) : null); setClasifGralDisplay(v ? (label ?? "") : ""); if (formErrors.clasificacion) setFormErrors(p => ({ ...p, clasificacion: "" })); }} value={clasifGralId} displayValue={clasifGralDisplay} placeholder="Buscar clasificación" inputClassName={`${inputBaseClassName} ${formErrors.clasificacion ? inputErrorClassName : ""}`} />
                                 {formErrors.clasificacion && <p className="mt-1 text-xs text-red-500">{formErrors.clasificacion}</p>}
@@ -1309,8 +1325,14 @@ export default function ProductosPage() {
                                 <AsyncSelect label={<>Tipo <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span></>} loadOptions={searchTipos} onChange={(v, label) => { setTipoId(v ? Number(v) : null); setTipoDisplay(v ? (label ?? "") : ""); if (formErrors.tipoId) setFormErrors(p => ({ ...p, tipoId: "" })); }} value={tipoId} displayValue={tipoDisplay} placeholder="Buscar tipo" inputClassName={`${inputBaseClassName} ${formErrors.tipoId ? inputErrorClassName : ""}`} />
                                 {formErrors.tipoId && <p className="mt-1 text-xs text-red-500">{formErrors.tipoId}</p>}
                             </div>
-                            <AsyncSelect label="Proveedor" loadOptions={searchProveedores} onChange={(v, label) => { setProveedorId(v ? Number(v) : null); setProveedorDisplay(v ? (label ?? "") : ""); }} value={proveedorId} displayValue={proveedorDisplay} placeholder="Buscar proveedor" inputClassName={inputBaseClassName} />
-                            <AsyncSelect label="Material" loadOptions={searchMateriales} onChange={(v, label) => { setMaterialId(v ? Number(v) : null); setMaterialDisplay(v ? (label ?? "") : ""); }} value={materialId} displayValue={materialDisplay} placeholder="Buscar material" inputClassName={inputBaseClassName} />
+                            <div>
+                                <AsyncSelect label={<>{!esCombo && <span style={{ color: "#dc2626" }} className="font-bold mr-0.5">*</span>}Proveedor</>} loadOptions={searchProveedores} onChange={(v, label) => { setProveedorId(v ? Number(v) : null); setProveedorDisplay(v ? (label ?? "") : ""); if (formErrors.proveedorId) setFormErrors(p => ({ ...p, proveedorId: "" })); }} value={proveedorId} displayValue={proveedorDisplay} placeholder="Buscar proveedor" inputClassName={`${inputBaseClassName} ${formErrors.proveedorId ? inputErrorClassName : ""}`} />
+                                {formErrors.proveedorId && <p className="mt-1 text-xs text-red-500">{formErrors.proveedorId}</p>}
+                            </div>
+                            <div>
+                                <AsyncSelect label={<>{!esCombo && <span style={{ color: "#dc2626" }} className="font-bold mr-0.5">*</span>}Material</>} loadOptions={searchMateriales} onChange={(v, label) => { setMaterialId(v ? Number(v) : null); setMaterialDisplay(v ? (label ?? "") : ""); if (formErrors.materialId) setFormErrors(p => ({ ...p, materialId: "" })); }} value={materialId} displayValue={materialDisplay} placeholder="Buscar material" inputClassName={`${inputBaseClassName} ${formErrors.materialId ? inputErrorClassName : ""}`} />
+                                {formErrors.materialId && <p className="mt-1 text-xs text-red-500">{formErrors.materialId}</p>}
+                            </div>
                             <label className="block">
                                 <span className={fieldLabelClassName}>Tag {!esCombo && <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span>}</span>
                                 <select className={`${selectBaseClassName} ${formErrors.tag ? inputErrorClassName : ""}`} value={tag} onChange={e => { setTag(e.target.value as "" | "MAQUINA" | "REPUESTO" | "MENAJE" | "INSUMO"); if (formErrors.tag) setFormErrors(p => ({ ...p, tag: "" })); }}>

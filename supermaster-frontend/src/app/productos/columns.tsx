@@ -584,6 +584,7 @@ export function getColumns(onEditarProducto: (producto: ProductoDTO) => void, ca
                 MAQUINA:  "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-300",
                 REPUESTO: "bg-sky-100 dark:bg-sky-900/40 text-sky-800 dark:text-sky-300",
                 MENAJE:   "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300",
+                INSUMO:   "bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300",
             };
             return (
                 <select
@@ -596,6 +597,7 @@ export function getColumns(onEditarProducto: (producto: ProductoDTO) => void, ca
                     <option value="MAQUINA">MÁQUINA</option>
                     <option value="REPUESTO">REPUESTO</option>
                     <option value="MENAJE">MENAJE</option>
+                    <option value="INSUMO">INSUMO</option>
                 </select>
             );
         }

@@ -529,14 +529,14 @@ export default function ProductosPage() {
         if (uxb < 1) errors.uxb = "UxB debe ser al menos 1";
         if (!clasifGralId && !clasifGastroId) errors.clasificacion = "Seleccioná al menos una clasificación (general o gastronómica)";
         if (!tipoId) errors.tipoId = "El tipo es obligatorio";
-        const tieneMargen = (margenMinorista !== "" && Number(margenMinorista) > 0) || (margenMayorista !== "" && Number(margenMayorista) > 0);
-        if (!tieneMargen) errors.margen = "Cargá al menos un margen (minorista o mayorista) mayor a 0";
         if (!esCombo) {
             if (!marcaId) errors.marcaId = "La marca es obligatoria";
             if (!origenId) errors.origenId = "El origen es obligatorio";
             if (!proveedorId) errors.proveedorId = "El proveedor es obligatorio";
             if (!materialId) errors.materialId = "El material es obligatorio";
             if (!tag) errors.tag = "El tag es obligatorio";
+            const tieneMargen = (margenMinorista !== "" && Number(margenMinorista) > 0) || (margenMayorista !== "" && Number(margenMayorista) > 0);
+            if (!tieneMargen) errors.margen = "Cargá al menos un margen (minorista o mayorista) mayor a 0";
         }
         if (largo.length > 45) errors.largo = "Máximo 45 caracteres";
         if (ancho.length > 45) errors.ancho = "Máximo 45 caracteres";
@@ -586,6 +586,7 @@ export default function ProductosPage() {
         if (!validateForm()) return;
         try {
             setIsSaving(true);
+            const costoNum = costo === "" ? 0 : costo;
             // Fallback: si el usuario cargó un MLA nuevo a mano pero no lo asoció
             // (ni con "Crear" ni con "Obtener de ML"), lo creamos ahora.
             let mlaIdFinal = mlaId;
@@ -609,7 +610,7 @@ export default function ProductosPage() {
                 sku: sku.trim(), codExt, tituloWeb: tituloWeb.trim(), descripcion: descripcion.trim(), esCombo, uxb, activo, imagenUrl,
                 capacidad, largo: largo || null, ancho: ancho || null, alto: alto || null,
                 diamboca: diamboca || null, diambase: diambase || null, espesor: espesor || null,
-                costo: costo === "" ? 0 : costo, iva,
+                costo: costoNum, iva,
                 stock: stock !== "" ? stock : null,
                 moq: moq !== "" ? moq : null,
                 tagReposicion: tagReposicion || null,
@@ -712,11 +713,12 @@ export default function ProductosPage() {
         try {
             setIsSaving(true);
             const id = editandoProductoId;
+            const costoNum = costo === "" ? 0 : costo;
             const patch = {
                 codExt, tituloWeb: tituloWeb.trim(), descripcion: descripcion.trim(), esCombo, uxb, activo, imagenUrl,
                 capacidad, largo: largo || null, ancho: ancho || null, alto: alto || null,
                 diamboca: diamboca || null, diambase: diambase || null, espesor: espesor || null,
-                costo: costo === "" ? 0 : costo, iva, stock: stock !== "" ? stock : null, moq: moq !== "" ? moq : null,
+                costo: costoNum, iva, stock: stock !== "" ? stock : null, moq: moq !== "" ? moq : null,
                 tagReposicion: tagReposicion || null, tag: tag || null,
                 marcaId, origenId, clasifGralId, clasifGastroId, tipoId, proveedorId, materialId, mlaId,
             } as ProductoPatchDTO;
@@ -803,6 +805,14 @@ export default function ProductosPage() {
     // sigue siendo el que sugerimos (no pisamos un SKU escrito a mano).
     const handleToggleCombo = (next: boolean) => {
         setEsCombo(next);
+        // Al togglear esCombo cambian los campos obligatorios: limpiamos los
+        // errores de los que dejan de serlo para que no queden marcados.
+        setFormErrors(p => {
+            const n = { ...p };
+            delete n.marcaId; delete n.origenId; delete n.proveedorId;
+            delete n.materialId; delete n.tag; delete n.margen;
+            return n;
+        });
         if (sku === "" || sku === lastSuggestedSku) {
             void cargarSkuSugerido(next);
         }
@@ -1237,7 +1247,7 @@ export default function ProductosPage() {
                                 <span className={fieldLabelClassName}>Costo Base <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span></span>
                                 <div className="relative">
                                     <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-400">$</span>
-                                    <input type="number" min={0} className={`${inputBaseClassName} !pl-7 ${formErrors.costo ? inputErrorClassName : ""}`} value={costo} onChange={e => { setCosto(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.costo) setFormErrors(p => ({ ...p, costo: "" })); }} required />
+                                    <input type="number" min={0.01} className={`${inputBaseClassName} !pl-7 ${formErrors.costo ? inputErrorClassName : ""}`} value={costo} onChange={e => { setCosto(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.costo) setFormErrors(p => ({ ...p, costo: "" })); }} required />
                                 </div>
                                 {formErrors.costo && <p className="mt-1 text-xs text-red-500">{formErrors.costo}</p>}
                             </label>
@@ -1291,11 +1301,11 @@ export default function ProductosPage() {
                         <p className={`${sectionDescriptionClassName} mb-4`}>Márgenes minorista y mayorista (porcentaje). Al menos uno obligatorio.</p>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                             <label className="block">
-                                <span className={fieldLabelClassName}>Margen minorista (%) <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span></span>
+                                <span className={fieldLabelClassName}>Margen minorista (%)</span>
                                 <input type="number" step={0.5} className={`${inputBaseClassName} ${formErrors.margen ? inputErrorClassName : ""}`} value={margenMinorista} onChange={e => { setMargenMinorista(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.margen) setFormErrors(p => ({ ...p, margen: "" })); }} placeholder="Sin definir" />
                             </label>
                             <label className="block">
-                                <span className={fieldLabelClassName}>Margen mayorista (%) <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span></span>
+                                <span className={fieldLabelClassName}>Margen mayorista (%)</span>
                                 <input type="number" step={0.5} className={`${inputBaseClassName} ${formErrors.margen ? inputErrorClassName : ""}`} value={margenMayorista} onChange={e => { setMargenMayorista(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.margen) setFormErrors(p => ({ ...p, margen: "" })); }} placeholder="Sin definir" />
                             </label>
                         </div>

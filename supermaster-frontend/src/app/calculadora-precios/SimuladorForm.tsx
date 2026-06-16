@@ -232,8 +232,7 @@ export default function SimuladorForm({ canalId, cuotas }: SimuladorFormProps) {
             productoBaseIdRef.current = id;
             setResultado(null);
             setError(null);
-            const infladoMsg = snap.precioInfladoCodigo ? ` · regla inflado: ${snap.precioInfladoCodigo}` : "";
-            toast.success(`Cargado: ${snap.sku}${infladoMsg}`);
+            toast.success(`Cargado: ${snap.sku}`);
         } catch (e: unknown) {
             toast.error(getErrorMessage(e, "Error al cargar producto"));
         } finally {

@@ -267,7 +267,7 @@ export default function ProductoCanalPreciosPage() {
                         <div className="mb-3">
                             <p className="mb-1 font-semibold">Acciones por fila:</p>
                             <ul className="ml-4 list-disc space-y-0.5">
-                                <li><strong>Editar inline</strong>: hacé clic sobre celdas como <span className="font-mono">Mrg Min</span>, <span className="font-mono">Mrg May</span>, <span className="font-mono">Fijo Min/May</span> o <span className="font-mono">Regla Inflado</span> para modificarlas. Disparan recálculo automático.</li>
+                                <li><strong>Editar inline</strong>: hacé clic sobre celdas como <span className="font-mono">Mrg Min</span>, <span className="font-mono">Mrg May</span> o <span className="font-mono">Regla Inflado</span> para modificarlas. Disparan recálculo automático.</li>
                                 <li><strong>Fórmula</strong>: abre un modal con el desglose paso a paso del cálculo del PVP final.</li>
                                 <li><strong>Recalcular</strong>: fuerza el recálculo del producto en ese canal+cuotas.</li>
                             </ul>

@@ -290,8 +290,6 @@ const CAMPO_DESCRIPCIONES: { campo: string; headers: string[]; descripcion: stri
     // ──────────────────────────────────────────────────────────────────────────
     { campo: "Margen Minorista", headers: ["Mrg Min"], descripcion: "Porcentaje de margen para venta minorista. Editable inline. El canal define cuál de los dos márgenes usar (minorista o mayorista).", color: "indigo" },
     { campo: "Margen Mayorista", headers: ["Mrg May"], descripcion: "Porcentaje de margen para venta mayorista. Editable inline. El canal define cuál de los dos márgenes usar (minorista o mayorista).", color: "indigo" },
-    { campo: "Fijo Minorista", headers: ["Fijo Min"], descripcion: "Monto fijo (en $) que se suma al costo para venta minorista, en lugar del porcentaje. Si está cargado, tiene precedencia sobre el % minorista.", color: "indigo" },
-    { campo: "Fijo Mayorista", headers: ["Fijo May"], descripcion: "Monto fijo (en $) que se suma al costo para venta mayorista, en lugar del porcentaje. Si está cargado, tiene precedencia sobre el % mayorista.", color: "indigo" },
 
     // ──────────────────────────────────────────────────────────────────────────
     // Precios calculados
@@ -1516,7 +1514,7 @@ export default function MonitorPrecios({
             : filas;
         if (rows.length === 0) return;
 
-        const headers = ["SKU", "Producto", "Canal", "Cuotas", "Costo", "IVA%", "PVP", "PVP Inflado", "Regla Inflado", "Descuento", "PVP c/Desc", "Gan c/Desc", "CV c/Desc", "IN c/Desc", "Mrg IN c/D%", "Mrg PVP c/D%", "Mkup c/Desc%", "Ganancia", "Costos Venta", "Ingreso Neto", "Mrg s/PVP%", "Mrg s/IN%", "Markup%", "Mrg Minorista%", "Mrg Mayorista%", "Fijo Minorista", "Fijo Mayorista"];
+        const headers = ["SKU", "Producto", "Canal", "Cuotas", "Costo", "IVA%", "PVP", "PVP Inflado", "Regla Inflado", "Descuento", "PVP c/Desc", "Gan c/Desc", "CV c/Desc", "IN c/Desc", "Mrg IN c/D%", "Mrg PVP c/D%", "Mkup c/Desc%", "Ganancia", "Costos Venta", "Ingreso Neto", "Mrg s/PVP%", "Mrg s/IN%", "Markup%", "Mrg Minorista%", "Mrg Mayorista%"];
         const lines = rows.map((r) => [
             r.sku, r.descripcion, r.canalNombre, r.cuotasDescripcion, num(r.costo), num(r.iva), num(r.pvp), num(r.pvpInflado),
             r.precioInfladoCodigo ?? "",

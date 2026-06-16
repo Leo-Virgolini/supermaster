@@ -1270,7 +1270,7 @@ const sections: Section[] = [
                         <li><strong>Identificación</strong>: SKU, MLA, Producto.</li>
                         <li><strong>Canal/Cuotas</strong>: Canal y plan de cuotas.</li>
                         <li><strong>Costo base</strong>: Costo e IVA.</li>
-                        <li><strong>Configuración de márgenes</strong>: Mrg Minorista, Mrg Mayorista, Fijo Min, Fijo May (editables haciendo clic).</li>
+                        <li><strong>Configuración de márgenes</strong>: Mrg Minorista, Mrg Mayorista (editables haciendo clic).</li>
                         <li><strong>Precios calculados</strong>: PVP, PVP Inflado, Regla de Inflado.</li>
                         <li><strong>Resultados financieros</strong>: Ganancia, Costos de Venta, Ingreso Neto.</li>
                         <li><strong>Márgenes calculados</strong>: Margen s/PVP, Margen s/Ingreso Neto, Markup %.</li>

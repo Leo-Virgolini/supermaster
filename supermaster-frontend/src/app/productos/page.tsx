@@ -386,6 +386,7 @@ export default function ProductosPage() {
             { id: "MAQUINA", label: "Máquina" },
             { id: "REPUESTO", label: "Repuesto" },
             { id: "MENAJE", label: "Menaje" },
+            { id: "INSUMO", label: "Insumo" },
         ],
     }), []);
 
@@ -727,10 +728,19 @@ export default function ProductosPage() {
             } as ProductoPatchDTO;
             await updateProductoAPI(id, patch, "FORM");
 
-            await updateProductoMargenAPI(id, {
-                margenMinorista: margenMinorista === "" ? null : margenMinorista,
-                margenMayorista: margenMayorista === "" ? null : margenMayorista,
-            });
+            // Solo enviamos los márgenes cargados (omitimos los vacíos en vez de
+            // mandarlos como null). Para combos sin márgenes, omitir la llamada
+            // evita el 400 que devuelve el backend al recibir null explícito.
+            const margenDto: { margenMinorista?: number; margenMayorista?: number } = {};
+            if (margenMinorista !== "") margenDto.margenMinorista = margenMinorista;
+            if (margenMayorista !== "") margenDto.margenMayorista = margenMayorista;
+            if (Object.keys(margenDto).length > 0) {
+                try {
+                    await updateProductoMargenAPI(id, margenDto);
+                } catch {
+                    notificar.error("El producto se actualizó, pero falló al guardar los márgenes");
+                }
+            }
 
             const diff = (orig: MultiOption[], curr: MultiOption[]) => {
                 const oid = new Set(orig.map(o => Number(o.id)));

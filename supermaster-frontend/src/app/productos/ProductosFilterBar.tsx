@@ -49,6 +49,7 @@ const searchTags = async (): Promise<{ id: string; label: string }[]> => [
     { id: "MAQUINA", label: "Máquina" },
     { id: "REPUESTO", label: "Repuesto" },
     { id: "MENAJE", label: "Menaje" },
+    { id: "INSUMO", label: "Insumo" },
 ];
 
 function asIdArray(value: unknown): (number | string)[] {

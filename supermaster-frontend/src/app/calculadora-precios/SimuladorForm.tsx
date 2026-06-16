@@ -449,6 +449,7 @@ export default function SimuladorForm({ canalId, cuotas }: SimuladorFormProps) {
                                 <option value="MAQUINA">Máquina</option>
                                 <option value="REPUESTO">Repuesto</option>
                                 <option value="MENAJE">Menaje</option>
+                                <option value="INSUMO">Insumo</option>
                             </select>
                         </label>
                     </div>

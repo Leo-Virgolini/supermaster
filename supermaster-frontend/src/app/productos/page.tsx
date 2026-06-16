@@ -1348,11 +1348,10 @@ export default function ProductosPage() {
                     </fieldset>
 
                     <fieldset className={sectionClassName}>
-                        <legend className={sectionTitleClassName}><UserGroupIcon /> Catálogos, Aptos y Clientes</legend>
+                        <legend className={sectionTitleClassName}><UserGroupIcon /> Catálogos y Clientes</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Asociaciones múltiples. Buscá y agregá los que correspondan.</p>
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <MultiAsyncSelect label="Catálogos" loadOptions={(q) => searchCatalogos(q)} value={catalogosSel} onChange={setCatalogosSel} placeholder="Buscar catálogo" inputClassName={inputBaseClassName} />
-                            <MultiAsyncSelect label="Aptos" loadOptions={(q) => searchAptos(q)} value={aptosSel} onChange={setAptosSel} placeholder="Buscar apto" inputClassName={inputBaseClassName} />
                             <MultiAsyncSelect label="Clientes" loadOptions={(q) => searchClientes(q)} value={clientesSel} onChange={setClientesSel} placeholder="Buscar cliente" inputClassName={inputBaseClassName} />
                         </div>
                     </fieldset>
@@ -1450,6 +1449,9 @@ export default function ProductosPage() {
                                 <span className={fieldLabelClassName}>Espesor (mm)</span>
                                 <input type="text" className={inputBaseClassName} value={espesor} onChange={e => setEspesor(e.target.value)} placeholder="Ej: 1.2" />
                             </label>
+                            <div className="md:col-span-2 xl:col-span-4">
+                                <MultiAsyncSelect label="Aptos" loadOptions={(q) => searchAptos(q)} value={aptosSel} onChange={setAptosSel} placeholder="Buscar apto" inputClassName={inputBaseClassName} />
+                            </div>
                         </div>
                     </fieldset>
 

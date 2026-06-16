@@ -406,7 +406,6 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
      * 4. Costo con ganancia: COSTO_CON_GASTOS * (1 + GANANCIA/100)
      * 4.5. COSTO_GANANCIA: Conceptos con aplica_sobre='COSTO_GANANCIA' (multiplican después de ganancia, antes de IMP)
      * 5. Envío: Si existe concepto con aplica_sobre='ENVIO', buscar mlas.precio_envio y sumarlo
-     * 6. Margen fijo: producto_canal.margen_fijo (suma absoluta)
      * 7. Impuestos (IMP): 1 + IVA/100 + sum(conceptos IMP)/100
      * 8. Gastos sobre COSTO_IVA: Conceptos con aplica_sobre='COSTO_IVA' (multiplican después de IMP)
      * 9. Gastos sobre PVP: Conceptos con aplica_sobre='PVP' + %CUOTAS (si aplica) - se aplican como divisores

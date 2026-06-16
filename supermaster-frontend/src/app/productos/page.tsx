@@ -296,7 +296,7 @@ export default function ProductosPage() {
     const [moq, setMoq] = useState<number | "">("");
     const [stock, setStock] = useState<number | "">(0);
     const [tagReposicion, setTagReposicion] = useState<"" | "PRIO" | "LIQ">("");
-    const [tag, setTag] = useState<"" | "MAQUINA" | "REPUESTO" | "MENAJE">("");
+    const [tag, setTag] = useState<"" | "MAQUINA" | "REPUESTO" | "MENAJE" | "INSUMO">("");
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
     // Sync header search param (también limpia cuando se remueve ?q del URL)
@@ -652,7 +652,7 @@ export default function ProductosPage() {
         setCosto(producto.costo ?? ""); setIva(producto.iva ?? 21);
         setStock(producto.stock ?? ""); setMoq(producto.moq ?? "");
         setTagReposicion((producto.tagReposicion as "" | "PRIO" | "LIQ") ?? "");
-        setTag((producto.tag as "" | "MAQUINA" | "REPUESTO" | "MENAJE") ?? "");
+        setTag((producto.tag as "" | "MAQUINA" | "REPUESTO" | "MENAJE" | "INSUMO") ?? "");
         setMarcaId(producto.marcaId ?? null); setOrigenId(producto.origenId ?? null);
         setClasifGralId(producto.clasifGralId ?? null); setClasifGastroId(producto.clasifGastroId ?? null);
         setTipoId(producto.tipoId ?? null); setProveedorId(producto.proveedorId ?? null);
@@ -1312,13 +1312,15 @@ export default function ProductosPage() {
                             <AsyncSelect label="Proveedor" loadOptions={searchProveedores} onChange={(v, label) => { setProveedorId(v ? Number(v) : null); setProveedorDisplay(v ? (label ?? "") : ""); }} value={proveedorId} displayValue={proveedorDisplay} placeholder="Buscar proveedor" inputClassName={inputBaseClassName} />
                             <AsyncSelect label="Material" loadOptions={searchMateriales} onChange={(v, label) => { setMaterialId(v ? Number(v) : null); setMaterialDisplay(v ? (label ?? "") : ""); }} value={materialId} displayValue={materialDisplay} placeholder="Buscar material" inputClassName={inputBaseClassName} />
                             <label className="block">
-                                <span className={fieldLabelClassName}>Tag</span>
-                                <select className={selectBaseClassName} value={tag} onChange={e => setTag(e.target.value as "" | "MAQUINA" | "REPUESTO" | "MENAJE")}>
-                                    <option value="">Sin tag</option>
+                                <span className={fieldLabelClassName}>Tag {!esCombo && <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span>}</span>
+                                <select className={`${selectBaseClassName} ${formErrors.tag ? inputErrorClassName : ""}`} value={tag} onChange={e => { setTag(e.target.value as "" | "MAQUINA" | "REPUESTO" | "MENAJE" | "INSUMO"); if (formErrors.tag) setFormErrors(p => ({ ...p, tag: "" })); }}>
+                                    <option value="">-- Seleccionar --</option>
                                     <option value="MAQUINA">Máquina</option>
                                     <option value="REPUESTO">Repuesto</option>
                                     <option value="MENAJE">Menaje</option>
+                                    <option value="INSUMO">Insumo</option>
                                 </select>
+                                {formErrors.tag && <p className="mt-1 text-xs text-red-500">{formErrors.tag}</p>}
                             </label>
                         </div>
                     </fieldset>

@@ -1,5 +1,5 @@
 export type TagReposicion = 'PRIO' | 'LIQ';
-export type Tag = 'MAQUINA' | 'REPUESTO' | 'MENAJE';
+export type Tag = 'MAQUINA' | 'REPUESTO' | 'MENAJE' | 'INSUMO';
 
 export interface ProductoDTO {
 	id: number;

@@ -75,8 +75,6 @@ interface FilaComparador {
     ingresoNetoVendedor: number | null;
     margenMinorista: number | null;
     margenMayorista: number | null;
-    margenFijoMinorista: number | null;
-    margenFijoMayorista: number | null;
     descuentos: DescuentoAplicable[];
     // Primer descuento aplanado para columnas individuales
     descPorcentaje: number | null;
@@ -213,8 +211,6 @@ function aplanarParaExport(
             ingresoNetoVendedor: precio.ingresoNetoVendedor ?? null,
             margenMinorista: margen?.margenMinorista ?? null,
             margenMayorista: margen?.margenMayorista ?? null,
-            margenFijoMinorista: margen?.margenFijoMinorista ?? null,
-            margenFijoMayorista: margen?.margenFijoMayorista ?? null,
             descuentos: precio.descuentos ?? [],
             descPorcentaje: precio.descuentos?.[0]?.descuentoPorcentaje ?? null,
             descMontoMinimo: precio.descuentos?.[0]?.montoMinimo ?? null,
@@ -354,7 +350,7 @@ const CAMPO_COLOR_MAP: Record<string, { border: string; bg: string; badge: strin
 const PRODUCT_LEVEL_COLS = new Set([
     "sku", "mla", "descripcion", "canalNombre",
     "costo", "fechaUltimoCosto", "iva",
-    "margenMinorista", "margenMayorista", "margenFijoMinorista", "margenFijoMayorista",
+    "margenMinorista", "margenMayorista",
     "precioInfladoCodigo",
 ]);
 
@@ -369,8 +365,6 @@ const TOGGLEABLE_COLUMNS: { id: string; label: string }[] = [
     { id: "iva", label: "IVA" },
     { id: "margenMinorista", label: "Mrg Min" },
     { id: "margenMayorista", label: "Mrg May" },
-    { id: "margenFijoMinorista", label: "Fijo Min" },
-    { id: "margenFijoMayorista", label: "Fijo May" },
     { id: "pvp", label: "PVP" },
     { id: "pvpInflado", label: "Inflado" },
     { id: "precioInfladoCodigo", label: "Regla Inflado" },
@@ -407,7 +401,7 @@ const MONITOR_PRESETS = [
         label: "Edición",
         visibleColumns: [
             "sku", "descripcion", "canalNombre", "cuotasDescripcion", "costo", "iva",
-            "margenMinorista", "margenMayorista", "margenFijoMinorista", "margenFijoMayorista",
+            "margenMinorista", "margenMayorista",
             "pvp", "pvpInflado", "precioInfladoCodigo", "acciones",
         ],
     },
@@ -438,8 +432,6 @@ const MONITOR_EXPORT_COLUMNS: Array<{ header: string; accessor: keyof FilaCompar
     { header: "IVA", accessor: "iva" },
     { header: "Mrg Min", accessor: "margenMinorista" },
     { header: "Mrg May", accessor: "margenMayorista" },
-    { header: "Fijo Min", accessor: "margenFijoMinorista" },
-    { header: "Fijo May", accessor: "margenFijoMayorista" },
     { header: "PVP", accessor: "pvp" },
     { header: "Inflado", accessor: "pvpInflado" },
     { header: "Regla Inflado", accessor: "precioInfladoCodigo" },
@@ -774,42 +766,6 @@ const getColumns = (
             />
             );
         },
-    },
-    {
-        accessorKey: "margenFijoMinorista",
-        header: "Fijo Min",
-        size: 90,
-        enableSorting: true,
-        meta: { center: true, editable: true },
-        cell: ({ getValue, row }) => (
-            <EditableCell
-                initialValue={(getValue() as number | null) ?? ""}
-                type="number"
-                prefix="$ "
-                displayFormatter={formatThousands}
-                className={`font-mono font-semibold text-yellow-600 dark:text-yellow-400 ${highlightClass(row.original.id, "margenFijoMinorista")}`}
-                disabled={!canEdit}
-                onSave={(val) => onEditField?.(row.original.id, row.original.canalId, "margenFijoMinorista", val!)}
-            />
-        ),
-    },
-    {
-        accessorKey: "margenFijoMayorista",
-        header: "Fijo May",
-        size: 90,
-        enableSorting: true,
-        meta: { center: true, editable: true },
-        cell: ({ getValue, row }) => (
-            <EditableCell
-                initialValue={(getValue() as number | null) ?? ""}
-                type="number"
-                prefix="$ "
-                displayFormatter={formatThousands}
-                className={`font-mono font-semibold text-blue-700 dark:text-blue-400 ${highlightClass(row.original.id, "margenFijoMayorista")}`}
-                disabled={!canEdit}
-                onSave={(val) => onEditField?.(row.original.id, row.original.canalId, "margenFijoMayorista", val!)}
-            />
-        ),
     },
     // --- Resultados financieros ---
     {
@@ -1569,7 +1525,7 @@ export default function MonitorPrecios({
             num(r.descCostosVenta), num(r.descIngresoNeto), num(r.descMargenSobreIN), num(r.descMargenSobrePvp), num(r.descMarkup),
             num(r.ganancia), num(r.costosVenta), num(r.ingresoNetoVendedor),
             num(r.margenSobrePvp), num(r.margenSobreIngresoNeto), num(r.markupPorcentaje),
-            num(r.margenMinorista), num(r.margenMayorista), num(r.margenFijoMinorista), num(r.margenFijoMayorista),
+            num(r.margenMinorista), num(r.margenMayorista),
         ].join("\t"));
 
         const tsv = [headers.join("\t"), ...lines].join("\n");

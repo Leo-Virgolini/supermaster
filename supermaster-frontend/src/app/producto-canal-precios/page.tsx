@@ -183,8 +183,6 @@ export default function ProductoCanalPreciosPage() {
                 await updateProductoMargenAPI(productoId, {
                     margenMinorista: current?.margenMinorista ?? null,
                     margenMayorista: current?.margenMayorista ?? null,
-                    margenFijoMinorista: current?.margenFijoMinorista ?? null,
-                    margenFijoMayorista: current?.margenFijoMayorista ?? null,
                     observaciones: current?.observaciones ?? null,
                     [field]: numValue,
                 });

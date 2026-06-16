@@ -51,8 +51,6 @@ export interface SimulacionPrecioInput {
 
     margenMinorista: number;
     margenMayorista: number;
-    margenFijoMinorista?: number | null;
-    margenFijoMayorista?: number | null;
 
     precioInfladoTipo?: TipoPrecioInflado | null;
     precioInfladoValor?: number | null;
@@ -80,8 +78,6 @@ export interface ProductoSnapshot {
     mlaComisionPorcentaje: number | null;
     margenMinorista: number | null;
     margenMayorista: number | null;
-    margenFijoMinorista: number | null;
-    margenFijoMayorista: number | null;
     precioInfladoTipo: TipoPrecioInflado | null;
     precioInfladoValor: number | null;
     precioInfladoCodigo: string | null;
@@ -183,8 +179,6 @@ export const loadProductoSnapshotAPI = async (productoId: number, canalId?: numb
         mlaComisionPorcentaje: mla?.comisionPorcentaje ?? null,
         margenMinorista: margen?.margenMinorista ?? null,
         margenMayorista: margen?.margenMayorista ?? null,
-        margenFijoMinorista: margen?.margenFijoMinorista ?? null,
-        margenFijoMayorista: margen?.margenFijoMayorista ?? null,
         precioInfladoTipo: (reglaInflada?.tipo as TipoPrecioInflado) ?? null,
         precioInfladoValor: reglaInflada?.valor ?? null,
         precioInfladoCodigo: reglaInflada?.codigo ?? null,

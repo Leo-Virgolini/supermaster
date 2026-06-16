@@ -45,8 +45,6 @@ interface FormState {
     mlaComision: string;
     margenMin: string;
     margenMay: string;
-    margenFijoMin: string;
-    margenFijoMay: string;
     precioInfladoTipo: TipoInflado;
     precioInfladoValor: string;
 }
@@ -64,8 +62,6 @@ const emptyForm = (): FormState => ({
     mlaComision: "",
     margenMin: "30",
     margenMay: "20",
-    margenFijoMin: "",
-    margenFijoMay: "",
     precioInfladoTipo: "",
     precioInfladoValor: "",
 });
@@ -227,8 +223,6 @@ export default function SimuladorForm({ canalId, cuotas }: SimuladorFormProps) {
                 mlaComision: snap.mlaComisionPorcentaje != null ? String(snap.mlaComisionPorcentaje) : "",
                 margenMin: snap.margenMinorista != null ? String(snap.margenMinorista) : prev.margenMin,
                 margenMay: snap.margenMayorista != null ? String(snap.margenMayorista) : prev.margenMay,
-                margenFijoMin: snap.margenFijoMinorista != null ? String(snap.margenFijoMinorista) : "",
-                margenFijoMay: snap.margenFijoMayorista != null ? String(snap.margenFijoMayorista) : "",
                 precioInfladoTipo: (snap.precioInfladoTipo as TipoInflado) ?? "",
                 precioInfladoValor: snap.precioInfladoValor != null ? String(snap.precioInfladoValor) : "",
             }));
@@ -307,8 +301,6 @@ export default function SimuladorForm({ canalId, cuotas }: SimuladorFormProps) {
                 mlaComisionPorcentaje: parseNumOrNull(form.mlaComision),
                 margenMinorista: margenMinNum,
                 margenMayorista: margenMayNum,
-                margenFijoMinorista: parseNumOrNull(form.margenFijoMin),
-                margenFijoMayorista: parseNumOrNull(form.margenFijoMay),
                 precioInfladoTipo: form.precioInfladoTipo === "" ? null : form.precioInfladoTipo,
                 precioInfladoValor: parseNumOrNull(form.precioInfladoValor),
             };
@@ -412,32 +404,6 @@ export default function SimuladorForm({ canalId, cuotas }: SimuladorFormProps) {
                         />
                     </label>
                 </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                    <label className="block">
-                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Margen Fijo Min. $</span>
-                        <input
-                            type="text"
-                            inputMode="decimal"
-                            className="mt-1 w-full rounded border border-slate-300 bg-white p-1.5 text-sm dark:border-slate-700 dark:bg-slate-800"
-                            value={form.margenFijoMin}
-                            onChange={(e) => update("margenFijoMin", e.target.value)}
-                            placeholder="—"
-                        />
-                    </label>
-                    <label className="block">
-                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Margen Fijo May. $</span>
-                        <input
-                            type="text"
-                            inputMode="decimal"
-                            className="mt-1 w-full rounded border border-slate-300 bg-white p-1.5 text-sm dark:border-slate-700 dark:bg-slate-800"
-                            value={form.margenFijoMay}
-                            onChange={(e) => update("margenFijoMay", e.target.value)}
-                            placeholder="—"
-                        />
-                    </label>
-                </div>
-
 
                 <details open className="rounded border border-slate-200 dark:border-slate-700">
                     <summary className="cursor-pointer px-3 py-2 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">

@@ -68,8 +68,6 @@ export interface ProductoDTO {
 	// Márgenes (vienen de producto_margen, expuestos para edición inline)
 	margenMinorista?: number | null;
 	margenMayorista?: number | null;
-	margenFijoMinorista?: number | null;
-	margenFijoMayorista?: number | null;
 }
 
 export interface ProductoCreateDTO {

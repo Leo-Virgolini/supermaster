@@ -276,8 +276,6 @@ export default function ProductosPage() {
     // Márgenes (se asocian tras crear el producto)
     const [margenMinorista, setMargenMinorista] = useState<number | "">("");
     const [margenMayorista, setMargenMayorista] = useState<number | "">("");
-    const [margenFijoMinorista, setMargenFijoMinorista] = useState<number | "">("");
-    const [margenFijoMayorista, setMargenFijoMayorista] = useState<number | "">("");
     // Relaciones N-a-N (se asocian tras crear el producto)
     const [catalogosSel, setCatalogosSel] = useState<MultiOption[]>([]);
     const [aptosSel, setAptosSel] = useState<MultiOption[]>([]);
@@ -544,11 +542,9 @@ export default function ProductosPage() {
         // Solo enviamos los márgenes cargados (omitimos los vacíos en vez de
         // mandarlos como null). Así se puede crear con uno solo: el backend
         // defaultea a 0 el margen ausente. Mandar null explícito daba error.
-        const margenDto: { margenMinorista?: number; margenMayorista?: number; margenFijoMinorista?: number; margenFijoMayorista?: number } = {};
+        const margenDto: { margenMinorista?: number; margenMayorista?: number } = {};
         if (margenMinorista !== "") margenDto.margenMinorista = margenMinorista;
         if (margenMayorista !== "") margenDto.margenMayorista = margenMayorista;
-        if (margenFijoMinorista !== "") margenDto.margenFijoMinorista = margenFijoMinorista;
-        if (margenFijoMayorista !== "") margenDto.margenFijoMayorista = margenFijoMayorista;
         if (Object.keys(margenDto).length > 0) {
             try {
                 await updateProductoMargenAPI(productoId, margenDto);
@@ -670,7 +666,6 @@ export default function ProductosPage() {
         // Origen/material/proveedor no traen nombre en el DTO: se resuelven por id.
         setOrigenDisplay(""); setMaterialDisplay(""); setProveedorDisplay("");
         setMargenMinorista(producto.margenMinorista ?? ""); setMargenMayorista(producto.margenMayorista ?? "");
-        setMargenFijoMinorista(producto.margenFijoMinorista ?? ""); setMargenFijoMayorista(producto.margenFijoMayorista ?? "");
         setFormErrors({});
         setCatalogosSel([]); setAptosSel([]); setClientesSel([]);
         setCatalogosOriginal([]); setAptosOriginal([]); setClientesOriginal([]);
@@ -721,8 +716,6 @@ export default function ProductosPage() {
             await updateProductoMargenAPI(id, {
                 margenMinorista: margenMinorista === "" ? null : margenMinorista,
                 margenMayorista: margenMayorista === "" ? null : margenMayorista,
-                margenFijoMinorista: margenFijoMinorista === "" ? null : margenFijoMinorista,
-                margenFijoMayorista: margenFijoMayorista === "" ? null : margenFijoMayorista,
             });
 
             const diff = (orig: MultiOption[], curr: MultiOption[]) => {
@@ -893,7 +886,7 @@ export default function ProductosPage() {
         setMoq(""); setStock(0); setTagReposicion(""); setTag("");
         setMlaDisplay(""); setShowNuevoMla(false);
         setMlaCodigo(""); setMlaMlau(""); setMlaPrecioEnvio(""); setMlaTope(""); setMlaComision("");
-        setMargenMinorista(""); setMargenMayorista(""); setMargenFijoMinorista(""); setMargenFijoMayorista("");
+        setMargenMinorista(""); setMargenMayorista("");
         setCatalogosSel([]); setAptosSel([]); setClientesSel([]);
         setPreciosInfladosSel([]);
         setFormErrors({});
@@ -906,7 +899,7 @@ export default function ProductosPage() {
         try { await deleteProducto(selectedIds); setRowSelection({}); } catch (e) { /* hook already toasts */ }
     };
 
-    const MARGEN_FIELDS = new Set(["margenMinorista", "margenMayorista", "margenFijoMinorista", "margenFijoMayorista"]);
+    const MARGEN_FIELDS = new Set(["margenMinorista", "margenMayorista"]);
 
     const handleUpdate = async (rowIndex: number, columnId: string, value: unknown) => {
         const itemOriginal = productos[rowIndex];
@@ -1295,14 +1288,6 @@ export default function ProductosPage() {
                             <label className="block">
                                 <span className={fieldLabelClassName}>Margen mayorista (%)</span>
                                 <input type="number" step={0.5} className={inputBaseClassName} value={margenMayorista} onChange={e => setMargenMayorista(e.target.value === "" ? "" : Number(e.target.value))} placeholder="Sin definir" />
-                            </label>
-                            <label className="block">
-                                <span className={fieldLabelClassName}>Margen fijo minorista</span>
-                                <input type="number" step={0.5} className={inputBaseClassName} value={margenFijoMinorista} onChange={e => setMargenFijoMinorista(e.target.value === "" ? "" : Number(e.target.value))} placeholder="Sin definir" />
-                            </label>
-                            <label className="block">
-                                <span className={fieldLabelClassName}>Margen fijo mayorista</span>
-                                <input type="number" step={0.5} className={inputBaseClassName} value={margenFijoMayorista} onChange={e => setMargenFijoMayorista(e.target.value === "" ? "" : Number(e.target.value))} placeholder="Sin definir" />
                             </label>
                         </div>
                     </fieldset>

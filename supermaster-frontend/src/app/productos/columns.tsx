@@ -394,14 +394,6 @@ export function getColumns(onEditarProducto: (producto: ProductoDTO) => void, ca
         }
     },
     {
-        accessorKey: "margenFijoMinorista", header: "Fijo Min", size: 95, enableColumnFilter: false, meta: { editable: true, center: true },
-        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={(getValue() as number | null) ?? ""} type="number" nullable prefix="$ " className="font-mono font-semibold text-yellow-600 dark:text-yellow-400" onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val === null ? null : Number(val))} disabled={!canEdit} />)
-    },
-    {
-        accessorKey: "margenFijoMayorista", header: "Fijo May", size: 95, enableColumnFilter: false, meta: { editable: true, center: true },
-        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={(getValue() as number | null) ?? ""} type="number" nullable prefix="$ " className="font-mono font-semibold text-blue-700 dark:text-blue-400" onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val === null ? null : Number(val))} disabled={!canEdit} />)
-    },
-    {
         accessorKey: "stock", header: "Stock", enableColumnFilter: false, meta: { editable: true },
         cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={(getValue() as number | null) ?? ""} type="number" nullable className={FONT.numeric} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val === null ? null : Number(val))} disabled={!canEdit} />)
     },

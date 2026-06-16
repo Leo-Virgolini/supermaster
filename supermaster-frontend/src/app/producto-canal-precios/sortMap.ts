@@ -17,8 +17,6 @@ export const SORT_FIELD_MAP: Record<string, string> = {
     markupPorcentaje: "markup",
     margenMinorista: "margenminorista",
     margenMayorista: "margenmayorista",
-    margenFijoMinorista: "margenfijominorista",
-    margenFijoMayorista: "margenfijomayorista",
     precioInfladoCodigo: "precioInflado",
     fechaUltimoCosto: "fechaultimocosto",
     fechaUltimoCalculo: "fechaultimocalculo",

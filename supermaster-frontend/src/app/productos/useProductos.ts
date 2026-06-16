@@ -96,7 +96,7 @@ export function useProductos(pageIndex: number, pageSize: number, filters: Recor
 		data: Partial<Omit<ProductoMargenDTO, "id" | "productoId">>
 	) => {
 		try {
-			// El PATCH del margen devuelve ProductoMargenDTO con los 4 campos de
+			// El PATCH del margen devuelve ProductoMargenDTO con los campos de
 			// margen. Mergeamos solo esos campos en la fila local — el resto del
 			// producto no cambia.
 			const margenActualizado = await updateProductoMargenAPI(id, data);
@@ -104,8 +104,6 @@ export function useProductos(pageIndex: number, pageSize: number, filters: Recor
 				...p,
 				margenMinorista: margenActualizado.margenMinorista,
 				margenMayorista: margenActualizado.margenMayorista,
-				margenFijoMinorista: margenActualizado.margenFijoMinorista,
-				margenFijoMayorista: margenActualizado.margenFijoMayorista,
 			} : p)));
 			notificar.success(`[Productos] Margen #${id} actualizado`);
 		} catch (e: unknown) {

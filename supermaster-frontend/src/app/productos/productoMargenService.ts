@@ -8,8 +8,6 @@ export interface ProductoMargenDTO {
     productoId: number;
     margenMinorista: number | null;
     margenMayorista: number | null;
-    margenFijoMinorista: number | null;
-    margenFijoMayorista: number | null;
     observaciones: string | null;
 }
 

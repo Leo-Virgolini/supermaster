@@ -1,6 +1,6 @@
 "use client";
 import { getErrorMessage } from "@/lib/errors";
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { toast } from "sonner";
 import { notificar } from "../utils/notificar";
 import { BoltIcon, XMarkIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
@@ -11,6 +11,7 @@ import {
     simularPrecioAPI,
     searchProductosForSimulacionAPI,
     loadProductoSnapshotAPI,
+    resolveReglaInfladaAPI,
     type SimulacionPrecioInput,
     type SimulacionResultado,
     type IndicadoresCalculados,
@@ -193,6 +194,9 @@ export default function SimuladorForm({ canalId, cuotas }: SimuladorFormProps) {
     const [error, setError] = useState<string | null>(null);
     const [productoBaseLabel, setProductoBaseLabel] = useState<string | null>(null);
     const [isLoadingProducto, setIsLoadingProducto] = useState(false);
+    // Id del producto de referencia cargado. Se usa para recargar el precio inflado
+    // (único atributo dependiente del canal) cuando cambia el canal seleccionado.
+    const productoBaseIdRef = useRef<number | null>(null);
 
     const update = <K extends keyof FormState>(key: K, value: FormState[K]) =>
         setForm((prev) => ({ ...prev, [key]: value }));
@@ -225,6 +229,7 @@ export default function SimuladorForm({ canalId, cuotas }: SimuladorFormProps) {
                 precioInfladoValor: snap.precioInfladoValor != null ? String(snap.precioInfladoValor) : "",
             }));
             setProductoBaseLabel(snap.label || label);
+            productoBaseIdRef.current = id;
             setResultado(null);
             setError(null);
             const infladoMsg = snap.precioInfladoCodigo ? ` · regla inflado: ${snap.precioInfladoCodigo}` : "";
@@ -238,7 +243,29 @@ export default function SimuladorForm({ canalId, cuotas }: SimuladorFormProps) {
 
     const handleClearProducto = () => {
         setProductoBaseLabel(null);
+        productoBaseIdRef.current = null;
     };
+
+    // Al cambiar el canal con un producto de referencia ya cargado, recargamos solo el
+    // precio inflado (único atributo dependiente del canal) para el nuevo canal, sin pisar
+    // el resto del form que el usuario pudo haber modificado para simular variaciones.
+    useEffect(() => {
+        const productoId = productoBaseIdRef.current;
+        if (productoId == null) return;
+        let cancelled = false;
+        (async () => {
+            const regla = await resolveReglaInfladaAPI(productoId, canalId).catch(() => null);
+            if (cancelled) return;
+            setForm((prev) => ({
+                ...prev,
+                precioInfladoTipo: (regla?.tipo as TipoInflado) ?? "",
+                precioInfladoValor: regla?.valor != null ? String(regla.valor) : "",
+            }));
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [canalId]);
 
 
     const handleSimular = async () => {

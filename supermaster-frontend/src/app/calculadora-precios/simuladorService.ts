@@ -109,6 +109,32 @@ async function resolveNombre(endpoint: string, id: number | null | undefined, ex
     return info.nombre;
 }
 
+// Regla de precio inflado ya resuelta (filtrada por vigencia) para un producto+canal.
+export interface ReglaInfladaResuelta {
+    tipo: TipoPrecioInflado;
+    valor: number;
+    codigo: string | null;
+}
+
+// Trae la regla de precio inflado asignada a un producto en un canal y la filtra por
+// vigencia (activa y dentro del rango de fechas, si tiene). Devuelve null si no aplica.
+// El precio inflado es el único atributo del snapshot que depende del canal, por eso se
+// resuelve aparte: así se puede recargar al cambiar de canal sin pisar el resto del form.
+export const resolveReglaInfladaAPI = async (
+    productoId: number,
+    canalId: number | null | undefined,
+): Promise<ReglaInfladaResuelta | null> => {
+    if (canalId == null) return null;
+    const infladoCanal = await getProductoPrecioInfladoPorCanalAPI(productoId, canalId).catch(() => null);
+    if (!infladoCanal || !infladoCanal.activo) return null;
+    const hoy = new Date();
+    if (infladoCanal.fechaDesde && new Date(infladoCanal.fechaDesde) > hoy) return null;
+    if (infladoCanal.fechaHasta && new Date(infladoCanal.fechaHasta) < hoy) return null;
+    const regla = infladoCanal.precioInflado;
+    if (!regla) return null;
+    return { tipo: regla.tipo as TipoPrecioInflado, valor: regla.valor, codigo: regla.codigo ?? null };
+};
+
 // Trae los datos del producto (con sus IDs y nombres flattened), su margen, los datos
 // de proveedor/MLA, y la regla de precio inflado asignada al canal (si existe).
 // Devuelve un snapshot listo para precargar el form.
@@ -118,7 +144,7 @@ export const loadProductoSnapshotAPI = async (productoId: number, canalId?: numb
     const producto: ProductoDTO = await productoRes.json();
 
     // En paralelo: margen, proveedor, mla, nombres de clasifs, y precio inflado del canal.
-    const [margen, proveedor, mla, marcaLabel, tipoLabel, clasifGralLabel, clasifGastroLabel, infladoCanal] = await Promise.all([
+    const [margen, proveedor, mla, marcaLabel, tipoLabel, clasifGralLabel, clasifGastroLabel, reglaInflada] = await Promise.all([
         getProductoMargenAPI(productoId).catch(() => null),
         producto.proveedorId
             ? fetchAPI(`${API_BASE_URL}/api/proveedores/${producto.proveedorId}`)
@@ -134,19 +160,8 @@ export const loadProductoSnapshotAPI = async (productoId: number, canalId?: numb
         resolveNombre("tipos", producto.tipoId, producto.tipoNombre),
         resolveNombre("clasif-gral", producto.clasifGralId, producto.clasifGralNombre),
         resolveNombre("clasif-gastro", producto.clasifGastroId, producto.clasifGastroNombre),
-        canalId != null
-            ? getProductoPrecioInfladoPorCanalAPI(productoId, canalId).catch(() => null)
-            : Promise.resolve(null),
+        resolveReglaInfladaAPI(productoId, canalId),
     ]);
-
-    // El precio inflado se considera solo si está activo y dentro del rango de fechas (si tiene).
-    const reglaInflada = (() => {
-        if (!infladoCanal || !infladoCanal.activo) return null;
-        const hoy = new Date();
-        if (infladoCanal.fechaDesde && new Date(infladoCanal.fechaDesde) > hoy) return null;
-        if (infladoCanal.fechaHasta && new Date(infladoCanal.fechaHasta) < hoy) return null;
-        return infladoCanal.precioInflado ?? null;
-    })();
 
     return {
         productoId: producto.id,

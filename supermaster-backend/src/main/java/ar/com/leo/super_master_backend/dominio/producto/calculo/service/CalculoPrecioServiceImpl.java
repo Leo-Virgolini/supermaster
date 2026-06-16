@@ -1168,35 +1168,85 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
             // Usar los conceptos ya filtrados (con reglas aplicadas) en lugar de buscar todos
             BigDecimal porcentajeConceptosCanal = gastosSobrePVPTotal;
 
-            BigDecimal porcentajeCuotasTotal = porcentajeConceptosCanal.add(porcentajeCuota);
+            if (porcentajeCuota.compareTo(BigDecimal.ZERO) >= 0) {
+                // CUOTA >= 0 (interés o sin cambio): gastos PVP + cuota como divisor único.
+                BigDecimal porcentajeCuotasTotal = porcentajeConceptosCanal.add(porcentajeCuota);
 
-            if (porcentajeCuotasTotal.compareTo(BigDecimal.ZERO) > 0) {
-                BigDecimal cuotasFrac = porcentajeCuotasTotal.divide(CIEN, PRECISION_CALCULO, RoundingMode.HALF_UP);
-                BigDecimal divisorCuotas = BigDecimal.ONE.subtract(cuotasFrac);
-                if (divisorCuotas.compareTo(BigDecimal.ZERO) > 0) {
-                    BigDecimal costoConImpuestosAntesCuotas = costoConImpuestos;
-                    costoConImpuestos = costoConImpuestos.divide(divisorCuotas, PRECISION_CALCULO, RoundingMode.HALF_UP);
-                    List<String> nombresConceptosPVPCuotas = new ArrayList<>(obtenerNombresConceptos(conceptos, AplicaSobre.COMISION_SOBRE_PVP));
-                    if (tieneComisionMl) nombresConceptosPVPCuotas.add("COMISION_ML");
-                    String nombresPVPCuotasFormateados = formatearNombresConceptos(nombresConceptosPVPCuotas);
-                    String detalleConceptosPVPCuotas = formatearDetalleConceptos(gastosSobrePVP);
-                    if (!detalleComisionMl.isEmpty()) {
-                        detalleConceptosPVPCuotas = detalleConceptosPVPCuotas.isEmpty()
-                                ? detalleComisionMl
-                                : detalleConceptosPVPCuotas + " + " + detalleComisionMl;
+                if (porcentajeCuotasTotal.compareTo(BigDecimal.ZERO) > 0) {
+                    BigDecimal cuotasFrac = porcentajeCuotasTotal.divide(CIEN, PRECISION_CALCULO, RoundingMode.HALF_UP);
+                    BigDecimal divisorCuotas = BigDecimal.ONE.subtract(cuotasFrac);
+                    if (divisorCuotas.compareTo(BigDecimal.ZERO) > 0) {
+                        BigDecimal costoConImpuestosAntesCuotas = costoConImpuestos;
+                        costoConImpuestos = costoConImpuestos.divide(divisorCuotas, PRECISION_CALCULO, RoundingMode.HALF_UP);
+                        List<String> nombresConceptosPVPCuotas = new ArrayList<>(obtenerNombresConceptos(conceptos, AplicaSobre.COMISION_SOBRE_PVP));
+                        if (tieneComisionMl) nombresConceptosPVPCuotas.add("COMISION_ML");
+                        String nombresPVPCuotasFormateados = formatearNombresConceptos(nombresConceptosPVPCuotas);
+                        String detalleConceptosPVPCuotas = formatearDetalleConceptos(gastosSobrePVP);
+                        if (!detalleComisionMl.isEmpty()) {
+                            detalleConceptosPVPCuotas = detalleConceptosPVPCuotas.isEmpty()
+                                    ? detalleComisionMl
+                                    : detalleConceptosPVPCuotas + " + " + detalleComisionMl;
+                        }
+                        pasos.add(new FormulaCalculoDTO.PasoCalculo(pasoNumero++,
+                                "Aplicar comisiones y cuotas",
+                                String.format("PVP = COSTO_CON_IMPUESTOS / (1 - (%s + %s cuotas)/100)",
+                                        nombresPVPCuotasFormateados, numeroCuotas),
+                                rd(costoConImpuestos),
+                                String.format("Comisiones + cuotas = (%s) + %s%% = %s%% → %s / (1 - %s/100) = %s",
+                                        detalleConceptosPVPCuotas.isEmpty() ? fmt(porcentajeConceptosCanal) + "%"
+                                                : detalleConceptosPVPCuotas,
+                                        fmt(porcentajeCuota), fmt(porcentajeCuotasTotal),
+                                        fmt(costoConImpuestosAntesCuotas), fmt(porcentajeCuotasTotal), fmt(costoConImpuestos)),
+                                FormulaCalculoDTO.UNIDAD_MONEDA));
                     }
-                    pasos.add(new FormulaCalculoDTO.PasoCalculo(pasoNumero++,
-                            "Aplicar comisiones y cuotas",
-                            String.format("PVP = COSTO_CON_IMPUESTOS / (1 - (%s + %s cuotas)/100)",
-                                    nombresPVPCuotasFormateados, numeroCuotas),
-                            rd(costoConImpuestos),
-                            String.format("Comisiones + cuotas = (%s) + %s%% = %s%% → %s / (1 - %s/100) = %s",
-                                    detalleConceptosPVPCuotas.isEmpty() ? fmt(porcentajeConceptosCanal) + "%"
-                                            : detalleConceptosPVPCuotas,
-                                    fmt(porcentajeCuota), fmt(porcentajeCuotasTotal),
-                                    fmt(costoConImpuestosAntesCuotas), fmt(porcentajeCuotasTotal), fmt(costoConImpuestos)),
-                            FormulaCalculoDTO.UNIDAD_MONEDA));
                 }
+            } else {
+                // CUOTA < 0 (descuento, p. ej. transferencia): primero los gastos PVP como
+                // divisor y luego el descuento como multiplicador. Mismo orden que el motor
+                // (calcularPrecioUnificado) para que el PVP final coincida con el indicador.
+                if (porcentajeConceptosCanal.compareTo(BigDecimal.ZERO) > 0) {
+                    BigDecimal gastosFrac = porcentajeConceptosCanal.divide(CIEN, PRECISION_CALCULO, RoundingMode.HALF_UP);
+                    BigDecimal divisorGastos = BigDecimal.ONE.subtract(gastosFrac);
+                    if (divisorGastos.compareTo(BigDecimal.ZERO) > 0) {
+                        BigDecimal costoConImpuestosAntesGastos = costoConImpuestos;
+                        costoConImpuestos = costoConImpuestos.divide(divisorGastos, PRECISION_CALCULO, RoundingMode.HALF_UP);
+                        List<String> nombresConceptosPVP = new ArrayList<>(obtenerNombresConceptos(conceptos, AplicaSobre.COMISION_SOBRE_PVP));
+                        if (tieneComisionMl) nombresConceptosPVP.add("COMISION_ML");
+                        String nombresPVPFormateados = formatearNombresConceptos(nombresConceptosPVP);
+                        String detalleConceptosPVP = formatearDetalleConceptos(gastosSobrePVP);
+                        if (!detalleComisionMl.isEmpty()) {
+                            detalleConceptosPVP = detalleConceptosPVP.isEmpty()
+                                    ? detalleComisionMl
+                                    : detalleConceptosPVP + " + " + detalleComisionMl;
+                        }
+                        pasos.add(new FormulaCalculoDTO.PasoCalculo(pasoNumero++,
+                                "Aplicar comisiones",
+                                String.format("PVP = COSTO_CON_IMPUESTOS / (1 - %s/100)", nombresPVPFormateados),
+                                rd(costoConImpuestos),
+                                String.format("Comisiones = (%s) = %s%% → %s / (1 - %s/100) = %s",
+                                        detalleConceptosPVP.isEmpty() ? fmt(porcentajeConceptosCanal) + "%"
+                                                : detalleConceptosPVP,
+                                        fmt(porcentajeConceptosCanal),
+                                        fmt(costoConImpuestosAntesGastos), fmt(porcentajeConceptosCanal), fmt(costoConImpuestos)),
+                                FormulaCalculoDTO.UNIDAD_MONEDA));
+                    }
+                }
+
+                BigDecimal descuentoAbs = porcentajeCuota.abs();
+                if (descuentoAbs.compareTo(CIEN) >= 0) {
+                    descuentoAbs = new BigDecimal("99");
+                }
+                BigDecimal descuentoFrac = descuentoAbs.divide(CIEN, PRECISION_CALCULO, RoundingMode.HALF_UP);
+                BigDecimal factorDescuento = BigDecimal.ONE.subtract(descuentoFrac);
+                BigDecimal costoConImpuestosAntesDescuento = costoConImpuestos;
+                costoConImpuestos = costoConImpuestos.multiply(factorDescuento);
+                pasos.add(new FormulaCalculoDTO.PasoCalculo(pasoNumero++,
+                        "Aplicar descuento por cuota",
+                        String.format("PVP = PVP × (1 - %s cuotas/100)", numeroCuotas),
+                        rd(costoConImpuestos),
+                        String.format("Descuento %s%% → %s × (1 - %s/100) = %s",
+                                fmt(descuentoAbs), fmt(costoConImpuestosAntesDescuento), fmt(descuentoAbs), fmt(costoConImpuestos)),
+                        FormulaCalculoDTO.UNIDAD_MONEDA));
             }
             gastosSobrePVPTotal = BigDecimal.ZERO;
         } else {

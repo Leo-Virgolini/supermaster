@@ -2,7 +2,9 @@ package ar.com.leo.super_master_backend.dominio.producto.calculo.service;
 
 import ar.com.leo.super_master_backend.dominio.canal.entity.Canal;
 import ar.com.leo.super_master_backend.dominio.canal.entity.CanalConcepto;
+import ar.com.leo.super_master_backend.dominio.canal.entity.CanalConceptoCuota;
 import ar.com.leo.super_master_backend.dominio.canal.entity.CanalConceptoId;
+import ar.com.leo.super_master_backend.dominio.canal.repository.CanalConceptoCuotaRepository;
 import ar.com.leo.super_master_backend.dominio.canal.repository.CanalConceptoRepository;
 import ar.com.leo.super_master_backend.dominio.canal.repository.CanalRepository;
 import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
@@ -58,6 +60,9 @@ class CalculoPrecioFormulaTest {
 
     @Autowired
     private CanalConceptoRepository canalConceptoRepository;
+
+    @Autowired
+    private CanalConceptoCuotaRepository canalConceptoCuotaRepository;
 
     @Autowired
     private CalculoPrecioService calculoPrecioService;
@@ -219,5 +224,48 @@ class CalculoPrecioFormulaTest {
                 .divide(r.costoProducto(), 2, RoundingMode.HALF_UP);
         assertEquals(0, markupEsperado.compareTo(r.markupPorcentaje()),
                 () -> "markupPorcentaje esperado=" + markupEsperado + " actual=" + r.markupPorcentaje());
+    }
+
+    @Test
+    @DisplayName("Cuota negativa (transferencia con descuento): el PVP FINAL de la fórmula coincide con el indicador PVP")
+    void cuotaNegativaFormulaCoincideConIndicador() {
+        // Opción de cuota con descuento (transferencia -15%) en el canal de prueba.
+        // El motor (indicadores) aplica el descuento; el generador de la fórmula paso a paso
+        // debe replicarlo para que su resultado final coincida con el indicador PVP.
+        Canal canal = canalRepository.findById(canalId).orElseThrow();
+        CanalConceptoCuota cuota = new CanalConceptoCuota();
+        cuota.setCanal(canal);
+        cuota.setCuotas(-1);
+        cuota.setPorcentaje(new BigDecimal("-15"));
+        cuota.setDescripcion(PREFIX + "TRANSFERENCIA");
+        canalConceptoCuotaRepository.save(cuota);
+        entityManager.flush();
+
+        SimulacionPrecioInputDTO in = new SimulacionPrecioInputDTO(
+                canalId,
+                -1,                            // cuotas: transferencia (descuento)
+                new BigDecimal("100"),
+                new BigDecimal("21"),
+                null, null, null, null,        // marca, tipo, clasifGral, clasifGastro
+                null,                          // tag
+                null,                          // proveedorFinanciacionPorcentaje
+                null, null,                    // mlaPrecioEnvio, mlaComisionPorcentaje
+                new BigDecimal("50"),
+                new BigDecimal("30"),          // margenMayorista
+                null, null,                    // margenFijoMinorista, margenFijoMayorista
+                null, null                     // precioInflado tipo/valor
+        );
+
+        SimulacionResultadoDTO resultado = calculoPrecioService.simularPrecioCompleto(in);
+
+        BigDecimal pvpIndicador = resultado.indicadores().pvp();
+        BigDecimal pvpFormula = resultado.formula().resultadoFinal();
+
+        // Sin precio inflado configurado, el resultadoFinal de la fórmula es el PVP, que debe
+        // coincidir con el indicador (tolerancia mínima por redondeo de los dos caminos).
+        BigDecimal diferencia = pvpFormula.subtract(pvpIndicador).abs();
+        assertTrue(diferencia.compareTo(new BigDecimal("0.02")) <= 0,
+                () -> "El PVP FINAL de la fórmula (" + pvpFormula + ") debe coincidir con el indicador PVP ("
+                        + pvpIndicador + ") cuando la cuota es un descuento (transferencia). Diferencia=" + diferencia);
     }
 }

@@ -18,7 +18,7 @@ import {
 } from "./simuladorService";
 import type { FormulaCalculo } from "../producto-canal-precios/types";
 
-type Tag = "MAQUINA" | "REPUESTO" | "MENAJE";
+type Tag = "MAQUINA" | "REPUESTO" | "MENAJE" | "INSUMO";
 
 interface SimuladorFormProps {
     canalId: number;

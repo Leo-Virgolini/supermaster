@@ -376,9 +376,7 @@ public class ProductoServiceImpl implements ProductoService {
     /** Sort del front -> nombre real del campo en la entidad ProductoMargen. */
     private static final Map<String, String> CAMPOS_MARGEN_SORT = Map.of(
             "margenminorista", "margenMinorista",
-            "margenmayorista", "margenMayorista",
-            "margenfijominorista", "margenFijoMinorista",
-            "margenfijomayorista", "margenFijoMayorista");
+            "margenmayorista", "margenMayorista");
 
     private boolean esSortEspecial(String property) {
         String key = property.toLowerCase();
@@ -659,8 +657,6 @@ public class ProductoServiceImpl implements ProductoService {
                 case "comisionporcentaje" -> "producto.mla.comisionPorcentaje";
                 case "margenminorista" -> "producto.productoMargenes.margenMinorista";
                 case "margenmayorista" -> "producto.productoMargenes.margenMayorista";
-                case "margenfijominorista" -> "producto.productoMargenes.margenFijoMinorista";
-                case "margenfijomayorista" -> "producto.productoMargenes.margenFijoMayorista";
                 // Precio inflado (regla asignada)
                 case "precioinflado", "precioinfladocodigo" -> "precioInfladoAsignacion.precioInflado.codigo";
                 case "precioinfladotipo" -> "precioInfladoAsignacion.precioInflado.tipo";

@@ -63,8 +63,6 @@ public record ProductoDTO(
 
         // Márgenes (de producto_margen, expuestos para edición inline en la tabla)
         BigDecimal margenMinorista,
-        BigDecimal margenMayorista,
-        BigDecimal margenFijoMinorista,
-        BigDecimal margenFijoMayorista
+        BigDecimal margenMayorista
 ) {
 }

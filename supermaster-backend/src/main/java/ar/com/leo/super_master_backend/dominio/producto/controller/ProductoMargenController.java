@@ -39,8 +39,6 @@ public class ProductoMargenController {
                 productoId,
                 dto.margenMinorista(),
                 dto.margenMayorista(),
-                dto.margenFijoMinorista(),
-                dto.margenFijoMayorista(),
                 dto.observaciones()
         );
         return ResponseEntity.ok(service.guardar(dtoConProductoId));

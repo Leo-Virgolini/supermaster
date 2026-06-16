@@ -93,9 +93,7 @@ public interface ProductoMapper {
                 catalogos != null ? catalogos : obtenerCatalogos(entity),
                 clientes != null ? clientes : obtenerClientes(entity),
                 margen != null ? margen.getMargenMinorista() : null,
-                margen != null ? margen.getMargenMayorista() : null,
-                margen != null ? margen.getMargenFijoMinorista() : null,
-                margen != null ? margen.getMargenFijoMayorista() : null
+                margen != null ? margen.getMargenMayorista() : null
         );
     }
 

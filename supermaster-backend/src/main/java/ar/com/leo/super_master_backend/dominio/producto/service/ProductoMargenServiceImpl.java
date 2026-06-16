@@ -56,8 +56,6 @@ public class ProductoMargenServiceImpl implements ProductoMargenService {
         ProductoMargen pm;
         BigDecimal margenMinoristaAnterior = null;
         BigDecimal margenMayoristaAnterior = null;
-        BigDecimal margenFijoMinoristaAnterior = null;
-        BigDecimal margenFijoMayoristaAnterior = null;
         Map<String, String> estadoAnterior;
         AuditoriaAccion accion;
 
@@ -68,8 +66,6 @@ public class ProductoMargenServiceImpl implements ProductoMargenService {
             // Guardar valores anteriores para detectar cambios
             margenMinoristaAnterior = pm.getMargenMinorista();
             margenMayoristaAnterior = pm.getMargenMayorista();
-            margenFijoMinoristaAnterior = pm.getMargenFijoMinorista();
-            margenFijoMayoristaAnterior = pm.getMargenFijoMayorista();
 
             // Actualizar campos
             mapper.updateEntityFromDTO(dto, pm);
@@ -78,8 +74,6 @@ public class ProductoMargenServiceImpl implements ProductoMargenService {
             pm.setProducto(new Producto(dto.productoId()));
             pm.setMargenMinorista(dto.margenMinorista());
             pm.setMargenMayorista(dto.margenMayorista());
-            pm.setMargenFijoMinorista(dto.margenFijoMinorista());
-            pm.setMargenFijoMayorista(dto.margenFijoMayorista());
             pm.setObservaciones(dto.observaciones());
             estadoAnterior = Map.of();
             accion = AuditoriaAccion.CREATE;
@@ -99,10 +93,8 @@ public class ProductoMargenServiceImpl implements ProductoMargenService {
         // Recalcular si cambió algo que afecta el precio
         boolean cambioMargenMinorista = !Objects.equals(margenMinoristaAnterior, pm.getMargenMinorista());
         boolean cambioMargenMayorista = !Objects.equals(margenMayoristaAnterior, pm.getMargenMayorista());
-        boolean cambioMargenFijoMinorista = !Objects.equals(margenFijoMinoristaAnterior, pm.getMargenFijoMinorista());
-        boolean cambioMargenFijoMayorista = !Objects.equals(margenFijoMayoristaAnterior, pm.getMargenFijoMayorista());
 
-        if (cambioMargenMinorista || cambioMargenMayorista || cambioMargenFijoMinorista || cambioMargenFijoMayorista) {
+        if (cambioMargenMinorista || cambioMargenMayorista) {
             recalculoPendienteService.marcarProductoOCalcularInicial(
                     "Cambio en margen del producto", dto.productoId());
         }
@@ -115,8 +107,6 @@ public class ProductoMargenServiceImpl implements ProductoMargenService {
     public ProductoMargenDTO patch(Integer productoId, ProductoMargenPatchDTO patchDto) {
         if (!presente(patchDto.getMargenMinorista())
                 && !presente(patchDto.getMargenMayorista())
-                && !presente(patchDto.getMargenFijoMinorista())
-                && !presente(patchDto.getMargenFijoMayorista())
                 && !presente(patchDto.getObservaciones())) {
             throw new BadRequestException("El body del PATCH no puede estar vacío");
         }
@@ -137,8 +127,6 @@ public class ProductoMargenServiceImpl implements ProductoMargenService {
 
         BigDecimal margenMinoristaAnterior = pm.getMargenMinorista();
         BigDecimal margenMayoristaAnterior = pm.getMargenMayorista();
-        BigDecimal margenFijoMinoristaAnterior = pm.getMargenFijoMinorista();
-        BigDecimal margenFijoMayoristaAnterior = pm.getMargenFijoMayorista();
 
         // Si se está creando el ProductoMargen (no existe aún) y el patch trae solo uno
         // de los dos márgenes, el otro se defaultea a 0 para permitir la edición inline
@@ -155,12 +143,6 @@ public class ProductoMargenServiceImpl implements ProductoMargenService {
             pm.setMargenMayorista(BigDecimal.ZERO);
         }
 
-        if (presente(patchDto.getMargenFijoMinorista())) {
-            pm.setMargenFijoMinorista(leerDecimalNoNegativoOpcional(patchDto.getMargenFijoMinorista(), "margenFijoMinorista"));
-        }
-        if (presente(patchDto.getMargenFijoMayorista())) {
-            pm.setMargenFijoMayorista(leerDecimalNoNegativoOpcional(patchDto.getMargenFijoMayorista(), "margenFijoMayorista"));
-        }
         if (presente(patchDto.getObservaciones())) {
             pm.setObservaciones(leerStringOpcional(patchDto.getObservaciones(), "observaciones", 300));
         }
@@ -178,10 +160,8 @@ public class ProductoMargenServiceImpl implements ProductoMargenService {
 
         boolean cambioMargenMinorista = !Objects.equals(margenMinoristaAnterior, pm.getMargenMinorista());
         boolean cambioMargenMayorista = !Objects.equals(margenMayoristaAnterior, pm.getMargenMayorista());
-        boolean cambioMargenFijoMinorista = !Objects.equals(margenFijoMinoristaAnterior, pm.getMargenFijoMinorista());
-        boolean cambioMargenFijoMayorista = !Objects.equals(margenFijoMayoristaAnterior, pm.getMargenFijoMayorista());
 
-        if (cambioMargenMinorista || cambioMargenMayorista || cambioMargenFijoMinorista || cambioMargenFijoMayorista) {
+        if (cambioMargenMinorista || cambioMargenMayorista) {
             recalculoPendienteService.marcarProductoOCalcularInicial(
                     "Cambio en margen del producto", productoId);
         }
@@ -214,8 +194,6 @@ public class ProductoMargenServiceImpl implements ProductoMargenService {
         snap.put("productoId", pm.getProducto() != null ? String.valueOf(pm.getProducto().getId()) : "");
         snap.put("margenMinorista", pm.getMargenMinorista() != null ? pm.getMargenMinorista().toPlainString() : "");
         snap.put("margenMayorista", pm.getMargenMayorista() != null ? pm.getMargenMayorista().toPlainString() : "");
-        snap.put("margenFijoMinorista", pm.getMargenFijoMinorista() != null ? pm.getMargenFijoMinorista().toPlainString() : "");
-        snap.put("margenFijoMayorista", pm.getMargenFijoMayorista() != null ? pm.getMargenFijoMayorista().toPlainString() : "");
         snap.put("observaciones", pm.getObservaciones() != null ? pm.getObservaciones() : "");
         return snap;
     }

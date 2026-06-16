@@ -111,7 +111,9 @@ export function PreciosInfladosSection({ productoId, value, onChange }: Props) {
 
     const abrirNuevo = () => {
         setError(null);
-        setForm({ canalId: "", precioInfladoId: "", fechaDesde: "", fechaHasta: "", observaciones: "", activo: true, modo: "nuevo" });
+        const ktHogar = canales.find(c => c.nombre === "KT HOGAR");
+        const ktHogarLibre = ktHogar && !rows.some(r => r.canalId === ktHogar.id) ? ktHogar.id : "";
+        setForm({ canalId: ktHogarLibre, precioInfladoId: "", fechaDesde: "", fechaHasta: "", observaciones: "", activo: true, modo: "nuevo" });
     };
 
     const abrirEditar = (r: Row) => {

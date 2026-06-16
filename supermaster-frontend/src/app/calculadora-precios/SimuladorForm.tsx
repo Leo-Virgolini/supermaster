@@ -124,7 +124,11 @@ function IndicadoresPanel({ indicadores }: { indicadores: IndicadoresCalculados 
                 <IndicadorRow label="Costo del producto" valor={formatMoney(indicadores.costoProducto)} />
                 <IndicadorRow label="PVP" valor={<span className="text-emerald-700 dark:text-emerald-300">{formatMoney(indicadores.pvp)}</span>} />
                 {indicadores.pvpInflado != null && (
-                    <IndicadorRow label="PVP Inflado" valor={formatMoney(indicadores.pvpInflado)} hint="precio tachado" />
+                    <IndicadorRow
+                        label="PVP Inflado"
+                        valor={<span className="text-indigo-600 dark:text-indigo-400">{formatMoney(indicadores.pvpInflado)}</span>}
+                        hint="precio tachado"
+                    />
                 )}
                 <IndicadorRow label="Costos de Venta" valor={formatMoney(indicadores.costosVenta)} hint="comisiones, envío, cuotas" />
                 <IndicadorRow label="Ingreso Neto Vendedor" valor={formatMoney(indicadores.ingresoNetoVendedor)} hint="PVP − IVA − impuestos − costos venta" />

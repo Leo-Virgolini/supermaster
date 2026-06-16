@@ -837,6 +837,26 @@ export default function ProductosPage() {
         return () => { clearTimeout(t); controller.abort(); };
     }, [sku, isModalOpen, editandoProductoId]);
 
+    // Autocompleta la imagen cuando el nombre del archivo coincide con el SKU.
+    // Solo en alta y mientras el usuario no haya elegido una imagen a mano.
+    useEffect(() => {
+        if (editandoProductoId) return;
+        const skuTrim = sku.trim();
+        if (!skuTrim || imagenUrl) return;
+        const controller = new AbortController();
+        const t = setTimeout(async () => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/imagenes/listar?search=${encodeURIComponent(skuTrim)}`, { signal: controller.signal });
+                if (!res.ok) return;
+                const data = await res.json();
+                const archivos: string[] = Array.isArray(data?.archivos) ? data.archivos : [];
+                const match = archivos.find(a => a.replace(/\.[^.]+$/, "") === skuTrim);
+                if (match) setImagenUrl(match);
+            } catch { /* abort o sin match: ignorar */ }
+        }, 400);
+        return () => { controller.abort(); clearTimeout(t); };
+    }, [sku, editandoProductoId, imagenUrl]);
+
     const aplicarMlaEnForm = (mla: { id: number; mla: string; mlau: string | null; precioEnvio: number | null; comisionPorcentaje: number | null; topePromocion: number | null }) => {
         setMlaId(mla.id);
         setMlaDisplay(mla.mla);

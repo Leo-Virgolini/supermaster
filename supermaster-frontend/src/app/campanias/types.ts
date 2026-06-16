@@ -16,12 +16,12 @@ export type CampaniaProductoDTO = {
 	id: number;
 	productoId: number;
 	sku: string;
-	descripcion: string | null;
+	descripcion: string;
 	costo: number | null;
 	precioManual: number | null;
 };
 
-export type SincronizacionResultado = {
+export type SincronizacionResultadoDTO = {
 	categoriasImportadas: number;
 	productosVinculados: number;
 	skusSinMatch: string[];

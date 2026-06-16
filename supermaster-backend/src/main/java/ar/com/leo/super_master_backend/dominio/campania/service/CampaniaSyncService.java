@@ -62,7 +62,7 @@ public class CampaniaSyncService {
             campania = campaniaRepository.save(campania);
 
             List<String> skus = categoriaSkus.getOrDefault(tnCategoriaId, List.of());
-            if (skus.isEmpty() && nombre != null) {
+            if (skus.isEmpty()) {
                 log.info("Campaña '{}' (tnCategoriaId={}) sin productos tageados en TN", nombre, tnCategoriaId);
             }
             productosVinculados += reconciliarProductos(campania, skus, ahora, skusSinMatch);

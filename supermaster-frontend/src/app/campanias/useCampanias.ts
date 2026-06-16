@@ -2,7 +2,7 @@
 import { getErrorMessage } from "@/lib/errors";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { notificar } from "../utils/notificar";
-import { CampaniaDTO, SincronizacionResultado } from "./types";
+import { CampaniaDTO, SincronizacionResultadoDTO } from "./types";
 import { getCampaniasAPI, updateCampaniaAPI, sincronizarCampaniasAPI } from "./campaniasService";
 
 type PageResponse<T> = {
@@ -70,7 +70,7 @@ export function useCampanias(
 	const sincronizar = async () => {
 		setIsSyncing(true);
 		try {
-			const r: SincronizacionResultado = await sincronizarCampaniasAPI("API");
+			const r: SincronizacionResultadoDTO = await sincronizarCampaniasAPI("API");
 			await getCampanias();
 			const sinMatch = r.skusSinMatch.length;
 			notificar.success(

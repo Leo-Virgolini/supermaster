@@ -98,8 +98,10 @@ public class ProductoServiceImpl implements ProductoService {
 
         Producto entity = productoMapper.toEntity(dto);
         validarAlMenosUnaClasificacion(entity);
+        validarProductoSimpleCompleto(entity);
         productoRepository.save(entity);
         productoAuditoriaService.registrarCreacion(entity);
+        programarRecalculoPostCommit("Producto creado", entity.getId());
         return productoMapper.toDTO(entity);
     }
 
@@ -126,6 +128,7 @@ public class ProductoServiceImpl implements ProductoService {
 
         productoMapper.updateEntityFromDTO(dto, entity);
         validarAlMenosUnaClasificacion(entity);
+        validarProductoSimpleCompleto(entity);
         productoRepository.save(entity);
         productoAuditoriaService.registrarActualizacion(id, estadoAnterior, entity);
 
@@ -172,6 +175,7 @@ public class ProductoServiceImpl implements ProductoService {
 
         aplicarPatch(entity, patchDto);
         validarAlMenosUnaClasificacion(entity);
+        validarProductoSimpleCompleto(entity);
         productoRepository.save(entity);
         productoAuditoriaService.registrarActualizacion(id, estadoAnterior, entity);
 
@@ -1120,6 +1124,21 @@ public class ProductoServiceImpl implements ProductoService {
             throw new BadRequestException(
                     "El producto debe tener al menos una clasificación: general o gastronómica.");
         }
+    }
+
+    /**
+     * Regla de negocio: un producto SIMPLE (no combo) debe tener marca, origen,
+     * proveedor, material y tag. En combos siguen siendo opcionales.
+     */
+    private void validarProductoSimpleCompleto(Producto entity) {
+        if (Boolean.TRUE.equals(entity.getEsCombo())) {
+            return; // los combos no exigen estos campos
+        }
+        if (entity.getMarca() == null) throw new BadRequestException("La marca es obligatoria para productos simples.");
+        if (entity.getOrigen() == null) throw new BadRequestException("El origen es obligatorio para productos simples.");
+        if (entity.getProveedor() == null) throw new BadRequestException("El proveedor es obligatorio para productos simples.");
+        if (entity.getMaterial() == null) throw new BadRequestException("El material es obligatorio para productos simples.");
+        if (entity.getTag() == null) throw new BadRequestException("El tag es obligatorio para productos simples.");
     }
 
     private void aplicarPatch(Producto entity, ProductoPatchDTO patchDto) {

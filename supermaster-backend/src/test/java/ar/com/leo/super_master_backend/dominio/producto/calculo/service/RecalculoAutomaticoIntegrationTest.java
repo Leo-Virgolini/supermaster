@@ -21,6 +21,8 @@ import ar.com.leo.super_master_backend.dominio.concepto_calculo.repository.Conce
 import ar.com.leo.super_master_backend.dominio.concepto_calculo.service.ConceptoCalculoService;
 import ar.com.leo.super_master_backend.dominio.marca.entity.Marca;
 import ar.com.leo.super_master_backend.dominio.marca.repository.MarcaRepository;
+import ar.com.leo.super_master_backend.dominio.material.entity.Material;
+import ar.com.leo.super_master_backend.dominio.material.repository.MaterialRepository;
 import ar.com.leo.super_master_backend.dominio.origen.entity.Origen;
 import ar.com.leo.super_master_backend.dominio.origen.repository.OrigenRepository;
 import ar.com.leo.super_master_backend.dominio.precio_inflado.dto.PrecioInfladoUpdateDTO;
@@ -236,6 +238,9 @@ class RecalculoAutomaticoIntegrationTest {
     @Autowired
     private MarcaRepository marcaRepository;
 
+    @Autowired
+    private MaterialRepository materialRepository;
+
     @PersistenceContext
     private EntityManager entityManager;
 
@@ -273,6 +278,29 @@ class RecalculoAutomaticoIntegrationTest {
                     ClasifGral c = new ClasifGral();
                     c.setNombre(TEST_PREFIX + "ClasifGral");
                     return clasifGralRepository.save(c);
+                });
+
+        // Marca, proveedor y material base: requeridos por la validación
+        // "producto simple completo" (un producto no combo debe tenerlos).
+        Marca marca = marcaRepository.findAll().stream().findFirst()
+                .orElseGet(() -> {
+                    Marca m = new Marca();
+                    m.setNombre(TEST_PREFIX + "Marca");
+                    return marcaRepository.save(m);
+                });
+
+        Proveedor proveedor = proveedorRepository.findAll().stream().findFirst()
+                .orElseGet(() -> {
+                    Proveedor p = new Proveedor();
+                    p.setNombre(TEST_PREFIX + "Proveedor");
+                    return proveedorRepository.save(p);
+                });
+
+        Material material = materialRepository.findAll().stream().findFirst()
+                .orElseGet(() -> {
+                    Material mat = new Material();
+                    mat.setNombre(TEST_PREFIX + "Material");
+                    return materialRepository.save(mat);
                 });
 
         // Crear canal
@@ -317,6 +345,10 @@ class RecalculoAutomaticoIntegrationTest {
         producto.setOrigen(origen);
         producto.setTipo(tipo);
         producto.setClasifGral(clasifGral);
+        producto.setMarca(marca);
+        producto.setProveedor(proveedor);
+        producto.setMaterial(material);
+        producto.setTag(Tag.MENAJE);
         producto = productoRepository.save(producto);
 
         // Crear margen para el producto

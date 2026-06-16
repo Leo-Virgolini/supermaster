@@ -465,7 +465,7 @@ class RecalculoAutomaticoIntegrationTest {
                         producto.getId(),
                         new BigDecimal("70"), // nuevo margen minorista
                         new BigDecimal("30"),
-                        null, null, null
+                        null
                 ));
         calculoPrecioService.recalcularYGuardarPrecioCanalTodasCuotas(producto.getId(), canal.getId());
 
@@ -955,7 +955,7 @@ class RecalculoAutomaticoIntegrationTest {
                         producto.getId(),
                         new BigDecimal("50"),
                         new BigDecimal("50"), // aumentar margen mayorista de 30 a 50
-                        null, null, null
+                        null
                 ));
         calculoPrecioService.recalcularYGuardarPrecioCanalTodasCuotas(producto.getId(), canal.getId());
 
@@ -1227,7 +1227,7 @@ class RecalculoAutomaticoIntegrationTest {
     @Test
     @Order(23)
     @DisplayName("23. Recálculo automático al cambiar margen minorista del producto")
-    void testRecalculoPorCambioMargenFijo() {
+    void testRecalculoPorCambioMargenMinorista() {
         BigDecimal pvpInicial = obtenerPvpActual();
 
         // Cambiar margen minorista a un valor diferente para forzar recálculo

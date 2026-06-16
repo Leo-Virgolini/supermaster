@@ -3,7 +3,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { notificar } from "../utils/notificar";
-import { BookmarkIcon, CheckIcon, CloudArrowDownIcon, CubeIcon, XMarkIcon, IdentificationIcon, CurrencyDollarIcon, ArchiveBoxIcon, ReceiptPercentIcon, Squares2X2Icon, UserGroupIcon, ShoppingBagIcon, BanknotesIcon } from "@heroicons/react/24/outline";
+import { BookmarkIcon, BuildingStorefrontIcon, CheckIcon, CloudArrowDownIcon, CubeIcon, XMarkIcon, IdentificationIcon, CurrencyDollarIcon, ArchiveBoxIcon, ReceiptPercentIcon, Squares2X2Icon, UserGroupIcon, ShoppingBagIcon, BanknotesIcon } from "@heroicons/react/24/outline";
 import { API_BASE_URL } from "../config/runtime";
 import { confirmDialog } from "../utils/confirmDialog";
 import Table, { getInitialPageSize } from "../components/Table/core/Table";
@@ -1189,18 +1189,11 @@ export default function ProductosPage() {
                                 <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={esCombo} onChange={e => handleToggleCombo(e.target.checked)} id="esCombo" />
                                 <label htmlFor="esCombo" className="cursor-pointer">Es Combo</label>
                             </div>
-                            {canExportarDux && (
-                                <div className={checkboxCardClassName} title={editandoProductoId ? "Al guardar, actualiza el producto en Dux con sus datos actuales (descripción, costo, IVA, combo, activo, etc.)" : "Al crear, sube el producto a Dux con sus datos (código, descripción, costo, IVA, combo, etc.)"}>
-                                    <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirADux} onChange={e => setSubirADux(e.target.checked)} id="subirADux" />
-                                    <label htmlFor="subirADux" className="cursor-pointer">{editandoProductoId ? "Actualizar en Dux" : "Subir a Dux al crear"}</label>
-                                </div>
-                            )}
                             <label className="block">
                                 <span className={fieldLabelClassName}>UxB</span>
                                 <input type="number" min={1} className={`${inputBaseClassName} ${formErrors.uxb ? inputErrorClassName : ""}`} value={uxb} onChange={e => { setUxb(Number(e.target.value)); if (formErrors.uxb) setFormErrors(p => ({ ...p, uxb: "" })); }} />
                                 {formErrors.uxb && <p className="mt-1 text-xs text-red-500">{formErrors.uxb}</p>}
                             </label>
-                            {!canExportarDux && <div className="hidden xl:block" aria-hidden="true" />}
 
                             {/* Identificadores */}
                             <label className="block">
@@ -1487,6 +1480,31 @@ export default function ProductosPage() {
                             </label>
                             <div className="md:col-span-2 xl:col-span-4">
                                 <MultiAsyncSelect label="Aptos" loadOptions={(q) => searchAptos(q)} value={aptosSel} onChange={setAptosSel} placeholder="Buscar apto" inputClassName={inputBaseClassName} />
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset className={sectionClassName}>
+                        <legend className={sectionTitleClassName}><BuildingStorefrontIcon className="h-5 w-5" /> Canales de venta</legend>
+                        <p className={`${sectionDescriptionClassName} mb-4`}>Dónde publicar/subir el producto. Las integraciones de cada canal se irán habilitando.</p>
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                            {canExportarDux && (
+                                <div className={checkboxCardClassName} title={editandoProductoId ? "Al guardar, actualiza el producto en Dux" : "Al crear, sube el producto a Dux"}>
+                                    <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirADux} onChange={e => setSubirADux(e.target.checked)} id="subirADux" />
+                                    <label htmlFor="subirADux" className="cursor-pointer">{editandoProductoId ? "Actualizar en Dux" : "Subir a Dux"}</label>
+                                </div>
+                            )}
+                            <div className={`${checkboxCardClassName} opacity-60`} title="Próximamente">
+                                <input className="h-4 w-4 rounded border-slate-300" type="checkbox" disabled id="canalKtHogar" />
+                                <label htmlFor="canalKtHogar" className="cursor-not-allowed">KT HOGAR <span className="text-[10px] text-slate-400">(próximamente)</span></label>
+                            </div>
+                            <div className={`${checkboxCardClassName} opacity-60`} title="Próximamente">
+                                <input className="h-4 w-4 rounded border-slate-300" type="checkbox" disabled id="canalKtGastro" />
+                                <label htmlFor="canalKtGastro" className="cursor-not-allowed">KT GASTRO <span className="text-[10px] text-slate-400">(próximamente)</span></label>
+                            </div>
+                            <div className={`${checkboxCardClassName} opacity-60`} title="Próximamente">
+                                <input className="h-4 w-4 rounded border-slate-300" type="checkbox" disabled id="canalMl" />
+                                <label htmlFor="canalMl" className="cursor-not-allowed">ML <span className="text-[10px] text-slate-400">(próximamente)</span></label>
                             </div>
                         </div>
                     </fieldset>

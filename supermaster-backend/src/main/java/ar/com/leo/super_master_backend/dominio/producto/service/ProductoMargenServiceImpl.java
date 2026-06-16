@@ -79,6 +79,7 @@ public class ProductoMargenServiceImpl implements ProductoMargenService {
             accion = AuditoriaAccion.CREATE;
         }
 
+        validarAlMenosUnMargen(pm.getMargenMinorista(), pm.getMargenMayorista());
         pm = repo.save(pm);
 
         auditoriaService.registrarCambios(
@@ -147,6 +148,7 @@ public class ProductoMargenServiceImpl implements ProductoMargenService {
             pm.setObservaciones(leerStringOpcional(patchDto.getObservaciones(), "observaciones", 300));
         }
 
+        validarAlMenosUnMargen(pm.getMargenMinorista(), pm.getMargenMayorista());
         pm = repo.save(pm);
 
         auditoriaService.registrarCambios(
@@ -204,6 +206,15 @@ public class ProductoMargenServiceImpl implements ProductoMargenService {
      * superar el 100% (ej. 100% = duplicar el costo). El tope 999.999 coincide con la
      * precisión de la columna (precision=6, scale=3).
      */
+    private void validarAlMenosUnMargen(BigDecimal minorista, BigDecimal mayorista) {
+        boolean minOk = minorista != null && minorista.compareTo(BigDecimal.ZERO) > 0;
+        boolean mayOk = mayorista != null && mayorista.compareTo(BigDecimal.ZERO) > 0;
+        if (!minOk && !mayOk) {
+            throw new BadRequestException(
+                    "Debe cargar al menos un margen (minorista o mayorista) mayor a 0.");
+        }
+    }
+
     private BigDecimal leerMargenRequerido(JsonNullable<BigDecimal> campo, String field) {
         BigDecimal decimal = leerDecimalRequerido(campo, field);
         if (decimal.compareTo(BigDecimal.ZERO) < 0 || decimal.compareTo(new BigDecimal("999.999")) > 0) {

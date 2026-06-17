@@ -81,7 +81,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * 1-2.   Producto (costo, IVA)
  * 3.     ProductoMargen (margen minorista)
  * 14.    ProductoMargen (margen mayorista)
- * 23.    ProductoMargen (margen fijo)
+ * 23.    ProductoMargen (cambio de margen minorista)
  *
  * CONCEPTOS DE CÁLCULO:
  * 4.     ConceptoCalculo (cambio de porcentaje)

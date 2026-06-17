@@ -65,7 +65,7 @@ export const searchProductosAPI = async (query: string): Promise<{ id: number; l
 		const json = await res.json();
 		return (json.content || []).map((item: any) => ({
 			id: item.id,
-			label: `[${item.sku}] ${item.tituloWeb || item.descripcion || ""}`.trim(),
+			label: `[${item.sku}] ${item.tituloDux || ""}`.trim(),
 		}));
 	} catch {
 		return [];

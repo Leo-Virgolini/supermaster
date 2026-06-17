@@ -815,7 +815,7 @@ function ReglasCanalTab({ canalId }: { canalId: number }) {
                             const j = await r.json();
                             return (j.content || []).map((item: any) => ({
                                 id: item.id,
-                                label: `[${item.sku}] ${item.tituloWeb || item.descripcion || ""}`.trim(),
+                                label: `[${item.sku}] ${item.tituloDux || ""}`.trim(),
                             }));
                         }}
                         onChange={(val, label) => setForm({ ...form, productoId: val ? Number(val) : null, productoLabel: label || "" })}

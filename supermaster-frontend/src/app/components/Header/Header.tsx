@@ -17,8 +17,7 @@ import NotificacionesDropdown from "./NotificacionesDropdown";
 interface ProductoResult {
     id: number;
     sku: string;
-    descripcion: string;
-    tituloWeb?: string;
+    tituloDux: string;
     mla?: string;
     codExt?: string;
 }
@@ -97,8 +96,7 @@ const Header = () => {
                 const items: ProductoResult[] = (data?.content ?? []).map((p: any) => ({
                     id: p.id,
                     sku: p.sku,
-                    descripcion: p.descripcion ?? p.tituloWeb ?? "",
-                    tituloWeb: p.tituloWeb,
+                    tituloDux: p.tituloDux ?? "",
                     mla: p.mlaNombre,
                     codExt: p.codExt,
                 }));
@@ -227,7 +225,7 @@ const Header = () => {
                                     {p.sku}
                                 </span>
                                 <div className="flex-1 min-w-0">
-                                    <span className="text-sm text-gray-700 dark:text-slate-200 truncate block">{p.descripcion || p.tituloWeb || "-"}</span>
+                                    <span className="text-sm text-gray-700 dark:text-slate-200 truncate block">{p.tituloDux || "-"}</span>
                                     {(p.mla || p.codExt) && (
                                         <span className="text-xs text-gray-400 dark:text-slate-500 flex gap-2 mt-0.5">
                                             {p.mla && <span>MLA: {p.mla}</span>}

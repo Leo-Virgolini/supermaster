@@ -80,7 +80,7 @@ export function useCanalRegla(
 				const res = await fetchAPI(`${API_BASE_URL}/api/productos/${id}`);
 				if (!res.ok) return;
 				const p = await res.json();
-				productoMapRef.current[id] = `[${p.sku ?? id}] ${p.tituloWeb || p.descripcion || ""}`.trim();
+				productoMapRef.current[id] = `[${p.sku ?? id}] ${p.tituloDux || ""}`.trim();
 			} catch {
 				productoMapRef.current[id] = `Producto #${id}`;
 			}

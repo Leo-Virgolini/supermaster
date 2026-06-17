@@ -38,7 +38,7 @@ async function searchProductos(query: string): Promise<{ id: number; label: stri
     const json = await res.json();
     return (json.content || []).map((item: any) => ({
       id: item.id,
-      label: `[${item.sku}] ${item.tituloWeb || item.descripcion}`,
+      label: `[${item.sku}] ${item.tituloDux || ""}`,
     }));
   } catch { return []; }
 }

@@ -348,12 +348,16 @@ export function getColumns(onEditarProducto: (producto: ProductoDTO) => void, ca
         )
     },
     {
-        accessorKey: "descripcion", header: "Descripción", size: 250, meta: { editable: true },
+        accessorKey: "tituloDux", header: "Título Dux", size: 250, meta: { editable: true },
         cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={getValue() as string} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val)} className={FONT.text} disabled={!canEdit} />)
     },
     {
-        accessorKey: "tituloWeb", header: "Título Web", meta: { editable: true },
-        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={getValue() as string} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val)} className={FONT.title} disabled={!canEdit} />)
+        accessorKey: "tituloMl", header: "Título ML", size: 220, meta: { editable: true },
+        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={(getValue() as string) ?? ""} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val)} className={FONT.title} disabled={!canEdit} />)
+    },
+    {
+        accessorKey: "tituloNube", header: "Título Nube", size: 220, meta: { editable: true },
+        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={(getValue() as string) ?? ""} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val)} className={FONT.title} disabled={!canEdit} />)
     },
     {
         accessorKey: "esCombo", header: "Combo", meta: { editable: true },

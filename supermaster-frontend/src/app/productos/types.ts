@@ -5,8 +5,9 @@ export interface ProductoDTO {
 	id: number;
 	sku: string;
 	codExt: string;
-	descripcion: string;
-	tituloWeb: string;
+	tituloDux: string;
+	tituloMl: string | null;
+	tituloNube: string | null;
 	esCombo: boolean;
 	uxb: number;
 	moq: number | null;
@@ -73,8 +74,9 @@ export interface ProductoDTO {
 export interface ProductoCreateDTO {
 	sku: string;
 	codExt: string;
-	descripcion: string;
-	tituloWeb: string;
+	tituloDux: string;
+	tituloMl: string | null;
+	tituloNube: string | null;
 	esCombo: boolean;
 	uxb: number;
 	activo: boolean;

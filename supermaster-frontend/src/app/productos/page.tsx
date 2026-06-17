@@ -230,8 +230,9 @@ export default function ProductosPage() {
     // Aviso en vivo: true si el SKU tipeado ya pertenece a otro producto.
     const [skuYaExiste, setSkuYaExiste] = useState(false);
     const [codExt, setCodExt] = useState("");
-    const [tituloWeb, setTituloWeb] = useState("");
-    const [descripcion, setDescripcion] = useState("");
+    const [tituloDux, setTituloDux] = useState("");
+    const [tituloMl, setTituloMl] = useState("");
+    const [tituloNube, setTituloNube] = useState("");
     const [esCombo, setEsCombo] = useState(false);
     const [subirADux, setSubirADux] = useState(true);
     const [uxb, setUxb] = useState(1);
@@ -355,14 +356,14 @@ export default function ProductosPage() {
     };
 
     // Campos que el backend acepta como valor único (no array)
-    const singleValueFields = ["activo", "esCombo", "tagReposicion", "sku", "codExt", "descripcion", "tituloWeb", "mla"];
+    const singleValueFields = ["activo", "esCombo", "tagReposicion", "sku", "codExt", "tituloDux", "mla"];
 
     // Labels para mostrar los filtros activos
     const filterLabels: Record<string, string> = {
         search: "Búsqueda", marcaIds: "Marca", clasifGralIds: "Rubro", clasifGastroIds: "Gastro",
         tipoIds: "Tipo", proveedorIds: "Proveedor", origenIds: "Origen", materialIds: "Material",
-        mla: "MLA", sku: "SKU", codExt: "Cód. Ext.", descripcion: "Descripción",
-        tituloWeb: "Título Web", activo: "Activo", esCombo: "Combo", tagReposicion: "Tag Rep.",
+        mla: "MLA", sku: "SKU", codExt: "Cód. Ext.", tituloDux: "Título Dux",
+        activo: "Activo", esCombo: "Combo", tagReposicion: "Tag Rep.",
         catalogoIds: "Catálogo", aptoIds: "Apto", clienteIds: "Cliente", tags: "Tag",
     };
 
@@ -525,10 +526,10 @@ export default function ProductosPage() {
         if (!sku.trim()) errors.sku = "El SKU es obligatorio";
         else if (sku.trim().length > 45) errors.sku = "Máximo 45 caracteres";
         else if (!editandoProductoId && skuYaExiste) errors.sku = "Ya existe un producto con este SKU";
-        if (!descripcion.trim()) errors.descripcion = "La descripción es obligatoria";
-        else if (descripcion.trim().length > 100) errors.descripcion = "Máximo 100 caracteres";
-        if (!tituloWeb.trim()) errors.tituloWeb = "El Título Web es obligatorio";
-        else if (tituloWeb.trim().length > 100) errors.tituloWeb = "Máximo 100 caracteres";
+        if (!tituloDux.trim()) errors.tituloDux = "El Título Dux es obligatorio";
+        else if (tituloDux.trim().length > 100) errors.tituloDux = "Máximo 100 caracteres";
+        if (tituloMl.trim().length > 100) errors.tituloMl = "Máximo 100 caracteres";
+        if (tituloNube.trim().length > 100) errors.tituloNube = "Máximo 100 caracteres";
         if (costo === "" || Number(costo) <= 0) errors.costo = "El costo debe ser mayor a 0";
         if (uxb < 1) errors.uxb = "UxB debe ser al menos 1";
         if (!clasifGralId && !clasifGastroId) errors.clasificacion = "Seleccioná al menos una clasificación (general o gastronómica)";
@@ -611,7 +612,7 @@ export default function ProductosPage() {
                 }
             }
             const payload: ProductoCreateDTO = {
-                sku: sku.trim(), codExt, tituloWeb: tituloWeb.trim(), descripcion: descripcion.trim(), esCombo, uxb, activo, imagenUrl,
+                sku: sku.trim(), codExt, tituloDux: tituloDux.trim(), tituloMl: tituloMl.trim() || null, tituloNube: tituloNube.trim() || null, esCombo, uxb, activo, imagenUrl,
                 capacidad, largo: largo || null, ancho: ancho || null, alto: alto || null,
                 diamboca: diamboca || null, diambase: diambase || null, espesor: espesor || null,
                 costo: costoNum, iva,
@@ -653,8 +654,9 @@ export default function ProductosPage() {
         setPanelTab("datos");
         setSku(producto.sku ?? "");
         setCodExt(producto.codExt ?? "");
-        setTituloWeb(producto.tituloWeb ?? "");
-        setDescripcion(producto.descripcion ?? "");
+        setTituloDux(producto.tituloDux ?? "");
+        setTituloMl(producto.tituloMl ?? "");
+        setTituloNube(producto.tituloNube ?? "");
         setImagenUrl(producto.imagenUrl ?? "");
         setEsCombo(!!producto.esCombo);
         setUxb(producto.uxb ?? 1);
@@ -719,7 +721,7 @@ export default function ProductosPage() {
             const id = editandoProductoId;
             const costoNum = costo === "" ? 0 : costo;
             const patch = {
-                codExt, tituloWeb: tituloWeb.trim(), descripcion: descripcion.trim(), esCombo, uxb, activo, imagenUrl,
+                codExt, tituloDux: tituloDux.trim(), tituloMl: tituloMl.trim() || null, tituloNube: tituloNube.trim() || null, esCombo, uxb, activo, imagenUrl,
                 capacidad, largo: largo || null, ancho: ancho || null, alto: alto || null,
                 diamboca: diamboca || null, diambase: diambase || null, espesor: espesor || null,
                 costo: costoNum, iva, stock: stock !== "" ? stock : null, moq: moq !== "" ? moq : null,
@@ -928,7 +930,7 @@ export default function ProductosPage() {
     };
 
     const resetForm = () => {
-        setSku(""); setLastSuggestedSku(""); setCodExt(""); setTituloWeb(""); setDescripcion(""); setImagenUrl("");
+        setSku(""); setLastSuggestedSku(""); setCodExt(""); setTituloDux(""); setTituloMl(""); setTituloNube(""); setImagenUrl("");
         setEsCombo(false); setUxb(1); setActivo(true); setSubirADux(true);
         setCapacidad(""); setLargo(""); setAncho(""); setAlto(""); setDiamboca(""); setDiambase(""); setEspesor("");
         setCosto(""); setIva(21.0);
@@ -1090,7 +1092,7 @@ export default function ProductosPage() {
                 <Table
                     searchSlot={(
                         <div className="flex items-center gap-2">
-                            <SearchInput placeholder="Buscar producto por SKU, MLA, cód. ext. o descripción..." onSearch={(val) => { if (val !== filters.search) handleGlobalSearch(val); }} initialValue={filters.search} className="w-[28rem] max-w-full" />
+                            <SearchInput placeholder="Buscar producto por SKU, MLA, cód. ext. o título..." onSearch={(val) => { if (val !== filters.search) handleGlobalSearch(val); }} initialValue={filters.search} className="w-[28rem] max-w-full" />
                             <ProductosFilterToggle expanded={filtrosExpanded} onToggle={toggleFiltros} activeCount={activeFilterEntries.length} />
                         </div>
                     )}
@@ -1217,15 +1219,20 @@ export default function ProductosPage() {
                                 <span className={fieldLabelClassName}>Cód. Ext.</span>
                                 <input type="text" className={inputBaseClassName} value={codExt} onChange={e => setCodExt(e.target.value)} placeholder="Ej: 2000" />
                             </label>
-                            <label className="block md:col-span-2">
-                                <span className={fieldLabelClassName}>Título Web <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span></span>
-                                <input type="text" className={`${inputBaseClassName} ${formErrors.tituloWeb ? inputErrorClassName : ""}`} value={tituloWeb} onChange={e => { setTituloWeb(e.target.value); if (formErrors.tituloWeb) setFormErrors(p => ({ ...p, tituloWeb: "" })); }} placeholder="Nombre corto para web" required />
-                                {formErrors.tituloWeb && <p className="mt-1 text-xs text-red-500">{formErrors.tituloWeb}</p>}
-                            </label>
                             <label className="block xl:col-span-4">
-                                <span className={fieldLabelClassName}>Descripción <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span></span>
-                                <input type="text" className={`${inputBaseClassName} ${formErrors.descripcion ? inputErrorClassName : ""}`} value={descripcion} onChange={e => { setDescripcion(e.target.value); if (formErrors.descripcion) setFormErrors(p => ({ ...p, descripcion: "" })); }} placeholder="Descripción detallada" required />
-                                {formErrors.descripcion && <p className="mt-1 text-xs text-red-500">{formErrors.descripcion}</p>}
+                                <span className={fieldLabelClassName}>Título Dux <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span></span>
+                                <input type="text" className={`${inputBaseClassName} ${formErrors.tituloDux ? inputErrorClassName : ""}`} value={tituloDux} onChange={e => { setTituloDux(e.target.value); if (formErrors.tituloDux) setFormErrors(p => ({ ...p, tituloDux: "" })); }} placeholder="Título principal (Dux)" required />
+                                {formErrors.tituloDux && <p className="mt-1 text-xs text-red-500">{formErrors.tituloDux}</p>}
+                            </label>
+                            <label className="block md:col-span-2">
+                                <span className={fieldLabelClassName}>Título ML</span>
+                                <input type="text" className={`${inputBaseClassName} ${formErrors.tituloMl ? inputErrorClassName : ""}`} value={tituloMl} onChange={e => { setTituloMl(e.target.value); if (formErrors.tituloMl) setFormErrors(p => ({ ...p, tituloMl: "" })); }} placeholder="Título para Mercado Libre" />
+                                {formErrors.tituloMl && <p className="mt-1 text-xs text-red-500">{formErrors.tituloMl}</p>}
+                            </label>
+                            <label className="block md:col-span-2">
+                                <span className={fieldLabelClassName}>Título Nube</span>
+                                <input type="text" className={`${inputBaseClassName} ${formErrors.tituloNube ? inputErrorClassName : ""}`} value={tituloNube} onChange={e => { setTituloNube(e.target.value); if (formErrors.tituloNube) setFormErrors(p => ({ ...p, tituloNube: "" })); }} placeholder="Título para Tienda Nube" />
+                                {formErrors.tituloNube && <p className="mt-1 text-xs text-red-500">{formErrors.tituloNube}</p>}
                             </label>
 
                             {/* Imagen */}

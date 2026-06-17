@@ -152,7 +152,7 @@ public class EstadisticasServiceImpl implements EstadisticasService {
                 .map(p -> new ProductoMargenNegativo(
                         p.getProducto().getId(),
                         p.getProducto().getSku(),
-                        p.getProducto().getDescripcion(),
+                        p.getProducto().getTituloDux(),
                         p.getCanal().getNombre(),
                         p.getCuotas(),
                         p.getMargenSobrePvp(),

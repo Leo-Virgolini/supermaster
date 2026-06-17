@@ -283,8 +283,8 @@ public class ProductoServiceImpl implements ProductoService {
                 // =======================
                 ProductoSpecifications.sku(filter.sku()),
                 ProductoSpecifications.codExt(filter.codExt()),
-                ProductoSpecifications.descripcion(filter.descripcion()),
-                ProductoSpecifications.tituloWeb(filter.tituloWeb()),
+                ProductoSpecifications.tituloDux(filter.tituloDux()),
+                ProductoSpecifications.tituloNube(filter.tituloNube()),
 
                 // =======================
                 // 2) BOOLEANOS / NÚMEROS
@@ -498,8 +498,8 @@ public class ProductoServiceImpl implements ProductoService {
                 // Filtros de texto dedicados
                 PrecioSpecifications.sku(filter.sku()),
                 PrecioSpecifications.codExt(filter.codExt()),
-                PrecioSpecifications.descripcion(filter.descripcion()),
-                PrecioSpecifications.tituloWeb(filter.tituloWeb()),
+                PrecioSpecifications.tituloDux(filter.tituloDux()),
+                PrecioSpecifications.tituloNube(filter.tituloNube()),
                 // Booleanos/Numéricos
                 PrecioSpecifications.esCombo(filter.esCombo()),
                 PrecioSpecifications.uxb(filter.uxb()),
@@ -857,8 +857,8 @@ public class ProductoServiceImpl implements ProductoService {
                 // Filtros de texto dedicados
                 ProductoSpecifications.sku(filter.sku()),
                 ProductoSpecifications.codExt(filter.codExt()),
-                ProductoSpecifications.descripcion(filter.descripcion()),
-                ProductoSpecifications.tituloWeb(filter.tituloWeb()),
+                ProductoSpecifications.tituloDux(filter.tituloDux()),
+                ProductoSpecifications.tituloNube(filter.tituloNube()),
                 // Booleanos/Numéricos
                 ProductoSpecifications.esCombo(filter.esCombo()),
                 ProductoSpecifications.uxb(filter.uxb()),
@@ -1085,8 +1085,9 @@ public class ProductoServiceImpl implements ProductoService {
     private boolean isPatchVacio(ProductoPatchDTO patchDto) {
         return !presente(patchDto.getSku())
                 && !presente(patchDto.getCodExt())
-                && !presente(patchDto.getDescripcion())
-                && !presente(patchDto.getTituloWeb())
+                && !presente(patchDto.getTituloDux())
+                && !presente(patchDto.getTituloMl())
+                && !presente(patchDto.getTituloNube())
                 && !presente(patchDto.getEsCombo())
                 && !presente(patchDto.getUxb())
                 && !presente(patchDto.getMoq())
@@ -1148,11 +1149,14 @@ public class ProductoServiceImpl implements ProductoService {
         if (presente(patchDto.getCodExt())) {
             entity.setCodExt(leerStringOpcional(patchDto.getCodExt(), "codExt", 45));
         }
-        if (presente(patchDto.getDescripcion())) {
-            entity.setDescripcion(leerStringRequerido(patchDto.getDescripcion(), "descripcion", 100));
+        if (presente(patchDto.getTituloDux())) {
+            entity.setTituloDux(leerStringRequerido(patchDto.getTituloDux(), "tituloDux", 100));
         }
-        if (presente(patchDto.getTituloWeb())) {
-            entity.setTituloWeb(leerStringRequerido(patchDto.getTituloWeb(), "tituloWeb", 100));
+        if (presente(patchDto.getTituloMl())) {
+            entity.setTituloMl(leerStringOpcional(patchDto.getTituloMl(), "tituloMl", 100));
+        }
+        if (presente(patchDto.getTituloNube())) {
+            entity.setTituloNube(leerStringOpcional(patchDto.getTituloNube(), "tituloNube", 100));
         }
         if (presente(patchDto.getEsCombo())) {
             entity.setEsCombo(leerBooleanOpcional(patchDto.getEsCombo(), "esCombo"));

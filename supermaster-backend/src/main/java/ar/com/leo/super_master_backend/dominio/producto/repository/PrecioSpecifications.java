@@ -74,8 +74,7 @@ public class PrecioSpecifications {
             return cb.or(
                     cb.like(cb.lower(producto.get("sku")), pattern),
                     cb.like(cb.lower(producto.get("codExt")), pattern),
-                    cb.like(cb.lower(producto.get("descripcion")), pattern),
-                    cb.like(cb.lower(producto.get("tituloWeb")), pattern),
+                    cb.like(cb.lower(producto.get("tituloDux")), pattern),
                     cb.like(cb.lower(mlaJoin.get("mla")), pattern),
                     cb.like(cb.lower(mlaJoin.get("mlau")), pattern)
             );
@@ -96,17 +95,17 @@ public class PrecioSpecifications {
         };
     }
 
-    public static Specification<ProductoCanalPrecio> descripcion(String descripcion) {
+    public static Specification<ProductoCanalPrecio> tituloDux(String tituloDux) {
         return (root, query, cb) -> {
-            if (descripcion == null || descripcion.isBlank()) return null;
-            return cb.like(cb.lower(productoJoin(root).get("descripcion")), "%" + descripcion.toLowerCase() + "%");
+            if (tituloDux == null || tituloDux.isBlank()) return null;
+            return cb.like(cb.lower(productoJoin(root).get("tituloDux")), "%" + tituloDux.toLowerCase() + "%");
         };
     }
 
-    public static Specification<ProductoCanalPrecio> tituloWeb(String tituloWeb) {
+    public static Specification<ProductoCanalPrecio> tituloNube(String tituloNube) {
         return (root, query, cb) -> {
-            if (tituloWeb == null || tituloWeb.isBlank()) return null;
-            return cb.like(cb.lower(productoJoin(root).get("tituloWeb")), "%" + tituloWeb.toLowerCase() + "%");
+            if (tituloNube == null || tituloNube.isBlank()) return null;
+            return cb.like(cb.lower(productoJoin(root).get("tituloNube")), "%" + tituloNube.toLowerCase() + "%");
         };
     }
 

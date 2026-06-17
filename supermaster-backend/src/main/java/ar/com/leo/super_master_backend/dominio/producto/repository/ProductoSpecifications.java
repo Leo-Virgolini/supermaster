@@ -45,8 +45,7 @@ public class ProductoSpecifications {
             return cb.or(
                     cb.like(cb.lower(root.get("sku")), pattern),
                     cb.like(cb.lower(root.get("codExt")), pattern),
-                    cb.like(cb.lower(root.get("descripcion")), pattern),
-                    cb.like(cb.lower(root.get("tituloWeb")), pattern),
+                    cb.like(cb.lower(root.get("tituloDux")), pattern),
                     cb.like(cb.lower(mlaJoin.get("mla")), pattern),
                     cb.like(cb.lower(mlaJoin.get("mlau")), pattern)
             );
@@ -70,17 +69,17 @@ public class ProductoSpecifications {
         };
     }
 
-    public static Specification<Producto> descripcion(String descripcion) {
+    public static Specification<Producto> tituloDux(String tituloDux) {
         return (root, query, cb) -> {
-            if (descripcion == null || descripcion.isBlank()) return null;
-            return cb.like(cb.lower(root.get("descripcion")), "%" + descripcion.toLowerCase() + "%");
+            if (tituloDux == null || tituloDux.isBlank()) return null;
+            return cb.like(cb.lower(root.get("tituloDux")), "%" + tituloDux.toLowerCase() + "%");
         };
     }
 
-    public static Specification<Producto> tituloWeb(String tituloWeb) {
+    public static Specification<Producto> tituloNube(String tituloNube) {
         return (root, query, cb) -> {
-            if (tituloWeb == null || tituloWeb.isBlank()) return null;
-            return cb.like(cb.lower(root.get("tituloWeb")), "%" + tituloWeb.toLowerCase() + "%");
+            if (tituloNube == null || tituloNube.isBlank()) return null;
+            return cb.like(cb.lower(root.get("tituloNube")), "%" + tituloNube.toLowerCase() + "%");
         };
     }
 

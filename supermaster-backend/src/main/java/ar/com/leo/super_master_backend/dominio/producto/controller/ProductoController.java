@@ -47,8 +47,8 @@ public class ProductoController {
             // =======================
             @RequestParam(required = false) String sku,
             @RequestParam(required = false) String codExt,
-            @RequestParam(required = false) String descripcion,
-            @RequestParam(required = false) String tituloWeb,
+            @RequestParam(required = false) String tituloDux,
+            @RequestParam(required = false) String tituloNube,
 
             // =======================
             // 2) BOOLEANOS / NUMÉRICOS
@@ -131,8 +131,8 @@ public class ProductoController {
                 // Filtros de texto dedicados
                 sku,
                 codExt,
-                descripcion,
-                tituloWeb,
+                tituloDux,
+                tituloNube,
                 // Booleanos/Numéricos
                 esCombo,
                 uxb,

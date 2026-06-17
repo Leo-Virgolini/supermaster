@@ -27,8 +27,9 @@ public class ProductoAuditoriaServiceImpl implements ProductoAuditoriaService {
         LinkedHashMap<String, String> snapshot = new LinkedHashMap<>();
         snapshot.put("sku", normalizar(producto.getSku()));
         snapshot.put("codExt", normalizar(producto.getCodExt()));
-        snapshot.put("descripcion", normalizar(producto.getDescripcion()));
-        snapshot.put("tituloWeb", normalizar(producto.getTituloWeb()));
+        snapshot.put("tituloDux", normalizar(producto.getTituloDux()));
+        snapshot.put("tituloMl", normalizar(producto.getTituloMl()));
+        snapshot.put("tituloNube", normalizar(producto.getTituloNube()));
         snapshot.put("esCombo", normalizar(producto.getEsCombo()));
         snapshot.put("uxb", normalizar(producto.getUxb()));
         snapshot.put("moq", normalizar(producto.getMoq()));

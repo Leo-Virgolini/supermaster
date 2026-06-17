@@ -3745,7 +3745,7 @@ public class ExcelServiceImpl implements ExcelService {
             }
         }
 
-        // Ordenar dinámicamente según los campos especificados, siempre terminando con tituloWeb/descripcion
+        // Ordenar dinámicamente según los campos especificados, siempre terminando con tituloNube/tituloDux
         productosCatalogo.sort((pc1, pc2) -> {
             Producto p1 = pc1.getProducto();
             Producto p2 = pc2.getProducto();

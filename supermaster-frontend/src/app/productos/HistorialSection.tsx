@@ -41,8 +41,9 @@ export function HistorialSection({ productoId, productoSku }: { productoId: numb
     const fieldLabelMap: Record<string, string> = {
         sku: "SKU",
         codExt: "Cód. Ext.",
-        descripcion: "Descripción",
-        tituloWeb: "Título web",
+        tituloDux: "Título Dux",
+        tituloMl: "Título ML",
+        tituloNube: "Título Nube",
         esCombo: "Es combo",
         uxb: "UxB",
         moq: "MOQ",

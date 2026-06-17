@@ -4,7 +4,7 @@ import java.util.Set;
 
 /**
  * @param bajarTitulosNube si true, antes de calcular precios baja los títulos web
- *                         de KT Gastro desde Tienda Nube y los persiste en `Producto.tituloWeb`
+ *                         de KT Gastro desde Tienda Nube y los persiste en `Producto.tituloNube`
  *                         (sólo se actualizan productos cuyo título cambió).
  * @param filtroMlas       si no es null ni vacío, restringe la sincronización solo a estos MLAs.
  *                         Útil para probar contra un subconjunto antes de una corrida completa.

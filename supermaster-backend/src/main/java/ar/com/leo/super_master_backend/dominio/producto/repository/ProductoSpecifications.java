@@ -31,7 +31,7 @@ public class ProductoSpecifications {
     }
 
     /* ==========================================================
-       1) BÚSQUEDA POR TEXTO (sku, descripcion, tituloWeb, codExt, mla, mlau)
+       1) BÚSQUEDA POR TEXTO (sku, titulo_dux, titulo_nube, codExt, mla, mlau)
        ========================================================== */
     public static Specification<Producto> textoLike(String texto) {
         return (root, query, cb) -> {

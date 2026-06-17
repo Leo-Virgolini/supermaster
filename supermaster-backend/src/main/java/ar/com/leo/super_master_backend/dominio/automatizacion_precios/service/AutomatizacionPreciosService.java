@@ -334,7 +334,7 @@ public class AutomatizacionPreciosService {
 
             if (cancelado()) return;
 
-            // PASO 0a-bis: Bajar títulos KT Gastro desde Tienda Nube y persistir en `tituloWeb`.
+            // PASO 0a-bis: Bajar títulos KT Gastro desde Tienda Nube y persistir en `tituloNube`.
             // Se ejecuta antes del cálculo de precios para que los exports salgan con títulos actualizados.
             if (request.bajarTitulosNube()) {
                 actualizarEstado("Descargando títulos KT Gastro desde Tienda Nube...", 0, 0);
@@ -629,7 +629,7 @@ public class AutomatizacionPreciosService {
      * Para items con variaciones, todas deben coincidir.
      */
     /**
-     * Actualiza el campo {@code tituloWeb} de los productos cuyos SKUs aparecen en el mapa.
+     * Actualiza el campo {@code tituloNube} de los productos cuyos SKUs aparecen en el mapa.
      * Solo se persisten cambios reales (skip si el título coincide). Trim + uppercase.
      *
      * @return {@code [actualizados, sinCambio, sinSkuEnDb]}

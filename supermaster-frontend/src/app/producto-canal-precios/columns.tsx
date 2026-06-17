@@ -42,7 +42,7 @@ export const getColumns = ({ onViewPrices, onRecalcular, calcLoading, globalLoad
         enableColumnFilter: true,
     },
     {
-        accessorKey: "descripcion",
+        accessorKey: "tituloDux",
         header: "Producto",
         enableColumnFilter: true,
     },

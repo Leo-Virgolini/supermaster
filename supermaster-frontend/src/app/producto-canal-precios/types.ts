@@ -56,7 +56,7 @@ export interface ProductoCanalPrecioDTO {
 	id: number;
 	sku: string;
 	mla: string | null;
-	descripcion: string;
+	tituloDux: string;
 	costo: number;
 	fechaUltimoCosto?: string | null;
 	iva: number;

@@ -55,7 +55,7 @@ interface FilaComparador {
     id: number;
     sku: string;
     mla: string | null;
-    descripcion: string;
+    tituloDux: string;
     costo: number;
     iva: number;
     cuotas: number;
@@ -191,7 +191,7 @@ function aplanarParaExport(
             id: prod.id,
             sku: prod.sku,
             mla: prod.mla ?? null,
-            descripcion: prod.descripcion,
+            tituloDux: prod.tituloDux,
             costo: prod.costo,
             iva: prod.iva,
             cuotas: precio.cuotas,
@@ -346,7 +346,7 @@ const CAMPO_COLOR_MAP: Record<string, { border: string; bg: string; badge: strin
 // se repite idéntico en todas las filas de cuotas del mismo grupo. Sólo las renderizamos
 // en la primera fila de cada grupo para evitar ruido visual.
 const PRODUCT_LEVEL_COLS = new Set([
-    "sku", "mla", "descripcion", "canalNombre",
+    "sku", "mla", "tituloDux", "canalNombre",
     "costo", "fechaUltimoCosto", "iva",
     "margenMinorista", "margenMayorista",
     "precioInfladoCodigo",
@@ -355,7 +355,7 @@ const PRODUCT_LEVEL_COLS = new Set([
 // Columnas que se pueden ocultar/mostrar (id → label)
 const TOGGLEABLE_COLUMNS: { id: string; label: string }[] = [
     { id: "sku", label: "SKU" },
-    { id: "descripcion", label: "Producto" },
+    { id: "tituloDux", label: "Producto" },
     { id: "canalNombre", label: "Canal" },
     { id: "cuotasDescripcion", label: "Cuotas" },
     { id: "costo", label: "Costo" },
@@ -389,7 +389,7 @@ const MONITOR_PRESETS = [
         id: "rentabilidad",
         label: "Rentabilidad",
         visibleColumns: [
-            "sku", "descripcion", "canalNombre", "cuotasDescripcion", "costo", "iva", "pvp",
+            "sku", "tituloDux", "canalNombre", "cuotasDescripcion", "costo", "iva", "pvp",
             "ganancia", "costosVenta", "ingresoNetoVendedor", "margenSobrePvp", "margenSobreIngresoNeto",
             "markupPorcentaje", "fechaUltimoCalculo", "acciones",
         ],
@@ -398,7 +398,7 @@ const MONITOR_PRESETS = [
         id: "edicion",
         label: "Edición",
         visibleColumns: [
-            "sku", "descripcion", "canalNombre", "cuotasDescripcion", "costo", "iva",
+            "sku", "tituloDux", "canalNombre", "cuotasDescripcion", "costo", "iva",
             "margenMinorista", "margenMayorista",
             "pvp", "pvpInflado", "precioInfladoCodigo", "acciones",
         ],
@@ -407,7 +407,7 @@ const MONITOR_PRESETS = [
         id: "descuentos",
         label: "Descuentos",
         visibleColumns: [
-            "sku", "descripcion", "canalNombre", "cuotasDescripcion", "pvp", "descResumen",
+            "sku", "tituloDux", "canalNombre", "cuotasDescripcion", "pvp", "descResumen",
             "descPvp", "descGanancia", "descCostosVenta", "descIngresoNeto",
             "descMargenSobreIN", "descMargenSobrePvp", "descMarkup", "acciones",
         ],
@@ -422,7 +422,7 @@ const MONITOR_PRESETS = [
 const MONITOR_EXPORT_COLUMNS: Array<{ header: string; accessor: keyof FilaComparador | "descResumen" }> = [
     { header: "SKU", accessor: "sku" },
     { header: "MLA", accessor: "mla" },
-    { header: "Producto", accessor: "descripcion" },
+    { header: "Producto", accessor: "tituloDux" },
     { header: "Canal", accessor: "canalNombre" },
     { header: "Cuotas", accessor: "cuotasDescripcion" },
     { header: "Costo", accessor: "costo" },
@@ -536,7 +536,7 @@ const getColumns = (
         },
     },
     {
-        accessorKey: "descripcion",
+        accessorKey: "tituloDux",
         header: "Producto",
         size: 220,
         enableSorting: true,
@@ -1516,7 +1516,7 @@ export default function MonitorPrecios({
 
         const headers = ["SKU", "Producto", "Canal", "Cuotas", "Costo", "IVA%", "PVP", "PVP Inflado", "Regla Inflado", "Descuento", "PVP c/Desc", "Gan c/Desc", "CV c/Desc", "IN c/Desc", "Mrg IN c/D%", "Mrg PVP c/D%", "Mkup c/Desc%", "Ganancia", "Costos Venta", "Ingreso Neto", "Mrg s/PVP%", "Mrg s/IN%", "Markup%", "Mrg Minorista%", "Mrg Mayorista%"];
         const lines = rows.map((r) => [
-            r.sku, r.descripcion, r.canalNombre, r.cuotasDescripcion, num(r.costo), num(r.iva), num(r.pvp), num(r.pvpInflado),
+            r.sku, r.tituloDux, r.canalNombre, r.cuotasDescripcion, num(r.costo), num(r.iva), num(r.pvp), num(r.pvpInflado),
             r.precioInfladoCodigo ?? "",
             r.descPorcentaje != null ? `${r.descPorcentaje}% (mín ${r.descMontoMinimo})` : "",
             num(r.descPvp), num(r.descGanancia),

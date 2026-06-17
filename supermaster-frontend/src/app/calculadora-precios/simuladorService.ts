@@ -61,7 +61,7 @@ export interface SimulacionPrecioInput {
 export interface ProductoSnapshot {
     productoId: number;
     sku: string;
-    label: string; // "[SKU] descripcion"
+    label: string; // "[SKU] tituloDux"
     costo: number | null;
     iva: number | null;
     marcaId: number | null;
@@ -89,7 +89,7 @@ export const searchProductosForSimulacionAPI = async (query: string): Promise<{ 
         const res = await getProductosAPI(0, 15, { search: query }, "id,desc");
         return (res.content || []).map((p: ProductoDTO) => ({
             id: p.id,
-            label: `[${p.sku}] ${p.tituloWeb || p.descripcion || ""}`.trim() + (p.mlaNombre ? ` · ${p.mlaNombre}` : ""),
+            label: `[${p.sku}] ${p.tituloDux || ""}`.trim() + (p.mlaNombre ? ` · ${p.mlaNombre}` : ""),
         }));
     } catch {
         return [];
@@ -162,7 +162,7 @@ export const loadProductoSnapshotAPI = async (productoId: number, canalId?: numb
     return {
         productoId: producto.id,
         sku: producto.sku,
-        label: `[${producto.sku}] ${producto.tituloWeb || producto.descripcion || ""}`.trim(),
+        label: `[${producto.sku}] ${producto.tituloDux || ""}`.trim(),
         costo: producto.costo ?? null,
         iva: producto.iva ?? null,
         marcaId: producto.marcaId ?? null,

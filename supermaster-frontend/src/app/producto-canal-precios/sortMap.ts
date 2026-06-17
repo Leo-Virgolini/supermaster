@@ -2,7 +2,7 @@
 export const SORT_FIELD_MAP: Record<string, string> = {
     sku: "sku",
     mla: "mla",
-    descripcion: "descripcion",
+    tituloDux: "tituloDux",
     canalNombre: "canal",
     cuotasDescripcion: "cuotas",
     costo: "costoproducto",

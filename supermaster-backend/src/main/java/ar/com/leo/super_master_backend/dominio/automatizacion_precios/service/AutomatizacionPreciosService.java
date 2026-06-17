@@ -655,11 +655,11 @@ public class AutomatizacionPreciosService {
             if (nuevoTitulo.length() > 100) {
                 nuevoTitulo = nuevoTitulo.substring(0, 100);
             }
-            if (nuevoTitulo.equals(p.getTituloWeb())) {
+            if (nuevoTitulo.equals(p.getTituloNube())) {
                 sinCambio++;
                 continue;
             }
-            p.setTituloWeb(nuevoTitulo);
+            p.setTituloNube(nuevoTitulo);
             actualizados++;
         }
 

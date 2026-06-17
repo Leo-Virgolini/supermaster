@@ -500,7 +500,7 @@ public class ReposicionServiceImpl implements ReposicionService {
                         producto.getId(),
                         sku,
                         producto.getCodExt(),
-                        producto.getDescripcion(),
+                        producto.getTituloDux(),
                         producto.getProveedor().getApodo(),
                         producto.getUxb(),
                         producto.getMoq(),
@@ -733,7 +733,7 @@ public class ReposicionServiceImpl implements ReposicionService {
                 codExtCell.setCellValue(prod.getCodExt() != null ? prod.getCodExt() : "");
                 codExtCell.setCellStyle(centeredStyle);
                 Cell descCell = row.createCell(2);
-                descCell.setCellValue(prod.getDescripcion() != null ? prod.getDescripcion() : "");
+                descCell.setCellValue(prod.getTituloDux() != null ? prod.getTituloDux() : "");
                 descCell.setCellStyle(centeredStyle);
 
                 Cell uxbCell = row.createCell(3);

@@ -496,10 +496,10 @@ public class CatalogoPdfServiceImpl implements CatalogoPdfService {
     }
 
     private String resolverNombreProducto(Producto producto) {
-        if (producto.getTituloWeb() != null && !producto.getTituloWeb().isBlank()) {
-            return producto.getTituloWeb();
+        if (producto.getTituloNube() != null && !producto.getTituloNube().isBlank()) {
+            return producto.getTituloNube();
         }
-        return Objects.requireNonNullElse(producto.getDescripcion(), producto.getSku());
+        return Objects.requireNonNullElse(producto.getTituloDux(), producto.getSku());
     }
 
     private String describirCuotas(Integer canalId, int cuotas) {

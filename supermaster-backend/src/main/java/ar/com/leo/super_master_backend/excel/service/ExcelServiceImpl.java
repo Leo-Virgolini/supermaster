@@ -1354,37 +1354,30 @@ public class ExcelServiceImpl implements ExcelService {
                 nuevo.setFechaCreacion(LocalDateTime.now(ZONA_ARG)); // Fecha de creación
                 // Valores por defecto para campos @NotNull (se actualizarán si vienen en el
                 // Excel)
-                nuevo.setDescripcion(""); // Valor por defecto mínimo
-                nuevo.setTituloWeb(""); // Valor por defecto mínimo
+                nuevo.setTituloDux(""); // Valor por defecto mínimo
                 return nuevo;
             });
 
-            // PRODUCTO (descripcion) - máximo 100 caracteres
+            // PRODUCTO (tituloDux) - máximo 100 caracteres
             if (columnasMap.containsKey("PRODUCTO")) {
                 String descripcion = obtenerValorCelda(row, obtenerIndiceColumna(columnasMap, "PRODUCTO"));
                 if (descripcion != null && !descripcion.isBlank()) {
-                    producto.setDescripcion(truncar(descripcion.trim(), 100));
-                } else if (esNuevo && (producto.getDescripcion() == null || producto.getDescripcion().isEmpty())) {
-                    // Si es nuevo y no tiene descripción, usar valor por defecto mínimo
-                    producto.setDescripcion("");
+                    producto.setTituloDux(truncar(descripcion.trim(), 100));
+                } else if (esNuevo && (producto.getTituloDux() == null || producto.getTituloDux().isEmpty())) {
+                    // Si es nuevo y no tiene título Dux, usar valor por defecto mínimo
+                    producto.setTituloDux("");
                 }
-            } else if (esNuevo && (producto.getDescripcion() == null || producto.getDescripcion().isEmpty())) {
+            } else if (esNuevo && (producto.getTituloDux() == null || producto.getTituloDux().isEmpty())) {
                 // Si es nuevo y no viene la columna, usar valor por defecto mínimo
-                producto.setDescripcion("");
+                producto.setTituloDux("");
             }
 
-            // TITULO WEB - máximo 100 caracteres
+            // TITULO WEB - máximo 100 caracteres (mapeado a tituloNube)
             if (columnasMap.containsKey("TITULO WEB")) {
                 String tituloWeb = obtenerValorCelda(row, obtenerIndiceColumna(columnasMap, "TITULO WEB"));
                 if (tituloWeb != null && !tituloWeb.isBlank()) {
-                    producto.setTituloWeb(truncar(tituloWeb.trim(), 100));
-                } else if (esNuevo && (producto.getTituloWeb() == null || producto.getTituloWeb().isEmpty())) {
-                    // Si es nuevo y no tiene título web, usar valor por defecto mínimo
-                    producto.setTituloWeb("");
+                    producto.setTituloNube(truncar(tituloWeb.trim(), 100));
                 }
-            } else if (esNuevo && (producto.getTituloWeb() == null || producto.getTituloWeb().isEmpty())) {
-                // Si es nuevo y no viene la columna, usar valor por defecto mínimo
-                producto.setTituloWeb("");
             }
 
             // TIPO DE PRODUCTO (SIMPLE o COMBO) - Guardar 1 si es COMBO, 0 si es SIMPLE
@@ -1790,7 +1783,7 @@ public class ExcelServiceImpl implements ExcelService {
 
         String nombre = obtenerValorCelda(row, obtenerIndiceColumna(columnasMap, "NOMBRE"));
         if (nombre != null && !nombre.isBlank()) {
-            producto.setTituloWeb(truncar(nombre.trim(), 100));
+            producto.setTituloNube(truncar(nombre.trim(), 100));
             productoRepository.save(producto);
         }
     }
@@ -2112,8 +2105,7 @@ public class ExcelServiceImpl implements ExcelService {
                     // satisfacer @NotNull
                     Producto nuevo = new Producto();
                     nuevo.setSku(sku);
-                    nuevo.setDescripcion(""); // Default para @NotNull
-                    nuevo.setTituloWeb(""); // Default para @NotNull
+                    nuevo.setTituloDux(""); // Default para @NotNull
                     nuevo.setIva(BigDecimal.ZERO);
                     nuevo.setFechaCreacion(LocalDateTime.now(ZONA_ARG));
                     // Establecer valores por defecto para satisfacer @NotNull
@@ -2471,11 +2463,11 @@ public class ExcelServiceImpl implements ExcelService {
                     BigDecimal ivaAnterior = producto.getIva();
                     Integer proveedorIdAnterior = producto.getProveedor() != null ? producto.getProveedor().getId() : null;
 
-                    // PRODUCTO → descripcion
+                    // PRODUCTO → tituloDux
                     if (columnasMap.containsKey("PRODUCTO")) {
                         String descripcion = obtenerValorCelda(row, columnasMap.get("PRODUCTO"));
                         if (descripcion != null && !descripcion.isBlank()) {
-                            producto.setDescripcion(descripcion.trim().length() > 100
+                            producto.setTituloDux(descripcion.trim().length() > 100
                                     ? descripcion.trim().substring(0, 100)
                                     : descripcion.trim());
                             actualizado = true;
@@ -2857,7 +2849,7 @@ public class ExcelServiceImpl implements ExcelService {
 
             // Headers fijos del producto
             String[] headersFijos = {
-                    "ID", "SKU", "MLA", "MLAU", "PRECIO_ENVIO", "COMISION_ML", "COD_EXT", "DESCRIPCION", "TITULO_WEB",
+                    "ID", "SKU", "MLA", "MLAU", "PRECIO_ENVIO", "COMISION_ML", "COD_EXT", "TITULO_DUX", "TITULO_ML", "TITULO_NUBE",
                     "ES_COMBO", "ES_MAQUINA", "IMAGEN_URL", "STOCK", "ACTIVO", "MARCA", "ORIGEN",
                     "CLASIF_GRAL", "CLASIF_GASTRO", "TIPO", "PROVEEDOR", "MATERIAL", "UXB", "CAPACIDAD",
                     "LARGO", "ANCHO", "ALTO", "DIAMBOCA", "DIAMBASE", "ESPESOR", "COSTO",
@@ -3139,8 +3131,9 @@ public class ExcelServiceImpl implements ExcelService {
                 setCellValue(row.createCell(cellIndex++), producto.precioEnvio(), currentPrecioStyle);
                 setCellValue(row.createCell(cellIndex++), producto.comisionPorcentaje(), currentPorcentajeStyleFijo);
                 setCellValue(row.createCell(cellIndex++), producto.codExt(), currentDataStyle);
-                setCellValue(row.createCell(cellIndex++), producto.descripcion(), currentDataStyle);
-                setCellValue(row.createCell(cellIndex++), producto.tituloWeb(), currentDataStyle);
+                setCellValue(row.createCell(cellIndex++), producto.tituloDux(), currentDataStyle);
+                setCellValue(row.createCell(cellIndex++), producto.tituloMl(), currentDataStyle);
+                setCellValue(row.createCell(cellIndex++), producto.tituloNube(), currentDataStyle);
                 setCellValue(row.createCell(cellIndex++), producto.esCombo(), currentDataStyle);
                 // Si clasifGastro es null, esMaquina debe ser false
                 Boolean esMaquinaExport = producto.clasifGastroNombre() == null ? false : producto.esMaquina();
@@ -3762,9 +3755,9 @@ public class ExcelServiceImpl implements ExcelService {
                 if (cmp != 0) return cmp;
             }
 
-            // Siempre al final: comparar por tituloWeb, si es null usar descripcion
-            String nombre1 = p1.getTituloWeb() != null ? p1.getTituloWeb() : p1.getDescripcion();
-            String nombre2 = p2.getTituloWeb() != null ? p2.getTituloWeb() : p2.getDescripcion();
+            // Siempre al final: comparar por tituloDux
+            String nombre1 = p1.getTituloDux();
+            String nombre2 = p2.getTituloDux();
             return compareNullsLast(nombre1, nombre2);
         });
 
@@ -3859,7 +3852,7 @@ public class ExcelServiceImpl implements ExcelService {
 
                 Row row = sheet.createRow(rowIndex++);
                 setCellValue(row.createCell(0), producto.getSku(), dataStyle);
-                setCellValue(row.createCell(1), producto.getDescripcion(), dataStyle);
+                setCellValue(row.createCell(1), producto.getTituloDux(), dataStyle);
                 setCellValue(row.createCell(2), pvpFinal, precioStyle);
                 setCellValue(row.createCell(3), producto.getUxb(), dataStyle);
             }

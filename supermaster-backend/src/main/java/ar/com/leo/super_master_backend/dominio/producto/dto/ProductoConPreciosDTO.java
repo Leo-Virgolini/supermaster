@@ -20,8 +20,9 @@ public record ProductoConPreciosDTO(
         BigDecimal comisionPorcentaje,
 
         String codExt,
-        String descripcion,
-        String tituloWeb,
+        String tituloDux,
+        String tituloMl,
+        String tituloNube,
         Boolean esCombo,
         Boolean esMaquina,
         String imagenUrl,

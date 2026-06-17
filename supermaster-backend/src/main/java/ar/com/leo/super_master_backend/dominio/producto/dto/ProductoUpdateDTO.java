@@ -11,10 +11,12 @@ public record ProductoUpdateDTO(
         String sku,
         @Size(max = 45, message = "El código externo no puede exceder 45 caracteres")
         String codExt,
-        @Size(max = 100, message = "La descripción no puede exceder 100 caracteres")
-        String descripcion,
-        @Size(max = 100, message = "El título web no puede exceder 100 caracteres")
-        String tituloWeb,
+        @Size(max = 100, message = "El título Dux no puede exceder 100 caracteres")
+        String tituloDux,
+        @Size(max = 100, message = "El título ML no puede exceder 100 caracteres")
+        String tituloMl,
+        @Size(max = 100, message = "El título Nube no puede exceder 100 caracteres")
+        String tituloNube,
         Boolean esCombo,
         @Positive(message = "UXB debe ser mayor a 0")
         Integer uxb,

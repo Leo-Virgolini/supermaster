@@ -18,8 +18,8 @@ public record ProductoFilter(
         // 1.1) FILTROS DE TEXTO DEDICADOS (exacto, case insensitive)
         String sku,
         String codExt,
-        String descripcion,
-        String tituloWeb,
+        String tituloDux,
+        String tituloNube,
 
         // 2) BOOLEANOS / NUMÉRICOS
         Boolean esCombo,

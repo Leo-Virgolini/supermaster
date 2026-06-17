@@ -13,8 +13,9 @@ import java.math.BigDecimal;
 public class ProductoPatchDTO {
     private JsonNullable<String> sku = JsonNullable.undefined();
     private JsonNullable<String> codExt = JsonNullable.undefined();
-    private JsonNullable<String> descripcion = JsonNullable.undefined();
-    private JsonNullable<String> tituloWeb = JsonNullable.undefined();
+    private JsonNullable<String> tituloDux = JsonNullable.undefined();
+    private JsonNullable<String> tituloMl = JsonNullable.undefined();
+    private JsonNullable<String> tituloNube = JsonNullable.undefined();
     private JsonNullable<Boolean> esCombo = JsonNullable.undefined();
     private JsonNullable<Integer> uxb = JsonNullable.undefined();
     private JsonNullable<Integer> moq = JsonNullable.undefined();

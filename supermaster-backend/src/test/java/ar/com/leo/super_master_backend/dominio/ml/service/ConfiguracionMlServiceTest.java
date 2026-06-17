@@ -166,8 +166,8 @@ class ConfiguracionMlServiceTest {
         // Crear producto base (se modificará el costo en cada test)
         producto = new Producto();
         producto.setSku(TEST_PREFIX + "001");
-        producto.setDescripcion(TEST_PREFIX + "Producto Test");
-        producto.setTituloWeb(TEST_PREFIX + "Producto Test");
+        producto.setTituloDux(TEST_PREFIX + "Producto Test");
+        producto.setTituloNube(TEST_PREFIX + "Producto Test");
         producto.setCosto(new BigDecimal("5000")); // Valor inicial
         producto.setIva(new BigDecimal("21"));
         producto.setOrigen(origen);

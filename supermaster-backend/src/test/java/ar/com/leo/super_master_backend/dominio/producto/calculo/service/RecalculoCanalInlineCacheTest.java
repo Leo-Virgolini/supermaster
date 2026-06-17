@@ -143,8 +143,8 @@ class RecalculoCanalInlineCacheTest {
 
         producto = new Producto();
         producto.setSku(P + "001");
-        producto.setDescripcion(P + "Producto");
-        producto.setTituloWeb(P + "Producto");
+        producto.setTituloDux(P + "Producto");
+        producto.setTituloNube(P + "Producto");
         producto.setCosto(new BigDecimal("1000"));
         producto.setIva(new BigDecimal("21"));
         producto.setOrigen(origen);

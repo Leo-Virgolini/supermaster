@@ -19,7 +19,7 @@ public interface OrdenCompraMapper {
 
     @Mapping(source = "producto.id", target = "productoId")
     @Mapping(source = "producto.sku", target = "productoSku")
-    @Mapping(source = "producto.descripcion", target = "productoDescripcion")
+    @Mapping(source = "producto.tituloDux", target = "productoDescripcion")
     OrdenCompraLineaDTO toLineaDTO(OrdenCompraLinea entity);
 
     List<OrdenCompraLineaDTO> toLineaDTOList(List<OrdenCompraLinea> entities);

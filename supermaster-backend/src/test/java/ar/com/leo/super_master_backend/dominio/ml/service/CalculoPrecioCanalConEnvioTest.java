@@ -161,8 +161,8 @@ class CalculoPrecioCanalConEnvioTest {
         // Crear producto con MLA asignado
         producto = new Producto();
         producto.setSku(TEST_PREFIX + "001");
-        producto.setDescripcion(TEST_PREFIX + "Producto ML");
-        producto.setTituloWeb(TEST_PREFIX + "Producto ML Test");
+        producto.setTituloDux(TEST_PREFIX + "Producto ML");
+        producto.setTituloNube(TEST_PREFIX + "Producto ML Test");
         producto.setCosto(new BigDecimal("10000")); // Costo $10,000
         producto.setIva(new BigDecimal("21"));
         producto.setOrigen(origen);

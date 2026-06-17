@@ -34,7 +34,7 @@ public interface CanalReglaRepository extends JpaRepository<CanalRegla, Long> {
                OR LOWER(m.nombre)        LIKE LOWER(CONCAT('%', :search, '%'))
                OR LOWER(t.nombre)        LIKE LOWER(CONCAT('%', :search, '%'))
                OR LOWER(p.sku)           LIKE LOWER(CONCAT('%', :search, '%'))
-               OR LOWER(p.descripcion)   LIKE LOWER(CONCAT('%', :search, '%'))
+               OR LOWER(p.tituloDux)     LIKE LOWER(CONCAT('%', :search, '%'))
             """)
     Page<CanalRegla> buscar(@Param("search") String search, Pageable pageable);
 

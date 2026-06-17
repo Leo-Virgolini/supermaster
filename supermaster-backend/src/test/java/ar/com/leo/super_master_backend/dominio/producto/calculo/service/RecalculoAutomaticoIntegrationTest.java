@@ -338,8 +338,8 @@ class RecalculoAutomaticoIntegrationTest {
         // Crear producto
         producto = new Producto();
         producto.setSku(TEST_PREFIX + "001");
-        producto.setDescripcion(TEST_PREFIX + "Producto de prueba");
-        producto.setTituloWeb(TEST_PREFIX + "Producto Test");
+        producto.setTituloDux(TEST_PREFIX + "Producto de prueba");
+        producto.setTituloNube(TEST_PREFIX + "Producto Test");
         producto.setCosto(new BigDecimal("1000"));
         producto.setIva(new BigDecimal("21"));
         producto.setOrigen(origen);
@@ -395,7 +395,7 @@ class RecalculoAutomaticoIntegrationTest {
     private ProductoUpdateDTO buildProductoUpdate(BigDecimal costoOverride, BigDecimal ivaOverride,
             Integer marcaIdOverride, Integer tipoIdOverride, Integer clasifGralIdOverride, Integer proveedorIdOverride) {
         return new ProductoUpdateDTO(
-                producto.getSku(), producto.getCodExt(), producto.getDescripcion(), producto.getTituloWeb(),
+                producto.getSku(), producto.getCodExt(), producto.getTituloDux(), producto.getTituloMl(), producto.getTituloNube(),
                 producto.getEsCombo(), producto.getUxb(), producto.getMoq(), producto.getImagenUrl(),
                 producto.getStock(), producto.getActivo(),
                 marcaIdOverride != null ? marcaIdOverride : (producto.getMarca() != null ? producto.getMarca().getId() : null),
@@ -1291,8 +1291,8 @@ class RecalculoAutomaticoIntegrationTest {
         // Crear segundo producto
         Producto producto2 = new Producto();
         producto2.setSku(TEST_PREFIX + "002");
-        producto2.setDescripcion(TEST_PREFIX + "Producto 2");
-        producto2.setTituloWeb(TEST_PREFIX + "Producto Test 2");
+        producto2.setTituloDux(TEST_PREFIX + "Producto 2");
+        producto2.setTituloNube(TEST_PREFIX + "Producto Test 2");
         producto2.setCosto(new BigDecimal("2000"));
         producto2.setIva(new BigDecimal("21"));
         producto2.setOrigen(producto.getOrigen());

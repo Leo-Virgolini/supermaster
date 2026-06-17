@@ -18,7 +18,7 @@ public interface CampaniaMapper {
 
     @Mapping(target = "productoId", source = "producto.id")
     @Mapping(target = "sku", source = "producto.sku")
-    @Mapping(target = "descripcion", source = "producto.descripcion")
+    @Mapping(target = "descripcion", source = "producto.tituloDux")
     @Mapping(target = "costo", source = "producto.costo")
     CampaniaProductoDTO toProductoDTO(CampaniaProducto entity);
 }

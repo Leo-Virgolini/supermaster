@@ -496,7 +496,7 @@ public class DuxService {
                     // descripcion ← item.item
                     if (item.getItem() != null && !item.getItem().isBlank()) {
                         String desc = item.getItem().trim();
-                        producto.setDescripcion(desc.length() > 100 ? desc.substring(0, 100) : desc);
+                        producto.setTituloDux(desc.length() > 100 ? desc.substring(0, 100) : desc);
                         actualizado = true;
                     }
 
@@ -710,7 +710,7 @@ public class DuxService {
 
                 if (item.getItem() != null && !item.getItem().isBlank()) {
                     String desc = item.getItem().trim();
-                    producto.setDescripcion(desc.length() > 100 ? desc.substring(0, 100) : desc);
+                    producto.setTituloDux(desc.length() > 100 ? desc.substring(0, 100) : desc);
                     actualizado = true;
                 }
 
@@ -1290,7 +1290,7 @@ public class DuxService {
 
                 Map<String, Object> itemDux = new HashMap<>();
                 itemDux.put("cod_item", producto.getSku());
-                itemDux.put("item", producto.getDescripcion() != null ? producto.getDescripcion() : "");
+                itemDux.put("item", producto.getTituloDux() != null ? producto.getTituloDux() : "");
                 itemDux.put("tipo_producto", tipo);
                 itemDux.put("habilitado", Boolean.TRUE.equals(producto.getActivo()) ? "S" : "N");
                 itemDux.put("id_moneda", 1); // 1 = Pesos argentinos (ARS)
@@ -1307,9 +1307,9 @@ public class DuxService {
                 if (producto.getUxb() != null) {
                     itemDux.put("ctd_unidades_por_bulto", producto.getUxb());
                 }
-                // Título web → descripción larga de Dux (dato que antes no se enviaba).
-                if (producto.getTituloWeb() != null && !producto.getTituloWeb().isBlank()) {
-                    itemDux.put("descripcion", producto.getTituloWeb());
+                // Título Nube → descripción larga de Dux.
+                if (producto.getTituloNube() != null && !producto.getTituloNube().isBlank()) {
+                    itemDux.put("descripcion", producto.getTituloNube());
                 }
 
                 productosJson.add(itemDux);

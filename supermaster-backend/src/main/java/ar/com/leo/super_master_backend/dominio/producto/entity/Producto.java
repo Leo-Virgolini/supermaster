@@ -46,12 +46,16 @@ public class Producto {
 
     @Size(max = 100)
     @NotNull
-    @Column(name = "descripcion", nullable = false, length = 100)
-    private String descripcion;
+    @Column(name = "titulo_dux", nullable = false, length = 100)
+    private String tituloDux;
 
     @Size(max = 100)
-    @Column(name = "titulo_web", nullable = false, length = 100)
-    private String tituloWeb;
+    @Column(name = "titulo_ml", length = 100)
+    private String tituloMl;
+
+    @Size(max = 100)
+    @Column(name = "titulo_nube", length = 100)
+    private String tituloNube;
 
     @Column(name = "es_combo")
     private Boolean esCombo;

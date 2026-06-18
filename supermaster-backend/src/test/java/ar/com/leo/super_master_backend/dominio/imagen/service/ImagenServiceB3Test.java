@@ -8,7 +8,10 @@ import java.nio.file.Path;
 import java.util.Base64;
 import java.util.List;
 
+import java.io.UncheckedIOException;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ImagenServiceB3Test {
 
@@ -59,5 +62,23 @@ class ImagenServiceB3Test {
         String base64 = servicioSobre(dir).leerBase64("ABC123.jpg");
 
         assertThat(base64).isEqualTo(Base64.getEncoder().encodeToString(contenido));
+    }
+
+    @Test
+    void resolverArchivos_descartaSlot0YSlot1(@TempDir Path dir) throws Exception {
+        Files.writeString(dir.resolve("ABC123.jpg"), "x");
+        Files.writeString(dir.resolve("ABC123_1.jpg"), "x");
+        Files.writeString(dir.resolve("ABC123_0.jpg"), "x");
+        Files.writeString(dir.resolve("ABC123_2.jpg"), "x");
+
+        List<String> archivos = servicioSobre(dir).resolverArchivosPorSku("ABC123");
+
+        assertThat(archivos).containsExactly("ABC123.jpg", "ABC123_2.jpg");
+    }
+
+    @Test
+    void leerBase64_archivoInexistente_lanzaUncheckedIOException(@TempDir Path dir) {
+        assertThatThrownBy(() -> servicioSobre(dir).leerBase64("NOEXISTE.jpg"))
+                .isInstanceOf(UncheckedIOException.class);
     }
 }

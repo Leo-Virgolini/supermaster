@@ -6,6 +6,7 @@ import ar.com.leo.super_master_backend.apis.ml.dto.CostoEnvioMasivoResponseDTO;
 import ar.com.leo.super_master_backend.apis.ml.dto.CostoEnvioResponseDTO;
 import ar.com.leo.super_master_backend.apis.ml.dto.CostoVentaMasivoResponseDTO;
 import ar.com.leo.super_master_backend.apis.ml.dto.CostoVentaResponseDTO;
+import ar.com.leo.super_master_backend.apis.ml.dto.ResultadoAltaMl;
 import ar.com.leo.super_master_backend.apis.ml.entity.ConfiguracionMl;
 import ar.com.leo.super_master_backend.apis.ml.model.MLCredentials;
 import ar.com.leo.super_master_backend.apis.ml.model.Producto;
@@ -21,6 +22,7 @@ import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundExceptio
 import ar.com.leo.super_master_backend.dominio.common.exception.ServiceNotConfiguredException;
 import ar.com.leo.super_master_backend.dominio.common.service.EstadoProcesoMasivo;
 import ar.com.leo.super_master_backend.dominio.common.service.ProcesoGlobalService;
+import ar.com.leo.super_master_backend.dominio.imagen.service.ImagenService;
 import ar.com.leo.super_master_backend.dominio.producto.calculo.dto.PrecioCalculadoDTO;
 import ar.com.leo.super_master_backend.dominio.producto.calculo.service.CalculoPrecioService;
 import ar.com.leo.super_master_backend.dominio.producto.calculo.service.RecalculoPrecioFacade;
@@ -54,6 +56,8 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 @Slf4j
 @Service
@@ -78,6 +82,7 @@ public class MercadoLibreService {
     private final RestClient restClient;
     private final MercadoLibreProperties properties;
     private final ProcesoGlobalService procesoGlobal;
+    private final ImagenService imagenService;
     // ReentrantLock en lugar de synchronized: el bloque protegido hace I/O HTTP
     // (refreshAccessToken) y synchronized pinea el carrier thread con virtual threads.
     private final ReentrantLock tokenLock = new ReentrantLock();
@@ -114,7 +119,8 @@ public class MercadoLibreService {
                                AuditoriaService auditoriaService,
                                RestClient mercadoLibreRestClient,
                                MercadoLibreProperties properties,
-                               ProcesoGlobalService procesoGlobal) {
+                               ProcesoGlobalService procesoGlobal,
+                               ImagenService imagenService) {
         this.objectMapper = objectMapper;
         this.mlaRepository = mlaRepository;
         this.productoRepository = productoRepository;
@@ -126,6 +132,7 @@ public class MercadoLibreService {
         this.restClient = mercadoLibreRestClient;
         this.properties = properties;
         this.procesoGlobal = procesoGlobal;
+        this.imagenService = imagenService;
     }
 
     @PostConstruct
@@ -1618,6 +1625,153 @@ public class MercadoLibreService {
                 }
             }
         });
+    }
+
+    // ==================== ALTA DE ITEM EN ML ====================
+
+    /**
+     * Núcleo testeable del alta a ML. Las lambdas aíslan la red:
+     *  - yaExiste(sku) → true si ya hay publicación (no duplicar).
+     *  - archivosResolver(sku) → nombres de archivo de imagen del SKU.
+     *  - subidorImagen(filename) → pictureId subido (o null si falló esa imagen).
+     *  - predictor(titulo) → category_id (o null).
+     *  - poster(json) → respuesta de POST /items (éxito con "id" o body de error con "cause").
+     *  - posterDescripcion(itemId, plainText) → respuesta (se ignora salvo excepción).
+     */
+    static ResultadoAltaMl crearItemEnMlCore(
+            ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto, ObjectMapper om,
+            Function<String, Boolean> yaExiste,
+            Function<String, List<String>> archivosResolver,
+            Function<String, String> subidorImagen,
+            Function<String, String> predictor,
+            Function<String, String> poster,
+            BiFunction<String, String, String> posterDescripcion) {
+        try {
+            String sku = producto.getSku();
+            if (producto.getTituloMl() == null || producto.getTituloMl().isBlank())
+                return ResultadoAltaMl.error("Falta Título ML");
+            if (producto.getCosto() == null)
+                return ResultadoAltaMl.error("Falta costo");
+            if (Boolean.TRUE.equals(yaExiste.apply(sku)))
+                return ResultadoAltaMl.yaExistia();
+
+            List<String> archivos = archivosResolver.apply(sku);
+            if (archivos == null || archivos.isEmpty())
+                return ResultadoAltaMl.error("Sin imágenes (obligatorias para publicación clásica)");
+            List<String> pictureIds = new ArrayList<>();
+            for (String filename : archivos) {
+                String picId = subidorImagen.apply(filename);
+                if (picId != null && !picId.isBlank()) pictureIds.add(picId);
+            }
+            if (pictureIds.isEmpty())
+                return ResultadoAltaMl.error("No se pudieron subir las imágenes");
+
+            String categoryId = predictor.apply(producto.getTituloMl());
+            if (categoryId == null || categoryId.isBlank())
+                return ResultadoAltaMl.error("No se pudo predecir la categoría");
+
+            BigDecimal price = producto.getCosto().multiply(BigDecimal.valueOf(5));
+
+            // Intento con cantidad 0; si ML lo rechaza por stock, reintento con 1 (aviso).
+            String advertencia = null;
+            String respuesta = poster.apply(om.writeValueAsString(
+                    MlItemPayloadBuilder.construir(producto, categoryId, price, 0, pictureIds)));
+            String error = extraerErrorMl(om, respuesta);
+            if (error != null && error.toLowerCase().contains("quantity")) {
+                respuesta = poster.apply(om.writeValueAsString(
+                        MlItemPayloadBuilder.construir(producto, categoryId, price, 1, pictureIds)));
+                error = extraerErrorMl(om, respuesta);
+                advertencia = "publicado con stock 1 (la categoría no admite 0)";
+            }
+            if (error != null) return ResultadoAltaMl.error(error);
+
+            String itemId = om.readTree(respuesta).path("id").asString("");
+            if (itemId.isBlank()) return ResultadoAltaMl.error("ML no devolvió id del ítem");
+
+            try {
+                posterDescripcion.apply(itemId, MlDescripcionBuilder.construir(producto));
+            } catch (Exception e) {
+                advertencia = (advertencia == null ? "" : advertencia + "; ") + "ítem creado pero falló la descripción";
+            }
+
+            ResultadoAltaMl r = ResultadoAltaMl.creado(itemId);
+            return advertencia == null ? r : r.conAdvertencia(advertencia);
+        } catch (Exception e) {
+            return ResultadoAltaMl.error(e.getMessage());
+        }
+    }
+
+    /** Si la respuesta de ML es un error (tiene "cause" con type:error o un "error"/"message" de validación), devuelve el texto; si no, null. */
+    private static String extraerErrorMl(ObjectMapper om, String respuesta) {
+        if (respuesta == null || respuesta.isBlank()) return null;
+        JsonNode root = om.readTree(respuesta);
+        JsonNode cause = root.path("cause");
+        if (cause.isArray() && !cause.isEmpty()) {
+            List<String> errores = new ArrayList<>();
+            for (JsonNode c : cause) {
+                if ("error".equals(c.path("type").asString(""))) errores.add(c.path("message").asString(""));
+            }
+            if (!errores.isEmpty()) return String.join("; ", errores);
+        }
+        // Sin "id" y con "error"/"message" → fallo.
+        if (root.path("id").asString("").isBlank() && !root.path("error").asString("").isBlank())
+            return root.path("message").asString(root.path("error").asString("Error de Mercado Libre"));
+        return null;
+    }
+
+    /** Da de alta un producto en Mercado Libre (sitio MLA). Resuelve las dependencias de red y delega al núcleo. */
+    public ResultadoAltaMl crearItemEnMl(ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto) {
+        if (!isConfigured()) return ResultadoAltaMl.error("Mercado Libre no configurado");
+        verificarTokens();
+        return crearItemEnMlCore(
+                producto, objectMapper,
+                sku -> buscarMlaPorSku(sku) != null,
+                sku -> imagenService.resolverArchivosPorSku(sku),
+                filename -> subirImagenItem(filename),
+                titulo -> predecirCategoria(titulo),
+                json -> postearItem(json),
+                (itemId, plainText) -> retryHandler.postJson("/items/" + itemId + "/description",
+                        () -> tokens.accessToken, objectMapper.writeValueAsString(Map.of("plain_text", plainText))));
+    }
+
+    /** Sube una imagen a ML por multipart y devuelve su picture_id (o null si falla). */
+    private String subirImagenItem(String filename) {
+        try {
+            byte[] bytes = imagenService.leerBytes(filename);
+            String resp = retryHandler.postMultipart("/pictures/items/upload", () -> tokens.accessToken, filename, bytes);
+            String id = objectMapper.readTree(resp).path("id").asString("");
+            return id.isBlank() ? null : id;
+        } catch (Exception e) {
+            log.warn("ML - Falló subir imagen {}: {}", filename, e.getMessage());
+            return null;
+        }
+    }
+
+    /** Predictor de categoría a partir del título. Devuelve el category_id de mayor probabilidad (o null). */
+    private String predecirCategoria(String titulo) {
+        try {
+            String uri = "/sites/MLA/domain_discovery/search?limit=1&q="
+                    + URLEncoder.encode(titulo, StandardCharsets.UTF_8);
+            String resp = retryHandler.get(uri, () -> tokens.accessToken);
+            JsonNode arr = objectMapper.readTree(resp);
+            if (arr.isArray() && !arr.isEmpty()) {
+                String cat = arr.get(0).path("category_id").asString("");
+                return cat.isBlank() ? null : cat;
+            }
+            return null;
+        } catch (Exception e) {
+            log.warn("ML - Falló predecir categoría para '{}': {}", titulo, e.getMessage());
+            return null;
+        }
+    }
+
+    /** POST /items devolviendo el body (éxito o, ante 4xx, el body de error de ML). */
+    private String postearItem(String json) {
+        try {
+            return retryHandler.postJson("/items", () -> tokens.accessToken, json);
+        } catch (HttpClientErrorException e) {
+            return e.getResponseBodyAsString();
+        }
     }
 
 }

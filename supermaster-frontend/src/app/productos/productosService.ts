@@ -246,6 +246,23 @@ export const exportarProductosANubeAPI = async (skus: string[], tiendas: Destino
 	return await res.json();
 };
 
+export type ExportMlResultDTO = {
+	creados: number;
+	yaExistian: string[];
+	errores: string[];
+	advertencias: string[];
+};
+
+export const exportarProductosAMlAPI = async (skus: string[]): Promise<ExportMlResultDTO> => {
+	const res = await fetchAPI(`${API_BASE_URL}/api/ml/exportar-productos`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ skus }),
+	});
+	if (!res.ok) throw new Error(await extraerMensajeError(res, "No se pudo subir el producto a Mercado Libre"));
+	return await res.json();
+};
+
 // Sugiere el menor SKU libre del rango (individual vs combo). Devuelve null si el rango está lleno.
 export const getSiguienteSkuAPI = async (esCombo: boolean): Promise<string | null> => {
 	const res = await fetchAPI(`${API_URL}/siguiente-sku?esCombo=${esCombo}`);

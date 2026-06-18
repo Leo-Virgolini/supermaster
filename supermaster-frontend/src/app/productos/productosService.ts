@@ -233,6 +233,7 @@ export type ExportNubeResultDTO = {
 	creados: number;
 	yaExistian: string[];
 	errores: string[];
+	advertencias: string[];
 };
 
 export const exportarProductosANubeAPI = async (skus: string[], tiendas: DestinoNube[]): Promise<ExportNubeResultDTO> => {

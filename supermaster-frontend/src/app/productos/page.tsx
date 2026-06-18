@@ -657,6 +657,7 @@ export default function ProductosPage() {
                     const partes: string[] = [];
                     if (r.creados > 0) partes.push(`${r.creados} creado(s) en Nube`);
                     if (r.yaExistian.length) partes.push(`${r.yaExistian.length} ya existía(n)`);
+                    if (r.advertencias?.length) partes.push(`avisos: ${r.advertencias.join("; ")}`);
                     if (r.errores.length) partes.push(`${r.errores.length} con error: ${r.errores.join("; ")}`);
                     if (r.errores.length) notificar.error(`Tienda Nube: ${partes.join(" · ")}`);
                     else notificar.success(`Tienda Nube: ${partes.join(" · ") || "sin cambios"}`);
@@ -814,6 +815,7 @@ export default function ProductosPage() {
                     const partes: string[] = [];
                     if (r.creados > 0) partes.push(`${r.creados} creado(s) en Nube`);
                     if (r.yaExistian.length) partes.push(`${r.yaExistian.length} ya existía(n)`);
+                    if (r.advertencias?.length) partes.push(`avisos: ${r.advertencias.join("; ")}`);
                     if (r.errores.length) partes.push(`${r.errores.length} con error: ${r.errores.join("; ")}`);
                     if (r.errores.length) notificar.error(`Tienda Nube: ${partes.join(" · ")}`);
                     else notificar.success(`Tienda Nube: ${partes.join(" · ") || "sin cambios"}`);

@@ -613,6 +613,66 @@ public class TiendaNubeService {
     }
 
     /**
+     * Carga el árbol de categorías de la tienda (id, name, parent) en una estructura cacheada
+     * para find-or-create. Devuelve un árbol vacío si la tienda no está configurada o falla la lectura.
+     */
+    public NubeCategoriaArbol cargarArbolCategorias(String storeName) {
+        NubeCategoriaArbol arbol = new NubeCategoriaArbol();
+        StoreCredentials store;
+        try {
+            verificarCredenciales();
+            store = getStore(storeName);
+        } catch (Exception e) {
+            log.warn("NUBE - No se pudo cargar árbol de categorías de '{}': {}", storeName, e.getMessage());
+            return arbol;
+        }
+        if (store == null) return arbol;
+
+        String uri = String.format("/%s/categories?per_page=200&fields=id,name,parent", store.getStoreId());
+        int paginas = 0;
+
+        while (uri != null) {
+            NubeRetryHandler.HttpResponse httpResponse;
+            try {
+                httpResponse = retryHandler.getWithHeaders(uri, store.getAccessToken());
+            } catch (HttpClientErrorException e) {
+                if (e.getStatusCode().value() == 404 && e.getResponseBodyAsString().contains("Last page is 0")) {
+                    break;
+                }
+                log.warn("NUBE ({}) - Error cargando árbol de categorías en página {}: {}. Abortando.",
+                        storeName, paginas + 1, e.getMessage());
+                return arbol;
+            }
+
+            if (httpResponse.body() == null) break;
+
+            try {
+                JsonNode categorias = objectMapper.readTree(httpResponse.body());
+                if (!categorias.isArray() || categorias.isEmpty()) break;
+
+                for (JsonNode cat : categorias) {
+                    long id = cat.path("id").asLong(0);
+                    if (id == 0) continue;
+                    String nombre = extraerNombreProducto(cat.path("name"));
+                    if (nombre == null) continue;
+                    long parent = cat.path("parent").asLong(0);
+                    arbol.registrar(id, parent == 0 ? null : parent, nombre);
+                }
+                paginas++;
+            } catch (Exception e) {
+                log.warn("NUBE ({}) - Error parseando árbol de categorías en página {}: {}. Abortando.",
+                        storeName, paginas + 1, e.getMessage());
+                return arbol;
+            }
+
+            uri = parseLinkNext(httpResponse.headers());
+        }
+
+        log.info("NUBE ({}) - Árbol de categorías cargado ({} páginas)", storeName, paginas);
+        return arbol;
+    }
+
+    /**
      * Recorre los productos de la tienda y arma id de categoría TN → SKUs que la tienen.
      * El array {@code categories} está a nivel producto; el SKU está a nivel variante:
      * todas las variantes (SKUs) de un producto pertenecen a las categorías de ese producto.
@@ -806,6 +866,17 @@ public class TiendaNubeService {
             }
         }
         return ok;
+    }
+
+    /** Crea una categoría en TN ({name:{es},parent}) y devuelve su id. parentId null = raíz. */
+    private Long crearCategoria(StoreCredentials store, Long parentId, String nombre) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("name", Map.of("es", nombre));
+        if (parentId != null) body.put("parent", parentId);
+        String resp = retryHandler.postJson(
+                "/" + store.getStoreId() + "/categories", store.getAccessToken(),
+                objectMapper.writeValueAsString(body));
+        return objectMapper.readTree(resp).path("id").asLong();
     }
 
     // =====================================================

@@ -24,7 +24,8 @@ precio, condición, cantidad, envío, SKU, marca), **imágenes** (obligatorias p
 | Condición | Nuevo: `attributes:[{id:"ITEM_CONDITION", value_id:"2230284"}]`. |
 | Cantidad | Intento `available_quantity = 0`; si ML lo rechaza por stock, reintento con `1` y lo informo como aviso. |
 | Modalidad / tipo | `buying_mode = "buy_it_now"`, `listing_type_id = "gold_special"` (clásica). |
-| Envío | Mercado Envíos: `shipping = {mode: "me2"}` (ML completa la adopción automáticamente — warning 4029). |
+| Envío | Mercado Envíos simple: `shipping = {mode:"me2", local_pick_up:false, free_shipping:false, free_methods:[]}`. Las dimensiones del paquete las **estipula ML por categoría** (no se mandan manualmente). Si una categoría exige `SELLER_PACKAGE_*`, ese SKU se reporta como error. |
+| Atributos fiscales (IVA / import) | **No** se mandan en C1. Si la categoría/condición fiscal los exige (`VALUE_ADDED_TAX`, `IMPORT_DUTY`), ML rechaza y se reporta el error; se mapearán en una fase posterior si hace falta. |
 | SKU | `attributes:[{id:"SELLER_SKU", value_name: sku}]`. |
 | Marca | `attributes:[{id:"BRAND", value_name: marca.nombre}]` (si el producto tiene marca). |
 | Imágenes | **Obligatorias** (error 173 para `gold_special`). Subo cada archivo del SKU por multipart y las vinculo. |
@@ -78,7 +79,8 @@ precio, condición, cantidad, envío, SKU, marca), **imágenes** (obligatorias p
 (nuevo, puro)
 - `{ title: tituloMl, category_id, price, currency_id:"ARS", available_quantity, buying_mode:"buy_it_now",
   listing_type_id:"gold_special", attributes:[ITEM_CONDITION=Nuevo, BRAND(si hay marca), SELLER_SKU=sku],
-  shipping:{mode:"me2"}, pictures:[{id:pictureId}…] }`.
+  shipping:{mode:"me2", local_pick_up:false, free_shipping:false, free_methods:[]}, pictures:[{id:pictureId}…] }`.
+  (Sin dimensiones de paquete: ML las estipula por categoría.)
 
 **5. Predictor de categoría** (en `MercadoLibreService`): `predecirCategoria(titulo) → String categoryId`
 (o null si no hay predicción) usando `domain_discovery/search`.

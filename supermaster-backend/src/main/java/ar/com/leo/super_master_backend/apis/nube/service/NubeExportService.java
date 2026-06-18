@@ -13,7 +13,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -37,6 +39,9 @@ public class NubeExportService {
         List<Producto> productos = productoRepository.findBySkuIn(
                 request.skus().stream().filter(s -> s != null && !s.isBlank()).map(String::trim).distinct().toList());
 
+        // Árbol de categorías por tienda, cargado una vez por corrida (lazy por tienda usada).
+        Map<String, NubeCategoriaArbol> arbolesPorTienda = new HashMap<>();
+
         for (Producto producto : productos) {
             for (ExportNubeRequestDTO.DestinoNube destino : request.tiendas()) {
                 String tienda = destino.tienda();
@@ -48,7 +53,8 @@ public class NubeExportService {
                 if (precio.isEmpty()) { errores.add(etiqueta + ": sin precio calculado para esa cuota"); continue; }
                 if (precio.get().isObsoleto()) { errores.add(etiqueta + ": precio desactualizado (recalcular antes de subir)"); continue; }
 
-                NubeCategoriaArbol arbol = tiendaNubeService.cargarArbolCategorias(tienda);
+                NubeCategoriaArbol arbol = arbolesPorTienda.computeIfAbsent(
+                        tienda, tiendaNubeService::cargarArbolCategorias);
                 ResultadoAltaNube r = tiendaNubeService.crearProductoEnNube(
                         tienda, producto, precio.get().getPvp(), precio.get().getPvpInflado(), arbol);
                 switch (r.estado()) {

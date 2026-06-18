@@ -40,9 +40,10 @@ public class NubeExportService {
         int creados = 0;
         List<String> yaExistian = new ArrayList<>();
         List<String> errores = new ArrayList<>();
+        List<String> advertencias = new ArrayList<>();
 
         if (request == null || request.skus() == null || request.tiendas() == null) {
-            return new ExportNubeResultDTO(0, yaExistian, errores);
+            return new ExportNubeResultDTO(0, yaExistian, errores, advertencias);
         }
 
         List<Producto> productos = productoRepository.findBySkuIn(
@@ -67,12 +68,15 @@ public class NubeExportService {
                 ResultadoAltaNube r = tiendaNubeService.crearProductoEnNube(
                         tienda, producto, precio.get().getPvp(), precio.get().getPvpInflado(), arbol);
                 switch (r.estado()) {
-                    case CREADO -> creados++;
+                    case CREADO -> {
+                        creados++;
+                        if (r.advertencia() != null) advertencias.add(etiqueta + ": " + r.advertencia());
+                    }
                     case YA_EXISTIA -> yaExistian.add(etiqueta);
                     case ERROR -> errores.add(etiqueta + ": " + r.motivo());
                 }
             }
         }
-        return new ExportNubeResultDTO(creados, yaExistian, errores);
+        return new ExportNubeResultDTO(creados, yaExistian, errores, advertencias);
     }
 }

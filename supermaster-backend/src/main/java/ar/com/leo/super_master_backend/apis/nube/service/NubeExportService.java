@@ -46,6 +46,7 @@ public class NubeExportService {
                 Optional<ProductoCanalPrecio> precio = precioRepository
                         .findByProductoIdAndCanalIdAndCuotas(producto.getId(), canal.get().getId(), destino.cuotas());
                 if (precio.isEmpty()) { errores.add(etiqueta + ": sin precio calculado para esa cuota"); continue; }
+                if (precio.get().isObsoleto()) { errores.add(etiqueta + ": precio desactualizado (recalcular antes de subir)"); continue; }
 
                 ResultadoAltaNube r = tiendaNubeService.crearProductoEnNube(
                         tienda, producto, precio.get().getPvp(), precio.get().getPvpInflado());

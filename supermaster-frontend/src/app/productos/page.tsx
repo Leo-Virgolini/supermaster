@@ -239,8 +239,6 @@ export default function ProductosPage() {
     const [subirKtGastro, setSubirKtGastro] = useState(false);
     const [cuotaHogar, setCuotaHogar] = useState<number>(-1);
     const [cuotaGastro, setCuotaGastro] = useState<number>(6);
-    const [cuotasHogar] = useState<{ cuotas: number; descripcion: string }[]>([]);
-    const [cuotasGastro] = useState<{ cuotas: number; descripcion: string }[]>([]);
     const [uxb, setUxb] = useState(1);
     const [activo, setActivo] = useState(true);
     const [imagenUrl, setImagenUrl] = useState("");
@@ -1558,7 +1556,7 @@ export default function ProductosPage() {
                                 <label htmlFor="subirKtHogar" className="cursor-pointer">KT HOGAR (Nube)</label>
                                 {subirKtHogar && (
                                     <select className={`${selectBaseClassName} ml-auto w-auto`} value={cuotaHogar} onChange={e => setCuotaHogar(Number(e.target.value))}>
-                                        {(cuotasHogar.length ? cuotasHogar : [{cuotas:-1,descripcion:"Transferencia"},{cuotas:6,descripcion:"6 cuotas"}]).map(c => (
+                                        {[{cuotas:-1,descripcion:"Transferencia"},{cuotas:6,descripcion:"6 cuotas"}].map(c => (
                                             <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>
                                         ))}
                                     </select>
@@ -1569,7 +1567,7 @@ export default function ProductosPage() {
                                 <label htmlFor="subirKtGastro" className="cursor-pointer">KT GASTRO (Nube)</label>
                                 {subirKtGastro && (
                                     <select className={`${selectBaseClassName} ml-auto w-auto`} value={cuotaGastro} onChange={e => setCuotaGastro(Number(e.target.value))}>
-                                        {(cuotasGastro.length ? cuotasGastro : [{cuotas:-1,descripcion:"Transferencia"},{cuotas:6,descripcion:"6 cuotas"}]).map(c => (
+                                        {[{cuotas:-1,descripcion:"Transferencia"},{cuotas:6,descripcion:"6 cuotas"}].map(c => (
                                             <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>
                                         ))}
                                     </select>

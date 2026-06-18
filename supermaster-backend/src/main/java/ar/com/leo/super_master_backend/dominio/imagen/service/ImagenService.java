@@ -7,10 +7,12 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.stream.Stream;
 
 /**
@@ -55,6 +57,60 @@ public class ImagenService {
             return null;
         }
         return obtenerIndiceSku().get(sku.trim().toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * Resuelve TODOS los archivos de imagen de un SKU: la principal ({sku}.{ext}) primero y luego
+     * las adicionales ({sku}_N.{ext}) por N ascendente. Case-insensitive. Lista vacía si no hay.
+     * Ante varias extensiones de un mismo slot, gana la de mayor prioridad (jpg primero).
+     */
+    public List<String> resolverArchivosPorSku(String sku) {
+        if (sku == null || sku.isBlank()) {
+            return List.of();
+        }
+        String skuLower = sku.trim().toLowerCase(Locale.ROOT);
+        // slot 1 = principal; slot N (>=2) = sufijo _N. TreeMap ordena 1,2,3... (principal primero).
+        TreeMap<Integer, String> porSlot = new TreeMap<>();
+        for (String nombre : obtenerIndice()) {
+            int dot = nombre.lastIndexOf('.');
+            if (dot <= 0) continue;
+            String base = nombre.substring(0, dot).toLowerCase(Locale.ROOT);
+            Integer slot = slotDe(base, skuLower);
+            if (slot == null) continue;
+            String existente = porSlot.get(slot);
+            if (existente == null || prioridadExtension(nombre) < prioridadExtension(existente)) {
+                porSlot.put(slot, nombre);
+            }
+        }
+        return List.copyOf(porSlot.values());
+    }
+
+    /** Lee {baseDir}/{filename} y devuelve su contenido en Base64. */
+    public String leerBase64(String filename) {
+        try {
+            byte[] bytes = Files.readAllBytes(baseDir.resolve(filename));
+            return Base64.getEncoder().encodeToString(bytes);
+        } catch (IOException e) {
+            throw new UncheckedIOException("No se pudo leer la imagen " + filename, e);
+        }
+    }
+
+    /** Slot del archivo respecto del SKU: 1 si es la principal ({sku}), N si es {sku}_N (N>=2), null si no matchea. */
+    private static Integer slotDe(String base, String skuLower) {
+        if (base.equals(skuLower)) {
+            return 1;
+        }
+        String prefijo = skuLower + "_";
+        if (base.startsWith(prefijo)) {
+            String resto = base.substring(prefijo.length());
+            if (!resto.isEmpty() && resto.chars().allMatch(Character::isDigit)) {
+                int n = Integer.parseInt(resto);
+                if (n >= 2) {
+                    return n;
+                }
+            }
+        }
+        return null;
     }
 
     /** Busca el archivo de imagen para un SKU probando las extensiones conocidas (acceso directo, sin escanear). */

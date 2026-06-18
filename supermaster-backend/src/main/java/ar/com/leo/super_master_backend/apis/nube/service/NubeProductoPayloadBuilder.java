@@ -22,6 +22,7 @@ public final class NubeProductoPayloadBuilder {
 
         Map<String, Object> variant = new LinkedHashMap<>();
         variant.put("sku", p.getSku());
+        // Precio de lista (tachado) y promocional según haya inflado.
         if (pvpInflado != null && pvp != null && pvpInflado.compareTo(pvp) > 0) {
             variant.put("price", pvpInflado.toPlainString());
             variant.put("promotional_price", pvp.toPlainString());

@@ -905,7 +905,7 @@ public class TiendaNubeService {
             return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error("Tienda '" + storeName + "' no configurada");
 
         // KT GASTRO → clasif gastro; resto (KT HOGAR) → clasif gral. El tipo cuelga debajo de la clasif.
-        boolean esGastro = "KT GASTRO".equalsIgnoreCase(storeName);
+        boolean esGastro = STORE_GASTRO.equalsIgnoreCase(storeName);
         ClasifGral clasifGral = producto.getClasifGral();
         ClasifGastro clasifGastro = producto.getClasifGastro();
         Tipo tipo = producto.getTipo();

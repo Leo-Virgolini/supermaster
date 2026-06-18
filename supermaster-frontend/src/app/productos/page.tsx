@@ -21,7 +21,7 @@ import {
     searchMarcas, searchClasifGral, searchClasifGastro, searchTipos, searchProveedores, searchOrigenes, searchMateriales, searchMlas,
     searchCatalogos, searchAptos, searchClientes, searchCanales, addProductoCatalogoAPI, addProductoAptoAPI, addProductoClienteAPI,
     removeProductoCatalogoAPI, removeProductoAptoAPI, removeProductoClienteAPI, updateProductoAPI, getNombreById,
-    exportarProductosADuxAPI, calcularEnvioMlaAPI,
+    exportarProductosADuxAPI, calcularEnvioMlaAPI, exportarProductosANubeAPI,
 } from "./productosService";
 import { updateProductoMargenAPI } from "./productoMargenService";
 import {
@@ -235,6 +235,12 @@ export default function ProductosPage() {
     const [tituloNube, setTituloNube] = useState("");
     const [esCombo, setEsCombo] = useState(false);
     const [subirADux, setSubirADux] = useState(true);
+    const [subirKtHogar, setSubirKtHogar] = useState(false);
+    const [subirKtGastro, setSubirKtGastro] = useState(false);
+    const [cuotaHogar, setCuotaHogar] = useState<number>(-1);
+    const [cuotaGastro, setCuotaGastro] = useState<number>(6);
+    const [cuotasHogar] = useState<{ cuotas: number; descripcion: string }[]>([]);
+    const [cuotasGastro] = useState<{ cuotas: number; descripcion: string }[]>([]);
     const [uxb, setUxb] = useState(1);
     const [activo, setActivo] = useState(true);
     const [imagenUrl, setImagenUrl] = useState("");
@@ -643,6 +649,23 @@ export default function ProductosPage() {
                     notificar.error(e instanceof Error ? `El producto se creó, pero falló al subirlo a Dux: ${e.message}` : "El producto se creó, pero falló al subirlo a Dux");
                 }
             }
+            // Subida a Tienda Nube (KT HOGAR / KT GASTRO).
+            const tiendasNube: { tienda: "KT HOGAR" | "KT GASTRO"; cuotas: number }[] = [];
+            if (subirKtHogar) tiendasNube.push({ tienda: "KT HOGAR", cuotas: cuotaHogar });
+            if (subirKtGastro) tiendasNube.push({ tienda: "KT GASTRO", cuotas: cuotaGastro });
+            if (tiendasNube.length && canExportarDux) {
+                try {
+                    const r = await exportarProductosANubeAPI([sku.trim()], tiendasNube);
+                    const partes: string[] = [];
+                    if (r.creados > 0) partes.push(`${r.creados} creado(s) en Nube`);
+                    if (r.yaExistian.length) partes.push(`${r.yaExistian.length} ya existía(n)`);
+                    if (r.errores.length) partes.push(`${r.errores.length} con error: ${r.errores.join("; ")}`);
+                    if (r.errores.length) notificar.error(`Tienda Nube: ${partes.join(" · ")}`);
+                    else notificar.success(`Tienda Nube: ${partes.join(" · ") || "sin cambios"}`);
+                } catch (e) {
+                    notificar.error(e instanceof Error ? `Falló subir a Nube: ${e.message}` : "Falló subir a Nube");
+                }
+            }
             resetForm();
             setIsModalOpen(false);
         } catch (e) { /* hook already toasts */ } finally { setIsSaving(false); }
@@ -662,6 +685,7 @@ export default function ProductosPage() {
         setUxb(producto.uxb ?? 1);
         setActivo(!!producto.activo);
         setSubirADux(false);
+        setSubirKtHogar(false); setSubirKtGastro(false);
         setCapacidad(producto.capacidad ?? "");
         setLargo(producto.largo ?? ""); setAncho(producto.ancho ?? ""); setAlto(producto.alto ?? "");
         setDiamboca(producto.diamboca ?? ""); setDiambase(producto.diambase ?? ""); setEspesor(producto.espesor ?? "");
@@ -780,6 +804,23 @@ export default function ProductosPage() {
                     }
                 } catch (e) {
                     notificar.error(e instanceof Error ? `Falló la actualización en Dux: ${e.message}` : "Falló la actualización en Dux");
+                }
+            }
+            // Subida a Tienda Nube (KT HOGAR / KT GASTRO) — en edición reportará "ya existía" si corresponde.
+            const tiendasNubeEdit: { tienda: "KT HOGAR" | "KT GASTRO"; cuotas: number }[] = [];
+            if (subirKtHogar) tiendasNubeEdit.push({ tienda: "KT HOGAR", cuotas: cuotaHogar });
+            if (subirKtGastro) tiendasNubeEdit.push({ tienda: "KT GASTRO", cuotas: cuotaGastro });
+            if (tiendasNubeEdit.length && canExportarDux) {
+                try {
+                    const r = await exportarProductosANubeAPI([sku.trim()], tiendasNubeEdit);
+                    const partes: string[] = [];
+                    if (r.creados > 0) partes.push(`${r.creados} creado(s) en Nube`);
+                    if (r.yaExistian.length) partes.push(`${r.yaExistian.length} ya existía(n)`);
+                    if (r.errores.length) partes.push(`${r.errores.length} con error: ${r.errores.join("; ")}`);
+                    if (r.errores.length) notificar.error(`Tienda Nube: ${partes.join(" · ")}`);
+                    else notificar.success(`Tienda Nube: ${partes.join(" · ") || "sin cambios"}`);
+                } catch (e) {
+                    notificar.error(e instanceof Error ? `Falló subir a Nube: ${e.message}` : "Falló subir a Nube");
                 }
             }
 
@@ -932,6 +973,7 @@ export default function ProductosPage() {
     const resetForm = () => {
         setSku(""); setLastSuggestedSku(""); setCodExt(""); setTituloDux(""); setTituloMl(""); setTituloNube(""); setImagenUrl("");
         setEsCombo(false); setUxb(1); setActivo(true); setSubirADux(true);
+        setSubirKtHogar(false); setSubirKtGastro(false);
         setCapacidad(""); setLargo(""); setAncho(""); setAlto(""); setDiamboca(""); setDiambase(""); setEspesor("");
         setCosto(""); setIva(21.0);
         setMarcaId(null); setOrigenId(null); setClasifGralId(null); setClasifGastroId(null);
@@ -1511,13 +1553,27 @@ export default function ProductosPage() {
                                     <label htmlFor="subirADux" className="cursor-pointer">{editandoProductoId ? "Actualizar en Dux" : "Subir a Dux"}</label>
                                 </div>
                             )}
-                            <div className={`${checkboxCardClassName} opacity-60`} title="Próximamente">
-                                <input className="h-4 w-4 rounded border-slate-300" type="checkbox" disabled id="canalKtHogar" />
-                                <label htmlFor="canalKtHogar" className="cursor-not-allowed">KT HOGAR <span className="text-[10px] text-slate-400">(próximamente)</span></label>
+                            <div className={checkboxCardClassName}>
+                                <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirKtHogar} onChange={e => setSubirKtHogar(e.target.checked)} id="subirKtHogar" disabled={!canExportarDux} />
+                                <label htmlFor="subirKtHogar" className="cursor-pointer">KT HOGAR (Nube)</label>
+                                {subirKtHogar && (
+                                    <select className={`${selectBaseClassName} ml-auto w-auto`} value={cuotaHogar} onChange={e => setCuotaHogar(Number(e.target.value))}>
+                                        {(cuotasHogar.length ? cuotasHogar : [{cuotas:-1,descripcion:"Transferencia"},{cuotas:6,descripcion:"6 cuotas"}]).map(c => (
+                                            <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>
+                                        ))}
+                                    </select>
+                                )}
                             </div>
-                            <div className={`${checkboxCardClassName} opacity-60`} title="Próximamente">
-                                <input className="h-4 w-4 rounded border-slate-300" type="checkbox" disabled id="canalKtGastro" />
-                                <label htmlFor="canalKtGastro" className="cursor-not-allowed">KT GASTRO <span className="text-[10px] text-slate-400">(próximamente)</span></label>
+                            <div className={checkboxCardClassName}>
+                                <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirKtGastro} onChange={e => setSubirKtGastro(e.target.checked)} id="subirKtGastro" disabled={!canExportarDux} />
+                                <label htmlFor="subirKtGastro" className="cursor-pointer">KT GASTRO (Nube)</label>
+                                {subirKtGastro && (
+                                    <select className={`${selectBaseClassName} ml-auto w-auto`} value={cuotaGastro} onChange={e => setCuotaGastro(Number(e.target.value))}>
+                                        {(cuotasGastro.length ? cuotasGastro : [{cuotas:-1,descripcion:"Transferencia"},{cuotas:6,descripcion:"6 cuotas"}]).map(c => (
+                                            <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>
+                                        ))}
+                                    </select>
+                                )}
                             </div>
                             <div className={`${checkboxCardClassName} opacity-60`} title="Próximamente">
                                 <input className="h-4 w-4 rounded border-slate-300" type="checkbox" disabled id="canalMl" />

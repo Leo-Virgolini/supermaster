@@ -818,8 +818,13 @@ public class TiendaNubeService {
     public ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube crearProductoEnNube(
             String storeName, ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto,
             java.math.BigDecimal pvp, java.math.BigDecimal pvpInflado) {
-        verificarCredenciales();
-        StoreCredentials store = getStore(storeName);
+        StoreCredentials store;
+        try {
+            verificarCredenciales();
+            store = getStore(storeName);
+        } catch (Exception e) {
+            return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error("Tienda Nube no configurada: " + e.getMessage());
+        }
         if (store == null)
             return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error("Tienda '" + storeName + "' no configurada");
         return crearProductoEnNubeCore(store, producto, pvp, pvpInflado, objectMapper,

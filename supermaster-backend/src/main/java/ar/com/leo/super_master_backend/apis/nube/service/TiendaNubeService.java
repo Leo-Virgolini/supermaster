@@ -948,8 +948,9 @@ public class TiendaNubeService {
             Map<String, Object> payload = NubeProductoPayloadBuilder.construir(producto, pvp, pvpInflado, categoriaIds);
             String body = om.writeValueAsString(payload);
             String uri = "/" + store.getStoreId() + "/products";
-            poster.apply(uri, body);
-            return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.creado();
+            String respuesta = poster.apply(uri, body);
+            Long productoNubeId = respuesta == null ? null : om.readTree(respuesta).path("id").asLong(0);
+            return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.creado(productoNubeId);
         } catch (Exception e) {
             return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error(e.getMessage());
         }

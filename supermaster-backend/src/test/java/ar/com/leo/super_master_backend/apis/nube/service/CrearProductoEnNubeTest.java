@@ -105,5 +105,6 @@ class CrearProductoEnNubeTest {
                 (uri, body) -> { posted.set(body); return "{\"id\": 5}"; });
         assertThat(r.estado()).isEqualTo(ResultadoAltaNube.Estado.CREADO);
         assertThat(posted.get()).contains("\"categories\":[101,102,103,104]");
+        assertThat(r.productoNubeId()).isEqualTo(5L);
     }
 }

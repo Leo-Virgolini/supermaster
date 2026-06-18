@@ -1670,6 +1670,7 @@ public class MercadoLibreService {
             if (categoryId == null || categoryId.isBlank())
                 return ResultadoAltaMl.error("No se pudo predecir la categoría");
 
+            // Precio de alta en ML: costo x 5 (regla de negocio de la Fase C1).
             BigDecimal price = producto.getCosto().multiply(BigDecimal.valueOf(5));
 
             // Intento con cantidad 0; si ML lo rechaza por stock, reintento con 1 (aviso).
@@ -1681,7 +1682,7 @@ public class MercadoLibreService {
                 respuesta = poster.apply(om.writeValueAsString(
                         MlItemPayloadBuilder.construir(producto, categoryId, price, 1, pictureIds)));
                 error = extraerErrorMl(om, respuesta);
-                advertencia = "publicado con stock 1 (la categoría no admite 0)";
+                if (error == null) advertencia = "publicado con stock 1 (la categoría no admite 0)";
             }
             if (error != null) return ResultadoAltaMl.error(error);
 

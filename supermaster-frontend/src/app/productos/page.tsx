@@ -46,6 +46,16 @@ type ProductosView = {
     createdAt: string;
 };
 
+function reportarExportToast(plataforma: string, r: { creados: number; yaExistian: string[]; errores: string[]; advertencias?: string[] }) {
+    const partes: string[] = [];
+    if (r.creados > 0) partes.push(`${r.creados} creado(s)`);
+    if (r.yaExistian.length) partes.push(`${r.yaExistian.length} ya existía(n)`);
+    if (r.advertencias?.length) partes.push(`avisos: ${r.advertencias.join("; ")}`);
+    if (r.errores.length) partes.push(`${r.errores.length} con error: ${r.errores.join("; ")}`);
+    if (r.errores.length) notificar.error(`${plataforma}: ${partes.join(" · ")}`);
+    else notificar.success(`${plataforma}: ${partes.join(" · ") || "sin cambios"}`);
+}
+
 function ImagePickerModal({ onSelect, onClose }: { onSelect: (name: string) => void; onClose: () => void }) {
     const [search, setSearch] = useState("");
     const [files, setFiles] = useState<string[]>([]);
@@ -655,27 +665,15 @@ export default function ProductosPage() {
             if (tiendasNube.length && canExportarDux) {
                 try {
                     const r = await exportarProductosANubeAPI([sku.trim()], tiendasNube);
-                    const partes: string[] = [];
-                    if (r.creados > 0) partes.push(`${r.creados} creado(s) en Nube`);
-                    if (r.yaExistian.length) partes.push(`${r.yaExistian.length} ya existía(n)`);
-                    if (r.advertencias?.length) partes.push(`avisos: ${r.advertencias.join("; ")}`);
-                    if (r.errores.length) partes.push(`${r.errores.length} con error: ${r.errores.join("; ")}`);
-                    if (r.errores.length) notificar.error(`Tienda Nube: ${partes.join(" · ")}`);
-                    else notificar.success(`Tienda Nube: ${partes.join(" · ") || "sin cambios"}`);
+                    reportarExportToast("Tienda Nube", r);
                 } catch (e) {
-                    notificar.error(e instanceof Error ? `Falló subir a Nube: ${e.message}` : "Falló subir a Nube");
+                    notificar.error(`Tienda Nube: ${e instanceof Error ? e.message : "error al subir"}`);
                 }
             }
             if (subirMl && canExportarDux) {
                 try {
                     const r = await exportarProductosAMlAPI([sku.trim()]);
-                    const partes: string[] = [];
-                    if (r.creados > 0) partes.push(`${r.creados} creado(s) en ML`);
-                    if (r.yaExistian.length) partes.push(`${r.yaExistian.length} ya existía(n)`);
-                    if (r.advertencias?.length) partes.push(`avisos: ${r.advertencias.join("; ")}`);
-                    if (r.errores.length) partes.push(`${r.errores.length} con error: ${r.errores.join("; ")}`);
-                    if (r.errores.length) notificar.error(`Mercado Libre: ${partes.join(" · ")}`);
-                    else notificar.success(`Mercado Libre: ${partes.join(" · ") || "sin cambios"}`);
+                    reportarExportToast("Mercado Libre", r);
                 } catch (e) {
                     notificar.error(`Mercado Libre: ${e instanceof Error ? e.message : "error al subir"}`);
                 }
@@ -827,27 +825,15 @@ export default function ProductosPage() {
             if (tiendasNubeEdit.length && canExportarDux) {
                 try {
                     const r = await exportarProductosANubeAPI([sku.trim()], tiendasNubeEdit);
-                    const partes: string[] = [];
-                    if (r.creados > 0) partes.push(`${r.creados} creado(s) en Nube`);
-                    if (r.yaExistian.length) partes.push(`${r.yaExistian.length} ya existía(n)`);
-                    if (r.advertencias?.length) partes.push(`avisos: ${r.advertencias.join("; ")}`);
-                    if (r.errores.length) partes.push(`${r.errores.length} con error: ${r.errores.join("; ")}`);
-                    if (r.errores.length) notificar.error(`Tienda Nube: ${partes.join(" · ")}`);
-                    else notificar.success(`Tienda Nube: ${partes.join(" · ") || "sin cambios"}`);
+                    reportarExportToast("Tienda Nube", r);
                 } catch (e) {
-                    notificar.error(e instanceof Error ? `Falló subir a Nube: ${e.message}` : "Falló subir a Nube");
+                    notificar.error(`Tienda Nube: ${e instanceof Error ? e.message : "error al subir"}`);
                 }
             }
             if (subirMl && canExportarDux) {
                 try {
                     const r = await exportarProductosAMlAPI([sku.trim()]);
-                    const partes: string[] = [];
-                    if (r.creados > 0) partes.push(`${r.creados} creado(s) en ML`);
-                    if (r.yaExistian.length) partes.push(`${r.yaExistian.length} ya existía(n)`);
-                    if (r.advertencias?.length) partes.push(`avisos: ${r.advertencias.join("; ")}`);
-                    if (r.errores.length) partes.push(`${r.errores.length} con error: ${r.errores.join("; ")}`);
-                    if (r.errores.length) notificar.error(`Mercado Libre: ${partes.join(" · ")}`);
-                    else notificar.success(`Mercado Libre: ${partes.join(" · ") || "sin cambios"}`);
+                    reportarExportToast("Mercado Libre", r);
                 } catch (e) {
                     notificar.error(`Mercado Libre: ${e instanceof Error ? e.message : "error al subir"}`);
                 }

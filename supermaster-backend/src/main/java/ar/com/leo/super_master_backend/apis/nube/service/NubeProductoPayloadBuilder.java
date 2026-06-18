@@ -30,6 +30,7 @@ public final class NubeProductoPayloadBuilder {
             variant.put("price", pvp.toPlainString());
         }
         if (p.getCosto() != null) variant.put("cost", p.getCosto().toPlainString());
+        // Peso y dimensiones por defecto (placeholder hasta cargar datos reales de empaque).
         variant.put("weight", "0.050");
         variant.put("depth", "8.00");
         variant.put("width", "5.00");

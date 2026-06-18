@@ -35,8 +35,8 @@ public final class NubeDescripcionBuilder {
         agregar(partes, "Largo", p.getLargo());
         agregar(partes, "Ancho", p.getAncho());
         agregar(partes, "Alto", p.getAlto());
-        agregar(partes, "Diám. boca", p.getDiamboca());
-        agregar(partes, "Diám. base", p.getDiambase());
+        agregar(partes, "Diámetro boca", p.getDiamboca());
+        agregar(partes, "Diámetro base", p.getDiambase());
         agregar(partes, "Espesor", p.getEspesor());
         return String.join(", ", partes);
     }

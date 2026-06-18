@@ -37,7 +37,7 @@ public final class MlDescripcionBuilder {
     }
 
     private static void agregar(List<String> partes, String etiqueta, String valor) {
-        if (valor != null && !valor.isBlank()) partes.add(etiqueta + " " + valor.trim());
+        if (valor != null && !valor.isBlank()) partes.add(etiqueta + ": " + valor.trim());
     }
 
     private static String aptos(Producto p) {

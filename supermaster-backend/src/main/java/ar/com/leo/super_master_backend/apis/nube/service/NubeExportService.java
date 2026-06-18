@@ -11,6 +11,7 @@ import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoCanal
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -27,6 +28,14 @@ public class NubeExportService {
     private final CanalRepository canalRepository;
     private final TiendaNubeService tiendaNubeService;
 
+    /**
+     * Necesita sesión JPA abierta durante todo el loop porque el código accede a asociaciones
+     * LAZY (clasifGral, clasifGastro, tipo) y recorre recursivamente la cadena getPadre() de
+     * NubeCategoriaRuta, con open-in-view=false. @Transactional(readOnly=true) mantiene la
+     * sesión viva sin overhead de escritura. El I/O de red contra Tienda Nube ocurre dentro de
+     * la transacción; es aceptable para este export manual de bajo volumen.
+     */
+    @Transactional(readOnly = true)
     public ExportNubeResultDTO exportar(ExportNubeRequestDTO request) {
         int creados = 0;
         List<String> yaExistian = new ArrayList<>();

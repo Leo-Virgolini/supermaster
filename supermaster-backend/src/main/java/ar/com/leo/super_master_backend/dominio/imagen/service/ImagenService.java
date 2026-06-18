@@ -85,6 +85,15 @@ public class ImagenService {
         return List.copyOf(porSlot.values());
     }
 
+    /** Lee {baseDir}/{filename} y devuelve sus bytes crudos. */
+    public byte[] leerBytes(String filename) {
+        try {
+            return Files.readAllBytes(baseDir.resolve(filename));
+        } catch (IOException e) {
+            throw new UncheckedIOException("No se pudo leer la imagen " + filename, e);
+        }
+    }
+
     /** Lee {baseDir}/{filename} y devuelve su contenido en Base64. */
     public String leerBase64(String filename) {
         try {

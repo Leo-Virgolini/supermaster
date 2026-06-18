@@ -808,6 +808,48 @@ public class TiendaNubeService {
         return ok;
     }
 
+    // =====================================================
+    // ALTA DE PRODUCTO (POST /products)
+    // =====================================================
+
+    /**
+     * Da de alta un producto en una tienda Nube (oculto). Resuelve credenciales y delega al core testeable.
+     */
+    public ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube crearProductoEnNube(
+            String storeName, ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto,
+            java.math.BigDecimal pvp, java.math.BigDecimal pvpInflado) {
+        verificarCredenciales();
+        StoreCredentials store = getStore(storeName);
+        if (store == null)
+            return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error("Tienda '" + storeName + "' no configurada");
+        return crearProductoEnNubeCore(store, producto, pvp, pvpInflado, objectMapper,
+                (sku, token) -> buscarProductoPorSku(sku, storeName),
+                (uri, body) -> retryHandler.postJson(uri, store.getAccessToken(), body));
+    }
+
+    /** Lógica testeable sin red. {@code buscador} devuelve el JSON del producto si existe (o null); {@code poster} hace POST(uri, body)->respuesta. */
+    static ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube crearProductoEnNubeCore(
+            StoreCredentials store, ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto,
+            java.math.BigDecimal pvp, java.math.BigDecimal pvpInflado,
+            ObjectMapper om,
+            java.util.function.BiFunction<String, String, JsonNode> buscador,
+            java.util.function.BiFunction<String, String, String> poster) {
+        try {
+            if (producto.getTituloNube() == null || producto.getTituloNube().isBlank())
+                return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error("Falta Título Nube");
+            if (buscador.apply(producto.getSku(), store.getAccessToken()) != null)
+                return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.yaExistia();
+
+            Map<String, Object> payload = NubeProductoPayloadBuilder.construir(producto, pvp, pvpInflado);
+            String body = om.writeValueAsString(payload);
+            String uri = "/" + store.getStoreId() + "/products";
+            poster.apply(uri, body);
+            return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.creado();
+        } catch (Exception e) {
+            return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error(e.getMessage());
+        }
+    }
+
     private String construirBodyPatchVariantes(List<VariantePriceUpdate> updates) {
         StringBuilder sb = new StringBuilder("[");
         for (int i = 0; i < updates.size(); i++) {

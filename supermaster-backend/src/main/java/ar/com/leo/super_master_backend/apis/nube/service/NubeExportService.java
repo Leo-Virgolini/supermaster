@@ -1,0 +1,61 @@
+package ar.com.leo.super_master_backend.apis.nube.service;
+
+import ar.com.leo.super_master_backend.apis.nube.dto.ExportNubeRequestDTO;
+import ar.com.leo.super_master_backend.apis.nube.dto.ExportNubeResultDTO;
+import ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube;
+import ar.com.leo.super_master_backend.dominio.canal.entity.Canal;
+import ar.com.leo.super_master_backend.dominio.canal.repository.CanalRepository;
+import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
+import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCanalPrecio;
+import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoCanalPrecioRepository;
+import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+@Service
+@RequiredArgsConstructor
+public class NubeExportService {
+
+    private final ProductoRepository productoRepository;
+    private final ProductoCanalPrecioRepository precioRepository;
+    private final CanalRepository canalRepository;
+    private final TiendaNubeService tiendaNubeService;
+
+    public ExportNubeResultDTO exportar(ExportNubeRequestDTO request) {
+        int creados = 0;
+        List<String> yaExistian = new ArrayList<>();
+        List<String> errores = new ArrayList<>();
+
+        if (request == null || request.skus() == null || request.tiendas() == null) {
+            return new ExportNubeResultDTO(0, yaExistian, errores);
+        }
+
+        List<Producto> productos = productoRepository.findBySkuIn(
+                request.skus().stream().filter(s -> s != null && !s.isBlank()).map(String::trim).distinct().toList());
+
+        for (Producto producto : productos) {
+            for (ExportNubeRequestDTO.DestinoNube destino : request.tiendas()) {
+                String tienda = destino.tienda();
+                String etiqueta = producto.getSku() + " / " + tienda;
+                Optional<Canal> canal = canalRepository.findByNombreIgnoreCase(tienda);
+                if (canal.isEmpty()) { errores.add(etiqueta + ": canal '" + tienda + "' no existe"); continue; }
+                Optional<ProductoCanalPrecio> precio = precioRepository
+                        .findByProductoIdAndCanalIdAndCuotas(producto.getId(), canal.get().getId(), destino.cuotas());
+                if (precio.isEmpty()) { errores.add(etiqueta + ": sin precio calculado para esa cuota"); continue; }
+
+                ResultadoAltaNube r = tiendaNubeService.crearProductoEnNube(
+                        tienda, producto, precio.get().getPvp(), precio.get().getPvpInflado());
+                switch (r.estado()) {
+                    case CREADO -> creados++;
+                    case YA_EXISTIA -> yaExistian.add(etiqueta);
+                    case ERROR -> errores.add(etiqueta + ": " + r.motivo());
+                }
+            }
+        }
+        return new ExportNubeResultDTO(creados, yaExistian, errores);
+    }
+}

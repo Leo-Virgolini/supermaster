@@ -15,6 +15,10 @@ import org.springframework.web.client.RestClient;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import ar.com.leo.super_master_backend.dominio.clasif_gral.entity.ClasifGral;
+import ar.com.leo.super_master_backend.dominio.clasif_gastro.entity.ClasifGastro;
+import ar.com.leo.super_master_backend.dominio.tipo.entity.Tipo;
+
 import java.io.File;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -24,6 +28,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
 
 @Slf4j
 @Service
@@ -888,7 +893,7 @@ public class TiendaNubeService {
      */
     public ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube crearProductoEnNube(
             String storeName, ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto,
-            java.math.BigDecimal pvp, java.math.BigDecimal pvpInflado) {
+            java.math.BigDecimal pvp, java.math.BigDecimal pvpInflado, NubeCategoriaArbol arbol) {
         StoreCredentials store;
         try {
             verificarCredenciales();
@@ -898,7 +903,22 @@ public class TiendaNubeService {
         }
         if (store == null)
             return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error("Tienda '" + storeName + "' no configurada");
+
+        // KT GASTRO → clasif gastro; resto (KT HOGAR) → clasif gral. El tipo cuelga debajo de la clasif.
+        boolean esGastro = "KT GASTRO".equalsIgnoreCase(storeName);
+        ClasifGral clasifGral = producto.getClasifGral();
+        ClasifGastro clasifGastro = producto.getClasifGastro();
+        Tipo tipo = producto.getTipo();
+        List<String> clasifNombres = esGastro
+                ? (clasifGastro == null ? null : NubeCategoriaRuta.aplanar(clasifGastro, ClasifGastro::getPadre, ClasifGastro::getNombre))
+                : (clasifGral == null ? null : NubeCategoriaRuta.aplanar(clasifGral, ClasifGral::getPadre, ClasifGral::getNombre));
+        List<String> tipoNombres = tipo == null ? null
+                : NubeCategoriaRuta.aplanar(tipo, Tipo::getPadre, Tipo::getNombre);
+
+        NubeCategoriaArbol arbolUsar = arbol != null ? arbol : new NubeCategoriaArbol();
         return crearProductoEnNubeCore(store, producto, pvp, pvpInflado, objectMapper,
+                clasifNombres, tipoNombres, arbolUsar,
+                (parentId, nombre) -> crearCategoria(store, parentId, nombre),
                 (sku, token) -> buscarProductoPorSku(sku, storeName),
                 (uri, body) -> retryHandler.postJson(uri, store.getAccessToken(), body));
     }
@@ -908,6 +928,9 @@ public class TiendaNubeService {
             StoreCredentials store, ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto,
             java.math.BigDecimal pvp, java.math.BigDecimal pvpInflado,
             ObjectMapper om,
+            List<String> clasifNombres, List<String> tipoNombres,
+            NubeCategoriaArbol arbol,
+            BiFunction<Long, String, Long> creadorCategoria,
             java.util.function.BiFunction<String, String, JsonNode> buscador,
             java.util.function.BiFunction<String, String, String> poster) {
         try {
@@ -915,8 +938,14 @@ public class TiendaNubeService {
                 return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error("Falta Título Nube");
             if (buscador.apply(producto.getSku(), store.getAccessToken()) != null)
                 return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.yaExistia();
+            if (clasifNombres == null || clasifNombres.isEmpty() || tipoNombres == null || tipoNombres.isEmpty())
+                return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error("Falta clasif/tipo para categorizar");
 
-            Map<String, Object> payload = NubeProductoPayloadBuilder.construir(producto, pvp, pvpInflado, null);
+            List<String> rutaNombres = new java.util.ArrayList<>(clasifNombres);
+            rutaNombres.addAll(tipoNombres);
+            List<Long> categoriaIds = NubeCategoriaResolver.resolver(arbol, rutaNombres, creadorCategoria);
+
+            Map<String, Object> payload = NubeProductoPayloadBuilder.construir(producto, pvp, pvpInflado, categoriaIds);
             String body = om.writeValueAsString(payload);
             String uri = "/" + store.getStoreId() + "/products";
             poster.apply(uri, body);

@@ -48,8 +48,9 @@ public class NubeExportService {
                 if (precio.isEmpty()) { errores.add(etiqueta + ": sin precio calculado para esa cuota"); continue; }
                 if (precio.get().isObsoleto()) { errores.add(etiqueta + ": precio desactualizado (recalcular antes de subir)"); continue; }
 
+                NubeCategoriaArbol arbol = tiendaNubeService.cargarArbolCategorias(tienda);
                 ResultadoAltaNube r = tiendaNubeService.crearProductoEnNube(
-                        tienda, producto, precio.get().getPvp(), precio.get().getPvpInflado());
+                        tienda, producto, precio.get().getPvp(), precio.get().getPvpInflado(), arbol);
                 switch (r.estado()) {
                     case CREADO -> creados++;
                     case YA_EXISTIA -> yaExistian.add(etiqueta);

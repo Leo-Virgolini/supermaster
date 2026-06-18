@@ -7,6 +7,7 @@ import ar.com.leo.super_master_backend.apis.nube.dto.VentaNubeDTO;
 import ar.com.leo.super_master_backend.apis.nube.model.NubeCredentials;
 import ar.com.leo.super_master_backend.apis.nube.model.NubeCredentials.StoreCredentials;
 import ar.com.leo.super_master_backend.dominio.common.exception.ServiceNotConfiguredException;
+import ar.com.leo.super_master_backend.dominio.imagen.service.ImagenService;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -41,6 +42,7 @@ public class TiendaNubeService {
     private final RestClient restClient;
     private final NubeProperties properties;
     private final ObjectMapper objectMapper;
+    private final ImagenService imagenService;
 
     @org.springframework.beans.factory.annotation.Value("${app.secrets-dir}")
     private String secretsDir;
@@ -48,10 +50,12 @@ public class TiendaNubeService {
     private NubeRetryHandler retryHandler;
     private NubeCredentials credentials;
 
-    public TiendaNubeService(RestClient nubeRestClient, NubeProperties properties, ObjectMapper objectMapper) {
+    public TiendaNubeService(RestClient nubeRestClient, NubeProperties properties, ObjectMapper objectMapper,
+                             ImagenService imagenService) {
         this.restClient = nubeRestClient;
         this.properties = properties;
         this.objectMapper = objectMapper;
+        this.imagenService = imagenService;
     }
 
     @PostConstruct
@@ -916,11 +920,21 @@ public class TiendaNubeService {
                 : NubeCategoriaRuta.aplanar(tipo, Tipo::getPadre, Tipo::getNombre);
 
         NubeCategoriaArbol arbolUsar = arbol != null ? arbol : new NubeCategoriaArbol();
-        return crearProductoEnNubeCore(store, producto, pvp, pvpInflado, objectMapper,
+        ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube r = crearProductoEnNubeCore(
+                store, producto, pvp, pvpInflado, objectMapper,
                 clasifNombres, tipoNombres, arbolUsar,
                 (parentId, nombre) -> crearCategoria(store, parentId, nombre),
                 (sku, token) -> buscarProductoPorSku(sku, storeName),
                 (uri, body) -> retryHandler.postJson(uri, store.getAccessToken(), body));
+
+        if (r.estado() == ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.Estado.CREADO
+                && r.productoNubeId() != null && r.productoNubeId() > 0) {
+            String advertencia = subirImagenesProducto(store, r.productoNubeId(), producto.getSku());
+            if (advertencia != null) {
+                r = r.conAdvertencia(advertencia);
+            }
+        }
+        return r;
     }
 
     /** Lógica testeable sin red. {@code buscador} devuelve el JSON del producto si existe (o null); {@code poster} hace POST(uri, body)->respuesta. */
@@ -954,6 +968,33 @@ public class TiendaNubeService {
         } catch (Exception e) {
             return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error(e.getMessage());
         }
+    }
+
+    /**
+     * Sube a TN todas las imágenes del SKU (principal + adicionales) al producto recién creado.
+     * Devuelve una advertencia para el resumen, o null si subió todas. Un fallo de una imagen
+     * (lectura o POST) no frena las demás ni revierte el alta.
+     */
+    private String subirImagenesProducto(StoreCredentials store, Long productoNubeId, String sku) {
+        List<String> archivos = imagenService.resolverArchivosPorSku(sku);
+        if (archivos.isEmpty()) {
+            return "creado sin imagen";
+        }
+        int ok = 0;
+        for (int i = 0; i < archivos.size(); i++) {
+            String filename = archivos.get(i);
+            try {
+                String base64 = imagenService.leerBase64(filename);
+                Map<String, Object> body = NubeImagenPayloadBuilder.construir(filename, base64, i + 1);
+                retryHandler.postJson(
+                        "/" + store.getStoreId() + "/products/" + productoNubeId + "/images",
+                        store.getAccessToken(), objectMapper.writeValueAsString(body));
+                ok++;
+            } catch (Exception e) {
+                log.warn("NUBE - Falló subir imagen {} del producto {}: {}", filename, productoNubeId, e.getMessage());
+            }
+        }
+        return ok == archivos.size() ? null : (ok + " de " + archivos.size() + " imágenes subidas");
     }
 
     private String construirBodyPatchVariantes(List<VariantePriceUpdate> updates) {

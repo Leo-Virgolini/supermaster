@@ -2,8 +2,11 @@ package ar.com.leo.super_master_backend.apis.ml;
 
 import com.google.common.util.concurrent.RateLimiter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
@@ -221,6 +224,67 @@ public class MlRetryHandler {
      */
     public String postJson(String uri, Supplier<String> tokenSupplier, String jsonBody) {
         return executeWithBodyAndAuth("POST", uri, tokenSupplier, jsonBody);
+    }
+
+    /**
+     * POST multipart/form-data con un único archivo en la parte "file". Mismo manejo de auth/retry.
+     * Usado para subir imágenes a /pictures/items/upload de Mercado Libre.
+     */
+    public String postMultipart(String uri, Supplier<String> tokenSupplier, String filename, byte[] contenido) {
+        int normalRetries = 0;
+        int authRetries = 0;
+        int rateLimitRetries = 0;
+
+        while (true) {
+            try {
+                rateLimiter.acquire();
+
+                MultiValueMap<String, Object> parts = new LinkedMultiValueMap<>();
+                ByteArrayResource resource = new ByteArrayResource(contenido) {
+                    @Override
+                    public String getFilename() { return filename; }
+                };
+                parts.add("file", resource);
+
+                return restClient.post()
+                        .uri(uri)
+                        .header("Authorization", "Bearer " + tokenSupplier.get())
+                        .contentType(MediaType.MULTIPART_FORM_DATA)
+                        .body(parts)
+                        .retrieve()
+                        .body(String.class);
+
+            } catch (HttpClientErrorException e) {
+                int status = e.getStatusCode().value();
+                if (status == 401) {
+                    if (authRetries >= MAX_RETRIES_AUTH) throw e;
+                    authRetries++;
+                    if (tokenRefresher != null) tokenRefresher.run();
+                    continue;
+                }
+                if (status == 429) {
+                    if (rateLimitRetries >= MAX_RETRIES_RATE_LIMIT) throw e;
+                    rateLimitRetries++;
+                    long waitMs = Math.min(parseRetryAfter(e.getResponseHeaders(), baseWaitMs), MAX_WAIT_MS);
+                    log.warn("ML - 429 (multipart {}). Retry en {}s... ({}/{})", uri, waitMs / 1000, rateLimitRetries, MAX_RETRIES_RATE_LIMIT);
+                    sleep(waitMs);
+                    continue;
+                }
+                throw e;
+            } catch (HttpServerErrorException e) {
+                normalRetries++;
+                if (normalRetries >= MAX_RETRIES) throw e;
+                long waitMs = baseWaitMs * (long) Math.pow(2, normalRetries - 1);
+                log.warn("ML - 5xx (multipart {}). Retry en {}ms... ({}/{})", uri, waitMs, normalRetries, MAX_RETRIES);
+                sleep(waitMs);
+            } catch (ResourceAccessException e) {
+                normalRetries++;
+                if (normalRetries >= MAX_RETRIES) throw e;
+                long waitMs = baseWaitMs * (long) Math.pow(2, normalRetries - 1);
+                log.warn("ML - Error conexión (multipart {}). Retry en {}ms... ({}/{}): {}", uri, waitMs, normalRetries, MAX_RETRIES, e.getMessage());
+                sleep(waitMs);
+            }
+        }
     }
 
     /**

@@ -21,7 +21,7 @@ class NubeProductoPayloadBuilderTest {
     @Test
     @SuppressWarnings("unchecked")
     void sinInflado_priceEsPvp_sinPromotional() {
-        Map<String, Object> payload = NubeProductoPayloadBuilder.construir(base(), new BigDecimal("1500.00"), null);
+        Map<String, Object> payload = NubeProductoPayloadBuilder.construir(base(), new BigDecimal("1500.00"), null, null);
 
         assertThat(((Map<String, Object>) payload.get("name")).get("es")).isEqualTo("Producto de prueba");
         assertThat(payload.get("published")).isEqualTo(false);
@@ -42,7 +42,7 @@ class NubeProductoPayloadBuilderTest {
     @Test
     @SuppressWarnings("unchecked")
     void conInfladoMayor_priceEsInflado_promotionalEsPvp() {
-        Map<String, Object> payload = NubeProductoPayloadBuilder.construir(base(), new BigDecimal("1500.00"), new BigDecimal("2000.00"));
+        Map<String, Object> payload = NubeProductoPayloadBuilder.construir(base(), new BigDecimal("1500.00"), new BigDecimal("2000.00"), null);
         Map<String, Object> v = ((List<Map<String, Object>>) payload.get("variants")).get(0);
         assertThat(v.get("price")).isEqualTo("2000.00");
         assertThat(v.get("promotional_price")).isEqualTo("1500.00");
@@ -52,9 +52,24 @@ class NubeProductoPayloadBuilderTest {
     @SuppressWarnings("unchecked")
     void infladoIgualOMenor_priceEsPvp_sinPromotional() {
         // pvp_inflado == pvp (o menor) NO debe generar precio tachado: cae al else.
-        Map<String, Object> payload = NubeProductoPayloadBuilder.construir(base(), new BigDecimal("1500.00"), new BigDecimal("1500.00"));
+        Map<String, Object> payload = NubeProductoPayloadBuilder.construir(base(), new BigDecimal("1500.00"), new BigDecimal("1500.00"), null);
         Map<String, Object> v = ((List<Map<String, Object>>) payload.get("variants")).get(0);
         assertThat(v.get("price")).isEqualTo("1500.00");
         assertThat(v).doesNotContainKey("promotional_price");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void conCategorias_incluyeArrayCategories() {
+        Map<String, Object> payload = NubeProductoPayloadBuilder.construir(
+                base(), new BigDecimal("1500.00"), null, List.of(1L, 2L, 3L));
+        assertThat((List<Long>) payload.get("categories")).containsExactly(1L, 2L, 3L);
+    }
+
+    @Test
+    void sinCategorias_noIncluyeClave() {
+        Map<String, Object> payload = NubeProductoPayloadBuilder.construir(
+                base(), new BigDecimal("1500.00"), null, null);
+        assertThat(payload).doesNotContainKey("categories");
     }
 }

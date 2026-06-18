@@ -13,7 +13,7 @@ public final class NubeProductoPayloadBuilder {
 
     private NubeProductoPayloadBuilder() {}
 
-    public static Map<String, Object> construir(Producto p, BigDecimal pvp, BigDecimal pvpInflado) {
+    public static Map<String, Object> construir(Producto p, BigDecimal pvp, BigDecimal pvpInflado, List<Long> categoriaIds) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("name", Map.of("es", p.getTituloNube() != null ? p.getTituloNube() : ""));
         payload.put("description", Map.of("es", NubeDescripcionBuilder.construir(p)));
@@ -22,7 +22,6 @@ public final class NubeProductoPayloadBuilder {
 
         Map<String, Object> variant = new LinkedHashMap<>();
         variant.put("sku", p.getSku());
-        // Precio de lista (tachado) y promocional según haya inflado.
         if (pvpInflado != null && pvp != null && pvpInflado.compareTo(pvp) > 0) {
             variant.put("price", pvpInflado.toPlainString());
             variant.put("promotional_price", pvp.toPlainString());
@@ -39,6 +38,10 @@ public final class NubeProductoPayloadBuilder {
         List<Map<String, Object>> variants = new ArrayList<>();
         variants.add(variant);
         payload.put("variants", variants);
+
+        if (categoriaIds != null && !categoriaIds.isEmpty()) {
+            payload.put("categories", new ArrayList<>(categoriaIds));
+        }
         return payload;
     }
 }

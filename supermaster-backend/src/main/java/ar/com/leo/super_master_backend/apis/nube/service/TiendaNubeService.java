@@ -845,7 +845,7 @@ public class TiendaNubeService {
             if (buscador.apply(producto.getSku(), store.getAccessToken()) != null)
                 return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.yaExistia();
 
-            Map<String, Object> payload = NubeProductoPayloadBuilder.construir(producto, pvp, pvpInflado);
+            Map<String, Object> payload = NubeProductoPayloadBuilder.construir(producto, pvp, pvpInflado, null);
             String body = om.writeValueAsString(payload);
             String uri = "/" + store.getStoreId() + "/products";
             poster.apply(uri, body);

@@ -228,6 +228,23 @@ export const exportarProductosADuxAPI = async (skus: string[]): Promise<ExportDu
 	return await res.json();
 };
 
+export type DestinoNube = { tienda: "KT HOGAR" | "KT GASTRO"; cuotas: number };
+export type ExportNubeResultDTO = {
+	creados: number;
+	yaExistian: string[];
+	errores: string[];
+};
+
+export const exportarProductosANubeAPI = async (skus: string[], tiendas: DestinoNube[]): Promise<ExportNubeResultDTO> => {
+	const res = await fetchAPI(`${API_BASE_URL}/api/nube/exportar-productos`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ skus, tiendas }),
+	});
+	if (!res.ok) throw new Error(await extraerMensajeError(res, "No se pudo subir el producto a Tienda Nube"));
+	return await res.json();
+};
+
 // Sugiere el menor SKU libre del rango (individual vs combo). Devuelve null si el rango está lleno.
 export const getSiguienteSkuAPI = async (esCombo: boolean): Promise<string | null> => {
 	const res = await fetchAPI(`${API_URL}/siguiente-sku?esCombo=${esCombo}`);

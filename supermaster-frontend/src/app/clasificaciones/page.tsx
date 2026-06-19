@@ -30,6 +30,7 @@ export default function ClasificacionesPage() {
     const [filters, setFilters] = useState<any>({ search: "" });
     const [sorting, setSorting] = useState<SortingState>([{ id: "id", desc: false }]);
     const [nuevoPadreId, setNuevoPadreId] = useState<string>("");
+    const [nuevoIdDux, setNuevoIdDux] = useState<string>("");
 
     // Estado para la Selección (Checkboxes)
     const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
@@ -71,9 +72,11 @@ export default function ClasificacionesPage() {
         setIsSaving(true);
         try {
             const idPadreFinal = nuevoPadreId ? Number(nuevoPadreId) : null;
-            await createClasificacion(nuevoNombre, idPadreFinal); // Llama al hook
+            const idDuxFinal = nuevoIdDux !== "" ? Number(nuevoIdDux) : null;
+            await createClasificacion(nuevoNombre, idPadreFinal, idDuxFinal); // Llama al hook
             setIsModalOpen(false); // Cierra modal
             setNuevoNombre(""); // Limpia input
+            setNuevoIdDux(""); // Limpia idDux
         } catch (e) { /* hook already toasts */
         } finally {
             setIsSaving(false);
@@ -98,8 +101,10 @@ export default function ClasificacionesPage() {
         const clasificacionEditar = clasificaciones[rowIndex];
         if (columnId === "padreId") {
             updateClasificacion(clasificacionEditar.id, { padreId: value as number | null });
+        } else if (columnId === "idDux") {
+            updateClasificacion(clasificacionEditar.id, { idDux: value as number | null });
         } else {
-            updateClasificacion(clasificacionEditar.id, { [columnId]: value } as Partial<{ nombre: string; padreId: number | null }>);
+            updateClasificacion(clasificacionEditar.id, { [columnId]: value } as Partial<{ nombre: string; padreId: number | null; idDux: number | null }>);
         }
     };
 
@@ -214,11 +219,11 @@ export default function ClasificacionesPage() {
             {/* Modal de Creación */}
             <Modal
                 isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
+                onClose={() => { setIsModalOpen(false); setNuevoIdDux(""); }}
                 title="Nueva Clasificación"
                 footer={
                     <>
-                        <Button variant="light" onClick={() => setIsModalOpen(false)}>
+                        <Button variant="light" onClick={() => { setIsModalOpen(false); setNuevoIdDux(""); }}>
                             <XMarkIcon className="w-4 h-4" /> Cancelar
                         </Button>
                         <Button variant="dark" onClick={handleCreate} disabled={isSaving}>
@@ -254,6 +259,17 @@ export default function ClasificacionesPage() {
                     <p className="text-xs text-gray-500">
                         Si seleccionás una, la nueva clasificación será una subclasificación de esa.
                     </p>
+
+                    <label className="block">
+                        <span className="text-gray-700 text-sm font-bold">ID Dux (opcional)</span>
+                        <input
+                            type="number"
+                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 p-2 border"
+                            placeholder="Ej: 501"
+                            value={nuevoIdDux}
+                            onChange={(e) => setNuevoIdDux(e.target.value)}
+                        />
+                    </label>
                 </div>
             </Modal>
         </main>

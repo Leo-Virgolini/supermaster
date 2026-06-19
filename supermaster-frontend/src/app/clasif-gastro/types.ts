@@ -3,4 +3,5 @@ export type ClasifGastroDTO = {
 	nombre: string;
 	padreId?: number | null;
 	esMaquina?: boolean;
+	idDux?: number | null;
 };

@@ -60,6 +60,7 @@ export function useClasifGastro(
 		nombre: string;
 		esMaquina?: boolean;
 		padreId?: number | null;
+		idDux?: number | null;
 	}) => {
 		try {
 			const result = await createClasifGastroAPI(data, "FORM");

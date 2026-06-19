@@ -67,9 +67,10 @@ export function useClasificaciones(
 	const createClasificacion = async (
 		nombre: string,
 		padreId: number | null,
+		idDux: number | null = null,
 	) => {
 		try {
-			const result = await createClasificacionAPI(nombre, padreId, "FORM"); // Llama al Service
+			const result = await createClasificacionAPI(nombre, padreId, idDux, "FORM"); // Llama al Service
 			await getClasificaciones(); // Refresca la tabla solo
 			notificar.success(`[Clasificaciones] Registro #${result.id} creado`);
 			return true;
@@ -98,7 +99,7 @@ export function useClasificaciones(
 	// C. ACTUALIZAR
 	const updateClasificacion = async (
 		id: number,
-		data: Partial<Pick<ClasificacionDTO, "nombre" | "padreId">>,
+		data: Partial<Pick<ClasificacionDTO, "nombre" | "padreId" | "idDux">>,
 	) => {
 		try {
 			// El PATCH devuelve el objeto actualizado. Reemplazamos solo esa fila

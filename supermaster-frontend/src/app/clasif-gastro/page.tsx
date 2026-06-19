@@ -31,6 +31,7 @@ export default function ClasifGastroPage() {
     const [nuevoNombre, setNuevoNombre] = useState("");
     const [esMaquina, setEsMaquina] = useState(false);
     const [nuevoPadreId, setNuevoPadreId] = useState<number | null>(null);
+    const [nuevoIdDux, setNuevoIdDux] = useState<string>("");
     const [isSaving, setIsSaving] = useState(false);
 
     const {
@@ -66,11 +67,13 @@ export default function ClasifGastroPage() {
         if (!nuevoNombre.trim()) return;
         setIsSaving(true);
         try {
-            await createClasifGastro({ nombre: nuevoNombre, esMaquina, padreId: nuevoPadreId });
+            const idDuxFinal = nuevoIdDux !== "" ? Number(nuevoIdDux) : null;
+            await createClasifGastro({ nombre: nuevoNombre, esMaquina, padreId: nuevoPadreId, idDux: idDuxFinal });
             setIsModalOpen(false);
             setNuevoNombre("");
             setEsMaquina(false);
             setNuevoPadreId(null);
+            setNuevoIdDux("");
         } catch (e) { /* hook already toasts */
         } finally {
             setIsSaving(false);
@@ -92,7 +95,11 @@ export default function ClasifGastroPage() {
     const handleUpdate = async (rowIndex: number, columnId: string, value: unknown) => {
         const itemOriginal = clasifGastros[rowIndex];
         try {
-            await updateClasifGastro(itemOriginal.id, { [columnId]: value } as Partial<typeof itemOriginal>);
+            if (columnId === "idDux") {
+                await updateClasifGastro(itemOriginal.id, { idDux: value as number | null });
+            } else {
+                await updateClasifGastro(itemOriginal.id, { [columnId]: value } as Partial<typeof itemOriginal>);
+            }
         } catch (e) { /* hook already toasts */ }
     };
 
@@ -191,11 +198,11 @@ export default function ClasifGastroPage() {
 
             <Modal
                 isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
+                onClose={() => { setIsModalOpen(false); setNuevoIdDux(""); }}
                 title="Nueva Clasificación Gastro"
                 footer={
                     <>
-                        <Button variant="light" onClick={() => setIsModalOpen(false)}>
+                        <Button variant="light" onClick={() => { setIsModalOpen(false); setNuevoIdDux(""); }}>
                             <XMarkIcon className="w-4 h-4" /> Cancelar
                         </Button>
                         <Button variant="dark" onClick={handleCreate} disabled={isSaving}>
@@ -237,6 +244,17 @@ export default function ClasifGastroPage() {
                             ¿Es Máquina?
                         </label>
                     </div>
+
+                    <label className="block">
+                        <span className="text-gray-700 text-sm font-bold">ID Dux (opcional)</span>
+                        <input
+                            type="number"
+                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 p-2 border"
+                            placeholder="Ej: 501"
+                            value={nuevoIdDux}
+                            onChange={(e) => setNuevoIdDux(e.target.value)}
+                        />
+                    </label>
                 </div>
             </Modal>
         </main>

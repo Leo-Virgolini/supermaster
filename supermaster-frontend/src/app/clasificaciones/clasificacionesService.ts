@@ -40,12 +40,15 @@ export const searchClasificacionesAPI = async (query: string) => {
 export const createClasificacionAPI = async (
 	nombre: string,
 	padreId: number | null,
+	idDux: number | null = null,
 	origin: ClasifGralAuditOrigin = "API",
 ) => {
+	const payload: Record<string, unknown> = { nombre, padreId };
+	if (idDux != null) payload.idDux = idDux;
 	const response = await fetchAPI(API_URL, {
 		method: "POST",
 		headers: withAuditOrigin(origin, { "Content-Type": "application/json" }),
-		body: JSON.stringify({ nombre, padreId }),
+		body: JSON.stringify(payload),
 	});
 
 	if (!response.ok) throw new Error("Error al crear la clasificación");
@@ -66,7 +69,7 @@ export const deleteClasificacionAPI = async (id: number, origin: ClasifGralAudit
 // UPDATE: Editar una clasificación existente
 export const updateClasificacionAPI = async (
 	id: number,
-	data: { nombre?: string; padreId?: number | null },
+	data: { nombre?: string; padreId?: number | null; idDux?: number | null },
 	origin: ClasifGralAuditOrigin = "API",
 ) => {
 	const response = await fetchAPI(`${API_URL}/${id}`, {

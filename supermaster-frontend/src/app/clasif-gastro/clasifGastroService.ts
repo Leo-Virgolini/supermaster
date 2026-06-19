@@ -33,12 +33,14 @@ export const createClasifGastroAPI = async (data: {
 	nombre: string;
 	esMaquina?: boolean;
 	padreId?: number | null;
+	idDux?: number | null;
 }, origin: ClasifGastroAuditOrigin = "API") => {
 	const payload: Record<string, unknown> = {
 		nombre: data.nombre,
 		esMaquina: data.esMaquina ?? false,
 	};
 	if (data.padreId != null) payload.padreId = data.padreId;
+	if (data.idDux != null) payload.idDux = data.idDux;
 	const response = await fetchAPI(API_URL, {
 		method: "POST",
 		headers: withAuditOrigin(origin, { "Content-Type": "application/json" }),
@@ -61,7 +63,7 @@ export const deleteClasifGastroAPI = async (id: number, origin: ClasifGastroAudi
 };
 
 // UPDATE
-export const updateClasifGastroAPI = async (id: number, data: Partial<{ nombre: string; esMaquina: boolean; padreId: number | null }>, origin: ClasifGastroAuditOrigin = "API") => {
+export const updateClasifGastroAPI = async (id: number, data: Partial<{ nombre: string; esMaquina: boolean; padreId: number | null; idDux: number | null }>, origin: ClasifGastroAuditOrigin = "API") => {
 	const response = await fetchAPI(`${API_URL}/${id}`, {
 		method: "PATCH",
 		headers: withAuditOrigin(origin, { "Content-Type": "application/json" }),

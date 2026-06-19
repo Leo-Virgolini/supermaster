@@ -514,19 +514,22 @@ const Table = ({
                                             })()}
                                         </div>
 
-                                        {/* Handler de resize */}
+                                        {/* Handler de resize: área de agarre ancha (12px) centrada en el borde,
+                                            con stopPropagation para no disparar el ordenamiento del <th> al redimensionar. */}
                                         {header.column.getCanResize() && (
                                             <div
-                                                onDoubleClick={
-                                                    header.column.resetSize
-                                                }
-                                                onMouseDown={header.getResizeHandler()}
-                                                onTouchStart={header.getResizeHandler()}
-                                                className={`absolute right-0 top-0 h-full w-0.5 cursor-col-resize select-none transition rounded-2xl ${header.column.getIsResizing()
-                                                    ? "bg-blue-400 w-1.5"
-                                                    : "bg-gray-200 dark:bg-slate-600 w-0.5 group-hover:bg-blue-400 group-hover:w-1.5"
-                                                    }`}
-                                            />
+                                                onDoubleClick={() => header.column.resetSize()}
+                                                onClick={(e) => e.stopPropagation()}
+                                                onMouseDown={(e) => { e.stopPropagation(); header.getResizeHandler()(e); }}
+                                                onTouchStart={(e) => { e.stopPropagation(); header.getResizeHandler()(e); }}
+                                                className="group/resize absolute right-0 top-0 z-10 flex h-full w-3 translate-x-1/2 cursor-col-resize select-none justify-center"
+                                                title="Arrastrá para ajustar el ancho · doble clic para restablecer"
+                                            >
+                                                <span className={`h-full transition ${header.column.getIsResizing()
+                                                    ? "w-1 bg-blue-500"
+                                                    : "w-0.5 bg-gray-200 dark:bg-slate-600 group-hover/resize:w-1 group-hover/resize:bg-blue-400"
+                                                    }`} />
+                                            </div>
                                         )}
                                     </th>
                                 ))}

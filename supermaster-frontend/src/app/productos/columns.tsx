@@ -3,7 +3,7 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ChartBarIcon, PencilSquareIcon } from "@heroicons/react/24/outline";
+import { CurrencyDollarIcon, PencilSquareIcon } from "@heroicons/react/24/outline";
 import {
     searchMarcas, searchClasifGral, searchClasifGastro, searchTipos,
     searchProveedores, searchOrigenes, searchMateriales, searchMlas
@@ -301,7 +301,7 @@ export function getColumns(onEditarProducto: (producto: ProductoDTO) => void, ca
                     aria-label="Ver precios"
                     className={getTableActionButtonClasses("accent", "!px-2")}
                 >
-                    <ChartBarIcon className="w-4 h-4" />
+                    <CurrencyDollarIcon className="w-4 h-4" />
                 </Link>
             </div>
         ),

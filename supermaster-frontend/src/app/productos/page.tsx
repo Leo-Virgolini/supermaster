@@ -22,6 +22,7 @@ import {
     searchCatalogos, searchAptos, searchClientes, searchCanales, addProductoCatalogoAPI, addProductoAptoAPI, addProductoClienteAPI,
     removeProductoCatalogoAPI, removeProductoAptoAPI, removeProductoClienteAPI, updateProductoAPI, getNombreById,
     exportarProductosADuxAPI, calcularEnvioMlaAPI, exportarProductosANubeAPI, exportarProductosAMlAPI,
+    searchUnidadesMedida,
 } from "./productosService";
 import { updateProductoMargenAPI } from "./productoMargenService";
 import {
@@ -231,6 +232,7 @@ export default function ProductosPage() {
     const [tipoId, setTipoId] = useState<number | null>(null);
     const [proveedorId, setProveedorId] = useState<number | null>(null);
     const [materialId, setMaterialId] = useState<number | null>(null);
+    const [unidadMedidaId, setUnidadMedidaId] = useState<number | null>(null);
     // Nombres a mostrar en los AsyncSelect de relación simple (necesario para
     // precargar el valor en modo edición; el AsyncSelect no resuelve nombre por id).
     const [marcaDisplay, setMarcaDisplay] = useState("");
@@ -240,6 +242,7 @@ export default function ProductosPage() {
     const [tipoDisplay, setTipoDisplay] = useState("");
     const [proveedorDisplay, setProveedorDisplay] = useState("");
     const [materialDisplay, setMaterialDisplay] = useState("");
+    const [unidadMedidaDisplay, setUnidadMedidaDisplay] = useState("");
     const [mlaId, setMlaId] = useState<number | null>(null);
     const [mlaDisplay, setMlaDisplay] = useState("");
     // Panel "Nuevo MLA" dentro del alta de producto.
@@ -527,7 +530,7 @@ export default function ProductosPage() {
                 moq: moq !== "" ? moq : null,
                 tagReposicion: tagReposicion || null,
                 tag: tag || null,
-                marcaId, origenId, clasifGralId: clasifGralId!, clasifGastroId, tipoId: tipoId!, proveedorId, materialId, mlaId: mlaIdFinal
+                marcaId, origenId, clasifGralId: clasifGralId!, clasifGastroId, tipoId: tipoId!, proveedorId, materialId, unidadMedidaId, mlaId: mlaIdFinal
             };
             const creado = await createProducto(payload, asociarMargenYRelaciones);
             // Si el producto quedó asociado a un MLA, ahora SÍ se puede calcular su
@@ -600,7 +603,8 @@ export default function ProductosPage() {
         setMarcaId(producto.marcaId ?? null); setOrigenId(producto.origenId ?? null);
         setClasifGralId(producto.clasifGralId ?? null); setClasifGastroId(producto.clasifGastroId ?? null);
         setTipoId(producto.tipoId ?? null); setProveedorId(producto.proveedorId ?? null);
-        setMaterialId(producto.materialId ?? null); setMlaId(producto.mlaId ?? null);
+        setMaterialId(producto.materialId ?? null); setUnidadMedidaId(producto.unidadMedidaId ?? null);
+        setMlaId(producto.mlaId ?? null);
         // Displays: marca/clasif/tipo traen *NombreCompleto; mla trae mlaNombre.
         setMarcaDisplay(producto.marcaNombreCompleto ?? "");
         setClasifGralDisplay(producto.clasifGralNombreCompleto ?? "");
@@ -608,7 +612,8 @@ export default function ProductosPage() {
         setTipoDisplay(producto.tipoNombreCompleto ?? "");
         setMlaDisplay(producto.mlaNombre ?? "");
         // Origen/material/proveedor no traen nombre en el DTO: se resuelven por id.
-        setOrigenDisplay(""); setMaterialDisplay(""); setProveedorDisplay("");
+        // unidadMedida tampoco trae nombre: se deja vacío (AsyncSelect lo resuelve).
+        setOrigenDisplay(""); setMaterialDisplay(""); setProveedorDisplay(""); setUnidadMedidaDisplay("");
         setMargenMinorista(producto.margenMinorista ?? ""); setMargenMayorista(producto.margenMayorista ?? "");
         setFormErrors({});
         setCatalogosSel([]); setAptosSel([]); setClientesSel([]);
@@ -654,7 +659,7 @@ export default function ProductosPage() {
                 diamboca: diamboca || null, diambase: diambase || null, espesor: espesor || null,
                 costo: costoNum, iva, stock: stock !== "" ? stock : null, moq: moq !== "" ? moq : null,
                 tagReposicion: tagReposicion || null, tag: tag || null,
-                marcaId, origenId, clasifGralId, clasifGastroId, tipoId, proveedorId, materialId, mlaId,
+                marcaId, origenId, clasifGralId, clasifGastroId, tipoId, proveedorId, materialId, unidadMedidaId, mlaId,
             } as ProductoPatchDTO;
             await updateProductoAPI(id, patch, "FORM");
 
@@ -884,9 +889,9 @@ export default function ProductosPage() {
         setCapacidad(""); setLargo(""); setAncho(""); setAlto(""); setDiamboca(""); setDiambase(""); setEspesor("");
         setCosto(""); setIva(21.0);
         setMarcaId(null); setOrigenId(null); setClasifGralId(null); setClasifGastroId(null);
-        setTipoId(null); setProveedorId(null); setMaterialId(null); setMlaId(null);
+        setTipoId(null); setProveedorId(null); setMaterialId(null); setUnidadMedidaId(null); setMlaId(null);
         setMarcaDisplay(""); setOrigenDisplay(""); setClasifGralDisplay(""); setClasifGastroDisplay("");
-        setTipoDisplay(""); setProveedorDisplay(""); setMaterialDisplay("");
+        setTipoDisplay(""); setProveedorDisplay(""); setMaterialDisplay(""); setUnidadMedidaDisplay("");
         setCatalogosOriginal([]); setAptosOriginal([]); setClientesOriginal([]);
         setMoq(""); setStock(0); setTagReposicion(""); setTag("");
         setMlaDisplay(""); setShowNuevoMla(false);
@@ -1339,6 +1344,17 @@ export default function ProductosPage() {
                             <div>
                                 <AsyncSelect label={<>{!esCombo && <span style={{ color: "#dc2626" }} className="font-bold mr-0.5">*</span>}Material</>} loadOptions={searchMateriales} onChange={(v, label) => { setMaterialId(v ? Number(v) : null); setMaterialDisplay(v ? (label ?? "") : ""); if (formErrors.materialId) setFormErrors(p => ({ ...p, materialId: "" })); }} value={materialId} displayValue={materialDisplay} placeholder="Buscar material" inputClassName={`${inputBaseClassName} ${formErrors.materialId ? inputErrorClassName : ""}`} />
                                 {formErrors.materialId && <p className="mt-1 text-xs text-red-500">{formErrors.materialId}</p>}
+                            </div>
+                            <div>
+                                <AsyncSelect
+                                    label="Unidad de medida (Dux)"
+                                    loadOptions={searchUnidadesMedida}
+                                    onChange={(v, label) => { setUnidadMedidaId(v ? Number(v) : null); setUnidadMedidaDisplay(v ? (label ?? "") : ""); }}
+                                    value={unidadMedidaId}
+                                    displayValue={unidadMedidaDisplay}
+                                    placeholder="Buscar unidad (T1, COMBOS, ...)"
+                                    inputClassName={inputBaseClassName}
+                                />
                             </div>
                             <label className="block">
                                 <span className={fieldLabelClassName}>Tag {!esCombo && <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span>}</span>

@@ -25,6 +25,7 @@ export interface ProductoDTO {
 	tipoId: number | null;
 	proveedorId: number | null;
 	materialId: number | null;
+	unidadMedidaId: number | null;
 	mlaId: number | null;
 
 	// Dimensiones
@@ -90,6 +91,7 @@ export interface ProductoCreateDTO {
 	tipoId: number;
 	proveedorId: number | null;
 	materialId: number | null;
+	unidadMedidaId: number | null;
 	mlaId: number | null;
 	capacidad: string | null;
 	largo: string | null;

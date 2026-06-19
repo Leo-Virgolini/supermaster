@@ -374,7 +374,6 @@ public interface ProductoMapper {
                 producto.getTipo() != null ? producto.getTipo().getNombre() : null,
                 producto.getProveedor() != null ? producto.getProveedor().getNombre() : null,
                 producto.getMaterial() != null ? producto.getMaterial().getNombre() : null,
-                producto.getUnidadMedida() != null ? producto.getUnidadMedida().getId() : null,
 
                 // Dimensiones y atributos
                 producto.getUxb(),
@@ -391,6 +390,7 @@ public interface ProductoMapper {
                 producto.getCosto(),
                 producto.getFechaUltimoCosto(),
                 producto.getIva(),
+                producto.getUnidadMedida() != null ? producto.getUnidadMedida().getId() : null,
 
                 // Márgenes
                 margenMinorista,

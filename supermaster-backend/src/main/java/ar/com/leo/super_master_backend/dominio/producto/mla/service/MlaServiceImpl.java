@@ -131,6 +131,18 @@ public class MlaServiceImpl implements MlaService {
         return self.obtener(mlaId);
     }
 
+    @Override
+    @Transactional
+    public void asegurarYAsociar(Integer productoId, String mlaCode, String mlau) {
+        Integer mlaId = self.asegurarMla(mlaCode, mlau);
+        Mla mla = repo.findById(mlaId)
+                .orElseThrow(() -> new NotFoundException("MLA no encontrado tras asegurarlo: " + mlaCode));
+        ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto = productoRepository.findById(productoId)
+                .orElseThrow(() -> new NotFoundException("Producto no encontrado: " + productoId));
+        producto.setMla(mla);
+        productoRepository.save(producto);
+    }
+
     /**
      * Crea (o devuelve, si ya existe) el MLA por su código, en su PROPIA transacción
      * y sin llamadas externas dentro. Devuelve el id del MLA.

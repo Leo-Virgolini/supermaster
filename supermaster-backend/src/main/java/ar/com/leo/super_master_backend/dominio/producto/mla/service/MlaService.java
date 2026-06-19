@@ -34,5 +34,11 @@ public interface MlaService {
     List<MlaTopePromocionDTO> listarTopesPromocion();
 
     List<MlaTopePromocionDTO> actualizarTopesPromocion(List<MlaTopePromocionDTO> topes);
+
+    /**
+     * Asegura que exista el registro MLA (código + MLAU) y lo asocia al producto indicado.
+     * Usado por el post-alta de Mercado Libre tras crear la publicación.
+     */
+    void asegurarYAsociar(Integer productoId, String mlaCode, String mlau);
 }
 

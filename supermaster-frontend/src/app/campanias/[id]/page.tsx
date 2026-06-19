@@ -34,7 +34,7 @@ export default function CampaniaDetallePage() {
 	};
 
 	return (
-		<main className="p-4 bg-gray-50 min-h-0 flex flex-col overflow-hidden">
+		<main className="px-4 py-2 bg-gray-50 min-h-0 flex flex-col overflow-hidden">
 			<div className="flex items-center gap-3 mb-3">
 				<Button variant="light" onClick={() => router.push("/campanias")}>
 					<ArrowLeftIcon className="w-4 h-4" /> Volver

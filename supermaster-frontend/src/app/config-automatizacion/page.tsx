@@ -129,7 +129,7 @@ export default function ConfigAutomatizacionPage() {
 
     if (!isAdmin) {
         return (
-            <main className="p-4 bg-gray-50 min-h-0 flex flex-col overflow-hidden dark:bg-slate-900">
+            <main className="px-4 py-2 bg-gray-50 min-h-0 flex flex-col overflow-hidden dark:bg-slate-900">
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
                     Solo los administradores pueden acceder a Configuración.
                 </div>
@@ -138,8 +138,8 @@ export default function ConfigAutomatizacionPage() {
     }
 
     return (
-        <main className="p-4 bg-gray-50 min-h-0 flex flex-col overflow-hidden">
-            <div className="flex justify-between items-center mb-3">
+        <main className="px-4 py-2 bg-gray-50 min-h-0 flex flex-col overflow-hidden">
+            <div className="flex justify-between items-center mb-2">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
                         <WrenchScrewdriverIcon className="w-8 h-8 text-gray-600" />

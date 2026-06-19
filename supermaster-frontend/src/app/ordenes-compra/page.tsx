@@ -275,9 +275,9 @@ export default function OrdenesCompraPage() {
   // ---- Render ----
 
   return (
-    <main className="p-4 bg-gray-50 min-h-0 flex flex-col overflow-hidden">
+    <main className="px-4 py-2 bg-gray-50 min-h-0 flex flex-col overflow-hidden">
       {/* Cabecera */}
-      <div className="flex justify-between items-center mb-3">
+      <div className="flex justify-between items-center mb-2">
         <div>
           <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
             <ShoppingCartIcon className="w-8 h-8 text-gray-600" />

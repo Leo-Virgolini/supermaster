@@ -136,8 +136,8 @@ export default function TiposPage() {
     };
 
     return (
-        <main className="p-4 bg-gray-50 min-h-0 flex flex-col overflow-hidden">
-            <div className="flex justify-between items-center mb-3">
+        <main className="px-4 py-2 bg-gray-50 min-h-0 flex flex-col overflow-hidden">
+            <div className="flex justify-between items-center mb-2">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
                         <AdjustmentsHorizontalIcon className="w-8 h-8 text-gray-600" />

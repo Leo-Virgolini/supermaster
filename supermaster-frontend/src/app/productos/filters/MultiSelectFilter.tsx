@@ -144,11 +144,11 @@ export default function MultiSelectFilter({ label, apiParam, loadOptions, value,
 
     return (
         <div ref={containerRef} className="relative">
-            <span className="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">{label}</span>
+            <span className="mb-0.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">{label}</span>
             <button
                 type="button"
                 onClick={() => (isOpen ? closeAndApply() : openPopover())}
-                className={`flex w-full items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-left text-sm shadow-sm transition ${
+                className={`flex w-full items-center justify-between gap-2 rounded-lg border px-2.5 py-1 text-left text-sm shadow-sm transition ${
                     hasSelection
                         ? "border-blue-300 bg-blue-50 text-blue-800 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-200"
                         : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"

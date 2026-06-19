@@ -59,7 +59,7 @@ function asIdArray(value: unknown): (number | string)[] {
 }
 
 function GroupTitle({ children }: { children: React.ReactNode }) {
-    return <h3 className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">{children}</h3>;
+    return <h3 className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">{children}</h3>;
 }
 
 /**
@@ -108,24 +108,24 @@ export default function ProductosFilterPanel({ filters, filterValueLabels, onFil
     );
 
     return (
-        <div className="shrink-0 space-y-2 border-b border-gray-200 bg-gray-50/60 px-4 py-2 dark:border-slate-700 dark:bg-slate-800/40">
+        <div className="shrink-0 space-y-1 border-b border-gray-200 bg-gray-50/60 px-4 py-1.5 dark:border-slate-700 dark:bg-slate-800/40">
             <div>
                 <GroupTitle>Clasificación</GroupTitle>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+                <div className="grid grid-cols-2 gap-x-2 gap-y-1 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
                     {CLASIFICACION.map(renderMulti)}
                 </div>
             </div>
 
             <div>
                 <GroupTitle>Comercial</GroupTitle>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+                <div className="grid grid-cols-2 gap-x-2 gap-y-1 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
                     {COMERCIAL.map(renderMulti)}
                 </div>
             </div>
 
             <div>
                 <GroupTitle>Atributos</GroupTitle>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid grid-cols-1 gap-x-2 gap-y-1 sm:grid-cols-2 lg:grid-cols-4">
                     <SegmentedFilter
                         label="Compuesto"
                         value={filters.esCombo as boolean | undefined}
@@ -168,7 +168,7 @@ export default function ProductosFilterPanel({ filters, filterValueLabels, onFil
             </div>
 
             {activeCount > 0 && (
-                <div className="flex items-center justify-between border-t border-gray-200 pt-2 dark:border-slate-700">
+                <div className="flex items-center justify-between border-t border-gray-200 pt-1.5 dark:border-slate-700">
                     <span className="text-xs text-slate-500 dark:text-slate-400">{activeCount} filtro{activeCount !== 1 ? "s" : ""} activo{activeCount !== 1 ? "s" : ""}</span>
                     <button
                         type="button"

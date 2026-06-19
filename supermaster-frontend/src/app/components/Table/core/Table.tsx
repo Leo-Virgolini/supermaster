@@ -363,7 +363,7 @@ const Table = ({
 
     return (
         <EditingCellProvider>
-        <div className={`relative flex flex-col w-full flex-1 rounded-xl bg-white dark:bg-slate-900 shadow-sm overflow-hidden ${isFullscreen ? "!fixed !inset-0 !z-[100] !rounded-none !m-0" : ""}`}>
+        <div className={`relative flex flex-col w-full flex-1 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm overflow-hidden ${isFullscreen ? "!fixed !inset-0 !z-[100] !rounded-none !m-0" : ""}`}>
             {/* Toolbar */}
             <div className="shrink-0 px-4 py-2.5 border-b border-gray-200 dark:border-slate-700 bg-gray-50/80 dark:bg-slate-800/60">
                 <div className="flex items-center gap-2">

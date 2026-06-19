@@ -265,7 +265,7 @@ export default function MlasPage() {
                 </div>
             )}
 
-            <div className="flex-1 min-h-0 bg-white dark:bg-slate-800 dark:border-slate-700 rounded-lg shadow border overflow-hidden flex flex-col">
+            <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
                 <Table
                     searchSlot={<SearchInput placeholder="Buscar MLA por código o nombre..." onSearch={(val) => { if (val !== filters.search) handleGlobalSearch(val); }} initialValue={filters.search} className="w-[26rem] max-w-full" />}
                     tableId="mlas"

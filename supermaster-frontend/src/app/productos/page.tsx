@@ -3,7 +3,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { notificar } from "../utils/notificar";
-import { BuildingStorefrontIcon, CheckIcon, CloudArrowDownIcon, CubeIcon, XMarkIcon, IdentificationIcon, CurrencyDollarIcon, ArchiveBoxIcon, ReceiptPercentIcon, Squares2X2Icon, UserGroupIcon, ShoppingBagIcon, BanknotesIcon } from "@heroicons/react/24/outline";
+import { BuildingStorefrontIcon, CheckIcon, CloudArrowDownIcon, CubeIcon, FireIcon, HomeIcon, XMarkIcon, IdentificationIcon, CurrencyDollarIcon, ArchiveBoxIcon, ReceiptPercentIcon, Squares2X2Icon, UserGroupIcon, ShoppingBagIcon, BanknotesIcon } from "@heroicons/react/24/outline";
 import { API_BASE_URL } from "../config/runtime";
 import { confirmDialog } from "../utils/confirmDialog";
 import Table, { getInitialPageSize } from "../components/Table/core/Table";
@@ -1121,11 +1121,13 @@ export default function ProductosPage() {
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                             {canExportarDux && (
                                 <div className={checkboxCardClassName} title={editandoProductoId ? "Al guardar, actualiza el producto en Dux" : "Al crear, sube el producto a Dux"}>
+                                    <CubeIcon className="h-5 w-5 shrink-0 text-indigo-500" />
                                     <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirADux} onChange={e => setSubirADux(e.target.checked)} id="subirADux" />
                                     <label htmlFor="subirADux" className="cursor-pointer">{editandoProductoId ? "Actualizar en Dux" : "Subir a Dux"}</label>
                                 </div>
                             )}
                             <div className={checkboxCardClassName}>
+                                <HomeIcon className="h-5 w-5 shrink-0 text-sky-500" />
                                 <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirKtHogar} onChange={e => setSubirKtHogar(e.target.checked)} id="subirKtHogar" disabled={!canExportarDux} />
                                 <label htmlFor="subirKtHogar" className="cursor-pointer">Subir a KT HOGAR (Nube)</label>
                                 {subirKtHogar && (
@@ -1137,6 +1139,7 @@ export default function ProductosPage() {
                                 )}
                             </div>
                             <div className={checkboxCardClassName}>
+                                <FireIcon className="h-5 w-5 shrink-0 text-emerald-500" />
                                 <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirKtGastro} onChange={e => setSubirKtGastro(e.target.checked)} id="subirKtGastro" disabled={!canExportarDux} />
                                 <label htmlFor="subirKtGastro" className="cursor-pointer">Subir a KT GASTRO (Nube)</label>
                                 {subirKtGastro && (
@@ -1148,6 +1151,7 @@ export default function ProductosPage() {
                                 )}
                             </div>
                             <div className={checkboxCardClassName}>
+                                <ShoppingBagIcon className="h-5 w-5 shrink-0 text-yellow-500" />
                                 <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirMl} onChange={e => setSubirMl(e.target.checked)} id="subirMl" disabled={!canExportarDux} />
                                 <label htmlFor="subirMl" className="cursor-pointer">Subir a Mercado Libre</label>
                             </div>

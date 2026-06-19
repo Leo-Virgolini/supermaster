@@ -194,11 +194,11 @@ export default function MarcasPage() {
 
             <Modal
                 isOpen={isModalOpen}
-                onClose={() => { setIsModalOpen(false); setFormTouched(false); setNuevoCodigoDux(""); }}
+                onClose={() => { setIsModalOpen(false); setFormTouched(false); setNuevoCodigoDux(""); setNuevoNombre(""); setNuevoPadreId(""); }}
                 title="Nueva Marca"
                 footer={
                     <>
-                        <Button variant="light" onClick={() => { setIsModalOpen(false); setFormTouched(false); setNuevoCodigoDux(""); }}>
+                        <Button variant="light" onClick={() => { setIsModalOpen(false); setFormTouched(false); setNuevoCodigoDux(""); setNuevoNombre(""); setNuevoPadreId(""); }}>
                             <XMarkIcon className="w-4 h-4" /> Cancelar
                         </Button>
                         <Button

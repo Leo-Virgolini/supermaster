@@ -39,7 +39,6 @@ public record ProductoConPreciosDTO(
         String tipoNombre,
         String proveedorNombre,
         String materialNombre,
-        Integer unidadMedidaId,
 
         // Dimensiones y atributos
         Integer uxb,
@@ -56,6 +55,7 @@ public record ProductoConPreciosDTO(
         BigDecimal costo,
         LocalDateTime fechaUltimoCosto,
         BigDecimal iva,
+        Integer unidadMedidaId,
 
         // Márgenes (de producto_margen)
         BigDecimal margenMinorista,

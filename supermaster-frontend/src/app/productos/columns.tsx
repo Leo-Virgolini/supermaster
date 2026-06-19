@@ -349,15 +349,15 @@ export function getColumns(onEditarProducto: (producto: ProductoDTO) => void, ca
     },
     {
         accessorKey: "tituloDux", header: "Título Dux", size: 250, meta: { editable: true },
-        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={getValue() as string} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val)} className={`${FONT.text} truncate block w-full`} disabled={!canEdit} />)
+        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={getValue() as string} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val)} className={FONT.text} disabled={!canEdit} />)
     },
     {
         accessorKey: "tituloMl", header: "Título ML", size: 220, meta: { editable: true },
-        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={(getValue() as string) ?? ""} nullable onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val)} className={`${FONT.title} truncate block w-full`} disabled={!canEdit} />)
+        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={(getValue() as string) ?? ""} nullable onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val)} className={FONT.title} disabled={!canEdit} />)
     },
     {
         accessorKey: "tituloNube", header: "Título Nube", size: 220, meta: { editable: true },
-        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={(getValue() as string) ?? ""} nullable onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val)} className={`${FONT.title} truncate block w-full`} disabled={!canEdit} />)
+        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={(getValue() as string) ?? ""} nullable onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val)} className={FONT.title} disabled={!canEdit} />)
     },
     {
         accessorKey: "esCombo", header: "Combo", meta: { editable: true },
@@ -539,7 +539,7 @@ export function getColumns(onEditarProducto: (producto: ProductoDTO) => void, ca
         cell: ({ getValue }) => {
             const vals = getValue() as string[] | null;
             const text = vals?.length ? vals.join(", ") : null;
-            return text ? <span className="text-xs text-gray-600 dark:text-slate-300 truncate block w-full" title={text}>{text}</span> : <span className="text-gray-400 dark:text-slate-500">{EMPTY}</span>;
+            return text ? <span className="text-xs text-gray-600 dark:text-slate-300 whitespace-nowrap" title={text}>{text}</span> : <span className="text-gray-400 dark:text-slate-500">{EMPTY}</span>;
         }
     },
     {
@@ -547,7 +547,7 @@ export function getColumns(onEditarProducto: (producto: ProductoDTO) => void, ca
         cell: ({ getValue }) => {
             const vals = getValue() as string[] | null;
             const text = vals?.length ? vals.join(", ") : null;
-            return text ? <span className="text-xs text-gray-600 dark:text-slate-300 truncate block w-full" title={text}>{text}</span> : <span className="text-gray-400 dark:text-slate-500">{EMPTY}</span>;
+            return text ? <span className="text-xs text-gray-600 dark:text-slate-300 whitespace-nowrap" title={text}>{text}</span> : <span className="text-gray-400 dark:text-slate-500">{EMPTY}</span>;
         }
     },
 

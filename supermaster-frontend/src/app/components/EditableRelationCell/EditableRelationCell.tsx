@@ -271,7 +271,7 @@ export const EditableRelationCell = ({
             onClick={() => { if (!disabled) setEditingId(myId); }}
             data-editable-cell={disabled ? undefined : "display"}
             data-editable-cell-id={myId}
-            className={`relative px-2 py-1 rounded border min-h-[24px] flex items-center justify-center text-sm truncate transition-colors ${
+            className={`relative px-2 py-1 rounded border min-h-[24px] flex items-center justify-center text-sm whitespace-nowrap transition-colors ${
                 saveState === "success"
                     ? "border-emerald-400 bg-emerald-100 ring-2 ring-emerald-400 dark:border-emerald-400 dark:bg-emerald-500/20 dark:ring-emerald-400"
                     : "border-transparent"

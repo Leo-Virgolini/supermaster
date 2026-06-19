@@ -310,7 +310,7 @@ const EditableCell = ({
             data-editable-cell={disabled ? undefined : "display"}
             data-editable-cell-id={myId}
             title={typeof value === "string" ? value : undefined}
-            className={`relative px-2 py-1 rounded text-sm text-center truncate transition-colors ${
+            className={`relative px-2 py-1 rounded text-sm text-center whitespace-nowrap transition-colors ${
                 disabled ? "cursor-default" : "cursor-text hover:bg-gray-100 dark:hover:bg-slate-700"
             } ${
                 saveState === "success"

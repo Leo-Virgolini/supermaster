@@ -462,7 +462,7 @@ const Table = ({
                     arrastrar el resize — por eso el redimensionado "no funcionaba" en tablas
                     anchas con muchas columnas y contenido nowrap (Productos, ~40 col), mientras
                     que en tablas chicas (MLAs, ~11 col) el ancho asignado igual se respetaba. */}
-                <table className="min-w-full table-fixed text-[13px]" style={{ width: table.getCenterTotalSize() }}>
+                <table className="min-w-full text-[13px]" style={{ width: table.getCenterTotalSize() }}>
                     <thead className="text-gray-600 dark:text-slate-300 text-center font-semibold sticky top-0 z-10 uppercase text-[11px] tracking-wider">
                         {table.getHeaderGroups().map((headerGroup) => (
                             <tr key={headerGroup.id} className="border-b border-gray-200 dark:border-slate-700">

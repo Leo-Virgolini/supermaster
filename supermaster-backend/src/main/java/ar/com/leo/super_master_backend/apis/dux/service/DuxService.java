@@ -67,6 +67,7 @@ public class DuxService {
     private final ProveedorRepository proveedorRepository;
     private final RecalculoPrecioFacade recalculoPrecioFacade;
     private final ProcesoGlobalService procesoGlobal;
+    private final DuxItemBuilder duxItemBuilder;
 
     private DuxRetryHandler retryHandler;
     private TokensDux tokens;
@@ -96,7 +97,8 @@ public class DuxService {
     public DuxService(RestClient duxRestClient, DuxProperties properties, ObjectMapper objectMapper,
                       ProductoRepository productoRepository, ProveedorRepository proveedorRepository,
                       RecalculoPrecioFacade recalculoPrecioFacade,
-                      ProcesoGlobalService procesoGlobal) {
+                      ProcesoGlobalService procesoGlobal,
+                      DuxItemBuilder duxItemBuilder) {
         this.restClient = duxRestClient;
         this.properties = properties;
         this.objectMapper = objectMapper;
@@ -104,6 +106,7 @@ public class DuxService {
         this.proveedorRepository = proveedorRepository;
         this.recalculoPrecioFacade = recalculoPrecioFacade;
         this.procesoGlobal = procesoGlobal;
+        this.duxItemBuilder = duxItemBuilder;
     }
 
     @PostConstruct
@@ -1273,58 +1276,15 @@ public class DuxService {
      */
     public ExportDuxResultDTO exportarProductosADux(List<String> skus) {
         log.info("Iniciando exportación de productos a DUX...");
-
         List<String> errores = new ArrayList<>();
-        List<Producto> productos = cargarProductosParaExportacion(skus, errores);
 
-        if (productos.isEmpty()) {
-            log.warn("DUX Export - No hay productos para exportar");
-            return new ExportDuxResultDTO(0, 0, errores);
-        }
-
-        // Mapear productos al formato DUX
-        List<Map<String, Object>> productosJson = new ArrayList<>();
-        for (Producto producto : productos) {
-            try {
-                String tipo = Boolean.TRUE.equals(producto.getEsCombo()) ? "COMBO" : "SIMPLE";
-
-                Map<String, Object> itemDux = new HashMap<>();
-                itemDux.put("cod_item", producto.getSku());
-                itemDux.put("item", producto.getTituloDux() != null ? producto.getTituloDux() : "");
-                itemDux.put("tipo_producto", tipo);
-                itemDux.put("habilitado", Boolean.TRUE.equals(producto.getActivo()) ? "S" : "N");
-                itemDux.put("id_moneda", 1); // 1 = Pesos argentinos (ARS)
-
-                if (producto.getCosto() != null) {
-                    itemDux.put("costo", producto.getCosto().doubleValue());
-                }
-                if (producto.getCodExt() != null) {
-                    itemDux.put("codigo_externo", producto.getCodExt());
-                }
-                if (producto.getIva() != null) {
-                    itemDux.put("porc_iva", producto.getIva().doubleValue());
-                }
-                if (producto.getUxb() != null) {
-                    itemDux.put("ctd_unidades_por_bulto", producto.getUxb());
-                }
-                // Título Nube → descripción larga de Dux.
-                if (producto.getTituloNube() != null && !producto.getTituloNube().isBlank()) {
-                    itemDux.put("descripcion", producto.getTituloNube());
-                }
-
-                productosJson.add(itemDux);
-            } catch (Exception e) {
-                errores.add("SKU " + producto.getSku() + ": Error mapeando - " + e.getMessage());
-                log.warn("Error mapeando producto {} para DUX: {}", producto.getSku(), e.getMessage());
-            }
-        }
+        List<Map<String, Object>> productosJson = self.cargarYArmarItemsDux(skus, errores);
 
         if (productosJson.isEmpty()) {
             log.warn("DUX Export - No hay productos válidos para enviar");
             return new ExportDuxResultDTO(0, 0, errores);
         }
 
-        // Enviar a DUX
         verificarTokens();
 
         String jsonBody;
@@ -1354,8 +1314,22 @@ public class DuxService {
 
         log.info("DUX Export - {} productos enviados, proceso ID: {}, {} errores",
                 productosJson.size(), idProceso, errores.size());
-
         return new ExportDuxResultDTO(productosJson.size(), idProceso, errores);
+    }
+
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public List<Map<String, Object>> cargarYArmarItemsDux(List<String> skus, List<String> errores) {
+        List<Producto> productos = cargarProductosParaExportacion(skus, errores);
+        List<Map<String, Object>> items = new ArrayList<>();
+        for (Producto producto : productos) {
+            try {
+                items.add(duxItemBuilder.construir(producto));
+            } catch (Exception e) {
+                errores.add("SKU " + producto.getSku() + ": Error mapeando - " + e.getMessage());
+                log.warn("Error mapeando producto {} para DUX: {}", producto.getSku(), e.getMessage());
+            }
+        }
+        return items;
     }
 
     private List<Producto> cargarProductosParaExportacion(List<String> skus, List<String> errores) {

@@ -1673,29 +1673,25 @@ public class MercadoLibreService {
             // Precio de alta en ML: costo x 5 (regla de negocio de la Fase C1).
             BigDecimal price = producto.getCosto().multiply(BigDecimal.valueOf(5));
 
-            // Intento con cantidad 0; si ML lo rechaza por stock, reintento con 1 (aviso).
-            String advertencia = null;
+            // Crear con stock 0: deja la publicación pausada (out_of_stock) si la cuenta lo admite.
             String respuesta = poster.apply(om.writeValueAsString(
                     MlItemPayloadBuilder.construir(producto, categoryId, price, 0, pictureIds)));
             String error = extraerErrorMl(om, respuesta);
-            if (error != null && error.toLowerCase().contains("quantity")) {
-                respuesta = poster.apply(om.writeValueAsString(
-                        MlItemPayloadBuilder.construir(producto, categoryId, price, 1, pictureIds)));
-                error = extraerErrorMl(om, respuesta);
-                if (error == null) advertencia = "publicado con stock 1 (la categoría no admite 0)";
-            }
             if (error != null) return ResultadoAltaMl.error(error);
 
-            String itemId = om.readTree(respuesta).path("id").asString("");
+            JsonNode creado = om.readTree(respuesta);
+            String itemId = creado.path("id").asString("");
             if (itemId.isBlank()) return ResultadoAltaMl.error("ML no devolvió id del ítem");
+            String mlau = creado.path("user_product_id").asString("");
 
+            String advertencia = null;
             try {
                 posterDescripcion.apply(itemId, MlDescripcionBuilder.construir(producto));
             } catch (Exception e) {
-                advertencia = (advertencia == null ? "" : advertencia + "; ") + "ítem creado pero falló la descripción";
+                advertencia = "ítem creado pero falló la descripción";
             }
 
-            ResultadoAltaMl r = ResultadoAltaMl.creado(itemId);
+            ResultadoAltaMl r = ResultadoAltaMl.creado(itemId, mlau.isBlank() ? null : mlau);
             return advertencia == null ? r : r.conAdvertencia(advertencia);
         } catch (Exception e) {
             return ResultadoAltaMl.error(e.getMessage());

@@ -8,7 +8,6 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -62,14 +61,15 @@ class CrearItemEnMlTest {
     }
 
     @Test
-    void ok_creadoConItemId() {
+    void ok_creadoConItemIdYMlau() {
         AtomicReference<String> descripcion = new AtomicReference<>();
         ResultadoAltaMl r = MercadoLibreService.crearItemEnMlCore(
                 producto(), om, noExiste, conImagen, subeOk, predice,
-                json -> "{\"id\":\"MLA999\"}",
+                json -> "{\"id\":\"MLA999\",\"user_product_id\":\"MLAU99\"}",
                 (id, txt) -> { descripcion.set(id + "|" + txt); return "{}"; });
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.CREADO);
         assertThat(r.itemId()).isEqualTo("MLA999");
+        assertThat(r.mlau()).isEqualTo("MLAU99");
         assertThat(descripcion.get()).startsWith("MLA999|CARACTERÍSTICAS");
     }
 
@@ -93,20 +93,4 @@ class CrearItemEnMlTest {
         assertThat(r.itemId()).isEqualTo("MLA555");
     }
 
-    @Test
-    void cantidad0Rechazada_reintentaCon1() {
-        AtomicInteger llamadas = new AtomicInteger(0);
-        ResultadoAltaMl r = MercadoLibreService.crearItemEnMlCore(
-                producto(), om, noExiste, conImagen, subeOk, predice,
-                json -> {
-                    if (llamadas.incrementAndGet() == 1) {
-                        return "{\"message\":\"Validation error\",\"cause\":[{\"type\":\"error\",\"message\":\"available_quantity invalid\"}]}";
-                    }
-                    return "{\"id\":\"MLA777\"}";
-                },
-                (id, txt) -> "{}");
-        assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.CREADO);
-        assertThat(r.itemId()).isEqualTo("MLA777");
-        assertThat(r.advertencia()).isNotNull();
-    }
 }

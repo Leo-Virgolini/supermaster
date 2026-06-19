@@ -14,3 +14,5 @@ ALTER TABLE supermaster.clasif_gral
 
 ALTER TABLE supermaster.clasif_gastro
     ADD COLUMN id_dux INT NULL;
+
+ALTER TABLE supermaster.proveedores ADD COLUMN id_dux INT NULL;

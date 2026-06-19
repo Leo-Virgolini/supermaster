@@ -14,6 +14,7 @@ public class ProveedorPatchDTO {
     private JsonNullable<Boolean> entrega = JsonNullable.undefined();
     private JsonNullable<BigDecimal> financiacionPorcentaje = JsonNullable.undefined();
     private JsonNullable<Integer> leadTimeDias = JsonNullable.undefined();
+    private JsonNullable<Integer> idDux = JsonNullable.undefined();
 }
 
 

@@ -35,14 +35,15 @@ class DuxItemBuilderTest {
         p.setMarca(marca);
 
         Proveedor prov = new Proveedor();
-        prov.setId(77);
+        prov.setIdDux(77);
         p.setProveedor(prov);
 
         ClasifGral raiz = new ClasifGral(); raiz.setIdDux(10);
         ClasifGral nivel2 = new ClasifGral(); nivel2.setIdDux(20); nivel2.setPadre(raiz);
         p.setClasifGral(nivel2);
 
-        UnidadMedida um = new UnidadMedida(18);
+        UnidadMedida um = new UnidadMedida();
+        um.setIdDux(18);
         p.setUnidadMedida(um);
         return p;
     }

@@ -15,6 +15,7 @@ import lombok.Setter;
 public class UnidadMedida {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id_unidad_medida", nullable = false)
     private Integer id;
 
@@ -22,6 +23,9 @@ public class UnidadMedida {
     @NotNull
     @Column(name = "codigo", nullable = false, length = 20)
     private String codigo;
+
+    @Column(name = "id_dux")
+    private Integer idDux;
 
     public UnidadMedida(Integer id) {
         this.id = id;

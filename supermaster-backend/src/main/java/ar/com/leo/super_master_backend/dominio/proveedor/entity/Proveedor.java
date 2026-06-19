@@ -47,6 +47,9 @@ public class Proveedor {
     @Column(name = "lead_time_dias")
     private Integer leadTimeDias;
 
+    @Column(name = "id_dux")
+    private Integer idDux;
+
     @OneToMany(mappedBy = "proveedor")
     private Set<Producto> productos = new LinkedHashSet<>();
 

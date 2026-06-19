@@ -29,6 +29,7 @@ public class ProveedorAuditoriaServiceImpl implements ProveedorAuditoriaService 
         snapshot.put("entrega", normalizar(proveedor.getEntrega()));
         snapshot.put("financiacionPorcentaje", decimal(proveedor.getFinanciacionPorcentaje()));
         snapshot.put("leadTimeDias", normalizar(proveedor.getLeadTimeDias()));
+        snapshot.put("idDux", normalizar(proveedor.getIdDux()));
         return snapshot;
     }
 

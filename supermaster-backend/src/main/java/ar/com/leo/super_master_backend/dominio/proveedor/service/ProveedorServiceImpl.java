@@ -94,7 +94,8 @@ public class ProveedorServiceImpl implements ProveedorService {
                 && !presente(patchDto.getPlazoPago())
                 && !presente(patchDto.getEntrega())
                 && !presente(patchDto.getFinanciacionPorcentaje())
-                && !presente(patchDto.getLeadTimeDias())) {
+                && !presente(patchDto.getLeadTimeDias())
+                && !presente(patchDto.getIdDux())) {
             throw new BadRequestException("El body del PATCH no puede estar vacío");
         }
 
@@ -122,6 +123,9 @@ public class ProveedorServiceImpl implements ProveedorService {
         }
         if (presente(patchDto.getLeadTimeDias())) {
             entity.setLeadTimeDias(leerIntegerNoNegativoOpcional(patchDto.getLeadTimeDias(), "leadTimeDias"));
+        }
+        if (presente(patchDto.getIdDux())) {
+            entity.setIdDux(leerIntegerOpcional(patchDto.getIdDux(), "idDux"));
         }
 
         repo.save(entity);

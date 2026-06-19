@@ -35,14 +35,14 @@ public class DuxItemBuilder {
         // Opcionales (se omiten si null/blank)
         if (p.getIva() != null) item.put("porc_iva", p.getIva().doubleValue());
         if (p.getCosto() != null) item.put("costo", p.getCosto().doubleValue());
-        if (p.getProveedor() != null && p.getProveedor().getId() != null) {
-            item.put("id_proveedor", p.getProveedor().getId());
+        if (p.getProveedor() != null && p.getProveedor().getIdDux() != null) {
+            item.put("id_proveedor", p.getProveedor().getIdDux());
         }
         if (p.getMarca() != null && p.getMarca().getCodigoDux() != null && !p.getMarca().getCodigoDux().isBlank()) {
             item.put("codigo_marca", p.getMarca().getCodigoDux());
         }
-        if (p.getUnidadMedida() != null && p.getUnidadMedida().getId() != null) {
-            item.put("id_unidad_medida", p.getUnidadMedida().getId());
+        if (p.getUnidadMedida() != null && p.getUnidadMedida().getIdDux() != null) {
+            item.put("id_unidad_medida", p.getUnidadMedida().getIdDux());
         }
         if (p.getTituloNube() != null && !p.getTituloNube().isBlank()) {
             item.put("descripcion", p.getTituloNube());

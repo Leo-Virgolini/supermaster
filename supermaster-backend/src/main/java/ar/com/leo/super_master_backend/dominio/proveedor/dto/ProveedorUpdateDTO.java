@@ -19,6 +19,7 @@ public record ProveedorUpdateDTO(
         @DecimalMax(value = "100.0", inclusive = true, message = "El porcentaje de financiación debe ser menor o igual a 100")
         BigDecimal financiacionPorcentaje,
         @PositiveOrZero(message = "El lead time debe ser mayor o igual a 0")
-        Integer leadTimeDias
+        Integer leadTimeDias,
+        Integer idDux
 ) {
 }

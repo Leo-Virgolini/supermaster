@@ -317,6 +317,24 @@ export default function ProductosPage() {
         [canEditProductos]
     );
 
+    const apiMapping: Record<string, string> = {
+        "marca": "marcaIds",
+        "rubro": "clasifGralIds",
+        "subrubro": "clasifGastroIds",
+        "tipo": "tipoIds",
+        "proveedor": "proveedorIds",
+        "origen": "origenIds",
+        "material": "materialIds",
+        "mlaId": "mla",
+        "catalogo": "catalogoIds",
+        "apto": "aptoIds",
+        "cliente": "clienteIds",
+        "tag": "tags",
+    };
+
+    // Campos que el backend acepta como valor único (no array)
+    const singleValueFields = ["activo", "esCombo", "tagReposicion", "sku", "codExt", "tituloDux", "mla"];
+
     // Labels para mostrar los filtros activos
     const filterLabels: Record<string, string> = {
         search: "Búsqueda", marcaIds: "Marca", clasifGralIds: "Rubro", clasifGastroIds: "Gastro",
@@ -920,9 +938,34 @@ export default function ProductosPage() {
         setPageIndex(0);
     };
 
+    const handleColumnFilterChange = (columnId: string, value: any, labels?: Record<string, string>) => {
+        const apiParam = apiMapping[columnId] || columnId;
+
+        // Booleanos/enums: extraer valor único del array
+        let finalValue = value;
+        if (singleValueFields.includes(apiParam) && Array.isArray(value)) {
+            finalValue = value.length === 1 ? value[0] : undefined;
+        }
+
+        if (labels) {
+            setFilterValueLabels((prev) => ({ ...prev, [apiParam]: labels }));
+        }
+
+        setFilters((prev: any) => {
+            const newFilters = { ...prev };
+            if (finalValue === undefined || finalValue === null || finalValue === "" || (Array.isArray(finalValue) && finalValue.length === 0)) {
+                delete newFilters[apiParam];
+            } else {
+                newFilters[apiParam] = finalValue;
+            }
+            return newFilters;
+        });
+        setPageIndex(0);
+    };
+
     // Variante usada por el panel de filtros: recibe el apiParam ya resuelto
-    // y el valor con su tipo final — array para multi-selección, valor único
-    // o null para los segmentados.
+    // (no pasa por apiMapping) y el valor con su tipo final — array para
+    // multi-selección, valor único o null para los segmentados.
     const handlePanelFilterChange = (apiParam: string, value: unknown, labels?: Record<string, string>) => {
         if (labels) {
             setFilterValueLabels((prev) => ({ ...prev, [apiParam]: labels }));
@@ -1001,6 +1044,16 @@ export default function ProductosPage() {
                     rowSelection={rowSelection}
                     setRowSelection={setRowSelection}
                     updateData={handleUpdate}
+                    onColumnFilterChange={handleColumnFilterChange}
+                    getActiveFilter={(columnId) => {
+                        const apiParam = apiMapping[columnId] || columnId;
+                        const val = filters[apiParam];
+                        // Booleanos/enums: convertir valor único a array para el ColumnContextMenu
+                        if (singleValueFields.includes(apiParam) && val !== undefined && val !== null && !Array.isArray(val)) {
+                            return [val];
+                        }
+                        return val;
+                    }}
                     filterSlot={hasActiveFilters ? (
                         <>
                             <span className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-slate-500 font-semibold">Filtros:</span>

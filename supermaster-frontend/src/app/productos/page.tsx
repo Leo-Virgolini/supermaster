@@ -185,10 +185,7 @@ export default function ProductosPage() {
     const [rowSelection, setRowSelection] = useState({});
     const [columnVisibilityVersion, setColumnVisibilityVersion] = useState(0);
     const [activeOverrides, setActiveOverrides] = useState<Record<number, boolean>>({});
-    const [filtrosExpanded, setFiltrosExpanded] = useState(() => {
-        if (typeof window === "undefined") return false;
-        return window.localStorage.getItem("productos_filtros_expandido") === "1";
-    });
+    const [filtrosExpanded, setFiltrosExpanded] = useState(false);
     const toggleFiltros = () => {
         setFiltrosExpanded((prev) => {
             const next = !prev;
@@ -1442,7 +1439,7 @@ export default function ProductosPage() {
                             )}
                             <div className={checkboxCardClassName}>
                                 <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirKtHogar} onChange={e => setSubirKtHogar(e.target.checked)} id="subirKtHogar" disabled={!canExportarDux} />
-                                <label htmlFor="subirKtHogar" className="cursor-pointer">KT HOGAR (Nube)</label>
+                                <label htmlFor="subirKtHogar" className="cursor-pointer">Subir a KT HOGAR (Nube)</label>
                                 {subirKtHogar && (
                                     <select className={`${selectBaseClassName} ml-auto w-auto`} value={cuotaHogar} onChange={e => setCuotaHogar(Number(e.target.value))}>
                                         {[{cuotas:-1,descripcion:"Transferencia"},{cuotas:6,descripcion:"6 cuotas"}].map(c => (
@@ -1453,7 +1450,7 @@ export default function ProductosPage() {
                             </div>
                             <div className={checkboxCardClassName}>
                                 <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirKtGastro} onChange={e => setSubirKtGastro(e.target.checked)} id="subirKtGastro" disabled={!canExportarDux} />
-                                <label htmlFor="subirKtGastro" className="cursor-pointer">KT GASTRO (Nube)</label>
+                                <label htmlFor="subirKtGastro" className="cursor-pointer">Subir a KT GASTRO (Nube)</label>
                                 {subirKtGastro && (
                                     <select className={`${selectBaseClassName} ml-auto w-auto`} value={cuotaGastro} onChange={e => setCuotaGastro(Number(e.target.value))}>
                                         {[{cuotas:-1,descripcion:"Transferencia"},{cuotas:6,descripcion:"6 cuotas"}].map(c => (

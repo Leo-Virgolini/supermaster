@@ -1058,6 +1058,45 @@ export default function ProductosPage() {
                     )}
 
                     <fieldset className={sectionClassName}>
+                        <legend className={sectionTitleClassName}><BuildingStorefrontIcon className="h-5 w-5" /> Canales de venta</legend>
+                        <p className={`${sectionDescriptionClassName} mb-4`}>Dónde publicar/subir el producto. Las integraciones de cada canal se irán habilitando.</p>
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                            {canExportarDux && (
+                                <div className={checkboxCardClassName} title={editandoProductoId ? "Al guardar, actualiza el producto en Dux" : "Al crear, sube el producto a Dux"}>
+                                    <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirADux} onChange={e => setSubirADux(e.target.checked)} id="subirADux" />
+                                    <label htmlFor="subirADux" className="cursor-pointer">{editandoProductoId ? "Actualizar en Dux" : "Subir a Dux"}</label>
+                                </div>
+                            )}
+                            <div className={checkboxCardClassName}>
+                                <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirKtHogar} onChange={e => setSubirKtHogar(e.target.checked)} id="subirKtHogar" disabled={!canExportarDux} />
+                                <label htmlFor="subirKtHogar" className="cursor-pointer">Subir a KT HOGAR (Nube)</label>
+                                {subirKtHogar && (
+                                    <select className={`${selectBaseClassName} ml-auto w-auto`} value={cuotaHogar} onChange={e => setCuotaHogar(Number(e.target.value))}>
+                                        {[{cuotas:-1,descripcion:"Transferencia"},{cuotas:6,descripcion:"6 cuotas"}].map(c => (
+                                            <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>
+                                        ))}
+                                    </select>
+                                )}
+                            </div>
+                            <div className={checkboxCardClassName}>
+                                <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirKtGastro} onChange={e => setSubirKtGastro(e.target.checked)} id="subirKtGastro" disabled={!canExportarDux} />
+                                <label htmlFor="subirKtGastro" className="cursor-pointer">Subir a KT GASTRO (Nube)</label>
+                                {subirKtGastro && (
+                                    <select className={`${selectBaseClassName} ml-auto w-auto`} value={cuotaGastro} onChange={e => setCuotaGastro(Number(e.target.value))}>
+                                        {[{cuotas:-1,descripcion:"Transferencia"},{cuotas:6,descripcion:"6 cuotas"}].map(c => (
+                                            <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>
+                                        ))}
+                                    </select>
+                                )}
+                            </div>
+                            <div className={checkboxCardClassName}>
+                                <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirMl} onChange={e => setSubirMl(e.target.checked)} id="subirMl" disabled={!canExportarDux} />
+                                <label htmlFor="subirMl" className="cursor-pointer">Subir a Mercado Libre</label>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset className={sectionClassName}>
                         <legend className={sectionTitleClassName}><IdentificationIcon /> Identificación</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Datos principales para reconocer el producto en la tabla y en web.</p>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -1366,45 +1405,6 @@ export default function ProductosPage() {
                             </label>
                             <div className="md:col-span-2 xl:col-span-4">
                                 <MultiAsyncSelect label="Aptos" loadOptions={(q) => searchAptos(q)} value={aptosSel} onChange={setAptosSel} placeholder="Buscar apto" inputClassName={inputBaseClassName} />
-                            </div>
-                        </div>
-                    </fieldset>
-
-                    <fieldset className={sectionClassName}>
-                        <legend className={sectionTitleClassName}><BuildingStorefrontIcon className="h-5 w-5" /> Canales de venta</legend>
-                        <p className={`${sectionDescriptionClassName} mb-4`}>Dónde publicar/subir el producto. Las integraciones de cada canal se irán habilitando.</p>
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-                            {canExportarDux && (
-                                <div className={checkboxCardClassName} title={editandoProductoId ? "Al guardar, actualiza el producto en Dux" : "Al crear, sube el producto a Dux"}>
-                                    <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirADux} onChange={e => setSubirADux(e.target.checked)} id="subirADux" />
-                                    <label htmlFor="subirADux" className="cursor-pointer">{editandoProductoId ? "Actualizar en Dux" : "Subir a Dux"}</label>
-                                </div>
-                            )}
-                            <div className={checkboxCardClassName}>
-                                <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirKtHogar} onChange={e => setSubirKtHogar(e.target.checked)} id="subirKtHogar" disabled={!canExportarDux} />
-                                <label htmlFor="subirKtHogar" className="cursor-pointer">Subir a KT HOGAR (Nube)</label>
-                                {subirKtHogar && (
-                                    <select className={`${selectBaseClassName} ml-auto w-auto`} value={cuotaHogar} onChange={e => setCuotaHogar(Number(e.target.value))}>
-                                        {[{cuotas:-1,descripcion:"Transferencia"},{cuotas:6,descripcion:"6 cuotas"}].map(c => (
-                                            <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>
-                                        ))}
-                                    </select>
-                                )}
-                            </div>
-                            <div className={checkboxCardClassName}>
-                                <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirKtGastro} onChange={e => setSubirKtGastro(e.target.checked)} id="subirKtGastro" disabled={!canExportarDux} />
-                                <label htmlFor="subirKtGastro" className="cursor-pointer">Subir a KT GASTRO (Nube)</label>
-                                {subirKtGastro && (
-                                    <select className={`${selectBaseClassName} ml-auto w-auto`} value={cuotaGastro} onChange={e => setCuotaGastro(Number(e.target.value))}>
-                                        {[{cuotas:-1,descripcion:"Transferencia"},{cuotas:6,descripcion:"6 cuotas"}].map(c => (
-                                            <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>
-                                        ))}
-                                    </select>
-                                )}
-                            </div>
-                            <div className={checkboxCardClassName}>
-                                <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirMl} onChange={e => setSubirMl(e.target.checked)} id="subirMl" disabled={!canExportarDux} />
-                                <label htmlFor="subirMl" className="cursor-pointer">Subir a Mercado Libre</label>
                             </div>
                         </div>
                     </fieldset>

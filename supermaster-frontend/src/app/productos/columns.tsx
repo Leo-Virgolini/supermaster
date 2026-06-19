@@ -228,12 +228,12 @@ function ImageUrlCell({ currentUrl, sku, onSave, disabled = false }: {
                         <img
                             src={imgSrc}
                             alt=""
-                            className="w-10 h-10 object-contain bg-gray-50 dark:bg-slate-700/50"
+                            className="w-8 h-8 object-contain bg-gray-50 dark:bg-slate-700/50"
                             onError={() => setImgError(true)}
                         />
                     ) : (
-                        <div className="w-10 h-10 flex items-center justify-center bg-gray-50 dark:bg-slate-800 text-gray-400 dark:text-slate-500">
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.41a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5a1.5 1.5 0 001.5-1.5V4.5a1.5 1.5 0 00-1.5-1.5H3.75a1.5 1.5 0 00-1.5 1.5v15a1.5 1.5 0 001.5 1.5z" /></svg>
+                        <div className="w-8 h-8 flex items-center justify-center bg-gray-50 dark:bg-slate-800 text-gray-400 dark:text-slate-500">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.41a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5a1.5 1.5 0 001.5-1.5V4.5a1.5 1.5 0 00-1.5-1.5H3.75a1.5 1.5 0 00-1.5 1.5v15a1.5 1.5 0 001.5 1.5z" /></svg>
                         </div>
                     )}
                 </button>
@@ -281,27 +281,27 @@ export function getColumns(onEditarProducto: (producto: ProductoDTO) => void, ca
     {
         id: "detalle",
         header: "Detalle",
-        size: 92,
+        size: 76,
         enableSorting: false,
         enableColumnFilter: false,
         cell: ({ row }) => (
-            <div className="flex flex-col items-stretch gap-1">
+            <div className="flex items-center justify-center gap-1">
                 <TableActionButton
                     onClick={() => onEditarProducto(row.original)}
                     title="Editar producto"
-                    icon={<PencilSquareIcon className="w-3.5 h-3.5" />}
+                    aria-label="Editar producto"
+                    icon={<PencilSquareIcon className="w-4 h-4" />}
                     tone="primary"
                     disabled={!canEdit}
-                >
-                    Editar
-                </TableActionButton>
+                    className="!px-2"
+                />
                 <Link
                     href={`/producto-canal-precios?q=${encodeURIComponent(row.original.sku)}`}
                     title="Ver precios de este producto en el Monitor"
-                    className={getTableActionButtonClasses("accent")}
+                    aria-label="Ver precios"
+                    className={getTableActionButtonClasses("accent", "!px-2")}
                 >
-                    <ChartBarIcon className="w-3.5 h-3.5" />
-                    Precios
+                    <ChartBarIcon className="w-4 h-4" />
                 </Link>
             </div>
         ),

@@ -431,16 +431,6 @@ export default function ProductosPage() {
         setPageIndex(0);
     };
 
-    const getCurrentColumnVisibility = () => {
-        if (typeof window === "undefined") return {};
-        try {
-            const saved = window.localStorage.getItem("columnVisibility_productos");
-            return saved ? JSON.parse(saved) : {};
-        } catch {
-            return {};
-        }
-    };
-
     useEffect(() => {
         setActiveOverrides({});
     }, [productos]);

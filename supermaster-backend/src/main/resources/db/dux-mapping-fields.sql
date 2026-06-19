@@ -1,4 +1,6 @@
 -- Campos de mapeo a Dux.
+-- IMPORTANTE: ejecutar DESPUES de unidad-medida.sql (el FK de productos.id_unidad_medida
+-- referencia la tabla unidades_medida creada en ese script).
 ALTER TABLE supermaster.productos
     ADD COLUMN id_unidad_medida INT NULL,
     ADD CONSTRAINT fk_productos_unidad_medida

@@ -38,6 +38,7 @@ export default function ProveedoresPage() {
     const [plazoPago, setPlazoPago] = useState("");
     const [financiacionPorcentaje, setFinanciacionPorcentaje] = useState<number | null>(null);
     const [leadTimeDias, setLeadTimeDias] = useState<number | null>(null);
+    const [idDux, setIdDux] = useState<number | null>(null);
     const [entrega, setEntrega] = useState(false);
 
     const { proveedores, totalRecords, isLoading, createProveedor, deleteProveedor, updateProveedor } = useProveedores(pageIndex, pageSize, filters, sorting);
@@ -63,9 +64,10 @@ export default function ProveedoresPage() {
                 plazoPago,
                 financiacionPorcentaje,
                 leadTimeDias,
+                idDux,
                 entrega
             });
-            setProveedorNombre(""); setApodo(""); setPlazoPago(""); setFinanciacionPorcentaje(null); setLeadTimeDias(null); setEntrega(false); setFormTouched(false);
+            setProveedorNombre(""); setApodo(""); setPlazoPago(""); setFinanciacionPorcentaje(null); setLeadTimeDias(null); setIdDux(null); setEntrega(false); setFormTouched(false);
             setIsModalOpen(false);
         } catch (e: unknown) {
             notificar.error("Error: " + getErrorMessage(e));
@@ -177,8 +179,8 @@ export default function ProveedoresPage() {
                 />
             </div>
 
-            <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setFormTouched(false); }} title="Nuevo Proveedor"
-                footer={<><Button variant="light" onClick={() => { setIsModalOpen(false); setFormTouched(false); }}><XMarkIcon className="w-4 h-4" /> Cancelar</Button><Button variant="dark" onClick={handleCreate} disabled={isSaving}><CheckIcon className="w-4 h-4" /> {isSaving ? "Creando Proveedor..." : "Crear Proveedor"}</Button></>}>
+            <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setFormTouched(false); setIdDux(null); }} title="Nuevo Proveedor"
+                footer={<><Button variant="light" onClick={() => { setIsModalOpen(false); setFormTouched(false); setIdDux(null); }}><XMarkIcon className="w-4 h-4" /> Cancelar</Button><Button variant="dark" onClick={handleCreate} disabled={isSaving}><CheckIcon className="w-4 h-4" /> {isSaving ? "Creando Proveedor..." : "Crear Proveedor"}</Button></>}>
 
                 <div className="flex flex-col gap-4">
                     {/* NOMBRE - OBLIGATORIO */}
@@ -209,6 +211,11 @@ export default function ProveedoresPage() {
                         <label className="block">
                             <span className="font-bold text-gray-700">Lead Time (días)</span>
                             <input type="number" min="0" className="w-full border p-2 rounded" value={leadTimeDias ?? ""} onChange={e => setLeadTimeDias(e.target.value === "" ? null : Number(e.target.value))} placeholder="0" />
+                        </label>
+
+                        <label className="block">
+                            <span className="font-bold text-gray-700">ID Dux</span>
+                            <input type="number" min="0" step="1" className="w-full border p-2 rounded" value={idDux ?? ""} onChange={e => setIdDux(e.target.value === "" ? null : Number(e.target.value))} placeholder="ID en sistema Dux" />
                         </label>
 
                         <div className="flex items-center pt-6">

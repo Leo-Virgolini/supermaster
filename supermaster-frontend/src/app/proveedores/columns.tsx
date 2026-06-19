@@ -56,6 +56,25 @@ export const getColumns = (canEdit = true): ColumnDef<ProveedorDTO>[] => [
         ),
     },
     {
+        accessorKey: "idDux",
+        header: "ID Dux",
+        size: 90,
+        meta: { editable: true },
+        cell: ({ getValue, row, column, table }) => (
+            <EditableCell
+                initialValue={getValue() as number ?? ""}
+                type="number"
+                nullable
+                disabled={!canEdit}
+                onSave={(newValue) => {
+                    const parsed = newValue === null || newValue === "" ? null : Number(newValue);
+                    if (parsed !== null && isNaN(parsed)) return;
+                    (table.options.meta as any)?.updateData?.(row.index, column.id, parsed);
+                }}
+            />
+        ),
+    },
+    {
         accessorKey: "entrega",
         header: "Entrega",
         meta: { editable: true },

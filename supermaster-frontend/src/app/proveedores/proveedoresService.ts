@@ -13,6 +13,7 @@ export interface ProveedorDTO {
 	entrega?: boolean | null;
 	financiacionPorcentaje?: number | null;
 	leadTimeDias?: number | null;
+	idDux?: number | null;
 }
 
 // GET

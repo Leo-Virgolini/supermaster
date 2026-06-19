@@ -79,8 +79,11 @@ export default function MarcasPage() {
         const marcaEditar = marcas[rowIndex];
         if (columnId === "padreId") {
             updateMarca(marcaEditar.id, { padreId: value as number | null });
+        } else if (columnId === "codigoDux") {
+            const strVal = typeof value === "string" ? value.trim() : null;
+            updateMarca(marcaEditar.id, { codigoDux: strVal || null });
         } else {
-            updateMarca(marcaEditar.id, { [columnId]: value } as Partial<{ nombre: string; padreId: number | null }>);
+            updateMarca(marcaEditar.id, { [columnId]: value } as Partial<{ nombre: string; padreId: number | null; codigoDux?: string | null }>);
         }
     };
     const handleSearchMarcas = async (inputValue: string) => {

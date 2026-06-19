@@ -78,6 +78,21 @@ export function getColumns(
             enableColumnFilter: false,
         },
         {
+            accessorKey: "codigoDux",
+            header: "Cód. Dux",
+            meta: { editable: true },
+            cell: ({ getValue, row, column, table }) => (
+                <EditableCell
+                    initialValue={(getValue() as string | null | undefined) ?? ""}
+                    disabled={!canEdit}
+                    onSave={(newValue) =>
+                        (table.options.meta as any)?.updateData?.(row.index, column.id, newValue)
+                    }
+                />
+            ),
+            enableColumnFilter: false,
+        },
+        {
             id: "productos",
             header: "Productos",
             size: 100,

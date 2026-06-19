@@ -9,6 +9,7 @@ import org.openapitools.jackson.nullable.JsonNullable;
 public class ClasifGastroPatchDTO {
     private JsonNullable<String> nombre = JsonNullable.undefined();
     private JsonNullable<Boolean> esMaquina = JsonNullable.undefined();
+    private JsonNullable<Integer> idDux = JsonNullable.undefined();
     private JsonNullable<Integer> padreId = JsonNullable.undefined();
 }
 

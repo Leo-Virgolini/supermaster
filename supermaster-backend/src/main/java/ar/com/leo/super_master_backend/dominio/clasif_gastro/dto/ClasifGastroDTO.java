@@ -7,6 +7,7 @@ public record ClasifGastroDTO(
         Integer id,
         String nombre,
         Boolean esMaquina,
+        Integer idDux,
         Integer padreId,
         String nombreCompleto
 ) {

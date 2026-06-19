@@ -36,6 +36,9 @@ public class ClasifGastro {
     @Column(name = "es_maquina")
     private Boolean esMaquina;
 
+    @Column(name = "id_dux")
+    private Integer idDux;
+
     // -------------------------------------
     // RELACIÓN JERÁRQUICA (PADRE - HIJOS)
     // -------------------------------------

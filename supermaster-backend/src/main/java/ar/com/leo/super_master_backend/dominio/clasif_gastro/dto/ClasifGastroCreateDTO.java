@@ -9,6 +9,7 @@ public record ClasifGastroCreateDTO(
         @Size(max = 45, message = "El nombre no puede exceder 45 caracteres")
         String nombre,
         Boolean esMaquina,
+        Integer idDux,
         @Positive(message = "El ID del padre debe ser positivo")
         Integer padreId
 ) {

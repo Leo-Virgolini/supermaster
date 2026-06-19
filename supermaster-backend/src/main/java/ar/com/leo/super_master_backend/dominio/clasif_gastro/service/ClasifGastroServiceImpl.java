@@ -96,6 +96,7 @@ public class ClasifGastroServiceImpl implements ClasifGastroService {
     public ClasifGastroDTO patch(Integer id, ClasifGastroPatchDTO patchDto) {
         if (!presente(patchDto.getNombre())
                 && !presente(patchDto.getEsMaquina())
+                && !presente(patchDto.getIdDux())
                 && !presente(patchDto.getPadreId())) {
             throw new BadRequestException("El body del PATCH no puede estar vacío");
         }
@@ -111,6 +112,9 @@ public class ClasifGastroServiceImpl implements ClasifGastroService {
         }
         if (presente(patchDto.getEsMaquina())) {
             entity.setEsMaquina(leerBooleanOpcional(patchDto.getEsMaquina(), "esMaquina"));
+        }
+        if (presente(patchDto.getIdDux())) {
+            entity.setIdDux(leerIntegerOpcional(patchDto.getIdDux(), "idDux"));
         }
         if (presente(patchDto.getPadreId())) {
             Integer padreId = leerIdOpcional(patchDto.getPadreId(), "padreId");
@@ -164,6 +168,7 @@ public class ClasifGastroServiceImpl implements ClasifGastroService {
         LinkedHashMap<String, String> snapshot = new LinkedHashMap<>();
         snapshot.put("nombre", normalizar(entity.getNombre()));
         snapshot.put("esMaquina", normalizar(entity.getEsMaquina()));
+        snapshot.put("idDux", normalizar(entity.getIdDux()));
         snapshot.put("padreId", entity.getPadre() != null ? normalizar(entity.getPadre().getId()) : null);
         snapshot.put("padre", entity.getPadre() != null ? normalizar(entity.getPadre().getNombre()) : null);
         return snapshot;

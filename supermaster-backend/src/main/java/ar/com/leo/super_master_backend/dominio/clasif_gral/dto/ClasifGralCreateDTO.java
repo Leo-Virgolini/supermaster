@@ -8,6 +8,7 @@ public record ClasifGralCreateDTO(
         @NotBlank(message = "El nombre de la clasificación general es obligatorio")
         @Size(max = 45, message = "El nombre no puede exceder 45 caracteres")
         String nombre,
+        Integer idDux,
         @Positive(message = "El ID del padre debe ser positivo")
         Integer padreId
 ) {}

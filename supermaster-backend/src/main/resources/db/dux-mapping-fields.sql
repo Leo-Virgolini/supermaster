@@ -6,3 +6,9 @@ ALTER TABLE supermaster.productos
 
 ALTER TABLE supermaster.marcas
     ADD COLUMN codigo_dux VARCHAR(45) NULL;
+
+ALTER TABLE supermaster.clasif_gral
+    ADD COLUMN id_dux INT NULL;
+
+ALTER TABLE supermaster.clasif_gastro
+    ADD COLUMN id_dux INT NULL;

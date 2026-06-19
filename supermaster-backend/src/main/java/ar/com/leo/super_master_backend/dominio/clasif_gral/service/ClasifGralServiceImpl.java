@@ -83,7 +83,7 @@ public class ClasifGralServiceImpl implements ClasifGralService {
     @Override
     @Transactional
     public ClasifGralDTO patch(Integer id, ClasifGralPatchDTO patchDto) {
-        if (!presente(patchDto.getNombre()) && !presente(patchDto.getPadreId())) {
+        if (!presente(patchDto.getNombre()) && !presente(patchDto.getIdDux()) && !presente(patchDto.getPadreId())) {
             throw new BadRequestException("El body del PATCH no puede estar vacío");
         }
 
@@ -93,6 +93,9 @@ public class ClasifGralServiceImpl implements ClasifGralService {
 
         if (presente(patchDto.getNombre())) {
             entity.setNombre(leerStringRequerido(patchDto.getNombre(), "nombre", 45));
+        }
+        if (presente(patchDto.getIdDux())) {
+            entity.setIdDux(leerIntegerOpcional(patchDto.getIdDux(), "idDux"));
         }
         if (presente(patchDto.getPadreId())) {
             Integer padreId = leerIdOpcional(patchDto.getPadreId(), "padreId");
@@ -131,6 +134,7 @@ public class ClasifGralServiceImpl implements ClasifGralService {
     private Map<String, String> capturarSnapshot(ClasifGral entity) {
         LinkedHashMap<String, String> snapshot = new LinkedHashMap<>();
         snapshot.put("nombre", normalizar(entity.getNombre()));
+        snapshot.put("idDux", normalizar(entity.getIdDux()));
         snapshot.put("padreId", entity.getPadre() != null ? normalizar(entity.getPadre().getId()) : null);
         snapshot.put("padre", entity.getPadre() != null ? normalizar(entity.getPadre().getNombre()) : null);
         return snapshot;

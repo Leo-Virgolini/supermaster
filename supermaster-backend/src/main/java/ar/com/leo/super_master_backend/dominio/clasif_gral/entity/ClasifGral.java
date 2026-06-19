@@ -33,6 +33,9 @@ public class ClasifGral {
     @Column(name = "nombre", nullable = false, length = 45)
     private String nombre;
 
+    @Column(name = "id_dux")
+    private Integer idDux;
+
     // -------------------------------------
     // RELACIÓN JERÁRQUICA (PADRE - HIJOS)
     // -------------------------------------

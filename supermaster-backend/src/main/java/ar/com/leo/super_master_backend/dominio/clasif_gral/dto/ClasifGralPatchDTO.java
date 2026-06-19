@@ -8,6 +8,7 @@ import org.openapitools.jackson.nullable.JsonNullable;
 @JsonIgnoreProperties(ignoreUnknown = false)
 public class ClasifGralPatchDTO {
     private JsonNullable<String> nombre = JsonNullable.undefined();
+    private JsonNullable<Integer> idDux = JsonNullable.undefined();
     private JsonNullable<Integer> padreId = JsonNullable.undefined();
 }
 

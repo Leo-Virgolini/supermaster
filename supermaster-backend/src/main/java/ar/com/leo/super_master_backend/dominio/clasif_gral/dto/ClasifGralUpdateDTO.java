@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Size;
 public record ClasifGralUpdateDTO(
         @Size(max = 45, message = "El nombre no puede exceder 45 caracteres")
         String nombre,
+        Integer idDux,
         @Positive(message = "El ID del padre debe ser positivo")
         Integer padreId
 ) {}

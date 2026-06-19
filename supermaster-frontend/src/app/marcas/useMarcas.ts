@@ -61,9 +61,9 @@ export function useMarcas(
 
 	const pageCount = totalRecords > 0 ? Math.ceil(totalRecords / pageSize) : 1;
 
-	const createMarca = async (nombre: string, padreId: number | null) => {
+	const createMarca = async (nombre: string, padreId: number | null, codigoDux: string | null = null) => {
 		try {
-			const result = await createMarcaAPI(nombre, padreId, "FORM"); // Llama al Service
+			const result = await createMarcaAPI(nombre, padreId, codigoDux, "FORM"); // Llama al Service
 			await getMarcas(); // Refresca la tabla solo
 			notificar.success(`[Marcas] Registro #${result.id} creado`);
 			return true;
@@ -88,7 +88,7 @@ export function useMarcas(
 	};
 	const updateMarca = async (
 		id: number,
-		data: Partial<Pick<MarcaDTO, "nombre" | "padreId">>,
+		data: Partial<Pick<MarcaDTO, "nombre" | "padreId" | "codigoDux">>,
 	) => {
 		try {
 			// El PATCH devuelve el objeto actualizado. Reemplazamos solo esa fila

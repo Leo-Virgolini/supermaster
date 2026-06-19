@@ -40,12 +40,13 @@ export const searchMarcasAPI = async (query: string) => {
 export const createMarcaAPI = async (
 	nombre: string,
 	padreId: number | null,
+	codigoDux: string | null,
 	origin: MarcaAuditOrigin = "API",
 ) => {
 	const response = await fetchAPI(API_URL, {
 		method: "POST",
 		headers: withAuditOrigin(origin, { "Content-Type": "application/json" }),
-		body: JSON.stringify({ nombre, padreId }),
+		body: JSON.stringify({ nombre, padreId, codigoDux }),
 	});
 
 	if (!response.ok) throw new Error("Error al crear la marca");
@@ -66,7 +67,7 @@ export const deleteMarcaAPI = async (id: number, origin: MarcaAuditOrigin = "API
 // UPDATE: Editar una marca existente
 export const updateMarcaAPI = async (
 	id: number,
-	data: { nombre?: string; padreId?: number | null },
+	data: { nombre?: string; padreId?: number | null; codigoDux?: string | null },
 	origin: MarcaAuditOrigin = "API",
 ) => {
 	const response = await fetchAPI(`${API_URL}/${id}`, {

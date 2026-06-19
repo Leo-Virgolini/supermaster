@@ -27,6 +27,7 @@ export default function MarcasPage() {
     const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [nuevoNombre, setNuevoNombre] = useState("");
+    const [nuevoCodigoDux, setNuevoCodigoDux] = useState("");
     const [isSaving, setIsSaving] = useState(false);
     const [formTouched, setFormTouched] = useState(false);
 
@@ -52,10 +53,11 @@ export default function MarcasPage() {
         setIsSaving(true);
         try {
             const idPadreFinal = nuevoPadreId ? Number(nuevoPadreId) : null;
-            await createMarca(nuevoNombre, idPadreFinal);
+            await createMarca(nuevoNombre, idPadreFinal, nuevoCodigoDux.trim() || null);
             setIsModalOpen(false);
             setNuevoNombre("");
             setNuevoPadreId("");
+            setNuevoCodigoDux("");
             setFormTouched(false);
         } catch (e) { /* hook already toasts */
         } finally {
@@ -189,11 +191,11 @@ export default function MarcasPage() {
 
             <Modal
                 isOpen={isModalOpen}
-                onClose={() => { setIsModalOpen(false); setFormTouched(false); }}
+                onClose={() => { setIsModalOpen(false); setFormTouched(false); setNuevoCodigoDux(""); }}
                 title="Nueva Marca"
                 footer={
                     <>
-                        <Button variant="light" onClick={() => { setIsModalOpen(false); setFormTouched(false); }}>
+                        <Button variant="light" onClick={() => { setIsModalOpen(false); setFormTouched(false); setNuevoCodigoDux(""); }}>
                             <XMarkIcon className="w-4 h-4" /> Cancelar
                         </Button>
                         <Button
@@ -218,6 +220,17 @@ export default function MarcasPage() {
                             autoFocus
                         />
                         {formTouched && !nuevoNombre.trim() && <span className="text-xs text-red-500 mt-1">Campo obligatorio</span>}
+                    </label>
+
+                    <label className="block">
+                        <span className="text-gray-700 text-sm font-bold">Código Dux (opcional)</span>
+                        <input
+                            type="text"
+                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 p-2 border"
+                            placeholder="Ej: MARCA-001"
+                            value={nuevoCodigoDux}
+                            onChange={(e) => setNuevoCodigoDux(e.target.value)}
+                        />
                     </label>
 
                     {/* 2. EL COMPONENTE NUEVO (AGREGALO ACÁ ABAJO) 👇 */}

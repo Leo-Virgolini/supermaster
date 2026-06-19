@@ -32,6 +32,10 @@ public class Marca {
     @Column(name = "nombre", nullable = false, length = 45)
     private String nombre;
 
+    @Size(max = 45)
+    @Column(name = "codigo_dux", length = 45)
+    private String codigoDux;
+
     // -------------------------------------
     // RELACIÓN JERÁRQUICA PADRE → HIJOS
     // -------------------------------------

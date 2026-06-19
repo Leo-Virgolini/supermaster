@@ -8,6 +8,7 @@ import org.openapitools.jackson.nullable.JsonNullable;
 @JsonIgnoreProperties(ignoreUnknown = false)
 public class MarcaPatchDTO {
     private JsonNullable<String> nombre = JsonNullable.undefined();
+    private JsonNullable<String> codigoDux = JsonNullable.undefined();
     private JsonNullable<Integer> padreId = JsonNullable.undefined();
 }
 

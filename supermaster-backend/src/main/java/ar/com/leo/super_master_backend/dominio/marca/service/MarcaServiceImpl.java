@@ -83,7 +83,7 @@ public class MarcaServiceImpl implements MarcaService {
     @Override
     @Transactional
     public MarcaDTO patch(Integer id, MarcaPatchDTO patchDto) {
-        if (!presente(patchDto.getNombre()) && !presente(patchDto.getPadreId())) {
+        if (!presente(patchDto.getNombre()) && !presente(patchDto.getCodigoDux()) && !presente(patchDto.getPadreId())) {
             throw new BadRequestException("El body del PATCH no puede estar vacío");
         }
 
@@ -94,6 +94,9 @@ public class MarcaServiceImpl implements MarcaService {
 
         if (presente(patchDto.getNombre())) {
             entity.setNombre(leerStringRequerido(patchDto.getNombre(), "nombre", 45));
+        }
+        if (presente(patchDto.getCodigoDux())) {
+            entity.setCodigoDux(leerStringOpcional(patchDto.getCodigoDux(), "codigoDux", 45));
         }
         if (presente(patchDto.getPadreId())) {
             Integer padreId = leerIdOpcional(patchDto.getPadreId(), "padreId");
@@ -132,6 +135,7 @@ public class MarcaServiceImpl implements MarcaService {
     private Map<String, String> capturarSnapshot(Marca entity) {
         LinkedHashMap<String, String> snapshot = new LinkedHashMap<>();
         snapshot.put("nombre", normalizar(entity.getNombre()));
+        snapshot.put("codigoDux", normalizar(entity.getCodigoDux()));
         snapshot.put("padreId", entity.getPadre() != null ? normalizar(entity.getPadre().getId()) : null);
         snapshot.put("padre", entity.getPadre() != null ? normalizar(entity.getPadre().getNombre()) : null);
         return snapshot;

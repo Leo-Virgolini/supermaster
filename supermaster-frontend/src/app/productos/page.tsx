@@ -3,7 +3,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { notificar } from "../utils/notificar";
-import { BookmarkIcon, BuildingStorefrontIcon, CheckIcon, CloudArrowDownIcon, CubeIcon, XMarkIcon, IdentificationIcon, CurrencyDollarIcon, ArchiveBoxIcon, ReceiptPercentIcon, Squares2X2Icon, UserGroupIcon, ShoppingBagIcon, BanknotesIcon } from "@heroicons/react/24/outline";
+import { BuildingStorefrontIcon, CheckIcon, CloudArrowDownIcon, CubeIcon, XMarkIcon, IdentificationIcon, CurrencyDollarIcon, ArchiveBoxIcon, ReceiptPercentIcon, Squares2X2Icon, UserGroupIcon, ShoppingBagIcon, BanknotesIcon } from "@heroicons/react/24/outline";
 import { API_BASE_URL } from "../config/runtime";
 import { confirmDialog } from "../utils/confirmDialog";
 import Table, { getInitialPageSize } from "../components/Table/core/Table";
@@ -35,16 +35,6 @@ import { getColumns } from "./columns";
 import { ProductoCreateDTO, ProductoDTO, ProductoPatchDTO } from "./types";
 import { type SortingState } from "@tanstack/react-table";
 
-
-const PRODUCTOS_VIEWS_STORAGE_KEY = "productos_saved_views_v1";
-type ProductosView = {
-    id: string;
-    name: string;
-    filters: Record<string, unknown>;
-    sorting: SortingState;
-    columnVisibility: Record<string, boolean>;
-    createdAt: string;
-};
 
 function reportarExportToast(plataforma: string, r: { creados: number; yaExistian: string[]; errores: string[]; advertencias?: string[] }) {
     const partes: string[] = [];
@@ -174,23 +164,6 @@ function ImagePickerModal({ onSelect, onClose }: { onSelect: (name: string) => v
     );
 }
 
-function readProductosViews(): ProductosView[] {
-    if (typeof window === "undefined") return [];
-    try {
-        const saved = window.localStorage.getItem(PRODUCTOS_VIEWS_STORAGE_KEY);
-        if (!saved) return [];
-        const parsed = JSON.parse(saved);
-        return Array.isArray(parsed) ? parsed : [];
-    } catch {
-        return [];
-    }
-}
-
-function writeProductosViews(views: ProductosView[]) {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(PRODUCTOS_VIEWS_STORAGE_KEY, JSON.stringify(views));
-}
-
 export default function ProductosPage() {
     const { hasPermiso } = useAuth();
     const canEditProductos = hasPermiso("PRODUCTOS_EDITAR");
@@ -210,10 +183,6 @@ export default function ProductosPage() {
     });
     const [sorting, setSorting] = useState<SortingState>([{ id: "id", desc: true }]);
     const [rowSelection, setRowSelection] = useState({});
-    const [savedViews, setSavedViews] = useState<ProductosView[]>(() => readProductosViews());
-    const [selectedViewId, setSelectedViewId] = useState("");
-    const [viewName, setViewName] = useState("");
-    const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [columnVisibilityVersion, setColumnVisibilityVersion] = useState(0);
     const [activeOverrides, setActiveOverrides] = useState<Record<number, boolean>>({});
     const [filtrosExpanded, setFiltrosExpanded] = useState(() => {
@@ -470,66 +439,6 @@ export default function ProductosPage() {
         } catch {
             return {};
         }
-    };
-
-    const openSaveView = () => {
-        setViewName("");
-        setIsViewModalOpen(true);
-    };
-
-    const closeSaveView = () => {
-        setIsViewModalOpen(false);
-        setViewName("");
-    };
-
-    const handleSaveView = () => {
-        const trimmed = viewName.trim();
-        if (!trimmed) {
-            toast.error("Poné un nombre para la vista");
-            return;
-        }
-
-        const nextView: ProductosView = {
-            id: `${Date.now()}`,
-            name: trimmed,
-            filters,
-            sorting,
-            columnVisibility: getCurrentColumnVisibility(),
-            createdAt: new Date().toISOString(),
-        };
-
-        const nextViews = [nextView, ...savedViews.filter((view) => view.name.toLowerCase() !== trimmed.toLowerCase())];
-        setSavedViews(nextViews);
-        writeProductosViews(nextViews);
-        setSelectedViewId(nextView.id);
-        closeSaveView();
-        notificar.success(`Vista "${trimmed}" guardada`);
-    };
-
-    const handleApplyView = (viewId: string) => {
-        const view = savedViews.find((item) => item.id === viewId);
-        if (!view) return;
-        setFilters(view.filters);
-        setSorting(view.sorting);
-        setPageIndex(0);
-        if (typeof window !== "undefined") {
-            window.localStorage.setItem("columnVisibility_productos", JSON.stringify(view.columnVisibility || {}));
-        }
-        setColumnVisibilityVersion((prev) => prev + 1);
-        setSelectedViewId(view.id);
-        notificar.success(`Vista "${view.name}" aplicada`);
-    };
-
-    const handleDeleteView = async () => {
-        if (!selectedViewId) return;
-        const view = savedViews.find((item) => item.id === selectedViewId);
-        if (!view) return;
-        if (!(await confirmDialog({ title: "Eliminar vista", message: `¿Eliminar la vista "${view.name}"?`, confirmText: "Eliminar", variant: "danger" }))) return;
-        const nextViews = savedViews.filter((item) => item.id !== selectedViewId);
-        setSavedViews(nextViews);
-        writeProductosViews(nextViews);
-        setSelectedViewId("");
-        notificar.success("Vista eliminada");
     };
 
     useEffect(() => {
@@ -1102,37 +1011,10 @@ export default function ProductosPage() {
     return (
         <main className="min-h-0 flex flex-col bg-gray-50 p-4 overflow-hidden">
             <div className="flex justify-between items-center mb-4 shrink-0">
-                <div className="flex min-w-0 flex-wrap items-center gap-3">
-                    <h1 className="inline-flex items-center gap-2 leading-none text-3xl font-bold text-gray-800">
-                        <CubeIcon className="w-8 h-8 text-gray-600" />
-                        Productos
-                    </h1>
-                    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-                        <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                            <BookmarkIcon className="h-4 w-4 text-slate-400" />
-                            Vistas
-                        </div>
-                        <select
-                            value={selectedViewId}
-                            onChange={(e) => setSelectedViewId(e.target.value)}
-                            className="min-w-[220px] rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-                        >
-                            <option value="">Seleccionar vista guardada...</option>
-                            {savedViews.map((view) => (
-                                <option key={view.id} value={view.id}>{view.name}</option>
-                            ))}
-                        </select>
-                        <Button variant="outline" onClick={() => { if (selectedViewId) handleApplyView(selectedViewId); }} disabled={!selectedViewId}>
-                            Aplicar
-                        </Button>
-                        <Button variant="light" onClick={openSaveView}>
-                            Guardar
-                        </Button>
-                        <Button variant="danger" onClick={handleDeleteView} disabled={!selectedViewId}>
-                            Borrar
-                        </Button>
-                    </div>
-                </div>
+                <h1 className="inline-flex items-center gap-2 leading-none text-3xl font-bold text-gray-800">
+                    <CubeIcon className="w-8 h-8 text-gray-600" />
+                    Productos
+                </h1>
                 <div className="flex gap-2 items-center">
                     {canEditProductos && hasSelection && (
                         <DeleteButton onClick={handleDelete}>
@@ -1616,35 +1498,6 @@ export default function ProductosPage() {
                 />
             )}
 
-            <Modal
-                isOpen={isViewModalOpen}
-                onClose={closeSaveView}
-                title="Guardar vista de Productos"
-                size="md"
-                footer={
-                    <>
-                        <Button variant="light" onClick={closeSaveView}><XMarkIcon className="w-4 h-4" /> Cancelar</Button>
-                        <Button variant="dark" onClick={handleSaveView}><CheckIcon className="w-4 h-4" /> Guardar vista</Button>
-                    </>
-                }
-            >
-                <div className="grid gap-4">
-                    <label className="block">
-                        <span className="text-sm font-bold text-gray-700 dark:text-slate-200">Nombre de la vista</span>
-                        <input
-                            type="text"
-                            value={viewName}
-                            onChange={(e) => setViewName(e.target.value)}
-                            placeholder="Ej: Catálogo activo por marca"
-                            className="mt-1 block w-full rounded-md border border-gray-300 p-2 shadow-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-                            autoFocus
-                        />
-                    </label>
-                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
-                        Se guardan los filtros actuales, el orden activo y las columnas visibles de la tabla.
-                    </div>
-                </div>
-            </Modal>
         </main>
     );
 }

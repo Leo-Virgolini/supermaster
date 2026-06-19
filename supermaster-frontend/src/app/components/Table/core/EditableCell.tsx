@@ -309,6 +309,7 @@ const EditableCell = ({
             onClick={openEditing}
             data-editable-cell={disabled ? undefined : "display"}
             data-editable-cell-id={myId}
+            title={typeof value === "string" ? value : undefined}
             className={`relative px-2 py-1 rounded text-sm text-center transition-colors ${
                 disabled ? "cursor-default" : "cursor-text hover:bg-gray-100 dark:hover:bg-slate-700"
             } ${

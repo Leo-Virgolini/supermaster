@@ -538,14 +538,16 @@ export function getColumns(onEditarProducto: (producto: ProductoDTO) => void, ca
         id: "apto", accessorKey: "aptos", header: "Apto", size: 100,
         cell: ({ getValue }) => {
             const vals = getValue() as string[] | null;
-            return vals?.length ? <span className="text-xs text-gray-600 dark:text-slate-300">{vals.join(", ")}</span> : <span className="text-gray-400 dark:text-slate-500">{EMPTY}</span>;
+            const text = vals?.length ? vals.join(", ") : null;
+            return text ? <span className="text-xs text-gray-600 dark:text-slate-300 truncate block w-full" title={text}>{text}</span> : <span className="text-gray-400 dark:text-slate-500">{EMPTY}</span>;
         }
     },
     {
         id: "cliente", accessorKey: "clientes", header: "Cliente", size: 120,
         cell: ({ getValue }) => {
             const vals = getValue() as string[] | null;
-            return vals?.length ? <span className="text-xs text-gray-600 dark:text-slate-300">{vals.join(", ")}</span> : <span className="text-gray-400 dark:text-slate-500">{EMPTY}</span>;
+            const text = vals?.length ? vals.join(", ") : null;
+            return text ? <span className="text-xs text-gray-600 dark:text-slate-300 truncate block w-full" title={text}>{text}</span> : <span className="text-gray-400 dark:text-slate-500">{EMPTY}</span>;
         }
     },
 

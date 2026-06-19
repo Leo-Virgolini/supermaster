@@ -456,7 +456,13 @@ const Table = ({
 
             {/* Tabla con Scroll Interno */}
             <div ref={scrollContainerRef} className="flex-1 overflow-auto min-h-0 bg-white dark:bg-slate-900">
-                <table className="min-w-full text-[13px]" style={{ width: table.getCenterTotalSize() }}>
+                {/* table-fixed: hace que los anchos de columna (style width=getSize()) sean
+                    AUTORITATIVOS. Con el table-layout:auto por defecto, el navegador dimensiona
+                    cada columna por su contenido (whitespace-nowrap) e ignora el width al
+                    arrastrar el resize — por eso el redimensionado "no funcionaba" en tablas
+                    anchas con muchas columnas y contenido nowrap (Productos, ~40 col), mientras
+                    que en tablas chicas (MLAs, ~11 col) el ancho asignado igual se respetaba. */}
+                <table className="min-w-full table-fixed text-[13px]" style={{ width: table.getCenterTotalSize() }}>
                     <thead className="text-gray-600 dark:text-slate-300 text-center font-semibold sticky top-0 z-10 uppercase text-[11px] tracking-wider">
                         {table.getHeaderGroups().map((headerGroup) => (
                             <tr key={headerGroup.id} className="border-b border-gray-200 dark:border-slate-700">

@@ -30,6 +30,7 @@ public class ProductoPatchDTO {
     private JsonNullable<Integer> proveedorId = JsonNullable.undefined();
     private JsonNullable<Integer> materialId = JsonNullable.undefined();
     private JsonNullable<Integer> mlaId = JsonNullable.undefined();
+    private JsonNullable<Integer> unidadMedidaId = JsonNullable.undefined();
     private JsonNullable<String> capacidad = JsonNullable.undefined();
     private JsonNullable<String> largo = JsonNullable.undefined();
     private JsonNullable<String> ancho = JsonNullable.undefined();

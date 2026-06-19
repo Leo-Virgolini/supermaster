@@ -33,6 +33,7 @@ public record ProductoDTO(
         Integer materialId,
         Integer mlaId,
         String mlaNombre,
+        Integer unidadMedidaId,
 
         // Paths jerárquicos completos "ABUELO > PADRE > HIJO" para mostrar la
         // herencia en la tabla sin un fetch por celda en el frontend.

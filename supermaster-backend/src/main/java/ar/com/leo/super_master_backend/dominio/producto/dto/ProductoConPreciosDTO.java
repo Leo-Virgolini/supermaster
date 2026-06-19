@@ -39,6 +39,7 @@ public record ProductoConPreciosDTO(
         String tipoNombre,
         String proveedorNombre,
         String materialNombre,
+        Integer unidadMedidaId,
 
         // Dimensiones y atributos
         Integer uxb,

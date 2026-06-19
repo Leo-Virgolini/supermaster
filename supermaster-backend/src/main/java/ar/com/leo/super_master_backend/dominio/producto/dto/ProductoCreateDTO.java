@@ -47,6 +47,8 @@ public record ProductoCreateDTO(
         Integer materialId,
         @Positive(message = "El ID de MLA debe ser positivo")
         Integer mlaId,
+        @Positive(message = "El ID de unidad de medida debe ser positivo")
+        Integer unidadMedidaId,
 
         @Size(max = 45, message = "La capacidad no puede exceder 45 caracteres")
         String capacidad,

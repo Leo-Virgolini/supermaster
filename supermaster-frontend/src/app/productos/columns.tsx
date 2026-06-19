@@ -299,7 +299,7 @@ export function getColumns(onEditarProducto: (producto: ProductoDTO) => void, ca
                     href={`/producto-canal-precios?q=${encodeURIComponent(row.original.sku)}`}
                     title="Ver precios de este producto en el Monitor"
                     aria-label="Ver precios"
-                    className={getTableActionButtonClasses("accent", "!px-2")}
+                    className={getTableActionButtonClasses("success", "!px-2")}
                 >
                     <CurrencyDollarIcon className="w-4 h-4" />
                 </Link>

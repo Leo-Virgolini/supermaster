@@ -187,11 +187,7 @@ export default function ProductosPage() {
     const [activeOverrides, setActiveOverrides] = useState<Record<number, boolean>>({});
     const [filtrosExpanded, setFiltrosExpanded] = useState(false);
     const toggleFiltros = () => {
-        setFiltrosExpanded((prev) => {
-            const next = !prev;
-            if (typeof window !== "undefined") window.localStorage.setItem("productos_filtros_expandido", next ? "1" : "0");
-            return next;
-        });
+        setFiltrosExpanded((prev) => !prev);
     };
 
     const [isModalOpen, setIsModalOpen] = useState(false);

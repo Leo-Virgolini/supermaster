@@ -73,6 +73,28 @@ class DuxItemBuilderTest {
     }
 
     @Test
+    void construir_omiteIdsCuandoIdDuxNull() {
+        Producto p = new Producto();
+        p.setSku("8888888");
+        p.setTituloDux("Y");
+        p.setEsCombo(false);
+        p.setActivo(true);
+
+        Proveedor prov = new Proveedor();
+        // idDux NO seteado (null)
+        p.setProveedor(prov);
+
+        UnidadMedida um = new UnidadMedida();
+        // idDux NO seteado (null)
+        p.setUnidadMedida(um);
+
+        Map<String, Object> m = builder().construir(p);
+
+        assertThat(m).doesNotContainKey("id_proveedor");
+        assertThat(m).doesNotContainKey("id_unidad_medida");
+    }
+
+    @Test
     void construir_noIncluyeCamposViejosNiNulos() {
         Producto p = new Producto();
         p.setSku("9999999");

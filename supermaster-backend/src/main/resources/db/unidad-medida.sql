@@ -1,6 +1,15 @@
 -- Catálogo de unidades de medida de Dux. El PK es autoincremental (interno).
 -- id_dux almacena el id real de Dux y debe reemplazarse por los valores reales
 -- antes de exportar a producción. Los ids 1..22 de abajo son PROVISORIOS.
+--
+-- ATENCIÓN: si la tabla `unidades_medida` ya fue creada con la versión anterior
+-- de este script (donde el PK era igual al id de Dux y NO existía la columna
+-- `id_dux`), el CREATE TABLE IF NOT EXISTS de abajo es un NO-OP y la nueva
+-- estructura (PK AUTO_INCREMENT + columna id_dux) NO se aplicará.
+-- En ese caso, antes de volver a ejecutar este script hay que eliminar la tabla:
+--   DROP TABLE IF EXISTS supermaster.unidades_medida;
+-- Es seguro hacerlo porque es un catálogo fijo y todavía no hay FKs de
+-- producción que dependan de sus filas.
 CREATE TABLE IF NOT EXISTS supermaster.unidades_medida (
     id_unidad_medida INT         AUTO_INCREMENT PRIMARY KEY,
     codigo           VARCHAR(20) NOT NULL,

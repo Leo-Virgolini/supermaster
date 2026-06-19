@@ -786,7 +786,7 @@ class RecalculoAutomaticoIntegrationTest {
                 new ProveedorUpdateDTO(
                         TEST_PREFIX + "Proveedor", TEST_PREFIX + "Prov", null, null,
                         new BigDecimal("15"), // aumentar financiación
-                        null
+                        null, null
                 ));
         calculoPrecioService.recalcularYGuardarPrecioCanalTodasCuotas(producto.getId(), canal.getId());
 

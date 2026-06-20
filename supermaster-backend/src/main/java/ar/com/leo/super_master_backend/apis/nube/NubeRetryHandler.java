@@ -291,6 +291,59 @@ public class NubeRetryHandler {
         }
     }
 
+    /**
+     * Ejecuta una petición DELETE con reintentos.
+     */
+    public String delete(String uri, String accessToken) {
+        int normalRetries = 0;
+        int rateLimitRetries = 0;
+
+        while (true) {
+            try {
+                rateLimiter.acquire();
+
+                return restClient.delete()
+                        .uri(uri)
+                        .header("Authentication", "bearer " + accessToken)
+                        .retrieve()
+                        .body(String.class);
+
+            } catch (HttpClientErrorException e) {
+                int status = e.getStatusCode().value();
+
+                if (status == 401) { log.error("NUBE - 401 Unauthorized (DELETE {}) - Token inválido", uri); throw e; }
+
+                if (status == 404) throw e;
+
+                if (status == 429) {
+                    if (rateLimitRetries >= MAX_RETRIES_RATE_LIMIT) throw e;
+                    rateLimitRetries++;
+                    long waitMs = Math.min(parseRetryAfter(e.getResponseHeaders(), baseWaitMs * 2), MAX_WAIT_MS);
+                    log.warn("NUBE - 429 (DELETE {}). Retry en {}s... ({}/{})", uri, waitMs / 1000, rateLimitRetries, MAX_RETRIES_RATE_LIMIT);
+                    notifyRetryListener(String.format("Nube rate limit - reintentando en %ds... (%d/%d)", waitMs / 1000, rateLimitRetries, MAX_RETRIES_RATE_LIMIT));
+                    sleep(waitMs);
+                    continue;
+                }
+
+                throw e;
+
+            } catch (HttpServerErrorException e) {
+                normalRetries++;
+                if (normalRetries >= MAX_RETRIES) throw e;
+                long waitMs = baseWaitMs * (long) Math.pow(2, normalRetries - 1);
+                log.warn("NUBE - 5xx {} (DELETE {}). Retry en {}ms... ({}/{})", e.getStatusCode().value(), uri, waitMs, normalRetries, MAX_RETRIES);
+                sleep(waitMs);
+
+            } catch (ResourceAccessException e) {
+                normalRetries++;
+                if (normalRetries >= MAX_RETRIES) throw e;
+                long waitMs = baseWaitMs * (long) Math.pow(2, normalRetries - 1);
+                log.warn("NUBE - Error conexión (DELETE {}). Retry en {}ms... ({}/{}): {}", uri, waitMs, normalRetries, MAX_RETRIES, e.getMessage());
+                sleep(waitMs);
+            }
+        }
+    }
+
     private long parseRetryAfter(HttpHeaders headers, long defaultMs) {
         if (headers == null) return defaultMs;
 

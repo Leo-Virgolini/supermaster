@@ -962,13 +962,20 @@ public class TiendaNubeService {
             return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error("Tienda Nube no configurada: " + e.getMessage());
         }
         if (store == null) return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error("Tienda '" + storeName + "' no configurada");
-        return actualizarProductoEnNubeCore(
+
+        ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube r = actualizarProductoEnNubeCore(
                 producto, pvp, pvpInflado, objectMapper, store.getStoreId(),
                 categoriaIds,
                 sku -> existente,
                 (uri, body) -> retryHandler.patchJson(uri, store.getAccessToken(), body),
                 (productId, variantId, price, promo) ->
                         actualizarPrecioVariante(storeName, productId, variantId, price, promo));
+
+        if (r.estado() == ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.Estado.ACTUALIZADO && r.productoNubeId() != null && r.productoNubeId() > 0) {
+            String advertencia = sincronizarImagenesNube(store, r.productoNubeId(), producto.getSku());
+            if (advertencia != null) r = r.conAdvertencia(advertencia);
+        }
+        return r;
     }
 
     /** Nombres de la ruta de clasificación (clasif + tipo) para categorizar en Nube. */
@@ -1106,6 +1113,34 @@ public class TiendaNubeService {
             }
         }
         return ok == archivos.size() ? null : (ok + " de " + archivos.size() + " imágenes subidas");
+    }
+
+    /** Reemplaza las imágenes del producto en Nube por las locales actuales (GET lista -> DELETE -> POST). Best-effort. */
+    private String sincronizarImagenesNube(StoreCredentials store, Long productoNubeId, String sku) {
+        // 1) Listar y borrar las imágenes actuales.
+        try {
+            String body = retryHandler.get(
+                    "/" + store.getStoreId() + "/products/" + productoNubeId + "/images", store.getAccessToken());
+            if (body != null) {
+                JsonNode imgs = objectMapper.readTree(body);
+                if (imgs.isArray()) {
+                    for (JsonNode img : imgs) {
+                        long imgId = img.path("id").asLong(0);
+                        if (imgId <= 0) continue;
+                        try {
+                            retryHandler.delete("/" + store.getStoreId() + "/products/" + productoNubeId + "/images/" + imgId,
+                                    store.getAccessToken());
+                        } catch (Exception e) {
+                            log.warn("NUBE - Falló borrar imagen {} del producto {}: {}", imgId, productoNubeId, e.getMessage());
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("NUBE - No se pudieron listar/borrar imágenes del producto {}: {}", productoNubeId, e.getMessage());
+        }
+        // 2) Subir las locales actuales (misma lógica que el alta).
+        return subirImagenesProducto(store, productoNubeId, sku);
     }
 
     private String construirBodyPatchVariantes(List<VariantePriceUpdate> updates) {

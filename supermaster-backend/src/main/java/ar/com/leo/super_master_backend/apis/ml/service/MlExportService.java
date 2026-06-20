@@ -25,7 +25,7 @@ public class MlExportService {
     private final MercadoLibreService mercadoLibreService;
     private final MlaService mlaService;
 
-    // Self-proxy: altaConProductoCargado debe correr en su propia transacción aunque
+    // Self-proxy: procesarConProductoCargado debe correr en su propia transacción aunque
     // se la invoque desde exportar() (this.* no pasa por el proxy de Spring).
     @Lazy
     @Autowired
@@ -85,14 +85,6 @@ public class MlExportService {
         if (mla != null && !mla.isBlank()) {
             return mercadoLibreService.actualizarItemEnMl(p, mla);
         }
-        return mercadoLibreService.crearItemEnMl(p);
-    }
-
-    /** Recarga el producto (managed) y hace el alta; la tx de lectura mantiene el lazy abierto. */
-    @Transactional(readOnly = true)
-    public ResultadoAltaMl altaConProductoCargado(Integer productoId) {
-        Producto p = productoRepository.findById(productoId).orElse(null);
-        if (p == null) return ResultadoAltaMl.error("Producto no encontrado");
         return mercadoLibreService.crearItemEnMl(p);
     }
 

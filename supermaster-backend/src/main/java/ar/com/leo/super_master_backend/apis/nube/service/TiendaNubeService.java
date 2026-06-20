@@ -946,27 +946,7 @@ public class TiendaNubeService {
         }
     }
 
-    /** Actualiza un producto existente en Nube (name/description/precio). Resuelve credenciales y delega al core. */
-    public ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube actualizarProductoEnNube(
-            String storeName, ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto,
-            BigDecimal pvp, BigDecimal pvpInflado) {
-        StoreCredentials store;
-        try {
-            verificarCredenciales();
-            store = getStore(storeName);
-        } catch (Exception e) {
-            return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error("Tienda Nube no configurada: " + e.getMessage());
-        }
-        if (store == null) return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error("Tienda '" + storeName + "' no configurada");
-        return actualizarProductoEnNubeCore(
-                producto, pvp, pvpInflado, objectMapper, store.getStoreId(),
-                sku -> buscarProductoPorSku(sku, storeName),
-                (uri, body) -> retryHandler.patchJson(uri, store.getAccessToken(), body),
-                (productId, variantId, price, promo) ->
-                        actualizarPrecioVariante(storeName, productId, variantId, price, promo));
-    }
-
-    /** Variante que reusa el JSON del producto ya buscado (evita un segundo GET). */
+    /** Actualiza un producto existente en Nube (name/description/precio); reutiliza el JSON ya buscado (evita un segundo GET). */
     public ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube actualizarProductoEnNube(
             String storeName, ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto,
             BigDecimal pvp, BigDecimal pvpInflado, JsonNode existente) {

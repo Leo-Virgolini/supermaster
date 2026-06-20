@@ -396,7 +396,7 @@ const fetchOptions = async (endpoint: string, query: string, labelKey: string = 
 };
 
 export const searchMarcas = (q: string, size?: number) => fetchOptions("marcas", q, "nombre", size);
-export const searchUnidadesMedida = (q: string, size?: number) => fetchOptions("unidades-medida", q, "codigo", size);
+export const searchSectoresDeposito = (q: string, size?: number) => fetchOptions("sectores-deposito", q, "codigo", size);
 export const searchOrigenes = (q: string, size?: number) => fetchOptions("origenes", q, "nombre", size);
 export const searchClasifGral = (q: string, size?: number) => fetchOptions("clasif-gral", q, "nombre", size);
 export const searchClasifGastro = (q: string, size?: number) => fetchOptions("clasif-gastro", q, "nombre", size);

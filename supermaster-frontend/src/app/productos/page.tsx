@@ -22,7 +22,7 @@ import {
     searchCatalogos, searchAptos, searchClientes, searchCanales, addProductoCatalogoAPI, addProductoAptoAPI, addProductoClienteAPI,
     removeProductoCatalogoAPI, removeProductoAptoAPI, removeProductoClienteAPI, updateProductoAPI, getNombreById,
     exportarProductosADuxAPI, calcularEnvioMlaAPI, exportarProductosANubeAPI, exportarProductosAMlAPI,
-    searchUnidadesMedida,
+    searchSectoresDeposito,
 } from "./productosService";
 import { updateProductoMargenAPI } from "./productoMargenService";
 import {
@@ -233,7 +233,7 @@ export default function ProductosPage() {
     const [tipoId, setTipoId] = useState<number | null>(null);
     const [proveedorId, setProveedorId] = useState<number | null>(null);
     const [materialId, setMaterialId] = useState<number | null>(null);
-    const [unidadMedidaId, setUnidadMedidaId] = useState<number | null>(null);
+    const [sectorDepositoId, setSectorDepositoId] = useState<number | null>(null);
     // Nombres a mostrar en los AsyncSelect de relación simple (necesario para
     // precargar el valor en modo edición; el AsyncSelect no resuelve nombre por id).
     const [marcaDisplay, setMarcaDisplay] = useState("");
@@ -243,7 +243,7 @@ export default function ProductosPage() {
     const [tipoDisplay, setTipoDisplay] = useState("");
     const [proveedorDisplay, setProveedorDisplay] = useState("");
     const [materialDisplay, setMaterialDisplay] = useState("");
-    const [unidadMedidaDisplay, setUnidadMedidaDisplay] = useState("");
+    const [sectorDepositoDisplay, setSectorDepositoDisplay] = useState("");
     const [mlaId, setMlaId] = useState<number | null>(null);
     const [mlaDisplay, setMlaDisplay] = useState("");
     // Panel "Nuevo MLA" dentro del alta de producto.
@@ -531,7 +531,7 @@ export default function ProductosPage() {
                 moq: moq !== "" ? moq : null,
                 tagReposicion: tagReposicion || null,
                 tag: tag || null,
-                marcaId, origenId, clasifGralId: clasifGralId!, clasifGastroId, tipoId: tipoId!, proveedorId, materialId, unidadMedidaId, mlaId: mlaIdFinal
+                marcaId, origenId, clasifGralId: clasifGralId!, clasifGastroId, tipoId: tipoId!, proveedorId, materialId, sectorDepositoId, mlaId: mlaIdFinal
             };
             const creado = await createProducto(payload, asociarMargenYRelaciones);
             // Si el producto quedó asociado a un MLA, ahora SÍ se puede calcular su
@@ -604,7 +604,7 @@ export default function ProductosPage() {
         setMarcaId(producto.marcaId ?? null); setOrigenId(producto.origenId ?? null);
         setClasifGralId(producto.clasifGralId ?? null); setClasifGastroId(producto.clasifGastroId ?? null);
         setTipoId(producto.tipoId ?? null); setProveedorId(producto.proveedorId ?? null);
-        setMaterialId(producto.materialId ?? null); setUnidadMedidaId(producto.unidadMedidaId ?? null);
+        setMaterialId(producto.materialId ?? null); setSectorDepositoId(producto.sectorDepositoId ?? null);
         setMlaId(producto.mlaId ?? null);
         // Displays: marca/clasif/tipo traen *NombreCompleto; mla trae mlaNombre.
         setMarcaDisplay(producto.marcaNombreCompleto ?? "");
@@ -613,8 +613,8 @@ export default function ProductosPage() {
         setTipoDisplay(producto.tipoNombreCompleto ?? "");
         setMlaDisplay(producto.mlaNombre ?? "");
         // Origen/material/proveedor no traen nombre en el DTO: se resuelven por id.
-        // unidadMedida tampoco trae nombre: se deja vacío (AsyncSelect lo resuelve).
-        setOrigenDisplay(""); setMaterialDisplay(""); setProveedorDisplay(""); setUnidadMedidaDisplay("");
+        // sectorDeposito tampoco trae nombre: se deja vacío (AsyncSelect lo resuelve).
+        setOrigenDisplay(""); setMaterialDisplay(""); setProveedorDisplay(""); setSectorDepositoDisplay("");
         setMargenMinorista(producto.margenMinorista ?? ""); setMargenMayorista(producto.margenMayorista ?? "");
         setFormErrors({});
         setCatalogosSel([]); setAptosSel([]); setClientesSel([]);
@@ -660,7 +660,7 @@ export default function ProductosPage() {
                 diamboca: diamboca || null, diambase: diambase || null, espesor: espesor || null,
                 costo: costoNum, iva, stock: stock !== "" ? stock : null, moq: moq !== "" ? moq : null,
                 tagReposicion: tagReposicion || null, tag: tag || null,
-                marcaId, origenId, clasifGralId, clasifGastroId, tipoId, proveedorId, materialId, unidadMedidaId, mlaId,
+                marcaId, origenId, clasifGralId, clasifGastroId, tipoId, proveedorId, materialId, sectorDepositoId, mlaId,
             } as ProductoPatchDTO;
             await updateProductoAPI(id, patch, "FORM");
 
@@ -890,9 +890,9 @@ export default function ProductosPage() {
         setCapacidad(""); setLargo(""); setAncho(""); setAlto(""); setDiamboca(""); setDiambase(""); setEspesor("");
         setCosto(""); setIva(21.0);
         setMarcaId(null); setOrigenId(null); setClasifGralId(null); setClasifGastroId(null);
-        setTipoId(null); setProveedorId(null); setMaterialId(null); setUnidadMedidaId(null); setMlaId(null);
+        setTipoId(null); setProveedorId(null); setMaterialId(null); setSectorDepositoId(null); setMlaId(null);
         setMarcaDisplay(""); setOrigenDisplay(""); setClasifGralDisplay(""); setClasifGastroDisplay("");
-        setTipoDisplay(""); setProveedorDisplay(""); setMaterialDisplay(""); setUnidadMedidaDisplay("");
+        setTipoDisplay(""); setProveedorDisplay(""); setMaterialDisplay(""); setSectorDepositoDisplay("");
         setCatalogosOriginal([]); setAptosOriginal([]); setClientesOriginal([]);
         setMoq(""); setStock(0); setTagReposicion(""); setTag("");
         setMlaDisplay(""); setShowNuevoMla(false);
@@ -1352,12 +1352,12 @@ export default function ProductosPage() {
                             </div>
                             <div>
                                 <AsyncSelect
-                                    label="Unidad de medida (Dux)"
-                                    loadOptions={searchUnidadesMedida}
-                                    onChange={(v, label) => { setUnidadMedidaId(v ? Number(v) : null); setUnidadMedidaDisplay(v ? (label ?? "") : ""); }}
-                                    value={unidadMedidaId}
-                                    displayValue={unidadMedidaDisplay}
-                                    placeholder="Buscar unidad (T1, COMBOS, ...)"
+                                    label="Sector de depósito"
+                                    loadOptions={searchSectoresDeposito}
+                                    onChange={(v, label) => { setSectorDepositoId(v ? Number(v) : null); setSectorDepositoDisplay(v ? (label ?? "") : ""); }}
+                                    value={sectorDepositoId}
+                                    displayValue={sectorDepositoDisplay}
+                                    placeholder="Buscar sector (T1, COMBOS, ...)"
                                     inputClassName={inputBaseClassName}
                                 />
                             </div>

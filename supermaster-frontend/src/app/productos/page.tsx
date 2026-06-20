@@ -37,9 +37,10 @@ import { ProductoCreateDTO, ProductoDTO, ProductoPatchDTO } from "./types";
 import { type SortingState } from "@tanstack/react-table";
 
 
-function reportarExportToast(plataforma: string, r: { creados: number; yaExistian: string[]; errores: string[]; advertencias?: string[] }) {
+function reportarExportToast(plataforma: string, r: { creados: number; actualizados?: string[]; yaExistian: string[]; errores: string[]; advertencias?: string[] }) {
     const partes: string[] = [];
     if (r.creados > 0) partes.push(`${r.creados} creado(s)`);
+    if (r.actualizados?.length) partes.push(`${r.actualizados.length} actualizado(s)`);
     if (r.yaExistian.length) partes.push(`${r.yaExistian.length} ya existía(n)`);
     if (r.advertencias?.length) partes.push(`avisos: ${r.advertencias.join("; ")}`);
     if (r.errores.length) partes.push(`${r.errores.length} con error: ${r.errores.join("; ")}`);
@@ -1120,16 +1121,16 @@ export default function ProductosPage() {
                         <p className={`${sectionDescriptionClassName} mb-4`}>Dónde publicar/subir el producto. Las integraciones de cada canal se irán habilitando.</p>
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                             {canExportarDux && (
-                                <div className={checkboxCardClassName} title={editandoProductoId ? "Al guardar, actualiza el producto en Dux" : "Al crear, sube el producto a Dux"}>
+                                <div className={checkboxCardClassName} title="Sube el producto si no está, o lo actualiza si ya existe">
                                     <CubeIcon className="h-5 w-5 shrink-0 text-indigo-500" />
                                     <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirADux} onChange={e => setSubirADux(e.target.checked)} id="subirADux" />
-                                    <label htmlFor="subirADux" className="cursor-pointer">{editandoProductoId ? "Actualizar en Dux" : "Subir a Dux"}</label>
+                                    <label htmlFor="subirADux" className="cursor-pointer">Sincronizar con Dux</label>
                                 </div>
                             )}
                             <div className={checkboxCardClassName}>
                                 <HomeIcon className="h-5 w-5 shrink-0 text-sky-500" />
                                 <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirKtHogar} onChange={e => setSubirKtHogar(e.target.checked)} id="subirKtHogar" disabled={!canExportarDux} />
-                                <label htmlFor="subirKtHogar" className="cursor-pointer">Subir a KT HOGAR (Nube)</label>
+                                <label htmlFor="subirKtHogar" className="cursor-pointer">Sincronizar con KT HOGAR (Nube)</label>
                                 {subirKtHogar && (
                                     <select className={`${selectBaseClassName} ml-auto w-auto`} value={cuotaHogar} onChange={e => setCuotaHogar(Number(e.target.value))}>
                                         {[{cuotas:-1,descripcion:"Transferencia"},{cuotas:6,descripcion:"6 cuotas"}].map(c => (
@@ -1141,7 +1142,7 @@ export default function ProductosPage() {
                             <div className={checkboxCardClassName}>
                                 <FireIcon className="h-5 w-5 shrink-0 text-emerald-500" />
                                 <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirKtGastro} onChange={e => setSubirKtGastro(e.target.checked)} id="subirKtGastro" disabled={!canExportarDux} />
-                                <label htmlFor="subirKtGastro" className="cursor-pointer">Subir a KT GASTRO (Nube)</label>
+                                <label htmlFor="subirKtGastro" className="cursor-pointer">Sincronizar con KT GASTRO (Nube)</label>
                                 {subirKtGastro && (
                                     <select className={`${selectBaseClassName} ml-auto w-auto`} value={cuotaGastro} onChange={e => setCuotaGastro(Number(e.target.value))}>
                                         {[{cuotas:-1,descripcion:"Transferencia"},{cuotas:6,descripcion:"6 cuotas"}].map(c => (
@@ -1153,7 +1154,7 @@ export default function ProductosPage() {
                             <div className={checkboxCardClassName}>
                                 <ShoppingBagIcon className="h-5 w-5 shrink-0 text-yellow-500" />
                                 <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirMl} onChange={e => setSubirMl(e.target.checked)} id="subirMl" disabled={!canExportarDux} />
-                                <label htmlFor="subirMl" className="cursor-pointer">Subir a Mercado Libre</label>
+                                <label htmlFor="subirMl" className="cursor-pointer">Sincronizar con Mercado Libre</label>
                             </div>
                         </div>
                     </fieldset>

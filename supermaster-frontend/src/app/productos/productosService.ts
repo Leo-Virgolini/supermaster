@@ -231,6 +231,7 @@ export const exportarProductosADuxAPI = async (skus: string[]): Promise<ExportDu
 export type DestinoNube = { tienda: "KT HOGAR" | "KT GASTRO"; cuotas: number };
 export type ExportNubeResultDTO = {
 	creados: number;
+	actualizados: string[];
 	yaExistian: string[];
 	errores: string[];
 	advertencias: string[];
@@ -248,6 +249,7 @@ export const exportarProductosANubeAPI = async (skus: string[], tiendas: Destino
 
 export type ExportMlResultDTO = {
 	creados: number;
+	actualizados: string[];
 	yaExistian: string[];
 	errores: string[];
 	advertencias: string[];

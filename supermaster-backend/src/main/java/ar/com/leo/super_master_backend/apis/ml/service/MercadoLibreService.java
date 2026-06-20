@@ -1642,13 +1642,17 @@ public class MercadoLibreService {
      *  - putTitle(mla, title) → PUT del título (solo se llama si sold_quantity == 0).
      *  - putDesc(mla, plainText) → PUT de la descripción.
      *  - updatePrice(mla, price) → actualiza el precio (price = costo × 5).
+     *  - resolverPictureIds(sku) → lista de picture IDs ya subidos (vacía = sin imágenes).
+     *  - putPictures(mla, pictureIds) → PUT del array de imágenes (solo si no vacío).
      */
     public static ResultadoAltaMl actualizarItemEnMlCore(
             ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto, String mla,
             Function<String, Integer> soldQtyFn,
             BiConsumer<String, String> putTitle,
             BiConsumer<String, String> putDesc,
-            ActualizadorPrecioItem updatePrice) {
+            ActualizadorPrecioItem updatePrice,
+            Function<String, List<String>> resolverPictureIds,
+            BiConsumer<String, List<String>> putPictures) {
         try {
             if (producto.getTituloMl() == null || producto.getTituloMl().isBlank())
                 return ResultadoAltaMl.error("Falta Título ML");
@@ -1668,6 +1672,11 @@ public class MercadoLibreService {
             double price = producto.getCosto().multiply(java.math.BigDecimal.valueOf(5)).doubleValue();
             updatePrice.actualizar(mla, price);
 
+            List<String> pictureIds = resolverPictureIds.apply(producto.getSku());
+            if (pictureIds != null && !pictureIds.isEmpty()) {
+                putPictures.accept(mla, pictureIds);
+            }
+
             ResultadoAltaMl r = ResultadoAltaMl.actualizado(mla);
             return advertencia == null ? r : r.conAdvertencia(advertencia);
         } catch (Exception e) {
@@ -1675,7 +1684,7 @@ public class MercadoLibreService {
         }
     }
 
-    /** Actualiza una publicación existente en ML (título si sin ventas, descripción, precio). Delega al core. */
+    /** Actualiza una publicación existente en ML (título si sin ventas, descripción, precio, imágenes). Delega al core. */
     public ResultadoAltaMl actualizarItemEnMl(ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto, String mla) {
         if (!isConfigured()) return ResultadoAltaMl.error("Mercado Libre no configurado");
         verificarTokens();
@@ -1692,7 +1701,23 @@ public class MercadoLibreService {
                             objectMapper.writeValueAsString(Map.of("plain_text", plainText))); }
                     catch (Exception e) { throw new RuntimeException("descripción: " + e.getMessage(), e); }
                 },
-                this::updateItemPrice);
+                this::updateItemPrice,
+                sku -> {
+                    List<String> ids = new ArrayList<>();
+                    for (String filename : imagenService.resolverArchivosPorSku(sku)) {
+                        String picId = subirImagenItem(filename);
+                        if (picId != null && !picId.isBlank()) ids.add(picId);
+                    }
+                    return ids;
+                },
+                (m, pictureIds) -> {
+                    try {
+                        List<Map<String, Object>> pics = new ArrayList<>();
+                        for (String id : pictureIds) pics.add(Map.of("id", id));
+                        retryHandler.putJson("/items/" + m, () -> tokens.accessToken,
+                                objectMapper.writeValueAsString(Map.of("pictures", pics)));
+                    } catch (Exception e) { throw new RuntimeException("imágenes: " + e.getMessage(), e); }
+                });
     }
 
     /** Lee sold_quantity de un item (0 si no se puede determinar). */

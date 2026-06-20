@@ -31,7 +31,9 @@ class ActualizarItemEnMlTest {
                 mla -> 0,                          // sold_quantity = 0
                 (mla, t) -> titulo.set(t),
                 (mla, d) -> desc.set(d),
-                (mla, p) -> { precio[0] = p; return true; });
+                (mla, p) -> { precio[0] = p; return true; },
+                sku -> java.util.List.of(),
+                (mla, pics) -> {});
 
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);
         assertThat(r.itemId()).isEqualTo("MLA111");
@@ -51,7 +53,9 @@ class ActualizarItemEnMlTest {
                 mla -> 7,                          // sold_quantity > 0
                 (mla, t) -> titulo.set(t),
                 (mla, d) -> {},
-                (mla, p) -> { precio[0] = p; return true; });
+                (mla, p) -> { precio[0] = p; return true; },
+                sku -> java.util.List.of(),
+                (mla, pics) -> {});
 
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);
         assertThat(titulo.get()).isNull();          // título NO actualizado
@@ -64,7 +68,38 @@ class ActualizarItemEnMlTest {
         Producto p = producto();
         p.setTituloMl(null);
         ResultadoAltaMl r = MercadoLibreService.actualizarItemEnMlCore(
-                p, "MLA333", mla -> 0, (a, b) -> {}, (a, b) -> {}, (a, b) -> true);
+                p, "MLA333", mla -> 0, (a, b) -> {}, (a, b) -> {}, (a, b) -> true,
+                sku -> java.util.List.of(), (mla, pics) -> {});
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ERROR);
+    }
+
+    @Test
+    void conImagenes_reemplazaPictures() {
+        AtomicReference<java.util.List<String>> picsPuestas = new AtomicReference<>();
+
+        ResultadoAltaMl r = MercadoLibreService.actualizarItemEnMlCore(
+                producto(), "MLA444",
+                mla -> 0,
+                (mla, t) -> {},
+                (mla, d) -> {},
+                (mla, p) -> true,
+                sku -> java.util.List.of("pic1", "pic2"),
+                (mla, pics) -> picsPuestas.set(pics));
+
+        assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);
+        assertThat(picsPuestas.get()).containsExactly("pic1", "pic2");
+    }
+
+    @Test
+    void sinImagenes_noLlamaPutPictures() {
+        AtomicReference<java.util.List<String>> picsPuestas = new AtomicReference<>();
+
+        MercadoLibreService.actualizarItemEnMlCore(
+                producto(), "MLA555",
+                mla -> 0, (mla, t) -> {}, (mla, d) -> {}, (mla, p) -> true,
+                sku -> java.util.List.of(),
+                (mla, pics) -> picsPuestas.set(pics));
+
+        assertThat(picsPuestas.get()).isNull(); // no se llamó putPictures
     }
 }

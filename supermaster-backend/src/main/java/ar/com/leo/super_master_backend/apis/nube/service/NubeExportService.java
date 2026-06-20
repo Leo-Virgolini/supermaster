@@ -2,7 +2,7 @@ package ar.com.leo.super_master_backend.apis.nube.service;
 
 import ar.com.leo.super_master_backend.apis.nube.dto.ExportNubeRequestDTO;
 import ar.com.leo.super_master_backend.dominio.common.dto.ExportCanalResultDTO;
-import ar.com.leo.super_master_backend.dominio.common.dto.ExportResultAcumulador;
+import ar.com.leo.super_master_backend.dominio.common.export.ExportResultAcumulador;
 import ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube;
 import ar.com.leo.super_master_backend.dominio.canal.entity.Canal;
 import ar.com.leo.super_master_backend.dominio.canal.repository.CanalRepository;

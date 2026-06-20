@@ -1,5 +1,6 @@
-package ar.com.leo.super_master_backend.dominio.common.dto;
+package ar.com.leo.super_master_backend.dominio.common.export;
 
+import ar.com.leo.super_master_backend.dominio.common.dto.ExportCanalResultDTO;
 import java.util.ArrayList;
 import java.util.List;
 

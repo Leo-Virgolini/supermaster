@@ -2,7 +2,7 @@ package ar.com.leo.super_master_backend.apis.ml.service;
 
 import ar.com.leo.super_master_backend.apis.ml.dto.MlExportRequestDTO;
 import ar.com.leo.super_master_backend.dominio.common.dto.ExportCanalResultDTO;
-import ar.com.leo.super_master_backend.dominio.common.dto.ExportResultAcumulador;
+import ar.com.leo.super_master_backend.dominio.common.export.ExportResultAcumulador;
 import ar.com.leo.super_master_backend.apis.ml.dto.ResultadoAltaMl;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
 import ar.com.leo.super_master_backend.dominio.producto.mla.service.MlaService;

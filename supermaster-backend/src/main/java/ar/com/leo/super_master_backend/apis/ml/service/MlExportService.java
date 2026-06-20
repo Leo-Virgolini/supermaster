@@ -33,12 +33,13 @@ public class MlExportService {
 
     public MlExportResultDTO exportar(MlExportRequestDTO request) {
         int creados = 0;
+        List<String> actualizados = new ArrayList<>();
         List<String> yaExistian = new ArrayList<>();
         List<String> errores = new ArrayList<>();
         List<String> advertencias = new ArrayList<>();
 
         if (request == null || request.skus() == null) {
-            return new MlExportResultDTO(0, yaExistian, errores, advertencias);
+            return new MlExportResultDTO(0, actualizados, yaExistian, errores, advertencias);
         }
 
         List<Producto> productos = productoRepository.findBySkuIn(
@@ -47,23 +48,44 @@ public class MlExportService {
         for (Producto producto : productos) {
             Integer productoId = producto.getId();
             String etiqueta = producto.getSku();
-            // Alta en una tx de lectura por SKU: mantiene el lazy-loading del producto
-            // (marca/material/aptos) para armar el payload, con open-in-view=false.
-            ResultadoAltaMl r = self.altaConProductoCargado(productoId);
+            ResultadoAltaMl r = self.procesarConProductoCargado(productoId);
             switch (r.estado()) {
                 case CREADO -> {
                     creados++;
                     List<String> avisos = new ArrayList<>();
                     if (r.advertencia() != null) avisos.add(r.advertencia());
-                    // Post-alta best-effort, FUERA de la tx del alta: cada paso en su propia tx.
                     avisos.addAll(postAlta(productoId, r.itemId(), r.mlau()));
                     for (String a : avisos) advertencias.add(etiqueta + ": " + a);
+                }
+                case ACTUALIZADO -> {
+                    actualizados.add(etiqueta);
+                    if (r.advertencia() != null) advertencias.add(etiqueta + ": " + r.advertencia());
                 }
                 case YA_EXISTIA -> yaExistian.add(etiqueta);
                 case ERROR -> errores.add(etiqueta + ": " + r.motivo());
             }
         }
-        return new MlExportResultDTO(creados, yaExistian, errores, advertencias);
+        return new MlExportResultDTO(creados, actualizados, yaExistian, errores, advertencias);
+    }
+
+    /**
+     * Carga el producto (managed, lazy abierto) y decide: si ya existe publicación en ML
+     * (producto.getMla() o búsqueda por SKU) → actualizar; si no → alta.
+     */
+    @Transactional(readOnly = true)
+    public ResultadoAltaMl procesarConProductoCargado(Integer productoId) {
+        Producto p = productoRepository.findById(productoId).orElse(null);
+        if (p == null) return ResultadoAltaMl.error("Producto no encontrado");
+
+        String mla = (p.getMla() != null) ? p.getMla().getMla() : null;
+        if (mla == null) {
+            var encontrado = mercadoLibreService.buscarMlaPorSku(p.getSku());
+            if (encontrado != null) mla = encontrado.mla();
+        }
+        if (mla != null && !mla.isBlank()) {
+            return mercadoLibreService.actualizarItemEnMl(p, mla);
+        }
+        return mercadoLibreService.crearItemEnMl(p);
     }
 
     /** Recarga el producto (managed) y hace el alta; la tx de lectura mantiene el lazy abierto. */

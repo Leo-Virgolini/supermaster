@@ -56,6 +56,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -1625,6 +1626,85 @@ public class MercadoLibreService {
                 }
             }
         });
+    }
+
+    // ==================== ACTUALIZACIÓN DE ITEM EN ML ====================
+
+    /** Actualiza el precio de un item (mla, price)->ok. */
+    @FunctionalInterface
+    public interface ActualizadorPrecioItem {
+        boolean actualizar(String mla, double price);
+    }
+
+    /**
+     * Núcleo testeable de la actualización de un item ML (sin red).
+     *  - soldQtyFn(mla) → unidades vendidas (para decidir si se puede cambiar el título).
+     *  - putTitle(mla, title) → PUT del título (solo se llama si sold_quantity == 0).
+     *  - putDesc(mla, plainText) → PUT de la descripción.
+     *  - updatePrice(mla, price) → actualiza el precio (price = costo × 5).
+     */
+    public static ResultadoAltaMl actualizarItemEnMlCore(
+            ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto, String mla,
+            Function<String, Integer> soldQtyFn,
+            BiConsumer<String, String> putTitle,
+            BiConsumer<String, String> putDesc,
+            ActualizadorPrecioItem updatePrice) {
+        try {
+            if (producto.getTituloMl() == null || producto.getTituloMl().isBlank())
+                return ResultadoAltaMl.error("Falta Título ML");
+            if (producto.getCosto() == null)
+                return ResultadoAltaMl.error("Falta costo");
+
+            String advertencia = null;
+            int soldQty = soldQtyFn.apply(mla);
+            if (soldQty == 0) {
+                putTitle.accept(mla, producto.getTituloMl());
+            } else {
+                advertencia = "título no actualizado (la publicación tuvo ventas)";
+            }
+
+            putDesc.accept(mla, MlDescripcionBuilder.construir(producto));
+
+            double price = producto.getCosto().multiply(java.math.BigDecimal.valueOf(5)).doubleValue();
+            updatePrice.actualizar(mla, price);
+
+            ResultadoAltaMl r = ResultadoAltaMl.actualizado(mla);
+            return advertencia == null ? r : r.conAdvertencia(advertencia);
+        } catch (Exception e) {
+            return ResultadoAltaMl.error(e.getMessage());
+        }
+    }
+
+    /** Actualiza una publicación existente en ML (título si sin ventas, descripción, precio). Delega al core. */
+    public ResultadoAltaMl actualizarItemEnMl(ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto, String mla) {
+        if (!isConfigured()) return ResultadoAltaMl.error("Mercado Libre no configurado");
+        verificarTokens();
+        return actualizarItemEnMlCore(
+                producto, mla,
+                this::leerSoldQuantity,
+                (m, title) -> {
+                    try { retryHandler.putJson("/items/" + m, () -> tokens.accessToken,
+                            objectMapper.writeValueAsString(Map.of("title", title))); }
+                    catch (Exception e) { throw new RuntimeException("título: " + e.getMessage(), e); }
+                },
+                (m, plainText) -> {
+                    try { retryHandler.putJson("/items/" + m + "/description", () -> tokens.accessToken,
+                            objectMapper.writeValueAsString(Map.of("plain_text", plainText))); }
+                    catch (Exception e) { throw new RuntimeException("descripción: " + e.getMessage(), e); }
+                },
+                this::updateItemPrice);
+    }
+
+    /** Lee sold_quantity de un item (0 si no se puede determinar). */
+    private int leerSoldQuantity(String mla) {
+        try {
+            String body = retryHandler.get("/items/" + mla + "?attributes=sold_quantity", () -> tokens.accessToken);
+            if (body == null) return 0;
+            return objectMapper.readTree(body).path("sold_quantity").asInt(0);
+        } catch (Exception e) {
+            log.warn("ML - No se pudo leer sold_quantity de {}: {}", mla, e.getMessage());
+            return 0;
+        }
     }
 
     // ==================== ALTA DE ITEM EN ML ====================

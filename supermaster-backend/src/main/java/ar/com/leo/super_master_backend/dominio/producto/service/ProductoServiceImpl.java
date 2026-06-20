@@ -24,7 +24,7 @@ import ar.com.leo.super_master_backend.dominio.regla_descuento.entity.ReglaDescu
 import ar.com.leo.super_master_backend.dominio.regla_descuento.repository.ReglaDescuentoRepository;
 import ar.com.leo.super_master_backend.dominio.reposicion.entity.TagReposicion;
 import ar.com.leo.super_master_backend.dominio.tipo.entity.Tipo;
-import ar.com.leo.super_master_backend.dominio.unidad_medida.entity.UnidadMedida;
+import ar.com.leo.super_master_backend.dominio.sector_deposito.entity.SectorDeposito;
 import jakarta.persistence.criteria.*;
 import lombok.RequiredArgsConstructor;
 import org.openapitools.jackson.nullable.JsonNullable;
@@ -1103,7 +1103,7 @@ public class ProductoServiceImpl implements ProductoService {
                 && !presente(patchDto.getProveedorId())
                 && !presente(patchDto.getMaterialId())
                 && !presente(patchDto.getMlaId())
-                && !presente(patchDto.getUnidadMedidaId())
+                && !presente(patchDto.getSectorDepositoId())
                 && !presente(patchDto.getCapacidad())
                 && !presente(patchDto.getLargo())
                 && !presente(patchDto.getAncho())
@@ -1209,9 +1209,9 @@ public class ProductoServiceImpl implements ProductoService {
             Integer mlaId = leerIdOpcional(patchDto.getMlaId(), "mlaId");
             entity.setMla(crearReferenciaMla(mlaId));
         }
-        if (presente(patchDto.getUnidadMedidaId())) {
-            Integer unidadMedidaId = leerIdOpcional(patchDto.getUnidadMedidaId(), "unidadMedidaId");
-            entity.setUnidadMedida(unidadMedidaId != null ? new UnidadMedida(unidadMedidaId) : null);
+        if (presente(patchDto.getSectorDepositoId())) {
+            Integer sectorDepositoId = leerIdOpcional(patchDto.getSectorDepositoId(), "sectorDepositoId");
+            entity.setSectorDeposito(sectorDepositoId != null ? new SectorDeposito(sectorDepositoId) : null);
         }
         if (presente(patchDto.getCapacidad())) {
             entity.setCapacidad(leerStringOpcional(patchDto.getCapacidad(), "capacidad", 45));

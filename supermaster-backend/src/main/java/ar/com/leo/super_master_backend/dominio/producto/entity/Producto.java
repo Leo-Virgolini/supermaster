@@ -9,7 +9,7 @@ import ar.com.leo.super_master_backend.dominio.producto.mla.entity.Mla;
 import ar.com.leo.super_master_backend.dominio.proveedor.entity.Proveedor;
 import ar.com.leo.super_master_backend.dominio.reposicion.entity.TagReposicion;
 import ar.com.leo.super_master_backend.dominio.tipo.entity.Tipo;
-import ar.com.leo.super_master_backend.dominio.unidad_medida.entity.UnidadMedida;
+import ar.com.leo.super_master_backend.dominio.sector_deposito.entity.SectorDeposito;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -112,8 +112,8 @@ public class Producto {
     private Material material;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_unidad_medida")
-    private UnidadMedida unidadMedida;
+    @JoinColumn(name = "id_sector_deposito")
+    private SectorDeposito sectorDeposito;
 
     // ---------------------------
     // ATRIBUTOS NUMÉRICOS Y OTROS

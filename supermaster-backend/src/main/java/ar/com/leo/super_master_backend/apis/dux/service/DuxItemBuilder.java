@@ -41,8 +41,8 @@ public class DuxItemBuilder {
         if (p.getMarca() != null && p.getMarca().getCodigoDux() != null && !p.getMarca().getCodigoDux().isBlank()) {
             item.put("codigo_marca", p.getMarca().getCodigoDux());
         }
-        if (p.getUnidadMedida() != null && p.getUnidadMedida().getIdDux() != null) {
-            item.put("id_unidad_medida", p.getUnidadMedida().getIdDux());
+        if (p.getSectorDeposito() != null && p.getSectorDeposito().getIdDux() != null) {
+            item.put("id_unidad_medida", p.getSectorDeposito().getIdDux());
         }
         if (p.getTituloNube() != null && !p.getTituloNube().isBlank()) {
             item.put("descripcion", p.getTituloNube());

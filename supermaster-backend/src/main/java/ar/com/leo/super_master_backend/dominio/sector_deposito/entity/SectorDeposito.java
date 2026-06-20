@@ -1,4 +1,4 @@
-package ar.com.leo.super_master_backend.dominio.unidad_medida.entity;
+package ar.com.leo.super_master_backend.dominio.sector_deposito.entity;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
@@ -11,12 +11,12 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "unidades_medida", schema = "supermaster")
-public class UnidadMedida {
+@Table(name = "sectores_deposito", schema = "supermaster")
+public class SectorDeposito {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id_unidad_medida", nullable = false)
+    @Column(name = "id_sector_deposito", nullable = false)
     private Integer id;
 
     @Size(max = 20)
@@ -27,7 +27,7 @@ public class UnidadMedida {
     @Column(name = "id_dux")
     private Integer idDux;
 
-    public UnidadMedida(Integer id) {
+    public SectorDeposito(Integer id) {
         this.id = id;
     }
 }

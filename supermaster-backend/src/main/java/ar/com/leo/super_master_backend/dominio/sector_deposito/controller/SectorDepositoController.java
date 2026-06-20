@@ -1,24 +1,24 @@
-package ar.com.leo.super_master_backend.dominio.unidad_medida.controller;
+package ar.com.leo.super_master_backend.dominio.sector_deposito.controller;
 
-import ar.com.leo.super_master_backend.dominio.unidad_medida.dto.UnidadMedidaDTO;
-import ar.com.leo.super_master_backend.dominio.unidad_medida.repository.UnidadMedidaRepository;
+import ar.com.leo.super_master_backend.dominio.sector_deposito.dto.SectorDepositoDTO;
+import ar.com.leo.super_master_backend.dominio.sector_deposito.repository.SectorDepositoRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/unidades-medida")
-public class UnidadMedidaController {
+@RequestMapping("/api/sectores-deposito")
+public class SectorDepositoController {
 
-    private final UnidadMedidaRepository repository;
+    private final SectorDepositoRepository repository;
 
-    public UnidadMedidaController(UnidadMedidaRepository repository) {
+    public SectorDepositoController(SectorDepositoRepository repository) {
         this.repository = repository;
     }
 
     @GetMapping
-    public Page<UnidadMedidaDTO> listar(
+    public Page<SectorDepositoDTO> listar(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "") String search) {
@@ -26,6 +26,6 @@ public class UnidadMedidaController {
         var resultado = search.isBlank()
                 ? repository.findAll(pageable)
                 : repository.findByCodigoContainingIgnoreCase(search, pageable);
-        return resultado.map(u -> new UnidadMedidaDTO(u.getId(), u.getCodigo()));
+        return resultado.map(u -> new SectorDepositoDTO(u.getId(), u.getCodigo()));
     }
 }

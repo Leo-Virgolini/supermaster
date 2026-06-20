@@ -55,7 +55,7 @@ public record ProductoConPreciosDTO(
         BigDecimal costo,
         LocalDateTime fechaUltimoCosto,
         BigDecimal iva,
-        Integer unidadMedidaId,
+        Integer sectorDepositoId,
 
         // Márgenes (de producto_margen)
         BigDecimal margenMinorista,

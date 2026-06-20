@@ -6,7 +6,7 @@ import ar.com.leo.super_master_backend.dominio.clasif_gral.entity.ClasifGral;
 import ar.com.leo.super_master_backend.dominio.marca.entity.Marca;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
 import ar.com.leo.super_master_backend.dominio.proveedor.entity.Proveedor;
-import ar.com.leo.super_master_backend.dominio.unidad_medida.entity.UnidadMedida;
+import ar.com.leo.super_master_backend.dominio.sector_deposito.entity.SectorDeposito;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -42,9 +42,9 @@ class DuxItemBuilderTest {
         ClasifGral nivel2 = new ClasifGral(); nivel2.setIdDux(20); nivel2.setPadre(raiz);
         p.setClasifGral(nivel2);
 
-        UnidadMedida um = new UnidadMedida();
+        SectorDeposito um = new SectorDeposito();
         um.setIdDux(18);
-        p.setUnidadMedida(um);
+        p.setSectorDeposito(um);
         return p;
     }
 
@@ -84,9 +84,9 @@ class DuxItemBuilderTest {
         // idDux NO seteado (null)
         p.setProveedor(prov);
 
-        UnidadMedida um = new UnidadMedida();
+        SectorDeposito um = new SectorDeposito();
         // idDux NO seteado (null)
-        p.setUnidadMedida(um);
+        p.setSectorDeposito(um);
 
         Map<String, Object> m = builder().construir(p);
 

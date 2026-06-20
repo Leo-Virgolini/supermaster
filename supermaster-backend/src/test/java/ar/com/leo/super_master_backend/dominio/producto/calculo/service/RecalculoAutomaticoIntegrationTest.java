@@ -406,7 +406,7 @@ class RecalculoAutomaticoIntegrationTest {
                 proveedorIdOverride != null ? proveedorIdOverride : (producto.getProveedor() != null ? producto.getProveedor().getId() : null),
                 producto.getMaterial() != null ? producto.getMaterial().getId() : null,
                 producto.getMla() != null ? producto.getMla().getId() : null,
-                producto.getUnidadMedida() != null ? producto.getUnidadMedida().getId() : null,
+                producto.getSectorDeposito() != null ? producto.getSectorDeposito().getId() : null,
                 producto.getCapacidad(), producto.getLargo(), producto.getAncho(), producto.getAlto(),
                 producto.getDiamboca(), producto.getDiambase(), producto.getEspesor(),
                 costoOverride != null ? costoOverride : producto.getCosto(),

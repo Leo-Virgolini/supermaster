@@ -14,7 +14,7 @@ import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoMargen;
 import ar.com.leo.super_master_backend.dominio.producto.mla.entity.Mla;
 import ar.com.leo.super_master_backend.dominio.proveedor.entity.Proveedor;
 import ar.com.leo.super_master_backend.dominio.tipo.entity.Tipo;
-import ar.com.leo.super_master_backend.dominio.unidad_medida.entity.UnidadMedida;
+import ar.com.leo.super_master_backend.dominio.sector_deposito.entity.SectorDeposito;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
         Proveedor.class,
         Material.class,
         Mla.class,
-        UnidadMedida.class
+        SectorDeposito.class
 })
 public interface ProductoMapper {
 
@@ -76,7 +76,7 @@ public interface ProductoMapper {
                 entity.getMaterial() != null ? entity.getMaterial().getId() : null,
                 entity.getMla() != null ? entity.getMla().getId() : null,
                 entity.getMla() != null ? entity.getMla().getMla() : null,
-                entity.getUnidadMedida() != null ? entity.getUnidadMedida().getId() : null,
+                entity.getSectorDeposito() != null ? entity.getSectorDeposito().getId() : null,
                 buildNombreCompleto(entity.getMarca()),
                 buildNombreCompleto(entity.getTipo()),
                 buildNombreCompleto(entity.getClasifGral()),
@@ -168,7 +168,7 @@ public interface ProductoMapper {
     @Mapping(target = "proveedor", expression = "java(dto.proveedorId() != null ? new Proveedor(dto.proveedorId()) : null)")
     @Mapping(target = "material", expression = "java(dto.materialId() != null ? new Material(dto.materialId()) : null)")
     @Mapping(target = "mla", expression = "java(mapMla(dto.mlaId()))")
-    @Mapping(target = "unidadMedida", expression = "java(dto.unidadMedidaId() != null ? new UnidadMedida(dto.unidadMedidaId()) : null)")
+    @Mapping(target = "sectorDeposito", expression = "java(dto.sectorDepositoId() != null ? new SectorDeposito(dto.sectorDepositoId()) : null)")
     @Mapping(target = "fechaCreacion", ignore = true)     // se setea en @PrePersist
     @Mapping(target = "fechaModificacion", ignore = true)
     // se setea en @PreUpdate
@@ -185,7 +185,7 @@ public interface ProductoMapper {
     @Mapping(target = "proveedor", expression = "java(dto.proveedorId() != null ? new Proveedor(dto.proveedorId()) : entity.getProveedor())")
     @Mapping(target = "material", expression = "java(dto.materialId() != null ? new Material(dto.materialId()) : entity.getMaterial())")
     @Mapping(target = "mla", expression = "java(dto.mlaId() != null ? mapMla(dto.mlaId()) : entity.getMla())")
-    @Mapping(target = "unidadMedida", expression = "java(dto.unidadMedidaId() != null ? new UnidadMedida(dto.unidadMedidaId()) : entity.getUnidadMedida())")
+    @Mapping(target = "sectorDeposito", expression = "java(dto.sectorDepositoId() != null ? new SectorDeposito(dto.sectorDepositoId()) : entity.getSectorDeposito())")
     @Mapping(target = "fechaCreacion", ignore = true)
     @Mapping(target = "fechaModificacion", ignore = true)
     void updateEntityFromDTO(ProductoUpdateDTO dto, @MappingTarget Producto entity);
@@ -390,7 +390,7 @@ public interface ProductoMapper {
                 producto.getCosto(),
                 producto.getFechaUltimoCosto(),
                 producto.getIva(),
-                producto.getUnidadMedida() != null ? producto.getUnidadMedida().getId() : null,
+                producto.getSectorDeposito() != null ? producto.getSectorDeposito().getId() : null,
 
                 // Márgenes
                 margenMinorista,

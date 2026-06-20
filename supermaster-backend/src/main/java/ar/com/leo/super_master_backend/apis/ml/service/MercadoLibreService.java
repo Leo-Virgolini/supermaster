@@ -1828,13 +1828,18 @@ public class MercadoLibreService {
         return null;
     }
 
-    /** Da de alta un producto en Mercado Libre (sitio MLA). Resuelve las dependencias de red y delega al núcleo. */
+    /**
+     * Da de alta un producto en Mercado Libre (sitio MLA). Resuelve las dependencias de red y delega al núcleo.
+     * La verificación de existencia previa es responsabilidad del caller (MlExportService hace upsert y solo
+     * llega aquí tras confirmar que buscarMlaPorSku devolvió null), por lo que se pasa yaExiste = false
+     * para evitar repetir la búsqueda costosa.
+     */
     public ResultadoAltaMl crearItemEnMl(ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto) {
         if (!isConfigured()) return ResultadoAltaMl.error("Mercado Libre no configurado");
         verificarTokens();
         return crearItemEnMlCore(
                 producto, objectMapper,
-                sku -> buscarMlaPorSku(sku) != null,
+                sku -> false,  // existencia ya verificada por el caller (upsert en MlExportService)
                 sku -> imagenService.resolverArchivosPorSku(sku),
                 filename -> subirImagenItem(filename),
                 titulo -> predecirCategoria(titulo),

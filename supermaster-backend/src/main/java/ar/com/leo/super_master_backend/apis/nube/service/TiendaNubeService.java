@@ -966,6 +966,26 @@ public class TiendaNubeService {
                         actualizarPrecioVariante(storeName, productId, variantId, price, promo));
     }
 
+    /** Variante que reusa el JSON del producto ya buscado (evita un segundo GET). */
+    public ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube actualizarProductoEnNube(
+            String storeName, ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto,
+            BigDecimal pvp, BigDecimal pvpInflado, JsonNode existente) {
+        StoreCredentials store;
+        try {
+            verificarCredenciales();
+            store = getStore(storeName);
+        } catch (Exception e) {
+            return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error("Tienda Nube no configurada: " + e.getMessage());
+        }
+        if (store == null) return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error("Tienda '" + storeName + "' no configurada");
+        return actualizarProductoEnNubeCore(
+                producto, pvp, pvpInflado, objectMapper, store.getStoreId(),
+                sku -> existente,
+                (uri, body) -> retryHandler.patchJson(uri, store.getAccessToken(), body),
+                (productId, variantId, price, promo) ->
+                        actualizarPrecioVariante(storeName, productId, variantId, price, promo));
+    }
+
     // =====================================================
     // ALTA DE PRODUCTO (POST /products)
     // =====================================================

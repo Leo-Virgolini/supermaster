@@ -12,6 +12,7 @@ import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoRepos
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.JsonNode;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -65,9 +66,10 @@ public class NubeExportService {
 
                 // Upsert: si ya existe en la tienda, actualizar; si no, crear.
                 ResultadoAltaNube r;
-                if (tiendaNubeService.buscarProductoPorSku(producto.getSku(), tienda) != null) {
+                JsonNode existenteEnNube = tiendaNubeService.buscarProductoPorSku(producto.getSku(), tienda);
+                if (existenteEnNube != null) {
                     r = tiendaNubeService.actualizarProductoEnNube(
-                            tienda, producto, precio.get().getPvp(), precio.get().getPvpInflado());
+                            tienda, producto, precio.get().getPvp(), precio.get().getPvpInflado(), existenteEnNube);
                 } else {
                     NubeCategoriaArbol arbol = arbolesPorTienda.computeIfAbsent(
                             tienda, tiendaNubeService::cargarArbolCategorias);

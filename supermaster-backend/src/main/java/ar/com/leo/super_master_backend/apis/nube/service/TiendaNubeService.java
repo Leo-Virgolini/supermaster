@@ -971,13 +971,10 @@ public class TiendaNubeService {
                         actualizarPrecioVariante(storeName, productId, variantId, price, promo));
     }
 
-    /** Resuelve los ids de categoría de Nube (clasif + tipo) para un producto, creando las faltantes. */
-    public List<Long> resolverCategoriaIds(String storeName, ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto, NubeCategoriaArbol arbol) {
-        StoreCredentials store;
-        try { verificarCredenciales(); store = getStore(storeName); }
-        catch (Exception e) { return List.of(); }
-        if (store == null || arbol == null) return List.of();
+    /** Nombres de la ruta de clasificación (clasif + tipo) para categorizar en Nube. */
+    private record ClasifRuta(List<String> clasifNombres, List<String> tipoNombres) {}
 
+    private ClasifRuta resolverRutaNombres(String storeName, ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto) {
         boolean esGastro = STORE_GASTRO.equalsIgnoreCase(storeName);
         ClasifGral clasifGral = producto.getClasifGral();
         ClasifGastro clasifGastro = producto.getClasifGastro();
@@ -987,12 +984,25 @@ public class TiendaNubeService {
                 : (clasifGral == null ? null : NubeCategoriaRuta.aplanar(clasifGral, ClasifGral::getPadre, ClasifGral::getNombre));
         List<String> tipoNombres = tipo == null ? null
                 : NubeCategoriaRuta.aplanar(tipo, Tipo::getPadre, Tipo::getNombre);
+        return new ClasifRuta(clasifNombres, tipoNombres);
+    }
+
+    /** Resuelve los ids de categoría de Nube (clasif + tipo) para un producto, creando las faltantes. */
+    public List<Long> resolverCategoriaIds(String storeName, ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto, NubeCategoriaArbol arbol) {
+        StoreCredentials store;
+        try { verificarCredenciales(); store = getStore(storeName); }
+        catch (Exception e) { return List.of(); }
+        if (store == null || arbol == null) return List.of();
+
+        ClasifRuta ruta = resolverRutaNombres(storeName, producto);
+        List<String> clasifNombres = ruta.clasifNombres();
+        List<String> tipoNombres = ruta.tipoNombres();
         if (clasifNombres == null || clasifNombres.isEmpty() || tipoNombres == null || tipoNombres.isEmpty()) {
             return List.of();
         }
-        List<String> ruta = new java.util.ArrayList<>(clasifNombres);
-        ruta.addAll(tipoNombres);
-        return NubeCategoriaResolver.resolver(arbol, ruta, (parentId, nombre) -> crearCategoria(store, parentId, nombre));
+        List<String> rutaNombres = new java.util.ArrayList<>(clasifNombres);
+        rutaNombres.addAll(tipoNombres);
+        return NubeCategoriaResolver.resolver(arbol, rutaNombres, (parentId, nombre) -> crearCategoria(store, parentId, nombre));
     }
 
     // =====================================================
@@ -1016,15 +1026,9 @@ public class TiendaNubeService {
             return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error("Tienda '" + storeName + "' no configurada");
 
         // KT GASTRO → clasif gastro; resto (KT HOGAR) → clasif gral. El tipo cuelga debajo de la clasif.
-        boolean esGastro = STORE_GASTRO.equalsIgnoreCase(storeName);
-        ClasifGral clasifGral = producto.getClasifGral();
-        ClasifGastro clasifGastro = producto.getClasifGastro();
-        Tipo tipo = producto.getTipo();
-        List<String> clasifNombres = esGastro
-                ? (clasifGastro == null ? null : NubeCategoriaRuta.aplanar(clasifGastro, ClasifGastro::getPadre, ClasifGastro::getNombre))
-                : (clasifGral == null ? null : NubeCategoriaRuta.aplanar(clasifGral, ClasifGral::getPadre, ClasifGral::getNombre));
-        List<String> tipoNombres = tipo == null ? null
-                : NubeCategoriaRuta.aplanar(tipo, Tipo::getPadre, Tipo::getNombre);
+        ClasifRuta ruta = resolverRutaNombres(storeName, producto);
+        List<String> clasifNombres = ruta.clasifNombres();
+        List<String> tipoNombres = ruta.tipoNombres();
 
         NubeCategoriaArbol arbolUsar = arbol != null ? arbol : new NubeCategoriaArbol();
         ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube r = crearProductoEnNubeCore(

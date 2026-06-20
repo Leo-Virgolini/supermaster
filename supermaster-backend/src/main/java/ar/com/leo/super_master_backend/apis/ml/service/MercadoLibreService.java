@@ -1672,9 +1672,13 @@ public class MercadoLibreService {
             double price = producto.getCosto().multiply(java.math.BigDecimal.valueOf(5)).doubleValue();
             updatePrice.actualizar(mla, price);
 
-            List<String> pictureIds = resolverPictureIds.apply(producto.getSku());
-            if (pictureIds != null && !pictureIds.isEmpty()) {
-                putPictures.accept(mla, pictureIds);
+            try {
+                List<String> pictureIds = resolverPictureIds.apply(producto.getSku());
+                if (pictureIds != null && !pictureIds.isEmpty()) {
+                    putPictures.accept(mla, pictureIds);
+                }
+            } catch (Exception e) {
+                advertencia = (advertencia == null ? "" : advertencia + "; ") + "imágenes no actualizadas";
             }
 
             ResultadoAltaMl r = ResultadoAltaMl.actualizado(mla);

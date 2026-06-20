@@ -102,4 +102,16 @@ class ActualizarItemEnMlTest {
 
         assertThat(picsPuestas.get()).isNull(); // no se llamó putPictures
     }
+
+    @Test
+    void fallaImagenes_siguenActualizadoConAdvertencia() {
+        ResultadoAltaMl r = MercadoLibreService.actualizarItemEnMlCore(
+                producto(), "MLA666",
+                mla -> 0, (mla, t) -> {}, (mla, d) -> {}, (mla, p) -> true,
+                sku -> { throw new RuntimeException("fallo subir imagen"); },
+                (mla, pics) -> {});
+
+        assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);
+        assertThat(r.advertencia()).contains("imágenes");
+    }
 }

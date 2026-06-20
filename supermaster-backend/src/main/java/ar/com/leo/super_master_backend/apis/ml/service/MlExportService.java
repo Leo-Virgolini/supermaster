@@ -60,6 +60,14 @@ public class MlExportService {
                 case ACTUALIZADO -> {
                     actualizados.add(etiqueta);
                     if (r.advertencia() != null) advertencias.add(etiqueta + ": " + r.advertencia());
+                    if (r.mlau() != null) {
+                        try {
+                            mlaService.asegurarYAsociar(productoId, r.itemId(), r.mlau());
+                        } catch (Exception e) {
+                            log.warn("ML - No se pudo asociar el MLA {} al producto {}: {}", r.itemId(), productoId, e.getMessage());
+                            advertencias.add(etiqueta + ": no se pudo asociar el MLA");
+                        }
+                    }
                 }
                 case YA_EXISTIA -> yaExistian.add(etiqueta);
                 case ERROR -> errores.add(etiqueta + ": " + r.motivo());
@@ -78,12 +86,20 @@ public class MlExportService {
         if (p == null) return ResultadoAltaMl.error("Producto no encontrado");
 
         String mla = (p.getMla() != null) ? p.getMla().getMla() : null;
+        String mlauHallado = null;
         if (mla == null) {
             var encontrado = mercadoLibreService.buscarMlaPorSku(p.getSku());
-            if (encontrado != null) mla = encontrado.mla();
+            if (encontrado != null) { mla = encontrado.mla(); mlauHallado = encontrado.mlau(); }
         }
         if (mla != null && !mla.isBlank()) {
-            return mercadoLibreService.actualizarItemEnMl(p, mla);
+            ResultadoAltaMl r = mercadoLibreService.actualizarItemEnMl(p, mla);
+            // Si el MLA lo hallamos por búsqueda (no estaba asociado) y el update fue OK,
+            // adjuntar el mlau para que exportar lo asocie al producto.
+            if (mlauHallado != null && r.estado() == ResultadoAltaMl.Estado.ACTUALIZADO) {
+                ResultadoAltaMl conMlau = ResultadoAltaMl.actualizado(mla, mlauHallado);
+                return r.advertencia() != null ? conMlau.conAdvertencia(r.advertencia()) : conMlau;
+            }
+            return r;
         }
         return mercadoLibreService.crearItemEnMl(p);
     }

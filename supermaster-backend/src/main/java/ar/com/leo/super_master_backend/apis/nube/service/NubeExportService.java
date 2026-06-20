@@ -67,12 +67,13 @@ public class NubeExportService {
                 // Upsert: si ya existe en la tienda, actualizar; si no, crear.
                 ResultadoAltaNube r;
                 JsonNode existenteEnNube = tiendaNubeService.buscarProductoPorSku(producto.getSku(), tienda);
+                NubeCategoriaArbol arbol = arbolesPorTienda.computeIfAbsent(
+                        tienda, tiendaNubeService::cargarArbolCategorias);
                 if (existenteEnNube != null) {
+                    List<Long> categoriaIds = tiendaNubeService.resolverCategoriaIds(tienda, producto, arbol);
                     r = tiendaNubeService.actualizarProductoEnNube(
-                            tienda, producto, precio.get().getPvp(), precio.get().getPvpInflado(), existenteEnNube);
+                            tienda, producto, precio.get().getPvp(), precio.get().getPvpInflado(), existenteEnNube, categoriaIds);
                 } else {
-                    NubeCategoriaArbol arbol = arbolesPorTienda.computeIfAbsent(
-                            tienda, tiendaNubeService::cargarArbolCategorias);
                     r = tiendaNubeService.crearProductoEnNube(
                             tienda, producto, precio.get().getPvp(), precio.get().getPvpInflado(), arbol);
                 }

@@ -39,6 +39,7 @@ class ActualizarProductoEnNubeTest {
 
         ResultadoAltaNube r = TiendaNubeService.actualizarProductoEnNubeCore(
                 producto(), new BigDecimal("150"), new BigDecimal("180"), om, "9",
+                java.util.List.of(),
                 sku -> existente,
                 (uri, body) -> { patchUri.set(uri); patchBody.set(body); },
                 (productId, variantId, price, promo) -> {
@@ -65,6 +66,7 @@ class ActualizarProductoEnNubeTest {
 
         TiendaNubeService.actualizarProductoEnNubeCore(
                 producto(), new BigDecimal("150"), null, om, "9",
+                java.util.List.of(),
                 sku -> existente, (uri, body) -> {},
                 (productId, variantId, price, promo) -> { precioPrice.set(price); precioPromo.set(promo); return true; });
 
@@ -76,7 +78,38 @@ class ActualizarProductoEnNubeTest {
     void actualiza_noExiste_error() {
         ResultadoAltaNube r = TiendaNubeService.actualizarProductoEnNubeCore(
                 producto(), new BigDecimal("150"), null, om, "9",
+                java.util.List.of(),
                 sku -> null, (uri, body) -> {}, (a, b, c, d) -> true);
         assertThat(r.estado()).isEqualTo(ResultadoAltaNube.Estado.ERROR);
+    }
+
+    @Test
+    void actualiza_incluyeCategoriasEnElPatch() {
+        JsonNode existente = existente("{\"id\":7,\"variants\":[{\"id\":8,\"sku\":\"1234567\"}]}");
+        AtomicReference<String> patchBody = new AtomicReference<>();
+
+        TiendaNubeService.actualizarProductoEnNubeCore(
+                producto(), new BigDecimal("150"), null, om, "9",
+                java.util.List.of(10L, 20L, 30L),
+                sku -> existente,
+                (uri, body) -> patchBody.set(body),
+                (productId, variantId, price, promo) -> true);
+
+        assertThat(patchBody.get()).contains("\"categories\"").contains("10").contains("20").contains("30");
+    }
+
+    @Test
+    void actualiza_sinCategorias_noIncluyeCategories() {
+        JsonNode existente = existente("{\"id\":7,\"variants\":[{\"id\":8,\"sku\":\"1234567\"}]}");
+        AtomicReference<String> patchBody = new AtomicReference<>();
+
+        TiendaNubeService.actualizarProductoEnNubeCore(
+                producto(), new BigDecimal("150"), null, om, "9",
+                java.util.List.of(),
+                sku -> existente,
+                (uri, body) -> patchBody.set(body),
+                (productId, variantId, price, promo) -> true);
+
+        assertThat(patchBody.get()).doesNotContain("\"categories\"");
     }
 }

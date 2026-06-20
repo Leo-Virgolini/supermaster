@@ -905,6 +905,7 @@ public class TiendaNubeService {
     public static ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube actualizarProductoEnNubeCore(
             ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto,
             BigDecimal pvp, BigDecimal pvpInflado, ObjectMapper om, String storeId,
+            List<Long> categoriaIds,
             Function<String, JsonNode> buscador,
             BiConsumer<String, String> patcher,
             ActualizadorPrecioVariante precioFn) {
@@ -925,10 +926,13 @@ public class TiendaNubeService {
             }
             if (variantId <= 0) return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error("variante Nube no encontrada");
 
-            // PATCH name + description
+            // PATCH name + description + categorias (si las hay)
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("name", Map.of("es", producto.getTituloNube() != null ? producto.getTituloNube() : ""));
             body.put("description", Map.of("es", NubeDescripcionBuilder.construir(producto)));
+            if (categoriaIds != null && !categoriaIds.isEmpty()) {
+                body.put("categories", new ArrayList<>(categoriaIds));
+            }
             patcher.accept("/" + storeId + "/products/" + productId, om.writeValueAsString(body));
 
             // Precio (misma lógica que el alta: inflado => price tachado + promotional)
@@ -946,10 +950,10 @@ public class TiendaNubeService {
         }
     }
 
-    /** Actualiza un producto existente en Nube (name/description/precio); reutiliza el JSON ya buscado (evita un segundo GET). */
+    /** Actualiza un producto existente en Nube (name/description/categorias/precio); reutiliza el JSON ya buscado (evita un segundo GET). */
     public ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube actualizarProductoEnNube(
             String storeName, ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto,
-            BigDecimal pvp, BigDecimal pvpInflado, JsonNode existente) {
+            BigDecimal pvp, BigDecimal pvpInflado, JsonNode existente, List<Long> categoriaIds) {
         StoreCredentials store;
         try {
             verificarCredenciales();
@@ -960,10 +964,35 @@ public class TiendaNubeService {
         if (store == null) return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error("Tienda '" + storeName + "' no configurada");
         return actualizarProductoEnNubeCore(
                 producto, pvp, pvpInflado, objectMapper, store.getStoreId(),
+                categoriaIds,
                 sku -> existente,
                 (uri, body) -> retryHandler.patchJson(uri, store.getAccessToken(), body),
                 (productId, variantId, price, promo) ->
                         actualizarPrecioVariante(storeName, productId, variantId, price, promo));
+    }
+
+    /** Resuelve los ids de categoría de Nube (clasif + tipo) para un producto, creando las faltantes. */
+    public List<Long> resolverCategoriaIds(String storeName, ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto, NubeCategoriaArbol arbol) {
+        StoreCredentials store;
+        try { verificarCredenciales(); store = getStore(storeName); }
+        catch (Exception e) { return List.of(); }
+        if (store == null || arbol == null) return List.of();
+
+        boolean esGastro = STORE_GASTRO.equalsIgnoreCase(storeName);
+        ClasifGral clasifGral = producto.getClasifGral();
+        ClasifGastro clasifGastro = producto.getClasifGastro();
+        Tipo tipo = producto.getTipo();
+        List<String> clasifNombres = esGastro
+                ? (clasifGastro == null ? null : NubeCategoriaRuta.aplanar(clasifGastro, ClasifGastro::getPadre, ClasifGastro::getNombre))
+                : (clasifGral == null ? null : NubeCategoriaRuta.aplanar(clasifGral, ClasifGral::getPadre, ClasifGral::getNombre));
+        List<String> tipoNombres = tipo == null ? null
+                : NubeCategoriaRuta.aplanar(tipo, Tipo::getPadre, Tipo::getNombre);
+        if (clasifNombres == null || clasifNombres.isEmpty() || tipoNombres == null || tipoNombres.isEmpty()) {
+            return List.of();
+        }
+        List<String> ruta = new java.util.ArrayList<>(clasifNombres);
+        ruta.addAll(tipoNombres);
+        return NubeCategoriaResolver.resolver(arbol, ruta, (parentId, nombre) -> crearCategoria(store, parentId, nombre));
     }
 
     // =====================================================

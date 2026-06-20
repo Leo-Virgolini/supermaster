@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Al editar un producto y marcar Tienda Nube / Mercado Libre, **actualizar** la publicación existente (título + precio + descripción) en vez de intentar darla de alta; con patrón upsert (crear si no existe, actualizar si existe), labels "Actualizar en …" en edición, y reporte de creados/actualizados/errores.
+**Goal:** Al editar un producto y marcar Tienda Nube / Mercado Libre, **actualizar** la publicación existente (título + precio + descripción) en vez de intentar darla de alta; con patrón upsert (crear si no existe, actualizar si existe), texto genérico "Sincronizar con …" en los checkboxes de canal, y reporte de creados/actualizados/errores.
 
 **Architecture:** Cada export service decide por SKU si la publicación ya existe y llama a un nuevo método de actualización o al alta actual. La actualización se extrae a un "core" testeable con lambdas (sin red), igual que el alta (`crearProductoEnNubeCore`/`crearItemEnMlCore`). Los records de resultado (`ResultadoAltaNube`/`ResultadoAltaMl`) suman un estado `ACTUALIZADO`; los DTOs de respuesta suman `actualizados`. El frontend solo cambia labels y el toast.
 
@@ -14,7 +14,7 @@
 - **Nube actualiza**: `name` (= `{es: tituloNube}`), `description` (= `{es: NubeDescripcionBuilder.construir(p)}`) vía `PATCH /products/{id}`, y el precio de la variante vía `actualizarPrecioVariante`. Imágenes y categorías NO se tocan (eso es D2).
 - **ML actualiza**: `title` SOLO si `sold_quantity == 0` (si tuvo ventas, se saltea y se agrega aviso "título no actualizado por tener ventas"); `description` vía `PUT /items/{mla}/description`; `price` vía `updateItemPrice`. Imágenes y categoría NO se tocan (D2).
 - **Riesgo ML precio (validar en smoke)**: ML (marzo 2026) puede rechazar un `PUT /items/{id}` que envía SOLO `price`. `updateItemPrice` hace exactamente eso. Implementarlo con `updateItemPrice` (existente) y dejar el riesgo documentado; si en la prueba real falla, el follow-up es usar la API de precios `/items/{id}/prices`. NO implementar esa rama alternativa salvo que la prueba lo exija (YAGNI).
-- **Labels**: en edición (`editandoProductoId` truthy) los checkboxes de Nube/ML dicen "Actualizar en …"; en alta dicen "Subir a …". Dux ya lo hace.
+- **Labels**: los checkboxes de los **4** canales (Dux, KT HOGAR, KT GASTRO, Mercado Libre) usan texto genérico **fijo** "Sincronizar con …" — NO depende de editar vs crear, porque el backend hace upsert (sube si no está, actualiza si está). Reemplaza el condicional actual de Dux (`editandoProductoId ? "Actualizar en Dux" : "Subir a Dux"`).
 - **Reporte**: `ExportNubeResultDTO` y `MlExportResultDTO` suman `List<String> actualizados`; el toast del front muestra "N creado(s) · M actualizado(s) · K con error: …" + avisos.
 - **Transaccionalidad**: `NubeExportService.exportar` sigue `@Transactional(readOnly = true)` (el I/O de red ocurre dentro, patrón ya aceptado para este export de bajo volumen). `MlExportService.exportar` sigue SIN `@Transactional`; la carga del producto (LAZY) ocurre en un método `self.*` `@Transactional(readOnly = true)`. El post-alta best-effort SOLO corre en el camino de creación.
 - Commits en español, terminando con `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`.
@@ -635,7 +635,7 @@ git commit -m "feat(ml): actualizar publicacion existente al editar (upsert titu
 
 ---
 
-### Task 3: Frontend — labels "Actualizar en …" + reporte de actualizados
+### Task 3: Frontend — labels "Sincronizar con …" + reporte de actualizados
 
 **Files:**
 - Modify: `supermaster-frontend/src/app/productos/productosService.ts`
@@ -683,13 +683,16 @@ function reportarExportToast(plataforma: string, r: { creados: number; actualiza
 }
 ```
 
-- [ ] **Step 3: Labels condicionales en edición (Nube/ML)**
+- [ ] **Step 3: Labels genéricos "Sincronizar con …" (4 canales)**
 
-En la sección "Canales de venta" de `page.tsx`, cambiar los tres labels hardcodeados por condicionales según `editandoProductoId` (Dux ya lo hace):
+En la sección "Canales de venta" de `page.tsx`, poner texto **fijo** "Sincronizar con …" en los 4 labels (incluido Dux, que deja de usar el condicional `editandoProductoId`):
 
-- KT HOGAR: `<label htmlFor="subirKtHogar" className="cursor-pointer">{editandoProductoId ? "Actualizar en KT HOGAR (Nube)" : "Subir a KT HOGAR (Nube)"}</label>`
-- KT GASTRO: `<label htmlFor="subirKtGastro" className="cursor-pointer">{editandoProductoId ? "Actualizar en KT GASTRO (Nube)" : "Subir a KT GASTRO (Nube)"}</label>`
-- Mercado Libre: `<label htmlFor="subirMl" className="cursor-pointer">{editandoProductoId ? "Actualizar en Mercado Libre" : "Subir a Mercado Libre"}</label>`
+- Dux: `<label htmlFor="subirADux" className="cursor-pointer">Sincronizar con Dux</label>`
+- KT HOGAR: `<label htmlFor="subirKtHogar" className="cursor-pointer">Sincronizar con KT HOGAR (Nube)</label>`
+- KT GASTRO: `<label htmlFor="subirKtGastro" className="cursor-pointer">Sincronizar con KT GASTRO (Nube)</label>`
+- Mercado Libre: `<label htmlFor="subirMl" className="cursor-pointer">Sincronizar con Mercado Libre</label>`
+
+Además, simplificar el `title` (tooltip) del card de Dux —hoy `editandoProductoId ? "Al guardar, actualiza el producto en Dux" : "Al crear, sube el producto a Dux"`— a un texto genérico fijo, p. ej. `title="Sube el producto si no está, o lo actualiza si ya existe"`. (El `editandoProductoId` sigue usándose para el título del modal "Editar/Nuevo Producto" y para precargar el form — eso NO cambia.)
 
 - [ ] **Step 4: Typecheck**
 
@@ -716,7 +719,7 @@ git commit -m "feat(front/productos): labels 'Actualizar en' en edicion + report
 - Nube actualiza name/description/precio → Task 1 Step 5 (core + test). ✅
 - Upsert ML + actualizar título(solo sin ventas)/descripción/precio → Task 2 Steps 5, 7. ✅
 - Estados `ACTUALIZADO` + `actualizados` en DTOs → Tasks 1, 2. ✅
-- Labels "Actualizar en" + reporte actualizados → Task 3. ✅
+- Labels genéricos "Sincronizar con …" (4 canales, incluido Dux) + reporte actualizados → Task 3. ✅
 - Transaccionalidad (Nube tx readOnly con I/O dentro; ML `self.procesarConProductoCargado` readOnly, post-alta solo en CREADO) → Tasks 1, 2. ✅
 - Riesgo ML precio documentado (sin implementar rama alternativa) → Task 2 Step 5 nota. ✅
 - Fuera de alcance (imágenes/categorías) → respetado. ✅

@@ -1140,6 +1140,9 @@ public class TiendaNubeService {
             log.warn("NUBE - No se pudieron listar/borrar imágenes del producto {}: {}", productoNubeId, e.getMessage());
         }
         // 2) Subir las locales actuales (misma lógica que el alta).
+        if (imagenService.resolverArchivosPorSku(sku).isEmpty()) {
+            return null; // sin imágenes locales: nada que sincronizar, no es advertencia en update
+        }
         return subirImagenesProducto(store, productoNubeId, sku);
     }
 

@@ -38,18 +38,18 @@ public class NubeExportService {
     @Transactional(readOnly = true)
     public ExportNubeResultDTO exportar(ExportNubeRequestDTO request) {
         int creados = 0;
+        List<String> actualizados = new ArrayList<>();
         List<String> yaExistian = new ArrayList<>();
         List<String> errores = new ArrayList<>();
         List<String> advertencias = new ArrayList<>();
 
         if (request == null || request.skus() == null || request.tiendas() == null) {
-            return new ExportNubeResultDTO(0, yaExistian, errores, advertencias);
+            return new ExportNubeResultDTO(0, actualizados, yaExistian, errores, advertencias);
         }
 
         List<Producto> productos = productoRepository.findBySkuIn(
                 request.skus().stream().filter(s -> s != null && !s.isBlank()).map(String::trim).distinct().toList());
 
-        // Árbol de categorías por tienda, cargado una vez por corrida (lazy por tienda usada).
         Map<String, NubeCategoriaArbol> arbolesPorTienda = new HashMap<>();
 
         for (Producto producto : productos) {
@@ -63,13 +63,24 @@ public class NubeExportService {
                 if (precio.isEmpty()) { errores.add(etiqueta + ": sin precio calculado para esa cuota"); continue; }
                 if (precio.get().isObsoleto()) { errores.add(etiqueta + ": precio desactualizado (recalcular antes de subir)"); continue; }
 
-                NubeCategoriaArbol arbol = arbolesPorTienda.computeIfAbsent(
-                        tienda, tiendaNubeService::cargarArbolCategorias);
-                ResultadoAltaNube r = tiendaNubeService.crearProductoEnNube(
-                        tienda, producto, precio.get().getPvp(), precio.get().getPvpInflado(), arbol);
+                // Upsert: si ya existe en la tienda, actualizar; si no, crear.
+                ResultadoAltaNube r;
+                if (tiendaNubeService.buscarProductoPorSku(producto.getSku(), tienda) != null) {
+                    r = tiendaNubeService.actualizarProductoEnNube(
+                            tienda, producto, precio.get().getPvp(), precio.get().getPvpInflado());
+                } else {
+                    NubeCategoriaArbol arbol = arbolesPorTienda.computeIfAbsent(
+                            tienda, tiendaNubeService::cargarArbolCategorias);
+                    r = tiendaNubeService.crearProductoEnNube(
+                            tienda, producto, precio.get().getPvp(), precio.get().getPvpInflado(), arbol);
+                }
                 switch (r.estado()) {
                     case CREADO -> {
                         creados++;
+                        if (r.advertencia() != null) advertencias.add(etiqueta + ": " + r.advertencia());
+                    }
+                    case ACTUALIZADO -> {
+                        actualizados.add(etiqueta);
                         if (r.advertencia() != null) advertencias.add(etiqueta + ": " + r.advertencia());
                     }
                     case YA_EXISTIA -> yaExistian.add(etiqueta);
@@ -77,6 +88,6 @@ public class NubeExportService {
                 }
             }
         }
-        return new ExportNubeResultDTO(creados, yaExistian, errores, advertencias);
+        return new ExportNubeResultDTO(creados, actualizados, yaExistian, errores, advertencias);
     }
 }

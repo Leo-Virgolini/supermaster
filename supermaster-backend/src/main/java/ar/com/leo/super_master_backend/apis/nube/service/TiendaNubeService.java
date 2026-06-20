@@ -21,6 +21,7 @@ import ar.com.leo.super_master_backend.dominio.clasif_gastro.entity.ClasifGastro
 import ar.com.leo.super_master_backend.dominio.tipo.entity.Tipo;
 
 import java.io.File;
+import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
@@ -29,7 +30,9 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 
 @Slf4j
 @Service
@@ -886,6 +889,81 @@ public class TiendaNubeService {
                 "/" + store.getStoreId() + "/categories", store.getAccessToken(),
                 objectMapper.writeValueAsString(body));
         return objectMapper.readTree(resp).path("id").asLong();
+    }
+
+    // =====================================================
+    // ACTUALIZACIÓN DE PRODUCTO (PATCH /products/{id})
+    // =====================================================
+
+    /** Actualiza price/promotional_price de una variante. */
+    @FunctionalInterface
+    public interface ActualizadorPrecioVariante {
+        boolean actualizar(long productId, long variantId, String price, String promotionalPrice);
+    }
+
+    /** Núcleo testeable de la actualización (sin red). buscador(sku)->JSON existente; patcher(uri,body)->PATCH; precioFn aplica el precio. */
+    public static ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube actualizarProductoEnNubeCore(
+            ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto,
+            BigDecimal pvp, BigDecimal pvpInflado, ObjectMapper om, String storeId,
+            Function<String, JsonNode> buscador,
+            BiConsumer<String, String> patcher,
+            ActualizadorPrecioVariante precioFn) {
+        try {
+            JsonNode existente = buscador.apply(producto.getSku());
+            if (existente == null) return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error("no encontrado en Nube al actualizar");
+            long productId = existente.path("id").asLong(0);
+            if (productId <= 0) return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error("id de producto Nube inválido");
+
+            // variantId: la variante cuyo sku coincide; si no, la primera.
+            long variantId = 0;
+            JsonNode variants = existente.path("variants");
+            if (variants.isArray()) {
+                for (JsonNode v : variants) {
+                    if (producto.getSku().equals(v.path("sku").asString(null))) { variantId = v.path("id").asLong(0); break; }
+                }
+                if (variantId == 0 && variants.size() > 0) variantId = variants.get(0).path("id").asLong(0);
+            }
+            if (variantId <= 0) return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error("variante Nube no encontrada");
+
+            // PATCH name + description
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("name", Map.of("es", producto.getTituloNube() != null ? producto.getTituloNube() : ""));
+            body.put("description", Map.of("es", NubeDescripcionBuilder.construir(producto)));
+            patcher.accept("/" + storeId + "/products/" + productId, om.writeValueAsString(body));
+
+            // Precio (misma lógica que el alta: inflado => price tachado + promotional)
+            String price = null, promo = null;
+            if (pvpInflado != null && pvp != null && pvpInflado.compareTo(pvp) > 0) {
+                price = pvpInflado.toPlainString(); promo = pvp.toPlainString();
+            } else if (pvp != null) {
+                price = pvp.toPlainString();
+            }
+            if (price != null) precioFn.actualizar(productId, variantId, price, promo);
+
+            return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.actualizado(productId);
+        } catch (Exception e) {
+            return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error(e.getMessage());
+        }
+    }
+
+    /** Actualiza un producto existente en Nube (name/description/precio). Resuelve credenciales y delega al core. */
+    public ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube actualizarProductoEnNube(
+            String storeName, ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto,
+            BigDecimal pvp, BigDecimal pvpInflado) {
+        StoreCredentials store;
+        try {
+            verificarCredenciales();
+            store = getStore(storeName);
+        } catch (Exception e) {
+            return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error("Tienda Nube no configurada: " + e.getMessage());
+        }
+        if (store == null) return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error("Tienda '" + storeName + "' no configurada");
+        return actualizarProductoEnNubeCore(
+                producto, pvp, pvpInflado, objectMapper, store.getStoreId(),
+                sku -> buscarProductoPorSku(sku, storeName),
+                (uri, body) -> retryHandler.patchJson(uri, store.getAccessToken(), body),
+                (productId, variantId, price, promo) ->
+                        actualizarPrecioVariante(storeName, productId, variantId, price, promo));
     }
 
     // =====================================================

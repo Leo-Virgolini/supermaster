@@ -10,6 +10,7 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Handler de reintentos para Tiendanube con soporte para:
@@ -124,138 +125,74 @@ public class NubeRetryHandler {
      * Ejecuta una petición PUT con body JSON y reintentos.
      */
     public String putJson(String uri, String accessToken, String jsonBody) {
-        int normalRetries = 0;
-        int rateLimitRetries = 0;
-
-        while (true) {
-            try {
-                rateLimiter.acquire();
-
-                return restClient.put()
+        return ejecutarConReintentos("PUT", uri, () ->
+                restClient.put()
                         .uri(uri)
                         .header("Authentication", "bearer " + accessToken)
                         .header("Content-Type", "application/json")
                         .body(jsonBody)
                         .retrieve()
-                        .body(String.class);
-
-            } catch (HttpClientErrorException e) {
-                int status = e.getStatusCode().value();
-
-                if (status == 401) {
-                    log.error("NUBE - 401 Unauthorized (PUT {}) - Token inválido", uri);
-                    throw e;
-                }
-
-                if (status == 404) throw e;
-
-                if (status == 429) {
-                    if (rateLimitRetries >= MAX_RETRIES_RATE_LIMIT) throw e;
-                    rateLimitRetries++;
-                    long waitMs = Math.min(parseRetryAfter(e.getResponseHeaders(), baseWaitMs * 2), MAX_WAIT_MS);
-                    log.warn("NUBE - 429 (PUT {}). Retry en {}s... ({}/{})", uri, waitMs / 1000, rateLimitRetries, MAX_RETRIES_RATE_LIMIT);
-                    notifyRetryListener(String.format("Nube rate limit - reintentando en %ds... (%d/%d)",
-                            waitMs / 1000, rateLimitRetries, MAX_RETRIES_RATE_LIMIT));
-                    sleep(waitMs);
-                    continue;
-                }
-
-                throw e;
-
-            } catch (HttpServerErrorException e) {
-                normalRetries++;
-                if (normalRetries >= MAX_RETRIES) throw e;
-                long waitMs = baseWaitMs * (long) Math.pow(2, normalRetries - 1);
-                log.warn("NUBE - 5xx {} (PUT {}). Retry en {}ms... ({}/{})", e.getStatusCode().value(), uri, waitMs, normalRetries, MAX_RETRIES);
-                sleep(waitMs);
-
-            } catch (ResourceAccessException e) {
-                normalRetries++;
-                if (normalRetries >= MAX_RETRIES) throw e;
-                long waitMs = baseWaitMs * (long) Math.pow(2, normalRetries - 1);
-                log.warn("NUBE - Error conexión (PUT {}). Retry en {}ms... ({}/{}): {}", uri, waitMs, normalRetries, MAX_RETRIES, e.getMessage());
-                sleep(waitMs);
-            }
-        }
+                        .body(String.class));
     }
 
     /**
      * Ejecuta una petición POST con body JSON y reintentos.
      */
     public String postJson(String uri, String accessToken, String jsonBody) {
-        int normalRetries = 0;
-        int rateLimitRetries = 0;
-
-        while (true) {
-            try {
-                rateLimiter.acquire();
-
-                return restClient.post()
+        return ejecutarConReintentos("POST", uri, () ->
+                restClient.post()
                         .uri(uri)
                         .header("Authentication", "bearer " + accessToken)
                         .header("Content-Type", "application/json")
                         .body(jsonBody)
                         .retrieve()
-                        .body(String.class);
-
-            } catch (HttpClientErrorException e) {
-                int status = e.getStatusCode().value();
-                if (status == 401) {
-                    log.error("NUBE - 401 Unauthorized (POST {}) - Token inválido", uri);
-                    throw e;
-                }
-                if (status == 404) throw e;
-                if (status == 429) {
-                    if (rateLimitRetries >= MAX_RETRIES_RATE_LIMIT) throw e;
-                    rateLimitRetries++;
-                    long waitMs = Math.min(parseRetryAfter(e.getResponseHeaders(), baseWaitMs * 2), MAX_WAIT_MS);
-                    log.warn("NUBE - 429 (POST {}). Retry en {}s... ({}/{})", uri, waitMs / 1000, rateLimitRetries, MAX_RETRIES_RATE_LIMIT);
-                    notifyRetryListener(String.format("Nube rate limit - reintentando en %ds... (%d/%d)",
-                            waitMs / 1000, rateLimitRetries, MAX_RETRIES_RATE_LIMIT));
-                    sleep(waitMs);
-                    continue;
-                }
-                throw e;
-            } catch (HttpServerErrorException e) {
-                normalRetries++;
-                if (normalRetries >= MAX_RETRIES) throw e;
-                long waitMs = baseWaitMs * (long) Math.pow(2, normalRetries - 1);
-                log.warn("NUBE - 5xx {} (POST {}). Retry en {}ms... ({}/{})", e.getStatusCode().value(), uri, waitMs, normalRetries, MAX_RETRIES);
-                sleep(waitMs);
-            } catch (ResourceAccessException e) {
-                normalRetries++;
-                if (normalRetries >= MAX_RETRIES) throw e;
-                long waitMs = baseWaitMs * (long) Math.pow(2, normalRetries - 1);
-                log.warn("NUBE - Error conexión (POST {}). Retry en {}ms... ({}/{}): {}", uri, waitMs, normalRetries, MAX_RETRIES, e.getMessage());
-                sleep(waitMs);
-            }
-        }
+                        .body(String.class));
     }
 
     /**
      * Ejecuta una petición PATCH con body JSON y reintentos.
      */
     public String patchJson(String uri, String accessToken, String jsonBody) {
+        return ejecutarConReintentos("PATCH", uri, () ->
+                restClient.patch()
+                        .uri(uri)
+                        .header("Authentication", "bearer " + accessToken)
+                        .header("Content-Type", "application/json")
+                        .body(jsonBody)
+                        .retrieve()
+                        .body(String.class));
+    }
+
+    /**
+     * Ejecuta una petición DELETE con reintentos.
+     */
+    public String delete(String uri, String accessToken) {
+        return ejecutarConReintentos("DELETE", uri, () ->
+                restClient.delete()
+                        .uri(uri)
+                        .header("Authentication", "bearer " + accessToken)
+                        .retrieve()
+                        .body(String.class));
+    }
+
+    /**
+     * Bucle de reintentos compartido para PUT, POST, PATCH y DELETE.
+     * Preserva los mismos logs y comportamiento que los métodos individuales anteriores.
+     */
+    private String ejecutarConReintentos(String metodo, String uri, Supplier<String> accion) {
         int normalRetries = 0;
         int rateLimitRetries = 0;
 
         while (true) {
             try {
                 rateLimiter.acquire();
-
-                return restClient.patch()
-                        .uri(uri)
-                        .header("Authentication", "bearer " + accessToken)
-                        .header("Content-Type", "application/json")
-                        .body(jsonBody)
-                        .retrieve()
-                        .body(String.class);
+                return accion.get();
 
             } catch (HttpClientErrorException e) {
                 int status = e.getStatusCode().value();
 
                 if (status == 401) {
-                    log.error("NUBE - 401 Unauthorized (PATCH {}) - Token inválido", uri);
+                    log.error("NUBE - 401 Unauthorized ({} {}) - Token inválido", metodo, uri);
                     throw e;
                 }
 
@@ -265,7 +202,7 @@ public class NubeRetryHandler {
                     if (rateLimitRetries >= MAX_RETRIES_RATE_LIMIT) throw e;
                     rateLimitRetries++;
                     long waitMs = Math.min(parseRetryAfter(e.getResponseHeaders(), baseWaitMs * 2), MAX_WAIT_MS);
-                    log.warn("NUBE - 429 (PATCH {}). Retry en {}s... ({}/{})", uri, waitMs / 1000, rateLimitRetries, MAX_RETRIES_RATE_LIMIT);
+                    log.warn("NUBE - 429 ({} {}). Retry en {}s... ({}/{})", metodo, uri, waitMs / 1000, rateLimitRetries, MAX_RETRIES_RATE_LIMIT);
                     notifyRetryListener(String.format("Nube rate limit - reintentando en %ds... (%d/%d)",
                             waitMs / 1000, rateLimitRetries, MAX_RETRIES_RATE_LIMIT));
                     sleep(waitMs);
@@ -278,67 +215,14 @@ public class NubeRetryHandler {
                 normalRetries++;
                 if (normalRetries >= MAX_RETRIES) throw e;
                 long waitMs = baseWaitMs * (long) Math.pow(2, normalRetries - 1);
-                log.warn("NUBE - 5xx {} (PATCH {}). Retry en {}ms... ({}/{})", e.getStatusCode().value(), uri, waitMs, normalRetries, MAX_RETRIES);
+                log.warn("NUBE - 5xx {} ({} {}). Retry en {}ms... ({}/{})", e.getStatusCode().value(), metodo, uri, waitMs, normalRetries, MAX_RETRIES);
                 sleep(waitMs);
 
             } catch (ResourceAccessException e) {
                 normalRetries++;
                 if (normalRetries >= MAX_RETRIES) throw e;
                 long waitMs = baseWaitMs * (long) Math.pow(2, normalRetries - 1);
-                log.warn("NUBE - Error conexión (PATCH {}). Retry en {}ms... ({}/{}): {}", uri, waitMs, normalRetries, MAX_RETRIES, e.getMessage());
-                sleep(waitMs);
-            }
-        }
-    }
-
-    /**
-     * Ejecuta una petición DELETE con reintentos.
-     */
-    public String delete(String uri, String accessToken) {
-        int normalRetries = 0;
-        int rateLimitRetries = 0;
-
-        while (true) {
-            try {
-                rateLimiter.acquire();
-
-                return restClient.delete()
-                        .uri(uri)
-                        .header("Authentication", "bearer " + accessToken)
-                        .retrieve()
-                        .body(String.class);
-
-            } catch (HttpClientErrorException e) {
-                int status = e.getStatusCode().value();
-
-                if (status == 401) { log.error("NUBE - 401 Unauthorized (DELETE {}) - Token inválido", uri); throw e; }
-
-                if (status == 404) throw e;
-
-                if (status == 429) {
-                    if (rateLimitRetries >= MAX_RETRIES_RATE_LIMIT) throw e;
-                    rateLimitRetries++;
-                    long waitMs = Math.min(parseRetryAfter(e.getResponseHeaders(), baseWaitMs * 2), MAX_WAIT_MS);
-                    log.warn("NUBE - 429 (DELETE {}). Retry en {}s... ({}/{})", uri, waitMs / 1000, rateLimitRetries, MAX_RETRIES_RATE_LIMIT);
-                    notifyRetryListener(String.format("Nube rate limit - reintentando en %ds... (%d/%d)", waitMs / 1000, rateLimitRetries, MAX_RETRIES_RATE_LIMIT));
-                    sleep(waitMs);
-                    continue;
-                }
-
-                throw e;
-
-            } catch (HttpServerErrorException e) {
-                normalRetries++;
-                if (normalRetries >= MAX_RETRIES) throw e;
-                long waitMs = baseWaitMs * (long) Math.pow(2, normalRetries - 1);
-                log.warn("NUBE - 5xx {} (DELETE {}). Retry en {}ms... ({}/{})", e.getStatusCode().value(), uri, waitMs, normalRetries, MAX_RETRIES);
-                sleep(waitMs);
-
-            } catch (ResourceAccessException e) {
-                normalRetries++;
-                if (normalRetries >= MAX_RETRIES) throw e;
-                long waitMs = baseWaitMs * (long) Math.pow(2, normalRetries - 1);
-                log.warn("NUBE - Error conexión (DELETE {}). Retry en {}ms... ({}/{}): {}", uri, waitMs, normalRetries, MAX_RETRIES, e.getMessage());
+                log.warn("NUBE - Error conexión ({} {}). Retry en {}ms... ({}/{}): {}", metodo, uri, waitMs, normalRetries, MAX_RETRIES, e.getMessage());
                 sleep(waitMs);
             }
         }

@@ -1,7 +1,7 @@
 package ar.com.leo.super_master_backend.apis.nube.controller;
 
 import ar.com.leo.super_master_backend.apis.nube.dto.ExportNubeRequestDTO;
-import ar.com.leo.super_master_backend.apis.nube.dto.ExportNubeResultDTO;
+import ar.com.leo.super_master_backend.dominio.common.dto.ExportCanalResultDTO;
 import ar.com.leo.super_master_backend.apis.nube.service.NubeExportService;
 import ar.com.leo.super_master_backend.config.Permisos;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +18,7 @@ public class NubeProductoController {
 
     @PostMapping("/exportar-productos")
     @PreAuthorize(Permisos.INTEGRACIONES_EDITAR)
-    public ResponseEntity<ExportNubeResultDTO> exportar(@RequestBody(required = false) ExportNubeRequestDTO request) {
+    public ResponseEntity<ExportCanalResultDTO> exportar(@RequestBody(required = false) ExportNubeRequestDTO request) {
         return ResponseEntity.ok(nubeExportService.exportar(request));
     }
 }

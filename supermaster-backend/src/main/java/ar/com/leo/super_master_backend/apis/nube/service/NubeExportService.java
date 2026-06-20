@@ -1,7 +1,7 @@
 package ar.com.leo.super_master_backend.apis.nube.service;
 
 import ar.com.leo.super_master_backend.apis.nube.dto.ExportNubeRequestDTO;
-import ar.com.leo.super_master_backend.apis.nube.dto.ExportNubeResultDTO;
+import ar.com.leo.super_master_backend.dominio.common.dto.ExportCanalResultDTO;
 import ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube;
 import ar.com.leo.super_master_backend.dominio.canal.entity.Canal;
 import ar.com.leo.super_master_backend.dominio.canal.repository.CanalRepository;
@@ -37,7 +37,7 @@ public class NubeExportService {
      * la transacción; es aceptable para este export manual de bajo volumen.
      */
     @Transactional(readOnly = true)
-    public ExportNubeResultDTO exportar(ExportNubeRequestDTO request) {
+    public ExportCanalResultDTO exportar(ExportNubeRequestDTO request) {
         int creados = 0;
         List<String> actualizados = new ArrayList<>();
         List<String> yaExistian = new ArrayList<>();
@@ -45,7 +45,7 @@ public class NubeExportService {
         List<String> advertencias = new ArrayList<>();
 
         if (request == null || request.skus() == null || request.tiendas() == null) {
-            return new ExportNubeResultDTO(0, actualizados, yaExistian, errores, advertencias);
+            return new ExportCanalResultDTO(0, actualizados, yaExistian, errores, advertencias);
         }
 
         List<Producto> productos = productoRepository.findBySkuIn(
@@ -91,6 +91,6 @@ public class NubeExportService {
                 }
             }
         }
-        return new ExportNubeResultDTO(creados, actualizados, yaExistian, errores, advertencias);
+        return new ExportCanalResultDTO(creados, actualizados, yaExistian, errores, advertencias);
     }
 }

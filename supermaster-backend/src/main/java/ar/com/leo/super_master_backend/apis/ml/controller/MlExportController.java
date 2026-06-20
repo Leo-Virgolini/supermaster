@@ -1,7 +1,7 @@
 package ar.com.leo.super_master_backend.apis.ml.controller;
 
 import ar.com.leo.super_master_backend.apis.ml.dto.MlExportRequestDTO;
-import ar.com.leo.super_master_backend.apis.ml.dto.MlExportResultDTO;
+import ar.com.leo.super_master_backend.dominio.common.dto.ExportCanalResultDTO;
 import ar.com.leo.super_master_backend.apis.ml.service.MlExportService;
 import ar.com.leo.super_master_backend.config.Permisos;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +21,7 @@ public class MlExportController {
 
     @PostMapping("/exportar-productos")
     @PreAuthorize(Permisos.INTEGRACIONES_EDITAR)
-    public ResponseEntity<MlExportResultDTO> exportar(@RequestBody(required = false) MlExportRequestDTO request) {
+    public ResponseEntity<ExportCanalResultDTO> exportar(@RequestBody(required = false) MlExportRequestDTO request) {
         return ResponseEntity.ok(mlExportService.exportar(request));
     }
 }

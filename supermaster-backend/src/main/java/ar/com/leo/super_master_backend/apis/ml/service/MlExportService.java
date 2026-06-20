@@ -1,7 +1,7 @@
 package ar.com.leo.super_master_backend.apis.ml.service;
 
 import ar.com.leo.super_master_backend.apis.ml.dto.MlExportRequestDTO;
-import ar.com.leo.super_master_backend.apis.ml.dto.MlExportResultDTO;
+import ar.com.leo.super_master_backend.dominio.common.dto.ExportCanalResultDTO;
 import ar.com.leo.super_master_backend.apis.ml.dto.ResultadoAltaMl;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
 import ar.com.leo.super_master_backend.dominio.producto.mla.service.MlaService;
@@ -31,7 +31,7 @@ public class MlExportService {
     @Autowired
     private MlExportService self;
 
-    public MlExportResultDTO exportar(MlExportRequestDTO request) {
+    public ExportCanalResultDTO exportar(MlExportRequestDTO request) {
         int creados = 0;
         List<String> actualizados = new ArrayList<>();
         List<String> yaExistian = new ArrayList<>();
@@ -39,7 +39,7 @@ public class MlExportService {
         List<String> advertencias = new ArrayList<>();
 
         if (request == null || request.skus() == null) {
-            return new MlExportResultDTO(0, actualizados, yaExistian, errores, advertencias);
+            return new ExportCanalResultDTO(0, actualizados, yaExistian, errores, advertencias);
         }
 
         List<Producto> productos = productoRepository.findBySkuIn(
@@ -73,7 +73,7 @@ public class MlExportService {
                 case ERROR -> errores.add(etiqueta + ": " + r.motivo());
             }
         }
-        return new MlExportResultDTO(creados, actualizados, yaExistian, errores, advertencias);
+        return new ExportCanalResultDTO(creados, actualizados, yaExistian, errores, advertencias);
     }
 
     /**

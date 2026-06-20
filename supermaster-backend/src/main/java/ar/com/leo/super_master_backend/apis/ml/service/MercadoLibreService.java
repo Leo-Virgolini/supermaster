@@ -65,6 +65,7 @@ import java.util.function.Function;
 public class MercadoLibreService {
 
     private static final String CANAL_ML = "ML";
+    private static final java.math.BigDecimal MULTIPLICADOR_PRECIO_ML = java.math.BigDecimal.valueOf(5);
 
     /** Resultado interno del cálculo de envío: costo con IVA y motivo si falló (null si ok). */
     private record ResultadoEnvio(BigDecimal costo, String motivoFallo) {
@@ -1669,8 +1670,10 @@ public class MercadoLibreService {
 
             putDesc.accept(mla, MlDescripcionBuilder.construir(producto));
 
-            double price = producto.getCosto().multiply(java.math.BigDecimal.valueOf(5)).doubleValue();
-            updatePrice.actualizar(mla, price);
+            double price = producto.getCosto().multiply(MULTIPLICADOR_PRECIO_ML).doubleValue();
+            if (!updatePrice.actualizar(mla, price)) {
+                advertencia = (advertencia == null ? "" : advertencia + "; ") + "precio no actualizado";
+            }
 
             try {
                 List<String> pictureIds = resolverPictureIds.apply(producto.getSku());
@@ -1780,7 +1783,7 @@ public class MercadoLibreService {
                 return ResultadoAltaMl.error("No se pudo predecir la categoría");
 
             // Precio de alta en ML: costo x 5 (regla de negocio de la Fase C1).
-            BigDecimal price = producto.getCosto().multiply(BigDecimal.valueOf(5));
+            BigDecimal price = producto.getCosto().multiply(MULTIPLICADOR_PRECIO_ML);
 
             // Crear con stock 0: deja la publicación pausada (out_of_stock) si la cuenta lo admite.
             String respuesta = poster.apply(om.writeValueAsString(

@@ -114,4 +114,16 @@ class ActualizarItemEnMlTest {
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);
         assertThat(r.advertencia()).contains("imágenes");
     }
+
+    @Test
+    void fallaPrecio_siguenActualizadoConAdvertencia() {
+        ResultadoAltaMl r = MercadoLibreService.actualizarItemEnMlCore(
+                producto(), "MLA777",
+                mla -> 0, (mla, t) -> {}, (mla, d) -> {},
+                (mla, p) -> false,                 // updatePrice falla
+                sku -> java.util.List.of(), (mla, pics) -> {});
+
+        assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);
+        assertThat(r.advertencia()).contains("precio");
+    }
 }

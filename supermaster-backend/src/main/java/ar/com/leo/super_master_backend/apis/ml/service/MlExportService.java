@@ -2,6 +2,7 @@ package ar.com.leo.super_master_backend.apis.ml.service;
 
 import ar.com.leo.super_master_backend.apis.ml.dto.MlExportRequestDTO;
 import ar.com.leo.super_master_backend.dominio.common.dto.ExportCanalResultDTO;
+import ar.com.leo.super_master_backend.dominio.common.dto.ExportResultAcumulador;
 import ar.com.leo.super_master_backend.apis.ml.dto.ResultadoAltaMl;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
 import ar.com.leo.super_master_backend.dominio.producto.mla.service.MlaService;
@@ -32,18 +33,14 @@ public class MlExportService {
     private MlExportService self;
 
     public ExportCanalResultDTO exportar(MlExportRequestDTO request) {
-        int creados = 0;
-        List<String> actualizados = new ArrayList<>();
-        List<String> yaExistian = new ArrayList<>();
-        List<String> errores = new ArrayList<>();
-        List<String> advertencias = new ArrayList<>();
-
         if (request == null || request.skus() == null) {
-            return new ExportCanalResultDTO(0, actualizados, yaExistian, errores, advertencias);
+            return new ExportResultAcumulador().toDTO();
         }
 
+        ExportResultAcumulador acc = new ExportResultAcumulador();
+
         List<Producto> productos = productoRepository.findBySkuIn(
-                request.skus().stream().filter(s -> s != null && !s.isBlank()).map(String::trim).distinct().toList());
+                ExportResultAcumulador.normalizarSkus(request.skus()));
 
         for (Producto producto : productos) {
             Integer productoId = producto.getId();
@@ -51,29 +48,29 @@ public class MlExportService {
             ResultadoAltaMl r = self.procesarConProductoCargado(productoId);
             switch (r.estado()) {
                 case CREADO -> {
-                    creados++;
+                    acc.creado();
                     List<String> avisos = new ArrayList<>();
                     if (r.advertencia() != null) avisos.add(r.advertencia());
                     avisos.addAll(postAlta(productoId, r.itemId(), r.mlau()));
-                    for (String a : avisos) advertencias.add(etiqueta + ": " + a);
+                    for (String a : avisos) acc.advertencia(etiqueta + ": " + a);
                 }
                 case ACTUALIZADO -> {
-                    actualizados.add(etiqueta);
-                    if (r.advertencia() != null) advertencias.add(etiqueta + ": " + r.advertencia());
+                    acc.actualizado(etiqueta);
+                    if (r.advertencia() != null) acc.advertencia(etiqueta + ": " + r.advertencia());
                     if (r.mlau() != null) {
                         try {
                             mlaService.asegurarYAsociar(productoId, r.itemId(), r.mlau());
                         } catch (Exception e) {
                             log.warn("ML - No se pudo asociar el MLA {} al producto {}: {}", r.itemId(), productoId, e.getMessage());
-                            advertencias.add(etiqueta + ": no se pudo asociar el MLA");
+                            acc.advertencia(etiqueta + ": no se pudo asociar el MLA");
                         }
                     }
                 }
-                case YA_EXISTIA -> yaExistian.add(etiqueta);
-                case ERROR -> errores.add(etiqueta + ": " + r.motivo());
+                case YA_EXISTIA -> acc.yaExistia(etiqueta);
+                case ERROR -> acc.error(etiqueta + ": " + r.motivo());
             }
         }
-        return new ExportCanalResultDTO(creados, actualizados, yaExistian, errores, advertencias);
+        return acc.toDTO();
     }
 
     /**

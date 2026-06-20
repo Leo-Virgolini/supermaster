@@ -2,6 +2,7 @@ package ar.com.leo.super_master_backend.apis.nube.service;
 
 import ar.com.leo.super_master_backend.apis.nube.dto.ExportNubeRequestDTO;
 import ar.com.leo.super_master_backend.dominio.common.dto.ExportCanalResultDTO;
+import ar.com.leo.super_master_backend.dominio.common.dto.ExportResultAcumulador;
 import ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube;
 import ar.com.leo.super_master_backend.dominio.canal.entity.Canal;
 import ar.com.leo.super_master_backend.dominio.canal.repository.CanalRepository;
@@ -14,7 +15,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,18 +38,14 @@ public class NubeExportService {
      */
     @Transactional(readOnly = true)
     public ExportCanalResultDTO exportar(ExportNubeRequestDTO request) {
-        int creados = 0;
-        List<String> actualizados = new ArrayList<>();
-        List<String> yaExistian = new ArrayList<>();
-        List<String> errores = new ArrayList<>();
-        List<String> advertencias = new ArrayList<>();
-
         if (request == null || request.skus() == null || request.tiendas() == null) {
-            return new ExportCanalResultDTO(0, actualizados, yaExistian, errores, advertencias);
+            return new ExportResultAcumulador().toDTO();
         }
 
+        ExportResultAcumulador acc = new ExportResultAcumulador();
+
         List<Producto> productos = productoRepository.findBySkuIn(
-                request.skus().stream().filter(s -> s != null && !s.isBlank()).map(String::trim).distinct().toList());
+                ExportResultAcumulador.normalizarSkus(request.skus()));
 
         Map<String, NubeCategoriaArbol> arbolesPorTienda = new HashMap<>();
 
@@ -58,11 +54,11 @@ public class NubeExportService {
                 String tienda = destino.tienda();
                 String etiqueta = producto.getSku() + " / " + tienda;
                 Optional<Canal> canal = canalRepository.findByNombreIgnoreCase(tienda);
-                if (canal.isEmpty()) { errores.add(etiqueta + ": canal '" + tienda + "' no existe"); continue; }
+                if (canal.isEmpty()) { acc.error(etiqueta + ": canal '" + tienda + "' no existe"); continue; }
                 Optional<ProductoCanalPrecio> precio = precioRepository
                         .findByProductoIdAndCanalIdAndCuotas(producto.getId(), canal.get().getId(), destino.cuotas());
-                if (precio.isEmpty()) { errores.add(etiqueta + ": sin precio calculado para esa cuota"); continue; }
-                if (precio.get().isObsoleto()) { errores.add(etiqueta + ": precio desactualizado (recalcular antes de subir)"); continue; }
+                if (precio.isEmpty()) { acc.error(etiqueta + ": sin precio calculado para esa cuota"); continue; }
+                if (precio.get().isObsoleto()) { acc.error(etiqueta + ": precio desactualizado (recalcular antes de subir)"); continue; }
 
                 // Upsert: si ya existe en la tienda, actualizar; si no, crear.
                 ResultadoAltaNube r;
@@ -79,18 +75,18 @@ public class NubeExportService {
                 }
                 switch (r.estado()) {
                     case CREADO -> {
-                        creados++;
-                        if (r.advertencia() != null) advertencias.add(etiqueta + ": " + r.advertencia());
+                        acc.creado();
+                        if (r.advertencia() != null) acc.advertencia(etiqueta + ": " + r.advertencia());
                     }
                     case ACTUALIZADO -> {
-                        actualizados.add(etiqueta);
-                        if (r.advertencia() != null) advertencias.add(etiqueta + ": " + r.advertencia());
+                        acc.actualizado(etiqueta);
+                        if (r.advertencia() != null) acc.advertencia(etiqueta + ": " + r.advertencia());
                     }
-                    case YA_EXISTIA -> yaExistian.add(etiqueta);
-                    case ERROR -> errores.add(etiqueta + ": " + r.motivo());
+                    case YA_EXISTIA -> acc.yaExistia(etiqueta);
+                    case ERROR -> acc.error(etiqueta + ": " + r.motivo());
                 }
             }
         }
-        return new ExportCanalResultDTO(creados, actualizados, yaExistian, errores, advertencias);
+        return acc.toDTO();
     }
 }

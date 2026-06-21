@@ -229,7 +229,9 @@ export const exportarProductosADuxAPI = async (skus: string[]): Promise<ExportDu
 };
 
 export type DestinoNube = { tienda: "KT HOGAR" | "KT GASTRO"; cuotas: number };
-export type ExportNubeResultDTO = {
+
+// Resultado unificado de exportar/sincronizar a un canal (Nube/ML). Refleja el ExportCanalResultDTO del backend.
+export type ExportCanalResultDTO = {
 	creados: number;
 	actualizados: string[];
 	yaExistian: string[];
@@ -237,7 +239,7 @@ export type ExportNubeResultDTO = {
 	advertencias: string[];
 };
 
-export const exportarProductosANubeAPI = async (skus: string[], tiendas: DestinoNube[]): Promise<ExportNubeResultDTO> => {
+export const exportarProductosANubeAPI = async (skus: string[], tiendas: DestinoNube[]): Promise<ExportCanalResultDTO> => {
 	const res = await fetchAPI(`${API_BASE_URL}/api/nube/exportar-productos`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
@@ -247,15 +249,7 @@ export const exportarProductosANubeAPI = async (skus: string[], tiendas: Destino
 	return await res.json();
 };
 
-export type ExportMlResultDTO = {
-	creados: number;
-	actualizados: string[];
-	yaExistian: string[];
-	errores: string[];
-	advertencias: string[];
-};
-
-export const exportarProductosAMlAPI = async (skus: string[]): Promise<ExportMlResultDTO> => {
+export const exportarProductosAMlAPI = async (skus: string[]): Promise<ExportCanalResultDTO> => {
 	const res = await fetchAPI(`${API_BASE_URL}/api/ml/exportar-productos`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },

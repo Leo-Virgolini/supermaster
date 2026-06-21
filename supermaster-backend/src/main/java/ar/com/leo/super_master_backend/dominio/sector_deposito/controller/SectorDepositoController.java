@@ -26,6 +26,6 @@ public class SectorDepositoController {
         var resultado = search.isBlank()
                 ? repository.findAll(pageable)
                 : repository.findByCodigoContainingIgnoreCase(search, pageable);
-        return resultado.map(u -> new SectorDepositoDTO(u.getId(), u.getCodigo()));
+        return resultado.map(sd -> new SectorDepositoDTO(sd.getId(), sd.getCodigo()));
     }
 }

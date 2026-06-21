@@ -25,6 +25,7 @@ import {
     searchSectoresDeposito,
 } from "./productosService";
 import { updateProductoMargenAPI } from "./productoMargenService";
+import { getCuotasPorCanalAPI } from "../canal-concepto-cuotas/canalConceptoCuotaService";
 import {
     getProductoAptosAPI, getProductoCatalogosAPI, getProductoClientesAPI,
     getAllAptosAPI, getAllCatalogosAPI, getAllClientesAPI, asignarPrecioInfladoAPI,
@@ -166,6 +167,12 @@ function ImagePickerModal({ onSelect, onClose }: { onSelect: (name: string) => v
     );
 }
 
+// Etiqueta legible para una cuota de canal: usa la descripción configurada, o la deriva del número.
+const etiquetaCuota = (cuotas: number, descripcion?: string) =>
+    descripcion?.trim() || (cuotas < 0 ? "Transferencia" : cuotas === 0 ? "Contado" : `${cuotas} cuotas`);
+
+type CuotaOpcion = { cuotas: number; descripcion: string };
+
 export default function ProductosPage() {
     const { hasPermiso } = useAuth();
     const canEditProductos = hasPermiso("PRODUCTOS_EDITAR");
@@ -214,6 +221,8 @@ export default function ProductosPage() {
     const [subirMl, setSubirMl] = useState(false);
     const [cuotaHogar, setCuotaHogar] = useState<number>(-1);
     const [cuotaGastro, setCuotaGastro] = useState<number>(6);
+    const [cuotasHogarOpts, setCuotasHogarOpts] = useState<CuotaOpcion[]>([]);
+    const [cuotasGastroOpts, setCuotasGastroOpts] = useState<CuotaOpcion[]>([]);
     const [uxb, setUxb] = useState(1);
     const [activo, setActivo] = useState(true);
     const [imagenUrl, setImagenUrl] = useState("");
@@ -296,6 +305,40 @@ export default function ProductosPage() {
         setFilters(newFilters);
         setPageIndex(0);
     }, [getSearchParamValue, searchParams]);
+
+    // Carga las cuotas reales de cada canal de Tienda Nube (KT HOGAR / KT GASTRO) para
+    // poblar los selectores. Si un canal no se encuentra o no tiene cuotas, queda con
+    // las opciones por defecto del JSX (Transferencia / 6 cuotas) como red de seguridad.
+    useEffect(() => {
+        let cancelado = false;
+        const cargarCuotasCanal = async (nombre: string): Promise<CuotaOpcion[]> => {
+            try {
+                const canales = await searchCanales(nombre, 50);
+                const canal = canales.find(c => (c.nombreCorto ?? c.label).toUpperCase() === nombre.toUpperCase());
+                if (!canal) return [];
+                const cuotas = await getCuotasPorCanalAPI(canal.id);
+                return cuotas
+                    .slice()
+                    .sort((a, b) => a.cuotas - b.cuotas)
+                    .map(c => ({ cuotas: c.cuotas, descripcion: etiquetaCuota(c.cuotas, c.descripcion) }));
+            } catch {
+                return [];
+            }
+        };
+        void (async () => {
+            const [hogar, gastro] = await Promise.all([
+                cargarCuotasCanal("KT HOGAR"),
+                cargarCuotasCanal("KT GASTRO"),
+            ]);
+            if (cancelado) return;
+            setCuotasHogarOpts(hogar);
+            setCuotasGastroOpts(gastro);
+            // Respeta el default (Transferencia / 6 cuotas) si existe en el canal; si no, la primera.
+            if (hogar.length && !hogar.some(c => c.cuotas === -1)) setCuotaHogar(hogar[0].cuotas);
+            if (gastro.length && !gastro.some(c => c.cuotas === 6)) setCuotaGastro(gastro[0].cuotas);
+        })();
+        return () => { cancelado = true; };
+    }, []);
 
     const { productos, totalRecords, isLoading, createProducto, deleteProducto, updateProducto, updateProductoMargen, refresh } = useProductos(pageIndex, pageSize, filters, sorting);
     const pageCount = totalRecords > 0 ? Math.ceil(totalRecords / pageSize) : 1;
@@ -1133,7 +1176,7 @@ export default function ProductosPage() {
                                 <label htmlFor="subirKtHogar" className="cursor-pointer">Sincronizar con KT HOGAR (Nube)</label>
                                 {subirKtHogar && (
                                     <select className={`${selectBaseClassName} ml-auto w-auto`} value={cuotaHogar} onChange={e => setCuotaHogar(Number(e.target.value))}>
-                                        {[{cuotas:-1,descripcion:"Transferencia"},{cuotas:6,descripcion:"6 cuotas"}].map(c => (
+                                        {(cuotasHogarOpts.length ? cuotasHogarOpts : [{cuotas:-1,descripcion:"Transferencia"},{cuotas:6,descripcion:"6 cuotas"}]).map(c => (
                                             <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>
                                         ))}
                                     </select>
@@ -1145,7 +1188,7 @@ export default function ProductosPage() {
                                 <label htmlFor="subirKtGastro" className="cursor-pointer">Sincronizar con KT GASTRO (Nube)</label>
                                 {subirKtGastro && (
                                     <select className={`${selectBaseClassName} ml-auto w-auto`} value={cuotaGastro} onChange={e => setCuotaGastro(Number(e.target.value))}>
-                                        {[{cuotas:-1,descripcion:"Transferencia"},{cuotas:6,descripcion:"6 cuotas"}].map(c => (
+                                        {(cuotasGastroOpts.length ? cuotasGastroOpts : [{cuotas:-1,descripcion:"Transferencia"},{cuotas:6,descripcion:"6 cuotas"}]).map(c => (
                                             <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>
                                         ))}
                                     </select>

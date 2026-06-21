@@ -66,7 +66,7 @@ public class CatalogoPdfConfigServiceImpl implements CatalogoPdfConfigService {
     @Transactional
     public CatalogoPdfConfigDTO crear(CatalogoPdfConfigCreateDTO dto) {
         CatalogoPdfConfig entity = new CatalogoPdfConfig();
-        apply(entity, dto.nombre(), dto.canalId(), dto.catalogoId(), dto.cuotas(), dto.ordenarPor(), dto.clasifGralId(), dto.tipoId(), dto.marcaId(), dto.tag(), dto.caratula(), dto.titulo(), dto.estetica(), dto.tipoDocumento(), dto.productosPorPagina(), dto.ubicacionSalida(), dto.activo());
+        apply(entity, dto.nombre(), dto.canalId(), dto.catalogoId(), dto.cuotas(), dto.ordenarPor(), dto.clasifGralId(), dto.tipoId(), dto.marcaId(), dto.tag(), dto.caratula(), dto.titulo(), dto.estetica(), dto.tipoDocumento(), dto.productosPorPagina(), dto.ubicacionSalida(), dto.activo(), dto.soloActivos());
         repository.save(entity);
         auditoriaService.registrarCambios(
                 AuditoriaEntidad.CATALOGO_PDF_CONFIG,
@@ -86,7 +86,7 @@ public class CatalogoPdfConfigServiceImpl implements CatalogoPdfConfigService {
                 .orElseThrow(() -> new NotFoundException("Configuración de catálogo PDF no encontrada"));
         Map<String, String> estadoAnterior = capturarSnapshot(entity);
 
-        apply(entity, dto.nombre(), dto.canalId(), dto.catalogoId(), dto.cuotas(), dto.ordenarPor(), dto.clasifGralId(), dto.tipoId(), dto.marcaId(), dto.tag(), dto.caratula(), dto.titulo(), dto.estetica(), dto.tipoDocumento(), dto.productosPorPagina(), dto.ubicacionSalida(), dto.activo());
+        apply(entity, dto.nombre(), dto.canalId(), dto.catalogoId(), dto.cuotas(), dto.ordenarPor(), dto.clasifGralId(), dto.tipoId(), dto.marcaId(), dto.tag(), dto.caratula(), dto.titulo(), dto.estetica(), dto.tipoDocumento(), dto.productosPorPagina(), dto.ubicacionSalida(), dto.activo(), dto.soloActivos());
         repository.save(entity);
         auditoriaService.registrarCambios(
                 AuditoriaEntidad.CATALOGO_PDF_CONFIG,
@@ -120,7 +120,7 @@ public class CatalogoPdfConfigServiceImpl implements CatalogoPdfConfigService {
     private void apply(CatalogoPdfConfig entity, String nombre, Integer canalId, Integer catalogoId, Integer cuotas,
                        List<String> ordenarPor, Integer clasifGralId, Integer tipoId, Integer marcaId, String tag,
                        Boolean caratula, String titulo, String estetica,
-                       String tipoDocumento, Integer productosPorPagina, String ubicacionSalida, Boolean activo) {
+                       String tipoDocumento, Integer productosPorPagina, String ubicacionSalida, Boolean activo, Boolean soloActivos) {
         if (canalId == null) {
             throw new BadRequestException("El canal es obligatorio");
         }
@@ -157,6 +157,7 @@ public class CatalogoPdfConfigServiceImpl implements CatalogoPdfConfigService {
         entity.setProductosPorPagina(productosPorPagina);
         entity.setUbicacionSalida(trimToNull(ubicacionSalida));
         entity.setActivo(activo);
+        entity.setSoloActivos(soloActivos != null ? soloActivos : Boolean.TRUE);
     }
 
     private CatalogoPdfConfigDTO toDto(CatalogoPdfConfig entity) {
@@ -203,6 +204,7 @@ public class CatalogoPdfConfigServiceImpl implements CatalogoPdfConfigService {
                 entity.getProductosPorPagina(),
                 entity.getUbicacionSalida(),
                 entity.getActivo(),
+                entity.getSoloActivos(),
                 entity.getFechaModificacion()
         );
     }
@@ -298,6 +300,7 @@ public class CatalogoPdfConfigServiceImpl implements CatalogoPdfConfigService {
         snapshot.put("productosPorPagina", normalizarNumero(entity.getProductosPorPagina()));
         snapshot.put("ubicacionSalida", normalizar(entity.getUbicacionSalida()));
         snapshot.put("activo", normalizarBoolean(entity.getActivo()));
+        snapshot.put("soloActivos", normalizarBoolean(entity.getSoloActivos()));
         return snapshot;
     }
 

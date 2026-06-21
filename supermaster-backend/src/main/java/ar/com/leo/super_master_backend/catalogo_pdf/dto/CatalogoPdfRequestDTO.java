@@ -35,6 +35,7 @@ public record CatalogoPdfRequestDTO(
         String colorPrecio,
         Boolean mostrarUxb,
         Float fontSizeUxb,
-        String colorUxb
+        String colorUxb,
+        Boolean soloActivos
 ) {
 }

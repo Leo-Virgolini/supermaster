@@ -26,5 +26,6 @@ public record CatalogoPdfConfigDTO(
         Integer productosPorPagina,
         String ubicacionSalida,
         Boolean activo,
+        Boolean soloActivos,
         LocalDateTime fechaModificacion
 ) {}

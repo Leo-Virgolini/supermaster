@@ -81,6 +81,10 @@ public class CatalogoPdfConfig {
     @Column(name = "activo", nullable = false)
     private Boolean activo = true;
 
+    @NotNull
+    @Column(name = "solo_activos", nullable = false)
+    private Boolean soloActivos = true;
+
     @Column(name = "fecha_modificacion")
     private LocalDateTime fechaModificacion;
 

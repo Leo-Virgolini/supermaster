@@ -64,6 +64,7 @@ type CatalogoPdfConfigItem = {
     productosPorPagina: number;
     ubicacionSalida?: string | null;
     activo: boolean;
+    soloActivos: boolean;
 };
 
 type CatalogoPdfConfigFormState = {
@@ -86,6 +87,7 @@ type CatalogoPdfConfigFormState = {
     productosPorPagina: string;
     ubicacionSalida: string;
     activo: boolean;
+    soloActivos: boolean;
 };
 
 type CatalogoPdfGlobalConfig = {
@@ -133,6 +135,7 @@ const emptyConfigForm = (): CatalogoPdfConfigFormState => ({
     productosPorPagina: "12",
     ubicacionSalida: "",
     activo: true,
+    soloActivos: true,
 });
 
 const configToForm = (config: CatalogoPdfConfigItem): CatalogoPdfConfigFormState => ({
@@ -155,6 +158,7 @@ const configToForm = (config: CatalogoPdfConfigItem): CatalogoPdfConfigFormState
     productosPorPagina: String(config.productosPorPagina ?? 12),
     ubicacionSalida: config.ubicacionSalida ?? "",
     activo: Boolean(config.activo),
+    soloActivos: config.soloActivos != null ? Boolean(config.soloActivos) : true,
 });
 
 async function descargarArchivo(url: string, fallbackFilename: string, init?: RequestInit): Promise<Response> {
@@ -254,6 +258,7 @@ export default function CatalogosPdfPage() {
     const [productosPorPagina, setProductosPorPagina] = useState("12");
     const [tipoHoja, setTipoHoja] = useState("A4");
     const [incluirImagenes, setIncluirImagenes] = useState(true);
+    const [soloActivos, setSoloActivos] = useState(true);
     const [mostrarCodigo, setMostrarCodigo] = useState(true);
     const [fontSizeCodigo, setFontSizeCodigo] = useState("6");
     const [colorCodigo, setColorCodigo] = useState("#000000");
@@ -363,6 +368,7 @@ export default function CatalogosPdfPage() {
             canalId: String(canalId),
             cuotas: cuotasCatalogo || "0",
             incluirImagenes: String(incluirImagenes),
+            soloActivos: String(soloActivos),
             caratula: String(caratula),
             estetica,
             tipoDocumento,
@@ -499,6 +505,7 @@ export default function CatalogosPdfPage() {
             productosPorPagina: Number(configForm.productosPorPagina || "12"),
             ubicacionSalida: configForm.ubicacionSalida.trim(),
             activo: configForm.activo,
+            soloActivos: configForm.soloActivos,
         };
 
         try {
@@ -920,10 +927,14 @@ export default function CatalogosPdfPage() {
                                 </div>
                             </div>
                         </div>
-                        <div className="mt-3">
+                        <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2">
                             <label className="inline-flex items-center gap-2.5 text-sm font-medium text-gray-700 dark:text-slate-300 cursor-pointer select-none">
                                 <input type="checkbox" checked={incluirImagenes} onChange={(e) => setIncluirImagenes(e.target.checked)} className="accent-violet-600 w-5 h-5 cursor-pointer" />
                                 Incluir imágenes
+                            </label>
+                            <label className="inline-flex items-center gap-2.5 text-sm font-medium text-gray-700 dark:text-slate-300 cursor-pointer select-none">
+                                <input type="checkbox" checked={soloActivos} onChange={(e) => setSoloActivos(e.target.checked)} className="accent-violet-600 w-5 h-5 cursor-pointer" />
+                                Solo productos activos
                             </label>
                         </div>
                     </div>
@@ -1574,6 +1585,15 @@ export default function CatalogosPdfPage() {
                             className="accent-violet-600"
                         />
                         Configuración activa
+                    </label>
+                    <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-slate-300">
+                        <input
+                            type="checkbox"
+                            checked={configForm.soloActivos}
+                            onChange={(e) => updateConfigField("soloActivos", e.target.checked)}
+                            className="accent-violet-600"
+                        />
+                        Solo productos activos
                     </label>
                 </div>
             </Modal>

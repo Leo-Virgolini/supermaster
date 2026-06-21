@@ -51,5 +51,7 @@ public record CatalogoPdfConfigCreateDTO(
         String ubicacionSalida,
 
         @NotNull(message = "Activo es obligatorio")
-        Boolean activo
+        Boolean activo,
+
+        Boolean soloActivos
 ) {}

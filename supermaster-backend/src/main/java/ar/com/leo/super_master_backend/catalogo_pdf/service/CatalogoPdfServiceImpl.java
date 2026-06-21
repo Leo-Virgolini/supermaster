@@ -234,7 +234,8 @@ public class CatalogoPdfServiceImpl implements CatalogoPdfService {
                 null, null, null,
                 null, null, null,
                 null, null, null,
-                null, null, null
+                null, null, null,
+                config.getSoloActivos()
         );
 
         CatalogoPdfResultDTO result = exportarCatalogoPdf(request);
@@ -418,6 +419,11 @@ public class CatalogoPdfServiceImpl implements CatalogoPdfService {
     }
 
     private boolean cumpleFiltros(Producto producto, CatalogoPdfRequestDTO request) {
+        // Por defecto solo entran productos activos (soloActivos null o true);
+        // solo si soloActivos es explícitamente false se incluyen también los inactivos.
+        if (!Boolean.FALSE.equals(request.soloActivos()) && !Boolean.TRUE.equals(producto.getActivo())) {
+            return false;
+        }
         if (request.clasifGralId() != null && (producto.getClasifGral() == null || !request.clasifGralId().equals(producto.getClasifGral().getId()))) {
             return false;
         }

@@ -63,7 +63,8 @@ public class CatalogoPdfController {
             @RequestParam(value = "colorPrecio", required = false) String colorPrecio,
             @RequestParam(value = "mostrarUxb", required = false) Boolean mostrarUxb,
             @RequestParam(value = "fontSizeUxb", required = false) Float fontSizeUxb,
-            @RequestParam(value = "colorUxb", required = false) String colorUxb
+            @RequestParam(value = "colorUxb", required = false) String colorUxb,
+            @RequestParam(value = "soloActivos", required = false) Boolean soloActivos
     ) {
         CatalogoPdfRequestDTO request = new CatalogoPdfRequestDTO(
                 catalogoId,
@@ -94,7 +95,8 @@ public class CatalogoPdfController {
                 colorPrecio,
                 mostrarUxb,
                 fontSizeUxb,
-                colorUxb
+                colorUxb,
+                soloActivos
         );
         return generarRespuestaPdf(request, "/api/catalogos-pdf/exportar");
     }

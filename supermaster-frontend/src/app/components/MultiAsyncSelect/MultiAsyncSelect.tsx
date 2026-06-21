@@ -76,17 +76,6 @@ export default function MultiAsyncSelect({ label, placeholder, loadOptions, valu
         <div ref={containerRef} className="relative w-full">
             <label htmlFor={inputId} className="block text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</label>
 
-            {value.length > 0 && (
-                <div className="mb-1 mt-1 flex flex-wrap gap-1.5">
-                    {value.map((v) => (
-                        <span key={v.id} className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                            {v.label}
-                            <button type="button" onClick={() => quitar(v.id)} className="leading-none transition-colors hover:text-red-500" aria-label={`Quitar ${v.label}`}>×</button>
-                        </span>
-                    ))}
-                </div>
-            )}
-
             <input
                 id={inputId}
                 type="text"
@@ -119,6 +108,19 @@ export default function MultiAsyncSelect({ label, placeholder, loadOptions, valu
                         <li className="p-2 text-sm text-gray-500 dark:text-slate-400">{options.length > 0 ? "Ya agregaste todos" : "No hay resultados"}</li>
                     )}
                 </ul>
+            )}
+
+            {/* Chips de seleccionados: van DEBAJO del input para que el input quede siempre
+                pegado al label y las columnas (Catálogos/Clientes) no se desalineen al haber chips. */}
+            {value.length > 0 && (
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {value.map((v) => (
+                        <span key={v.id} className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                            {v.label}
+                            <button type="button" onClick={() => quitar(v.id)} className="leading-none transition-colors hover:text-red-500" aria-label={`Quitar ${v.label}`}>×</button>
+                        </span>
+                    ))}
+                </div>
             )}
         </div>
     );

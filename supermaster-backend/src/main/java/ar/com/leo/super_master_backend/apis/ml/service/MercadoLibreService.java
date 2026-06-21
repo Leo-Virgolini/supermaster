@@ -1413,6 +1413,38 @@ public class MercadoLibreService {
     }
 
     /**
+     * Actualiza el precio de un item respetando sus variaciones: si el item tiene variaciones,
+     * ML exige enviar el precio dentro de cada variación (un PUT con todas al mismo precio); si no,
+     * va en el {@code price} raíz. Mismo criterio que {@code AutomatizacionPreciosService}.
+     */
+    public boolean actualizarPrecioItemConDeteccionVariaciones(String mla, double price) {
+        List<Long> variationIds = obtenerVariationIds(mla);
+        if (!variationIds.isEmpty()) {
+            return updateItemPriceConVariaciones(mla, variationIds, price);
+        }
+        return updateItemPrice(mla, price);
+    }
+
+    /** Ids de las variaciones de un item (lista vacía si no tiene o no se pudo leer). */
+    private List<Long> obtenerVariationIds(String mla) {
+        List<Long> ids = new ArrayList<>();
+        try {
+            String body = getItemVariations(mla);
+            if (body == null) return ids;
+            JsonNode variations = objectMapper.readTree(body).path("variations");
+            if (variations.isArray()) {
+                for (JsonNode v : variations) {
+                    long id = v.path("id").asLong(0);
+                    if (id > 0) ids.add(id);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("ML - No se pudieron leer variaciones de {}: {}", mla, e.getMessage());
+        }
+        return ids;
+    }
+
+    /**
      * Multiget batch de price + variations para múltiples items (máx 20 por request).
      * Retorna mapa de MLA → body (con id, price, variations).
      */
@@ -1708,7 +1740,7 @@ public class MercadoLibreService {
                             objectMapper.writeValueAsString(Map.of("plain_text", plainText))); }
                     catch (Exception e) { throw new RuntimeException("descripción: " + e.getMessage(), e); }
                 },
-                this::updateItemPrice,
+                this::actualizarPrecioItemConDeteccionVariaciones,
                 sku -> {
                     List<String> ids = new ArrayList<>();
                     for (String filename : imagenService.resolverArchivosPorSku(sku)) {

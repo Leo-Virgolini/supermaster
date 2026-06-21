@@ -3,7 +3,8 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { notificar } from "../utils/notificar";
-import { BuildingStorefrontIcon, CheckIcon, CloudArrowDownIcon, CubeIcon, FireIcon, HomeIcon, XMarkIcon, IdentificationIcon, CurrencyDollarIcon, ArchiveBoxIcon, ReceiptPercentIcon, Squares2X2Icon, UserGroupIcon, ShoppingBagIcon, BanknotesIcon } from "@heroicons/react/24/outline";
+import { BuildingStorefrontIcon, CheckIcon, CloudArrowDownIcon, CubeIcon, FireIcon, HomeIcon, XMarkIcon, IdentificationIcon, CurrencyDollarIcon, ArchiveBoxIcon, ReceiptPercentIcon, Squares2X2Icon, UserGroupIcon, ShoppingBagIcon, BanknotesIcon, InformationCircleIcon } from "@heroicons/react/24/outline";
+import Tooltip from "../components/Tooltip/Tooltip";
 import { API_BASE_URL } from "../config/runtime";
 import { confirmDialog } from "../utils/confirmDialog";
 import Table, { getInitialPageSize } from "../components/Table/core/Table";
@@ -1164,10 +1165,13 @@ export default function ProductosPage() {
                         <p className={`${sectionDescriptionClassName} mb-4`}>Dónde publicar/subir el producto. Las integraciones de cada canal se irán habilitando.</p>
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                             {canExportarDux && (
-                                <div className={checkboxCardClassName} title="Sube el producto si no está, o lo actualiza si ya existe">
+                                <div className={checkboxCardClassName}>
                                     <CubeIcon className="h-5 w-5 shrink-0 text-indigo-500" />
                                     <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirADux} onChange={e => setSubirADux(e.target.checked)} id="subirADux" />
                                     <label htmlFor="subirADux" className="cursor-pointer">Sincronizar con Dux</label>
+                                    <Tooltip content="Sube el producto si no está, o lo actualiza si ya existe. En Dux se sincroniza el costo (no el precio de venta)." className="ml-auto flex items-center">
+                                        <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
+                                    </Tooltip>
                                 </div>
                             )}
                             <div className={checkboxCardClassName}>
@@ -1175,11 +1179,13 @@ export default function ProductosPage() {
                                 <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirKtHogar} onChange={e => setSubirKtHogar(e.target.checked)} id="subirKtHogar" disabled={!canExportarDux} />
                                 <label htmlFor="subirKtHogar" className="cursor-pointer">Sincronizar con KT HOGAR (Nube)</label>
                                 {subirKtHogar && (
-                                    <select className={`${selectBaseClassName} ml-auto w-auto`} value={cuotaHogar} onChange={e => setCuotaHogar(Number(e.target.value))}>
-                                        {(cuotasHogarOpts.length ? cuotasHogarOpts : [{cuotas:-1,descripcion:"Transferencia"},{cuotas:6,descripcion:"6 cuotas"}]).map(c => (
-                                            <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>
-                                        ))}
-                                    </select>
+                                    <Tooltip content="Plan de cuotas del canal con el que se publica el precio en Tienda Nube (cada plan aplica su recargo/descuento de financiación)." className="ml-auto flex items-center">
+                                        <select className={`${selectBaseClassName} w-auto`} value={cuotaHogar} onChange={e => setCuotaHogar(Number(e.target.value))}>
+                                            {(cuotasHogarOpts.length ? cuotasHogarOpts : [{cuotas:-1,descripcion:"Transferencia"},{cuotas:6,descripcion:"6 cuotas"}]).map(c => (
+                                                <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>
+                                            ))}
+                                        </select>
+                                    </Tooltip>
                                 )}
                             </div>
                             <div className={checkboxCardClassName}>
@@ -1187,17 +1193,22 @@ export default function ProductosPage() {
                                 <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirKtGastro} onChange={e => setSubirKtGastro(e.target.checked)} id="subirKtGastro" disabled={!canExportarDux} />
                                 <label htmlFor="subirKtGastro" className="cursor-pointer">Sincronizar con KT GASTRO (Nube)</label>
                                 {subirKtGastro && (
-                                    <select className={`${selectBaseClassName} ml-auto w-auto`} value={cuotaGastro} onChange={e => setCuotaGastro(Number(e.target.value))}>
-                                        {(cuotasGastroOpts.length ? cuotasGastroOpts : [{cuotas:-1,descripcion:"Transferencia"},{cuotas:6,descripcion:"6 cuotas"}]).map(c => (
-                                            <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>
-                                        ))}
-                                    </select>
+                                    <Tooltip content="Plan de cuotas del canal con el que se publica el precio en Tienda Nube (cada plan aplica su recargo/descuento de financiación)." className="ml-auto flex items-center">
+                                        <select className={`${selectBaseClassName} w-auto`} value={cuotaGastro} onChange={e => setCuotaGastro(Number(e.target.value))}>
+                                            {(cuotasGastroOpts.length ? cuotasGastroOpts : [{cuotas:-1,descripcion:"Transferencia"},{cuotas:6,descripcion:"6 cuotas"}]).map(c => (
+                                                <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>
+                                            ))}
+                                        </select>
+                                    </Tooltip>
                                 )}
                             </div>
                             <div className={checkboxCardClassName}>
                                 <ShoppingBagIcon className="h-5 w-5 shrink-0 text-yellow-500" />
                                 <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirMl} onChange={e => setSubirMl(e.target.checked)} id="subirMl" disabled={!canExportarDux} />
                                 <label htmlFor="subirMl" className="cursor-pointer">Sincronizar con Mercado Libre</label>
+                                <Tooltip content="El precio publicado en Mercado Libre es el costo × 5 (se sincroniza al crear y al editar)." className="ml-auto flex items-center">
+                                    <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
+                                </Tooltip>
                             </div>
                         </div>
                     </fieldset>
@@ -1215,12 +1226,6 @@ export default function ProductosPage() {
                                 <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={esCombo} onChange={e => handleToggleCombo(e.target.checked)} id="esCombo" />
                                 <label htmlFor="esCombo" className="cursor-pointer">Es Combo</label>
                             </div>
-                            <label className="block">
-                                <span className={fieldLabelClassName}>UxB</span>
-                                <input type="number" min={1} className={`${inputBaseClassName} ${formErrors.uxb ? inputErrorClassName : ""}`} value={uxb} onChange={e => { setUxb(Number(e.target.value)); if (formErrors.uxb) setFormErrors(p => ({ ...p, uxb: "" })); }} />
-                                {formErrors.uxb && <p className="mt-1 text-xs text-red-500">{formErrors.uxb}</p>}
-                            </label>
-
                             {/* Identificadores */}
                             <label className="block">
                                 <span className={fieldLabelClassName}>SKU <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span></span>
@@ -1228,6 +1233,11 @@ export default function ProductosPage() {
                                 {formErrors.sku
                                     ? <p className="mt-1 text-xs text-red-500">{formErrors.sku}</p>
                                     : skuYaExiste && <p className="mt-1 text-xs font-medium text-amber-600 dark:text-amber-400">⚠ Ya existe un producto con este SKU</p>}
+                            </label>
+                            <label className="block">
+                                <span className={fieldLabelClassName}>UxB</span>
+                                <input type="number" min={1} className={`${inputBaseClassName} ${formErrors.uxb ? inputErrorClassName : ""}`} value={uxb} onChange={e => { setUxb(Number(e.target.value)); if (formErrors.uxb) setFormErrors(p => ({ ...p, uxb: "" })); }} />
+                                {formErrors.uxb && <p className="mt-1 text-xs text-red-500">{formErrors.uxb}</p>}
                             </label>
                             <label className="block">
                                 <span className={fieldLabelClassName}>Cód. Ext.</span>

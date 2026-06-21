@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.6</version>
+        <version>4.1.0</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>ar.com.leo</groupId>
@@ -89,7 +89,8 @@
         <dependency>
             <groupId>com.nimbusds</groupId>
             <artifactId>nimbus-jose-jwt</artifactId>
-            <version>10.8</version>
+            <version>10.9.1</version>
+            <scope>compile</scope>
         </dependency>
 
         <dependency>
@@ -163,4 +164,3 @@
     </dependencies>
 
 </project>
-

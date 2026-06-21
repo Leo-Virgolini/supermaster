@@ -219,6 +219,13 @@ public class NubeRetryHandler {
                 sleep(waitMs);
 
             } catch (ResourceAccessException e) {
+                // POST no es idempotente: un timeout/corte de conexión puede ocurrir DESPUÉS de que
+                // el servidor aplicó la operación, por lo que reintentar duplicaría el recurso
+                // (p. ej. imágenes de producto). No se reintenta; el fallo se propaga como advertencia.
+                if ("POST".equals(metodo)) {
+                    log.warn("NUBE - Error conexión en POST ({}). No se reintenta (no idempotente): {}", uri, e.getMessage());
+                    throw e;
+                }
                 normalRetries++;
                 if (normalRetries >= MAX_RETRIES) throw e;
                 long waitMs = baseWaitMs * (long) Math.pow(2, normalRetries - 1);

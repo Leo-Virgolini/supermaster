@@ -959,7 +959,7 @@ public class MercadoLibreService {
             if (!discount.isMissingNode() && discount.path("rate").asDouble(0) > 0) {
                 double rate = discount.path("rate").asDouble(0);
                 double promotedAmount = discount.path("promoted_amount").asDouble(0);
-                String type = discount.path("type").asText("");
+                String type = discount.path("type").asString("");
                 log.info("ML - Envío {}: costo ${} (descuento {}% tipo '{}', costo original ${})",
                         itemId, String.format("%.2f", cost), String.format("%.0f", rate * 100), type, String.format("%.2f", promotedAmount));
             }

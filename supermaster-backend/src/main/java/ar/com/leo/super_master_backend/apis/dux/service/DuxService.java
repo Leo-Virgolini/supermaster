@@ -974,8 +974,8 @@ public class DuxService {
             if (results != null && results.isArray()) {
                 for (JsonNode node : results) {
                     Long id = node.has("id") ? node.get("id").asLong() : null;
-                    String nombre = node.has("nombre") ? node.get("nombre").asText(null) : null;
-                    String apellido = node.has("apellido_razon_social") ? node.get("apellido_razon_social").asText(null) : null;
+                    String nombre = node.has("nombre") ? node.get("nombre").asString(null) : null;
+                    String apellido = node.has("apellido_razon_social") ? node.get("apellido_razon_social").asString(null) : null;
                     if (id != null) {
                         String full = Stream.of(apellido, nombre)
                                 .filter(s -> s != null && !s.isBlank())

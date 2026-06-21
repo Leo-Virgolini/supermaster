@@ -426,7 +426,12 @@ public class TiendaNubeService {
             log.warn("NUBE - Store '{}' no encontrada en credenciales", storeName);
             return false;
         }
+        return actualizarPrecioVariante(store, storeName, productId, variantId, price, promotionalPrice);
+    }
 
+    /** Variante que reutiliza el StoreCredentials ya resuelto (evita re-verificar credenciales y re-buscar la store). */
+    private boolean actualizarPrecioVariante(StoreCredentials store, String storeName, long productId, long variantId,
+                                             String price, String promotionalPrice) {
         String uri = String.format("/%s/products/%d/variants/%d",
                 store.getStoreId(), productId, variantId);
 
@@ -969,7 +974,7 @@ public class TiendaNubeService {
                 sku -> existente,
                 (uri, body) -> retryHandler.patchJson(uri, store.getAccessToken(), body),
                 (productId, variantId, price, promo) ->
-                        actualizarPrecioVariante(storeName, productId, variantId, price, promo));
+                        actualizarPrecioVariante(store, storeName, productId, variantId, price, promo));
 
         if (r.estado() == ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.Estado.ACTUALIZADO && r.productoNubeId() != null && r.productoNubeId() > 0) {
             String advertencia = sincronizarImagenesNube(store, r.productoNubeId(), producto.getSku());
@@ -1098,6 +1103,11 @@ public class TiendaNubeService {
         if (archivos.isEmpty()) {
             return "creado sin imagen";
         }
+        return subirImagenes(store, productoNubeId, archivos);
+    }
+
+    /** Sube la lista de imágenes ya resuelta. Devuelve null si subió todas, o una advertencia con el conteo. */
+    private String subirImagenes(StoreCredentials store, Long productoNubeId, List<String> archivos) {
         int ok = 0;
         for (int i = 0; i < archivos.size(); i++) {
             String filename = archivos.get(i);
@@ -1140,10 +1150,11 @@ public class TiendaNubeService {
             log.warn("NUBE - No se pudieron listar/borrar imágenes del producto {}: {}", productoNubeId, e.getMessage());
         }
         // 2) Subir las locales actuales (misma lógica que el alta).
-        if (imagenService.resolverArchivosPorSku(sku).isEmpty()) {
+        List<String> archivos = imagenService.resolverArchivosPorSku(sku);
+        if (archivos.isEmpty()) {
             return null; // sin imágenes locales: nada que sincronizar, no es advertencia en update
         }
-        return subirImagenesProducto(store, productoNubeId, sku);
+        return subirImagenes(store, productoNubeId, archivos);
     }
 
     private String construirBodyPatchVariantes(List<VariantePriceUpdate> updates) {

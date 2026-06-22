@@ -1917,6 +1917,11 @@ public class MercadoLibreService {
         if (!isConfigured()) return ResultadoAltaMl.error("Mercado Libre no configurado");
         verificarTokens();
         ImagenService.FiltroImagenes filtro = imagenService.filtrarParaCanal(producto.getSku(), EXT_ML);
+        // Si las únicas imágenes del SKU se descartaron por formato/tamaño, dar el motivo real
+        // (no el genérico "sin imágenes" del core): ML exige imágenes para publicar.
+        if (filtro.validas().isEmpty() && !filtro.rechazadas().isEmpty()) {
+            return ResultadoAltaMl.error("sin imágenes válidas para Mercado Libre — " + ImagenService.describirRechazadas(filtro.rechazadas()));
+        }
         ResultadoAltaMl r = crearItemEnMlCore(
                 producto, objectMapper,
                 sku -> false,  // existencia ya verificada por el caller (upsert en MlExportService)

@@ -3,7 +3,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { notificar } from "../utils/notificar";
-import { BuildingStorefrontIcon, CheckIcon, CloudArrowDownIcon, CubeIcon, FireIcon, HomeIcon, XMarkIcon, IdentificationIcon, CurrencyDollarIcon, ArchiveBoxIcon, ReceiptPercentIcon, Squares2X2Icon, UserGroupIcon, ShoppingBagIcon, BanknotesIcon, InformationCircleIcon } from "@heroicons/react/24/outline";
+import { BuildingStorefrontIcon, CheckIcon, CheckCircleIcon, CloudArrowDownIcon, CubeIcon, FireIcon, HomeIcon, XMarkIcon, IdentificationIcon, CurrencyDollarIcon, ArchiveBoxIcon, ReceiptPercentIcon, Squares2X2Icon, UserGroupIcon, ShoppingBagIcon, BanknotesIcon, InformationCircleIcon } from "@heroicons/react/24/outline";
 import Tooltip from "../components/Tooltip/Tooltip";
 import { API_BASE_URL } from "../config/runtime";
 import { confirmDialog } from "../utils/confirmDialog";
@@ -1082,6 +1082,9 @@ export default function ProductosPage() {
     const inputBaseClassName = "mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:ring-blue-500/20";
     const inputErrorClassName = "border-red-300 bg-red-50 focus:border-red-400 focus:ring-red-100 dark:border-red-700 dark:bg-red-950/20 dark:focus:ring-red-500/20";
     const checkboxCardClassName = "flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200";
+    // Card de canal (sección Canales de venta): layout en columna y altura uniforme para que el
+    // selector de cuotas no comprima el título ni desalinee las tarjetas entre sí.
+    const canalCardClassName = "flex h-full flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200";
     const selectBaseClassName = `${inputBaseClassName} appearance-none`;
 
     return (
@@ -1206,67 +1209,77 @@ export default function ProductosPage() {
                     <fieldset className={sectionClassName}>
                         <legend className={sectionTitleClassName}><BuildingStorefrontIcon className="h-5 w-5" /> Canales de venta</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Dónde publicar/subir el producto.</p>
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                        <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 xl:grid-cols-4">
                             {canExportarDux && (
-                                <div className={checkboxCardClassName}>
-                                    <CubeIcon className="h-5 w-5 shrink-0 text-indigo-500" />
-                                    <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirADux} onChange={e => setSubirADux(e.target.checked)} id="subirADux" />
-                                    <label htmlFor="subirADux" className="cursor-pointer">Sincronizar con Dux</label>
-                                    <Tooltip content={(
-                                        <>
-                                            Sube o actualiza en Dux (alta o actualización): título, costo, IVA, rubro/subrubro, marca, proveedor, sector de depósito, y habilita o deshabilita según el flag Activo.
-                                            <span className="mt-1 block text-red-300">No se suben a Dux: UxB, stock, código externo, imágenes ni el precio de venta (a Dux va el costo).</span>
-                                        </>
-                                    )} className="ml-auto flex items-center">
+                                <div className={canalCardClassName}>
+                                    <div className="flex items-center gap-3">
+                                        <CubeIcon className="h-5 w-5 shrink-0 text-indigo-500" />
+                                        <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirADux} onChange={e => setSubirADux(e.target.checked)} id="subirADux" />
+                                        <label htmlFor="subirADux" className="flex-1 cursor-pointer">Sincronizar con Dux</label>
+                                        <Tooltip content={(
+                                            <>
+                                                Sube o actualiza en Dux (alta o actualización): título, costo, IVA, rubro/subrubro, marca, proveedor, sector de depósito, y habilita o deshabilita según el flag Activo.
+                                                <span className="mt-1 block text-red-300">No se suben a Dux: UxB, stock, código externo, imágenes ni el precio de venta (a Dux va el costo).</span>
+                                            </>
+                                        )} className="flex items-center">
+                                            <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
+                                        </Tooltip>
+                                    </div>
+                                </div>
+                            )}
+                            <div className={canalCardClassName}>
+                                <div className="flex items-center gap-3">
+                                    <HomeIcon className="h-5 w-5 shrink-0 text-sky-500" />
+                                    <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirKtHogar} onChange={e => setSubirKtHogar(e.target.checked)} id="subirKtHogar" disabled={!canExportarDux} />
+                                    <label htmlFor="subirKtHogar" className="flex-1 cursor-pointer">Sincronizar con KT HOGAR (Nube)</label>
+                                    <Tooltip content="Sube o actualiza en Tienda Nube: título, descripción, precio (según el plan de cuotas), categorías, imágenes, y publica u oculta según el flag 'Activo'." className="flex items-center">
                                         <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
                                     </Tooltip>
                                 </div>
-                            )}
-                            <div className={checkboxCardClassName}>
-                                <HomeIcon className="h-5 w-5 shrink-0 text-sky-500" />
-                                <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirKtHogar} onChange={e => setSubirKtHogar(e.target.checked)} id="subirKtHogar" disabled={!canExportarDux} />
-                                <label htmlFor="subirKtHogar" className="cursor-pointer">Sincronizar con KT HOGAR (Nube)</label>
-                                <div className="ml-auto flex items-center gap-2">
-                                    {subirKtHogar && (
-                                        <Tooltip content="Plan de cuotas del canal con el que se publica el precio en Tienda Nube (cada plan aplica su recargo/descuento de financiación)." className="flex items-center">
-                                            <select className={`${selectBaseClassName} w-auto`} value={cuotaHogar} onChange={e => setCuotaHogar(Number(e.target.value))}>
+                                {subirKtHogar && (
+                                    <div className="flex items-center gap-2 border-t border-slate-200/70 pt-2 dark:border-slate-700/60">
+                                        <span className="text-xs font-normal text-slate-500 dark:text-slate-400">Cuotas</span>
+                                        <Tooltip content="Plan de cuotas del canal con el que se publica el precio en Tienda Nube (cada plan aplica su recargo/descuento de financiación)." className="flex-1">
+                                            <select className={`${selectBaseClassName} w-full`} value={cuotaHogar} onChange={e => setCuotaHogar(Number(e.target.value))}>
                                                 {(cuotasHogarOpts.length ? cuotasHogarOpts : [{cuotas:-1,descripcion:"Transferencia"},{cuotas:6,descripcion:"6 cuotas"}]).map(c => (
                                                     <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>
                                                 ))}
                                             </select>
                                         </Tooltip>
-                                    )}
+                                    </div>
+                                )}
+                            </div>
+                            <div className={canalCardClassName}>
+                                <div className="flex items-center gap-3">
+                                    <FireIcon className="h-5 w-5 shrink-0 text-emerald-500" />
+                                    <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirKtGastro} onChange={e => setSubirKtGastro(e.target.checked)} id="subirKtGastro" disabled={!canExportarDux} />
+                                    <label htmlFor="subirKtGastro" className="flex-1 cursor-pointer">Sincronizar con KT GASTRO (Nube)</label>
                                     <Tooltip content="Sube o actualiza en Tienda Nube: título, descripción, precio (según el plan de cuotas), categorías, imágenes, y publica u oculta según el flag 'Activo'." className="flex items-center">
                                         <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
                                     </Tooltip>
                                 </div>
-                            </div>
-                            <div className={checkboxCardClassName}>
-                                <FireIcon className="h-5 w-5 shrink-0 text-emerald-500" />
-                                <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirKtGastro} onChange={e => setSubirKtGastro(e.target.checked)} id="subirKtGastro" disabled={!canExportarDux} />
-                                <label htmlFor="subirKtGastro" className="cursor-pointer">Sincronizar con KT GASTRO (Nube)</label>
-                                <div className="ml-auto flex items-center gap-2">
-                                    {subirKtGastro && (
-                                        <Tooltip content="Plan de cuotas del canal con el que se publica el precio en Tienda Nube (cada plan aplica su recargo/descuento de financiación)." className="flex items-center">
-                                            <select className={`${selectBaseClassName} w-auto`} value={cuotaGastro} onChange={e => setCuotaGastro(Number(e.target.value))}>
+                                {subirKtGastro && (
+                                    <div className="flex items-center gap-2 border-t border-slate-200/70 pt-2 dark:border-slate-700/60">
+                                        <span className="text-xs font-normal text-slate-500 dark:text-slate-400">Cuotas</span>
+                                        <Tooltip content="Plan de cuotas del canal con el que se publica el precio en Tienda Nube (cada plan aplica su recargo/descuento de financiación)." className="flex-1">
+                                            <select className={`${selectBaseClassName} w-full`} value={cuotaGastro} onChange={e => setCuotaGastro(Number(e.target.value))}>
                                                 {(cuotasGastroOpts.length ? cuotasGastroOpts : [{cuotas:-1,descripcion:"Transferencia"},{cuotas:6,descripcion:"6 cuotas"}]).map(c => (
                                                     <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>
                                                 ))}
                                             </select>
                                         </Tooltip>
-                                    )}
-                                    <Tooltip content="Sube o actualiza en Tienda Nube: título, descripción, precio (según el plan de cuotas), categorías, imágenes, y publica u oculta según el flag 'Activo'." className="flex items-center">
+                                    </div>
+                                )}
+                            </div>
+                            <div className={canalCardClassName}>
+                                <div className="flex items-center gap-3">
+                                    <ShoppingBagIcon className="h-5 w-5 shrink-0 text-yellow-500" />
+                                    <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirMl} onChange={e => setSubirMl(e.target.checked)} id="subirMl" disabled={!canExportarDux} />
+                                    <label htmlFor="subirMl" className="flex-1 cursor-pointer">Sincronizar con Mercado Libre</label>
+                                    <Tooltip content="Sube o actualiza en Mercado Libre: título (si no tiene ventas), descripción, precio (costo × 5), imágenes, y activa o pausa según el flag 'Activo'. La categoría (la elegida o la que predice ML) se aplica solo al crear; no se modifica en publicaciones existentes." className="flex items-center">
                                         <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
                                     </Tooltip>
                                 </div>
-                            </div>
-                            <div className={checkboxCardClassName}>
-                                <ShoppingBagIcon className="h-5 w-5 shrink-0 text-yellow-500" />
-                                <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirMl} onChange={e => setSubirMl(e.target.checked)} id="subirMl" disabled={!canExportarDux} />
-                                <label htmlFor="subirMl" className="cursor-pointer">Sincronizar con Mercado Libre</label>
-                                <Tooltip content="Sube o actualiza en Mercado Libre: título (si no tiene ventas), descripción, precio (costo × 5), imágenes, y activa o pausa según el flag 'Activo'. La categoría (la elegida o la que predice ML) se aplica solo al crear; no se modifica en publicaciones existentes." className="ml-auto flex items-center">
-                                    <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
-                                </Tooltip>
                             </div>
                         </div>
                         {imagenesDetectadas.length > 0 && (
@@ -1291,10 +1304,12 @@ export default function ProductosPage() {
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                             {/* Estado y atributos del producto */}
                             <div className={checkboxCardClassName}>
+                                <CheckCircleIcon className="h-5 w-5 shrink-0 text-emerald-500" />
                                 <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={activo} onChange={e => setActivo(e.target.checked)} id="activo" />
-                                <label htmlFor="activo" className="cursor-pointer">{editandoProductoId ? "Activo" : "Activo al crear"}</label>
+                                <label htmlFor="activo" className="cursor-pointer">Activo</label>
                             </div>
                             <div className={checkboxCardClassName}>
+                                <Squares2X2Icon className="h-5 w-5 shrink-0 text-violet-500" />
                                 <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={esCombo} onChange={e => handleToggleCombo(e.target.checked)} id="esCombo" />
                                 <label htmlFor="esCombo" className="cursor-pointer">Es Combo</label>
                             </div>

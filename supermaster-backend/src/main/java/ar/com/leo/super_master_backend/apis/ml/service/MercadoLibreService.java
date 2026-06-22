@@ -1425,6 +1425,22 @@ public class MercadoLibreService {
         return updateItemPrice(mla, price);
     }
 
+    /**
+     * Cambia el status de publicación de un item (active/paused). Devuelve false si no se pudo
+     * (p. ej. el item está closed y no se puede reactivar) — el caller lo reporta como advertencia.
+     */
+    public boolean updateItemStatus(String mla, String status) {
+        verificarTokens();
+        try {
+            retryHandler.putJson("/items/" + mla, () -> tokens.accessToken,
+                    objectMapper.writeValueAsString(Map.of("status", status)));
+            return true;
+        } catch (Exception e) {
+            log.warn("ML - Error actualizando status de item {} a {}: {}", mla, status, e.getMessage());
+            return false;
+        }
+    }
+
     /** Ids de las variaciones de un item (lista vacía si no tiene o no se pudo leer). */
     private List<Long> obtenerVariationIds(String mla) {
         List<Long> ids = new ArrayList<>();
@@ -1669,6 +1685,12 @@ public class MercadoLibreService {
         boolean actualizar(String mla, double price);
     }
 
+    /** Cambia el estado de publicación de un item (mla, "active"|"paused") -> ok. */
+    @FunctionalInterface
+    public interface ActualizadorEstadoItem {
+        boolean actualizar(String mla, String status);
+    }
+
     /**
      * Núcleo testeable de la actualización de un item ML (sin red).
      *  - soldQtyFn(mla) → unidades vendidas (para decidir si se puede cambiar el título).
@@ -1685,7 +1707,8 @@ public class MercadoLibreService {
             BiConsumer<String, String> putDesc,
             ActualizadorPrecioItem updatePrice,
             Function<String, List<String>> resolverPictureIds,
-            BiConsumer<String, List<String>> putPictures) {
+            BiConsumer<String, List<String>> putPictures,
+            ActualizadorEstadoItem putStatus) {
         try {
             if (producto.getTituloMl() == null || producto.getTituloMl().isBlank())
                 return ResultadoAltaMl.error("Falta Título ML");
@@ -1714,6 +1737,11 @@ public class MercadoLibreService {
                 }
             } catch (Exception e) {
                 advertencia = (advertencia == null ? "" : advertencia + "; ") + "imágenes no actualizadas";
+            }
+
+            String estadoTarget = Boolean.TRUE.equals(producto.getActivo()) ? "active" : "paused";
+            if (!putStatus.actualizar(mla, estadoTarget)) {
+                advertencia = (advertencia == null ? "" : advertencia + "; ") + "estado no actualizado";
             }
 
             ResultadoAltaMl r = ResultadoAltaMl.actualizado(mla);
@@ -1756,7 +1784,8 @@ public class MercadoLibreService {
                         retryHandler.putJson("/items/" + m, () -> tokens.accessToken,
                                 objectMapper.writeValueAsString(Map.of("pictures", pics)));
                     } catch (Exception e) { throw new RuntimeException("imágenes: " + e.getMessage(), e); }
-                });
+                },
+                this::updateItemStatus);
     }
 
     /** Lee sold_quantity de un item (0 si no se puede determinar). */

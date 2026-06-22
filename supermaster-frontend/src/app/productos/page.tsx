@@ -1212,7 +1212,12 @@ export default function ProductosPage() {
                                     <CubeIcon className="h-5 w-5 shrink-0 text-indigo-500" />
                                     <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirADux} onChange={e => setSubirADux(e.target.checked)} id="subirADux" />
                                     <label htmlFor="subirADux" className="cursor-pointer">Sincronizar con Dux</label>
-                                    <Tooltip content="Sube o actualiza en Dux (alta o actualización): título, costo (no el precio de venta), IVA, rubro/subrubro, marca, proveedor, sector de depósito, y habilita o deshabilita según el flag 'Activo'." className="ml-auto flex items-center">
+                                    <Tooltip content={(
+                                        <>
+                                            Sube o actualiza en Dux (alta o actualización): título, costo, IVA, rubro/subrubro, marca, proveedor, sector de depósito, y habilita o deshabilita según el flag Activo.
+                                            <span className="mt-1 block text-red-300">No se suben a Dux: UxB, stock, código externo, imágenes ni el precio de venta (a Dux va el costo).</span>
+                                        </>
+                                    )} className="ml-auto flex items-center">
                                         <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
                                     </Tooltip>
                                 </div>

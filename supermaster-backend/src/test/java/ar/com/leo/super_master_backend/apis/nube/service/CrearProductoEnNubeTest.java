@@ -65,8 +65,10 @@ class CrearProductoEnNubeTest {
     @Test
     void ok_posteaYDevuelveCreado() {
         AtomicReference<String> posted = new AtomicReference<>();
+        Producto p = producto();
+        p.setActivo(false);
         ResultadoAltaNube r = TiendaNubeService.crearProductoEnNubeCore(
-                store(), producto(), new BigDecimal("1500"), null, om,
+                store(), p, new BigDecimal("1500"), null, om,
                 CLASIF, TIPO, arbol(), creador(),
                 (sku, token) -> null, // no existe
                 (uri, body) -> { posted.set(body); return "{\"id\": 5}"; });
@@ -106,5 +108,23 @@ class CrearProductoEnNubeTest {
         assertThat(r.estado()).isEqualTo(ResultadoAltaNube.Estado.CREADO);
         assertThat(posted.get()).contains("\"categories\":[101,102,103,104]");
         assertThat(r.productoNubeId()).isEqualTo(5L);
+    }
+
+    @org.junit.jupiter.api.Test
+    void alta_published_reflejaActivo() {
+        ar.com.leo.super_master_backend.dominio.producto.entity.Producto p =
+                new ar.com.leo.super_master_backend.dominio.producto.entity.Producto();
+        p.setSku("1234567");
+        p.setTituloNube("Olla acero 24cm");
+
+        p.setActivo(true);
+        var activo = ar.com.leo.super_master_backend.apis.nube.service.NubeProductoPayloadBuilder
+                .construir(p, new java.math.BigDecimal("100"), null, java.util.List.of());
+        org.assertj.core.api.Assertions.assertThat(activo.get("published")).isEqualTo(true);
+
+        p.setActivo(false);
+        var inactivo = ar.com.leo.super_master_backend.apis.nube.service.NubeProductoPayloadBuilder
+                .construir(p, new java.math.BigDecimal("100"), null, java.util.List.of());
+        org.assertj.core.api.Assertions.assertThat(inactivo.get("published")).isEqualTo(false);
     }
 }

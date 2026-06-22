@@ -17,7 +17,7 @@ public final class NubeProductoPayloadBuilder {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("name", Map.of("es", p.getTituloNube() != null ? p.getTituloNube() : ""));
         payload.put("description", Map.of("es", NubeDescripcionBuilder.construir(p)));
-        payload.put("published", false);
+        payload.put("published", Boolean.TRUE.equals(p.getActivo()));
         payload.put("free_shipping", false);
 
         Map<String, Object> variant = new LinkedHashMap<>();

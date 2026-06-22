@@ -935,6 +935,7 @@ public class TiendaNubeService {
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("name", Map.of("es", producto.getTituloNube() != null ? producto.getTituloNube() : ""));
             body.put("description", Map.of("es", NubeDescripcionBuilder.construir(producto)));
+            body.put("published", Boolean.TRUE.equals(producto.getActivo()));
             if (categoriaIds != null && !categoriaIds.isEmpty()) {
                 body.put("categories", new ArrayList<>(categoriaIds));
             }

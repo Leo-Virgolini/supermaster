@@ -112,4 +112,30 @@ class ActualizarProductoEnNubeTest {
 
         assertThat(patchBody.get()).doesNotContain("\"categories\"");
     }
+
+    @Test
+    void actualiza_incluyePublishedSegunActivo() {
+        JsonNode existente = existente("{\"id\":7,\"variants\":[{\"id\":8,\"sku\":\"1234567\"}]}");
+        AtomicReference<String> patchBody = new AtomicReference<>();
+
+        // producto() tiene activo=true por default
+        TiendaNubeService.actualizarProductoEnNubeCore(
+                producto(), new BigDecimal("150"), null, om, "9",
+                java.util.List.of(),
+                sku -> existente,
+                (uri, body) -> patchBody.set(body),
+                (productId, variantId, price, promo) -> true);
+        assertThat(patchBody.get()).contains("\"published\":true");
+
+        Producto inactivo = producto();
+        inactivo.setActivo(false);
+        AtomicReference<String> patchBody2 = new AtomicReference<>();
+        TiendaNubeService.actualizarProductoEnNubeCore(
+                inactivo, new BigDecimal("150"), null, om, "9",
+                java.util.List.of(),
+                sku -> existente,
+                (uri, body) -> patchBody2.set(body),
+                (productId, variantId, price, promo) -> true);
+        assertThat(patchBody2.get()).contains("\"published\":false");
+    }
 }

@@ -24,6 +24,7 @@ import {
     removeProductoCatalogoAPI, removeProductoAptoAPI, removeProductoClienteAPI, updateProductoAPI, getNombreById,
     exportarProductosADuxAPI, calcularEnvioMlaAPI, exportarProductosANubeAPI, exportarProductosAMlAPI,
     searchSectoresDeposito, predecirCategoriasMlAPI, type PrediccionCategoriaMl,
+    getImagenDetalleAPI, type ImagenDetalle,
 } from "./productosService";
 import { updateProductoMargenAPI } from "./productoMargenService";
 import { getCuotasPorCanalAPI } from "../canal-concepto-cuotas/canalConceptoCuotaService";
@@ -174,6 +175,10 @@ const etiquetaCuota = (cuotas: number, descripcion?: string) =>
 
 type CuotaOpcion = { cuotas: number; descripcion: string };
 
+const EXT_ML = new Set(["jpg", "jpeg", "png"]);
+const EXT_NUBE = new Set(["gif", "jpg", "jpeg", "png", "webp"]);
+const MAX_BYTES_IMG = 10 * 1024 * 1024; // 10 MB
+
 export default function ProductosPage() {
     const { hasPermiso } = useAuth();
     const canEditProductos = hasPermiso("PRODUCTOS_EDITAR");
@@ -224,6 +229,7 @@ export default function ProductosPage() {
     const [subirKtHogar, setSubirKtHogar] = useState(true);
     const [subirKtGastro, setSubirKtGastro] = useState(true);
     const [subirMl, setSubirMl] = useState(true);
+    const [imagenesDetectadas, setImagenesDetectadas] = useState<ImagenDetalle[]>([]);
     const [cuotaHogar, setCuotaHogar] = useState<number>(-1);
     const [cuotaGastro, setCuotaGastro] = useState<number>(6);
     const [cuotasHogarOpts, setCuotasHogarOpts] = useState<CuotaOpcion[]>([]);
@@ -859,6 +865,19 @@ export default function ProductosPage() {
         return () => { clearTimeout(t); controller.abort(); };
     }, [sku, isModalOpen, editandoProductoId]);
 
+    // Carga el detalle de imágenes del SKU para mostrar el aviso preventivo de formato/tamaño.
+    useEffect(() => {
+        if (!isModalOpen) { setImagenesDetectadas([]); return; }
+        const skuTrim = sku.trim();
+        if (!skuTrim) { setImagenesDetectadas([]); return; }
+        const t = setTimeout(() => {
+            getImagenDetalleAPI(skuTrim)
+                .then(setImagenesDetectadas)
+                .catch(() => setImagenesDetectadas([]));
+        }, 400);
+        return () => clearTimeout(t);
+    }, [sku, isModalOpen]);
+
     // Autocompleta la imagen cuando el nombre del archivo coincide con el SKU.
     // Solo en alta y mientras el usuario no haya elegido una imagen a mano.
     useEffect(() => {
@@ -1245,6 +1264,20 @@ export default function ProductosPage() {
                                 </Tooltip>
                             </div>
                         </div>
+                        {imagenesDetectadas.length > 0 && (
+                            <div className="text-xs text-slate-600 dark:text-slate-300 mt-3 space-y-0.5">
+                                <div className="font-medium">{imagenesDetectadas.length} imagen{imagenesDetectadas.length === 1 ? "" : "es"} detectada{imagenesDetectadas.length === 1 ? "" : "s"} para este SKU</div>
+                                {imagenesDetectadas.flatMap((img) => {
+                                    const avisos: string[] = [];
+                                    if (img.bytes > MAX_BYTES_IMG) avisos.push(`${img.nombre} supera 10 MB — no se subirá`);
+                                    if (subirMl && !EXT_ML.has(img.extension)) avisos.push(`${img.nombre} — Mercado Libre no acepta .${img.extension}`);
+                                    if ((subirKtHogar || subirKtGastro) && !EXT_NUBE.has(img.extension)) avisos.push(`${img.nombre} — Tienda Nube no acepta .${img.extension}`);
+                                    return avisos.map((a, i) => (
+                                        <div key={`${img.nombre}-${i}`} className="text-amber-600 dark:text-amber-400">&#9888; {a}</div>
+                                    ));
+                                })}
+                            </div>
+                        )}
                     </fieldset>
 
                     <fieldset className={sectionClassName}>

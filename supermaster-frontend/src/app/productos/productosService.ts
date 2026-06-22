@@ -410,3 +410,10 @@ export const searchCanales = (q: string, size?: number) => fetchOptions("canales
 export const searchCatalogos = (q: string, size?: number) => fetchOptions("catalogos", q, "nombre", size);
 export const searchAptos = (q: string, size?: number) => fetchOptions("aptos", q, "nombre", size);
 export const searchClientes = (q: string, size?: number) => fetchOptions("clientes", q, "nombre", size);
+
+export type ImagenDetalle = { nombre: string; extension: string; bytes: number };
+
+export async function getImagenDetalleAPI(sku: string): Promise<ImagenDetalle[]> {
+	const res = await fetchAPI(`${API_BASE_URL}/api/imagenes/detalle/${encodeURIComponent(sku)}`);
+	return res.json();
+}

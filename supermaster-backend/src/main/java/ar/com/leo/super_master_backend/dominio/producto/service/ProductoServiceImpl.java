@@ -31,7 +31,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.openapitools.jackson.nullable.JsonNullable;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -68,8 +67,8 @@ public class ProductoServiceImpl implements ProductoService {
     private final ProductoClienteRepository productoClienteRepository;
     private final ProductoAuditoriaService productoAuditoriaService;
 
-    // @Lazy para romper el ciclo de dependencias (ProductoServiceImpl -> DuxService -> RecalculoPrecioFacade -> ...).
-    @Lazy
+    // Field injection (no por @RequiredArgsConstructor): evita alterar el constructor, que
+    // varios tests instancian de forma posicional. No hay ciclo de dependencias.
     @Autowired
     private DuxService duxService;
 

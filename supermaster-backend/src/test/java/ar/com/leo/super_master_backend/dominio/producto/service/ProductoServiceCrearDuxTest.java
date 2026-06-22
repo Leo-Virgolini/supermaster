@@ -27,7 +27,7 @@ class ProductoServiceCrearDuxTest {
 
     @BeforeEach
     void setUp() {
-        // @InjectMocks usa el constructor (campos final) y no inyecta campos @Lazy @Autowired.
+        // @InjectMocks usa el constructor (campos final) y no inyecta el campo @Autowired duxService.
         ReflectionTestUtils.setField(service, "duxService", duxService);
     }
 

@@ -406,7 +406,7 @@ public class DuxService {
     public Item obtenerProductoPorCodigo(String codItem) {
         verificarTokens();
 
-        String response = retryHandler.get("/items?codigoItem=" + codItem, tokens.token);
+        String response = retryHandler.get("/items?codigoItem=" + URLEncoder.encode(codItem, StandardCharsets.UTF_8), tokens.token);
 
         if (response == null) {
             return null;
@@ -414,8 +414,11 @@ public class DuxService {
 
         try {
             DuxResponse duxResponse = objectMapper.readValue(response, DuxResponse.class);
-            if (duxResponse.getResults() != null && !duxResponse.getResults().isEmpty()) {
-                return duxResponse.getResults().getFirst();
+            if (duxResponse.getResults() != null) {
+                // Match EXACTO por código: el endpoint de Dux puede devolver coincidencias parciales.
+                return duxResponse.getResults().stream()
+                        .filter(i -> codItem.equals(i.getCodItem()))
+                        .findFirst().orElse(null);
             }
         } catch (Exception e) {
             log.error("DUX - Error obteniendo producto {}", codItem, e);

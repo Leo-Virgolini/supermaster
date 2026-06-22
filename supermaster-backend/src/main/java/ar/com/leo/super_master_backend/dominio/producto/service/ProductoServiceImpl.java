@@ -7,6 +7,7 @@ import ar.com.leo.super_master_backend.dominio.canal.repository.CanalConceptoCuo
 import ar.com.leo.super_master_backend.dominio.canal.repository.CanalRepository;
 import ar.com.leo.super_master_backend.dominio.clasif_gastro.entity.ClasifGastro;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.entity.ClasifGral;
+import ar.com.leo.super_master_backend.apis.dux.service.DuxService;
 import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
 import ar.com.leo.super_master_backend.dominio.common.exception.ConflictException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
@@ -27,7 +28,10 @@ import ar.com.leo.super_master_backend.dominio.tipo.entity.Tipo;
 import ar.com.leo.super_master_backend.dominio.sector_deposito.entity.SectorDeposito;
 import jakarta.persistence.criteria.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.openapitools.jackson.nullable.JsonNullable;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -45,6 +49,7 @@ import java.util.stream.Collectors;
 
 import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ProductoServiceImpl implements ProductoService {
@@ -62,6 +67,11 @@ public class ProductoServiceImpl implements ProductoService {
     private final ProductoCatalogoRepository productoCatalogoRepository;
     private final ProductoClienteRepository productoClienteRepository;
     private final ProductoAuditoriaService productoAuditoriaService;
+
+    // @Lazy para romper el ciclo de dependencias (ProductoServiceImpl -> DuxService -> RecalculoPrecioFacade -> ...).
+    @Lazy
+    @Autowired
+    private DuxService duxService;
 
     private static final int PRECISION_RESULTADO = 2;
 
@@ -96,6 +106,8 @@ public class ProductoServiceImpl implements ProductoService {
         if (productoRepository.findBySku(dto.sku()).isPresent()) {
             throw new ConflictException("Ya existe un producto con el SKU: " + dto.sku());
         }
+        // Validar que el SKU no exista ya en Dux (no pisar un ítem existente con el upsert ciego).
+        verificarSkuLibreEnDux(dto.sku());
 
         Producto entity = productoMapper.toEntity(dto);
         validarAlMenosUnaClasificacion(entity);
@@ -104,6 +116,23 @@ public class ProductoServiceImpl implements ProductoService {
         productoAuditoriaService.registrarCreacion(entity);
         programarRecalculoPostCommit("Producto creado", entity.getId());
         return productoMapper.toDTO(entity);
+    }
+
+    /**
+     * Bloquea el alta si el SKU ya existe en Dux. Fail-closed: si no se puede verificar
+     * (Dux caído/no configurado/timeout), también bloquea, con un mensaje distinto.
+     */
+    void verificarSkuLibreEnDux(String sku) {
+        boolean existeEnDux;
+        try {
+            existeEnDux = duxService.obtenerProductoPorCodigo(sku) != null;
+        } catch (Exception e) {
+            log.warn("No se pudo verificar el SKU '{}' en Dux: {}", sku, e.getMessage());
+            throw new ConflictException("No se pudo verificar el SKU en Dux (¿Dux no disponible?). Intentá de nuevo en un momento.");
+        }
+        if (existeEnDux) {
+            throw new ConflictException("El SKU ya existe en Dux: " + sku);
+        }
     }
 
     // ============================

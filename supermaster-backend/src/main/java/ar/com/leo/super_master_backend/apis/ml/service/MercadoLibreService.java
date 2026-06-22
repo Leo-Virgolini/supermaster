@@ -67,6 +67,7 @@ public class MercadoLibreService {
 
     private static final String CANAL_ML = "ML";
     private static final java.math.BigDecimal MULTIPLICADOR_PRECIO_ML = java.math.BigDecimal.valueOf(5);
+    private static final Set<String> EXT_ML = Set.of("jpg", "jpeg", "png");
 
     /** Resultado interno del cálculo de envío: costo con IVA y motivo si falló (null si ok). */
     private record ResultadoEnvio(BigDecimal costo, String motivoFallo) {
@@ -1697,6 +1698,13 @@ public class MercadoLibreService {
         return (previa == null || previa.isBlank()) ? mensaje : previa + "; " + mensaje;
     }
 
+    /** Si el alta/actualización fue exitosa y hubo imágenes omitidas, las agrega como advertencia. */
+    static ResultadoAltaMl aplicarRechazadasImagenes(ResultadoAltaMl r, List<ImagenService.ImagenRechazada> rechazadas) {
+        if (rechazadas == null || rechazadas.isEmpty()) return r;
+        if (r.estado() != ResultadoAltaMl.Estado.CREADO && r.estado() != ResultadoAltaMl.Estado.ACTUALIZADO) return r;
+        return r.conAdvertencia(concatAdv(r.advertencia(), ImagenService.describirRechazadas(rechazadas)));
+    }
+
     /**
      * Núcleo testeable de la actualización de un item ML (sin red).
      *  - soldQtyFn(mla) → unidades vendidas (para decidir si se puede cambiar el título).
@@ -1762,7 +1770,8 @@ public class MercadoLibreService {
     public ResultadoAltaMl actualizarItemEnMl(ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto, String mla) {
         if (!isConfigured()) return ResultadoAltaMl.error("Mercado Libre no configurado");
         verificarTokens();
-        return actualizarItemEnMlCore(
+        ImagenService.FiltroImagenes filtro = imagenService.filtrarParaCanal(producto.getSku(), EXT_ML);
+        ResultadoAltaMl r = actualizarItemEnMlCore(
                 producto, mla,
                 this::leerSoldQuantity,
                 (m, title) -> {
@@ -1778,7 +1787,7 @@ public class MercadoLibreService {
                 this::actualizarPrecioItemConDeteccionVariaciones,
                 sku -> {
                     List<String> ids = new ArrayList<>();
-                    for (String filename : imagenService.resolverArchivosPorSku(sku)) {
+                    for (String filename : filtro.validas()) {
                         String picId = subirImagenItem(filename);
                         if (picId != null && !picId.isBlank()) ids.add(picId);
                     }
@@ -1793,6 +1802,7 @@ public class MercadoLibreService {
                     } catch (Exception e) { throw new RuntimeException("imágenes: " + e.getMessage(), e); }
                 },
                 this::updateItemStatus);
+        return aplicarRechazadasImagenes(r, filtro.rechazadas());
     }
 
     /** Lee sold_quantity de un item (0 si no se puede determinar). */
@@ -1906,18 +1916,20 @@ public class MercadoLibreService {
     public ResultadoAltaMl crearItemEnMl(ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto) {
         if (!isConfigured()) return ResultadoAltaMl.error("Mercado Libre no configurado");
         verificarTokens();
+        ImagenService.FiltroImagenes filtro = imagenService.filtrarParaCanal(producto.getSku(), EXT_ML);
         ResultadoAltaMl r = crearItemEnMlCore(
                 producto, objectMapper,
                 sku -> false,  // existencia ya verificada por el caller (upsert en MlExportService)
-                sku -> imagenService.resolverArchivosPorSku(sku),
+                sku -> filtro.validas(),
                 filename -> subirImagenItem(filename),
                 titulo -> resolverCategoriaMl(producto.getMlCategoryId(), titulo, this::predecirCategoria),
                 json -> postearItem(json),
                 (itemId, plainText) -> retryHandler.postJson("/items/" + itemId + "/description",
                         () -> tokens.accessToken, objectMapper.writeValueAsString(Map.of("plain_text", plainText))));
+        r = aplicarRechazadasImagenes(r, filtro.rechazadas());
 
         // Producto inactivo: dejar la publicación recién creada en paused (best-effort).
-        // concatAdv preserva una advertencia previa del alta (p. ej. la de la descripción).
+        // concatAdv preserva una advertencia previa del alta (descripción / imágenes omitidas).
         if (r.estado() == ResultadoAltaMl.Estado.CREADO
                 && r.itemId() != null
                 && !Boolean.TRUE.equals(producto.getActivo())

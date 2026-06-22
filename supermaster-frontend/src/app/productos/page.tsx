@@ -23,7 +23,7 @@ import {
     searchCatalogos, searchAptos, searchClientes, searchCanales, addProductoCatalogoAPI, addProductoAptoAPI, addProductoClienteAPI,
     removeProductoCatalogoAPI, removeProductoAptoAPI, removeProductoClienteAPI, updateProductoAPI, getNombreById,
     exportarProductosADuxAPI, calcularEnvioMlaAPI, exportarProductosANubeAPI, exportarProductosAMlAPI,
-    searchSectoresDeposito,
+    searchSectoresDeposito, predecirCategoriasMlAPI, type PrediccionCategoriaMl,
 } from "./productosService";
 import { updateProductoMargenAPI } from "./productoMargenService";
 import { getCuotasPorCanalAPI } from "../canal-concepto-cuotas/canalConceptoCuotaService";
@@ -214,6 +214,10 @@ export default function ProductosPage() {
     const [codExt, setCodExt] = useState("");
     const [tituloDux, setTituloDux] = useState("");
     const [tituloMl, setTituloMl] = useState("");
+    const [mlCategoryId, setMlCategoryId] = useState<string | null>(null);
+    const [mlCategoryNombre, setMlCategoryNombre] = useState<string | null>(null);
+    const [prediccionesMl, setPrediccionesMl] = useState<PrediccionCategoriaMl[]>([]);
+    const [cargandoPrediccionesMl, setCargandoPrediccionesMl] = useState(false);
     const [tituloNube, setTituloNube] = useState("");
     const [esCombo, setEsCombo] = useState(false);
     const [subirADux, setSubirADux] = useState(true);
@@ -575,7 +579,8 @@ export default function ProductosPage() {
                 moq: moq !== "" ? moq : null,
                 tagReposicion: tagReposicion || null,
                 tag: tag || null,
-                marcaId, origenId, clasifGralId: clasifGralId!, clasifGastroId, tipoId: tipoId!, proveedorId, materialId, sectorDepositoId, mlaId: mlaIdFinal
+                marcaId, origenId, clasifGralId: clasifGralId!, clasifGastroId, tipoId: tipoId!, proveedorId, materialId, sectorDepositoId, mlaId: mlaIdFinal,
+                mlCategoryId: mlCategoryId, mlCategoryNombre: mlCategoryNombre,
             };
             const creado = await createProducto(payload, asociarMargenYRelaciones);
             // Si el producto quedó asociado a un MLA, ahora SÍ se puede calcular su
@@ -631,6 +636,9 @@ export default function ProductosPage() {
         setCodExt(producto.codExt ?? "");
         setTituloDux(producto.tituloDux ?? "");
         setTituloMl(producto.tituloMl ?? "");
+        setMlCategoryId(producto.mlCategoryId ?? null);
+        setMlCategoryNombre(producto.mlCategoryNombre ?? null);
+        setPrediccionesMl([]);
         setTituloNube(producto.tituloNube ?? "");
         setImagenUrl(producto.imagenUrl ?? "");
         setEsCombo(!!producto.esCombo);
@@ -705,6 +713,7 @@ export default function ProductosPage() {
                 costo: costoNum, iva, stock: stock !== "" ? stock : null, moq: moq !== "" ? moq : null,
                 tagReposicion: tagReposicion || null, tag: tag || null,
                 marcaId, origenId, clasifGralId, clasifGastroId, tipoId, proveedorId, materialId, sectorDepositoId, mlaId,
+                mlCategoryId: mlCategoryId, mlCategoryNombre: mlCategoryNombre,
             } as ProductoPatchDTO;
             await updateProductoAPI(id, patch, "FORM");
 
@@ -901,6 +910,20 @@ export default function ProductosPage() {
         }
     };
 
+    const handlePredecirCategoriasMl = async () => {
+        if (!tituloMl.trim()) return;
+        setCargandoPrediccionesMl(true);
+        try {
+            const preds = await predecirCategoriasMlAPI(tituloMl.trim());
+            setPrediccionesMl(preds);
+            if (preds.length === 0) notificar.info("Sin sugerencias de categoría para ese título");
+        } catch (e) {
+            notificar.error(e instanceof Error ? e.message : "No se pudieron predecir categorías");
+        } finally {
+            setCargandoPrediccionesMl(false);
+        }
+    };
+
     // Crea un MLA manual con los datos cargados y lo deja seleccionado.
     const handleCrearMla = async () => {
         if (!mlaCodigo.trim()) {
@@ -929,6 +952,7 @@ export default function ProductosPage() {
 
     const resetForm = () => {
         setSku(""); setLastSuggestedSku(""); setCodExt(""); setTituloDux(""); setTituloMl(""); setTituloNube(""); setImagenUrl("");
+        setMlCategoryId(null); setMlCategoryNombre(null); setPrediccionesMl([]);
         setEsCombo(false); setUxb(1); setActivo(true); setSubirADux(true);
         setSubirKtHogar(false); setSubirKtGastro(false); setSubirMl(false);
         setCapacidad(""); setLargo(""); setAncho(""); setAlto(""); setDiamboca(""); setDiambase(""); setEspesor("");
@@ -1262,6 +1286,34 @@ export default function ProductosPage() {
                                 <span className={fieldLabelClassName}>Título ML</span>
                                 <input type="text" className={`${inputBaseClassName} ${formErrors.tituloMl ? inputErrorClassName : ""}`} value={tituloMl} onChange={e => { setTituloMl(e.target.value); if (formErrors.tituloMl) setFormErrors(p => ({ ...p, tituloMl: "" })); }} placeholder="Título para Mercado Libre" />
                                 {formErrors.tituloMl && <p className="mt-1 text-xs text-red-500">{formErrors.tituloMl}</p>}
+                                <div className="mt-2 flex flex-col gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <Button variant="light" onClick={handlePredecirCategoriasMl} disabled={!tituloMl.trim() || cargandoPrediccionesMl}>
+                                            {cargandoPrediccionesMl ? "Prediciendo..." : "Predecir categorías"}
+                                        </Button>
+                                        {mlCategoryId && (
+                                            <span className="inline-flex items-center gap-1 rounded-full border border-yellow-300 bg-yellow-50 px-2 py-0.5 text-xs font-medium text-yellow-800 dark:border-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300">
+                                                {mlCategoryNombre || mlCategoryId}
+                                                <button type="button" onClick={() => { setMlCategoryId(null); setMlCategoryNombre(null); }} className="leading-none hover:text-red-500" aria-label="Quitar categoría">×</button>
+                                            </span>
+                                        )}
+                                    </div>
+                                    {prediccionesMl.length > 0 && (
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {prediccionesMl.map(p => (
+                                                <button
+                                                    key={p.categoryId}
+                                                    type="button"
+                                                    onClick={() => { setMlCategoryId(p.categoryId); setMlCategoryNombre(p.categoryName); setPrediccionesMl([]); }}
+                                                    className={`rounded-lg border px-2 py-1 text-xs transition-colors ${mlCategoryId === p.categoryId ? "border-yellow-400 bg-yellow-100 text-yellow-900" : "border-slate-300 hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-700"}`}
+                                                >
+                                                    {p.categoryName} <span className="text-slate-400">({p.categoryId})</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">Si no elegís una, al publicar se usa la categoría que el predictor considere más probable.</p>
+                                </div>
                             </label>
                             <label className="block md:col-span-2">
                                 <span className={fieldLabelClassName}>Título Nube</span>

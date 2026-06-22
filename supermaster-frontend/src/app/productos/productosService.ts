@@ -259,6 +259,14 @@ export const exportarProductosAMlAPI = async (skus: string[]): Promise<ExportCan
 	return await res.json();
 };
 
+export type PrediccionCategoriaMl = { categoryId: string; categoryName: string };
+
+export const predecirCategoriasMlAPI = async (titulo: string): Promise<PrediccionCategoriaMl[]> => {
+	const res = await fetchAPI(`${API_BASE_URL}/api/ml/predecir-categorias?titulo=${encodeURIComponent(titulo)}`);
+	if (!res.ok) throw new Error(await extraerMensajeError(res, "No se pudieron predecir categorías"));
+	return await res.json();
+};
+
 // Sugiere el menor SKU libre del rango (individual vs combo). Devuelve null si el rango está lleno.
 export const getSiguienteSkuAPI = async (esCombo: boolean): Promise<string | null> => {
 	const res = await fetchAPI(`${API_URL}/siguiente-sku?esCombo=${esCombo}`);

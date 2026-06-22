@@ -8,6 +8,8 @@ export interface ProductoDTO {
 	tituloDux: string;
 	tituloMl: string | null;
 	tituloNube: string | null;
+	mlCategoryId: string | null;
+	mlCategoryNombre: string | null;
 	esCombo: boolean;
 	uxb: number;
 	moq: number | null;
@@ -78,6 +80,8 @@ export interface ProductoCreateDTO {
 	tituloDux: string;
 	tituloMl: string | null;
 	tituloNube: string | null;
+	mlCategoryId: string | null;
+	mlCategoryNombre: string | null;
 	esCombo: boolean;
 	uxb: number;
 	activo: boolean;

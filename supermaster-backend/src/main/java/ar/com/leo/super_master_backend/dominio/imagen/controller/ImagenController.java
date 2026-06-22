@@ -1,6 +1,7 @@
 package ar.com.leo.super_master_backend.dominio.imagen.controller;
 
 import ar.com.leo.super_master_backend.dominio.imagen.service.ImagenService;
+import ar.com.leo.super_master_backend.dominio.imagen.service.ImagenService.ImagenDetalle;
 import ar.com.leo.super_master_backend.dominio.imagen.service.ImagenService.ImagenListado;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -9,6 +10,7 @@ import org.springframework.web.util.UriUtils;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/imagenes")
@@ -43,5 +45,10 @@ public class ImagenController {
     @GetMapping("/listar")
     public ResponseEntity<ImagenListado> listar(@RequestParam(defaultValue = "") String search) {
         return ResponseEntity.ok(imagenService.listar(search));
+    }
+
+    @GetMapping("/detalle/{sku}")
+    public ResponseEntity<List<ImagenDetalle>> detalle(@PathVariable String sku) {
+        return ResponseEntity.ok(imagenService.resolverDetallePorSku(sku));
     }
 }

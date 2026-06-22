@@ -4,6 +4,7 @@ import ar.com.leo.super_master_backend.apis.ml.dto.ConfiguracionMlDTO;
 import ar.com.leo.super_master_backend.apis.ml.dto.CostoEnvioMasivoResponseDTO;
 import ar.com.leo.super_master_backend.apis.ml.dto.CostoEnvioResponseDTO;
 import ar.com.leo.super_master_backend.apis.ml.dto.CostoVentaMasivoResponseDTO;
+import ar.com.leo.super_master_backend.apis.ml.dto.PrediccionCategoriaMlDTO;
 import ar.com.leo.super_master_backend.apis.ml.service.ConfiguracionMlService;
 import ar.com.leo.super_master_backend.apis.ml.service.MercadoLibreService;
 import ar.com.leo.super_master_backend.config.Permisos;
@@ -14,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -233,5 +235,20 @@ public class MercadoLibreController {
     public ResponseEntity<ConfiguracionMlDTO> actualizarConfiguracion(
             @Valid @RequestBody ConfiguracionMlDTO dto) {
         return ResponseEntity.ok(configuracionMlService.actualizar(dto));
+    }
+
+    /**
+     * Predice las top-3 categorías de Mercado Libre para un título dado.
+     * @param titulo título del producto (Título ML)
+     * @return lista de predicciones {categoryId, categoryName} (vacía si no hay sugerencias)
+     */
+    @GetMapping("/predecir-categorias")
+    @PreAuthorize(Permisos.MLAS_VER)
+    public ResponseEntity<?> predecirCategorias(@RequestParam String titulo) {
+        if (titulo == null || titulo.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "El título es obligatorio", "path", "/api/ml/predecir-categorias"));
+        }
+        List<PrediccionCategoriaMlDTO> predicciones = mercadoLibreService.predecirCategorias(titulo, 3);
+        return ResponseEntity.ok(predicciones);
     }
 }

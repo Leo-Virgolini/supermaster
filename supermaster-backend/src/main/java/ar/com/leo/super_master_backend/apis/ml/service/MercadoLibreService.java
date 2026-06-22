@@ -6,6 +6,7 @@ import ar.com.leo.super_master_backend.apis.ml.dto.CostoEnvioMasivoResponseDTO;
 import ar.com.leo.super_master_backend.apis.ml.dto.CostoEnvioResponseDTO;
 import ar.com.leo.super_master_backend.apis.ml.dto.CostoVentaMasivoResponseDTO;
 import ar.com.leo.super_master_backend.apis.ml.dto.CostoVentaResponseDTO;
+import ar.com.leo.super_master_backend.apis.ml.dto.PrediccionCategoriaMlDTO;
 import ar.com.leo.super_master_backend.apis.ml.dto.ResultadoAltaMl;
 import ar.com.leo.super_master_backend.apis.ml.entity.ConfiguracionMl;
 import ar.com.leo.super_master_backend.apis.ml.model.MLCredentials;
@@ -1939,22 +1940,38 @@ public class MercadoLibreService {
         }
     }
 
-    /** Predictor de categoría a partir del título. Devuelve el category_id de mayor probabilidad (o null). */
-    private String predecirCategoria(String titulo) {
+    /** Parsea la respuesta del predictor (domain_discovery) a la lista de categorías predichas. Testeable sin red. */
+    public static List<PrediccionCategoriaMlDTO> parsePredicciones(JsonNode arr) {
+        List<PrediccionCategoriaMlDTO> out = new ArrayList<>();
+        if (arr != null && arr.isArray()) {
+            for (JsonNode n : arr) {
+                String id = n.path("category_id").asString("");
+                if (!id.isBlank()) {
+                    out.add(new PrediccionCategoriaMlDTO(id, n.path("category_name").asString("")));
+                }
+            }
+        }
+        return out;
+    }
+
+    /** Predictor de categorías de ML: top-N predicciones a partir del título. Lista vacía si falla. */
+    public List<PrediccionCategoriaMlDTO> predecirCategorias(String titulo, int limit) {
+        verificarTokens();
         try {
-            String uri = "/sites/MLA/domain_discovery/search?limit=1&q="
+            String uri = "/sites/MLA/domain_discovery/search?limit=" + limit + "&q="
                     + URLEncoder.encode(titulo, StandardCharsets.UTF_8);
             String resp = retryHandler.get(uri, () -> tokens.accessToken);
-            JsonNode arr = objectMapper.readTree(resp);
-            if (arr.isArray() && !arr.isEmpty()) {
-                String cat = arr.get(0).path("category_id").asString("");
-                return cat.isBlank() ? null : cat;
-            }
-            return null;
+            return parsePredicciones(objectMapper.readTree(resp));
         } catch (Exception e) {
-            log.warn("ML - Falló predecir categoría para '{}': {}", titulo, e.getMessage());
-            return null;
+            log.warn("ML - Falló predecir categorías para '{}': {}", titulo, e.getMessage());
+            return List.of();
         }
+    }
+
+    /** Categoría de mayor probabilidad (o null) — fallback automático del alta. */
+    private String predecirCategoria(String titulo) {
+        List<PrediccionCategoriaMlDTO> preds = predecirCategorias(titulo, 1);
+        return preds.isEmpty() ? null : preds.get(0).categoryId();
     }
 
     /** POST /items devolviendo el body (éxito o, ante 4xx, el body de error de ML). */

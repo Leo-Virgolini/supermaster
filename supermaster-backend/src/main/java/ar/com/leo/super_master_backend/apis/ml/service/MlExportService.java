@@ -80,7 +80,7 @@ public class MlExportService {
     @Transactional(readOnly = true)
     public ResultadoAltaMl procesarConProductoCargado(Integer productoId) {
         Producto p = productoRepository.findById(productoId).orElse(null);
-        if (p == null) return ResultadoAltaMl.error("Producto no encontrado");
+        if (p == null) return ResultadoAltaMl.error("producto no encontrado");
 
         String mla = (p.getMla() != null) ? p.getMla().getMla() : null;
         String mlauHallado = null;

@@ -1073,11 +1073,11 @@ public class TiendaNubeService {
             java.util.function.BiFunction<String, String, String> poster) {
         try {
             if (producto.getTituloNube() == null || producto.getTituloNube().isBlank())
-                return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error("Falta Título Nube");
+                return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error("falta título Nube");
             if (buscador.apply(producto.getSku(), store.getAccessToken()) != null)
                 return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.yaExistia();
             if (clasifNombres == null || clasifNombres.isEmpty() || tipoNombres == null || tipoNombres.isEmpty())
-                return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error("Falta clasif/tipo para categorizar");
+                return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error("falta clasif/tipo para categorizar");
 
             List<String> rutaNombres = new java.util.ArrayList<>(clasifNombres);
             rutaNombres.addAll(tipoNombres);

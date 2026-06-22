@@ -1717,9 +1717,9 @@ public class MercadoLibreService {
             ActualizadorEstadoItem putStatus) {
         try {
             if (producto.getTituloMl() == null || producto.getTituloMl().isBlank())
-                return ResultadoAltaMl.error("Falta Título ML");
+                return ResultadoAltaMl.error("falta título ML");
             if (producto.getCosto() == null)
-                return ResultadoAltaMl.error("Falta costo");
+                return ResultadoAltaMl.error("falta costo");
 
             String advertencia = null;
             int soldQty = soldQtyFn.apply(mla);
@@ -1828,26 +1828,26 @@ public class MercadoLibreService {
         try {
             String sku = producto.getSku();
             if (producto.getTituloMl() == null || producto.getTituloMl().isBlank())
-                return ResultadoAltaMl.error("Falta Título ML");
+                return ResultadoAltaMl.error("falta título ML");
             if (producto.getCosto() == null)
-                return ResultadoAltaMl.error("Falta costo");
+                return ResultadoAltaMl.error("falta costo");
             if (Boolean.TRUE.equals(yaExiste.apply(sku)))
                 return ResultadoAltaMl.yaExistia();
 
             List<String> archivos = archivosResolver.apply(sku);
             if (archivos == null || archivos.isEmpty())
-                return ResultadoAltaMl.error("Sin imágenes (obligatorias para publicación clásica)");
+                return ResultadoAltaMl.error("sin imágenes (obligatorias para publicación clásica)");
             List<String> pictureIds = new ArrayList<>();
             for (String filename : archivos) {
                 String picId = subidorImagen.apply(filename);
                 if (picId != null && !picId.isBlank()) pictureIds.add(picId);
             }
             if (pictureIds.isEmpty())
-                return ResultadoAltaMl.error("No se pudieron subir las imágenes");
+                return ResultadoAltaMl.error("no se pudieron subir las imágenes");
 
             String categoryId = predictor.apply(producto.getTituloMl());
             if (categoryId == null || categoryId.isBlank())
-                return ResultadoAltaMl.error("No se pudo predecir la categoría");
+                return ResultadoAltaMl.error("no se pudo predecir la categoría");
 
             // Precio de alta en ML: costo x 5 (regla de negocio de la Fase C1).
             BigDecimal price = producto.getCosto().multiply(MULTIPLICADOR_PRECIO_ML);

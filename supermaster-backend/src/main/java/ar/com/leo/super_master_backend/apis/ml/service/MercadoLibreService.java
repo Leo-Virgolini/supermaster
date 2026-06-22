@@ -1699,6 +1699,7 @@ public class MercadoLibreService {
      *  - updatePrice(mla, price) → actualiza el precio (price = costo × 5).
      *  - resolverPictureIds(sku) → lista de picture IDs ya subidos (vacía = sin imágenes).
      *  - putPictures(mla, pictureIds) → PUT del array de imágenes (solo si no vacío).
+     *  - putStatus(mla, status) → cambia el estado de publicación ("active"/"paused", best-effort).
      */
     public static ResultadoAltaMl actualizarItemEnMlCore(
             ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto, String mla,

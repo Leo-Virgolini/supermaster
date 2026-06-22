@@ -1193,7 +1193,7 @@ export default function ProductosPage() {
                                     <CubeIcon className="h-5 w-5 shrink-0 text-indigo-500" />
                                     <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirADux} onChange={e => setSubirADux(e.target.checked)} id="subirADux" />
                                     <label htmlFor="subirADux" className="cursor-pointer">Sincronizar con Dux</label>
-                                    <Tooltip content="Sube o actualiza el producto en Dux (alta si no existe, actualización si ya está): título, costo (no el precio de venta), IVA, rubro/subrubro, marca, proveedor y sector de depósito." className="ml-auto flex items-center">
+                                    <Tooltip content="Sube o actualiza en Dux (alta o actualización): título, costo (no el precio de venta), IVA, rubro/subrubro, marca, proveedor, sector de depósito, y habilita o deshabilita según el flag 'Activo'." className="ml-auto flex items-center">
                                         <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
                                     </Tooltip>
                                 </div>
@@ -1212,7 +1212,7 @@ export default function ProductosPage() {
                                             </select>
                                         </Tooltip>
                                     )}
-                                    <Tooltip content="Sube o actualiza el producto en Tienda Nube: título, descripción, precio (según el plan de cuotas elegido), categorías e imágenes." className="flex items-center">
+                                    <Tooltip content="Sube o actualiza en Tienda Nube: título, descripción, precio (según el plan de cuotas), categorías, imágenes, y publica u oculta según el flag 'Activo'." className="flex items-center">
                                         <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
                                     </Tooltip>
                                 </div>
@@ -1231,7 +1231,7 @@ export default function ProductosPage() {
                                             </select>
                                         </Tooltip>
                                     )}
-                                    <Tooltip content="Sube o actualiza el producto en Tienda Nube: título, descripción, precio (según el plan de cuotas elegido), categorías e imágenes." className="flex items-center">
+                                    <Tooltip content="Sube o actualiza en Tienda Nube: título, descripción, precio (según el plan de cuotas), categorías, imágenes, y publica u oculta según el flag 'Activo'." className="flex items-center">
                                         <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
                                     </Tooltip>
                                 </div>
@@ -1240,7 +1240,7 @@ export default function ProductosPage() {
                                 <ShoppingBagIcon className="h-5 w-5 shrink-0 text-yellow-500" />
                                 <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirMl} onChange={e => setSubirMl(e.target.checked)} id="subirMl" disabled={!canExportarDux} />
                                 <label htmlFor="subirMl" className="cursor-pointer">Sincronizar con Mercado Libre</label>
-                                <Tooltip content="Sube o actualiza el producto en Mercado Libre: título (si no tiene ventas), descripción, precio (costo × 5) e imágenes. La categoría no se modifica en publicaciones existentes." className="ml-auto flex items-center">
+                                <Tooltip content="Sube o actualiza en Mercado Libre: título (si no tiene ventas), descripción, precio (costo × 5), imágenes, y activa o pausa según el flag 'Activo'. La categoría (la elegida o la que predice ML) se aplica solo al crear; no se modifica en publicaciones existentes." className="ml-auto flex items-center">
                                     <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
                                 </Tooltip>
                             </div>

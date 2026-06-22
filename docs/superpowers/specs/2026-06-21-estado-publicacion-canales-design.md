@@ -68,6 +68,8 @@ Hoy el flag `Producto.activo` solo vive en la BD local: desmarcar "Activo" no ca
   - Optimización opcional: leer el status actual antes (`leerStatusItems`) y solo enviar el `PUT` si difiere; si el item está `closed` y `activo=true`, advertir "publicación cerrada, no se puede reactivar" sin intentar el PUT.
 - **Alta** (`crearItemEnMl`/`crearItemEnMlCore`): si el producto está inactivo, tras crear el item exitosamente hacer el **mismo `PUT` de status best-effort** (`{"status":"paused"}`) reutilizando el paso del update. No se cambia el payload del POST de creación. Si está activo, se mantiene el comportamiento actual (el `stock=0` ya lo deja `out_of_stock`).
 
+> **Nota (stock — decisión del usuario, 2026-06-21):** el stock de ML se gestiona **fuera de supermaster**; esta feature solo cambia `status`. Según la doc de ML, la visibilidad real depende del stock: los items nacen `out_of_stock` (porque el alta usa `available_quantity=0`), y reactivar con `status=active` NO los hace visibles si siguen sin stock. En cambio `status=paused` deja el item en `paused_by_seller`, que **no** se reactiva al reponer stock (solo con `status=active`) — justamente lo correcto para una baja deliberada. No se toca `available_quantity` en esta feature.
+
 ### Reactivación
 Es el camino simétrico del mismo flujo: con `activo=true`, el upsert manda Dux `S` / Nube `published:true` / ML `status:active`. No requiere lógica aparte.
 

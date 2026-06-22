@@ -7,12 +7,15 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -83,6 +86,66 @@ public class ImagenService {
             }
         }
         return List.copyOf(porSlot.values());
+    }
+
+    /** Límite de tamaño por imagen aceptado por ML y Tienda Nube. */
+    public static final long MAX_BYTES_CANAL = 10L * 1024 * 1024; // 10 MB
+
+    /** Una imagen resuelta con su metadata (extensión en minúscula, sin punto). */
+    public record ImagenDetalle(String nombre, String extension, long bytes) {}
+
+    /** Motivo por el que una imagen no se sube a un canal. */
+    public enum MotivoRechazo { FORMATO, TAMANO }
+
+    /** Una imagen que no se sube, con su motivo. */
+    public record ImagenRechazada(String nombre, MotivoRechazo motivo) {}
+
+    /** Resultado de filtrar las imágenes de un SKU para un canal: las que se suben y las que no. */
+    public record FiltroImagenes(List<String> validas, List<ImagenRechazada> rechazadas) {}
+
+    /** Resuelve las imágenes del SKU con su extensión (minúscula) y tamaño en bytes. */
+    public List<ImagenDetalle> resolverDetallePorSku(String sku) {
+        List<ImagenDetalle> out = new ArrayList<>();
+        for (String nombre : resolverArchivosPorSku(sku)) {
+            int dot = nombre.lastIndexOf('.');
+            String ext = dot > 0 ? nombre.substring(dot + 1).toLowerCase(Locale.ROOT) : "";
+            try {
+                out.add(new ImagenDetalle(nombre, ext, Files.size(baseDir.resolve(nombre))));
+            } catch (java.io.IOException e) {
+                // El archivo desapareció entre el índice y la lectura: se omite (best-effort).
+            }
+        }
+        return out;
+    }
+
+    /** Filtra las imágenes del SKU para un canal: válida si su extensión está permitida y no supera 10 MB. */
+    public FiltroImagenes filtrarParaCanal(String sku, Set<String> extensionesPermitidas) {
+        return filtrarParaCanal(sku, extensionesPermitidas, MAX_BYTES_CANAL);
+    }
+
+    /** Variante con límite configurable (para tests). */
+    FiltroImagenes filtrarParaCanal(String sku, Set<String> extensionesPermitidas, long maxBytes) {
+        List<String> validas = new ArrayList<>();
+        List<ImagenRechazada> rechazadas = new ArrayList<>();
+        for (ImagenDetalle d : resolverDetallePorSku(sku)) {
+            if (!extensionesPermitidas.contains(d.extension())) {
+                rechazadas.add(new ImagenRechazada(d.nombre(), MotivoRechazo.FORMATO));
+            } else if (d.bytes() > maxBytes) {
+                rechazadas.add(new ImagenRechazada(d.nombre(), MotivoRechazo.TAMANO));
+            } else {
+                validas.add(d.nombre());
+            }
+        }
+        return new FiltroImagenes(validas, rechazadas);
+    }
+
+    /** Texto para el resumen del export con las imágenes omitidas; null si no hay ninguna. */
+    public static String describirRechazadas(List<ImagenRechazada> rechazadas) {
+        if (rechazadas == null || rechazadas.isEmpty()) return null;
+        String detalle = rechazadas.stream()
+                .map(r -> r.nombre() + " (" + (r.motivo() == MotivoRechazo.FORMATO ? "formato" : "supera 10MB") + ")")
+                .collect(Collectors.joining(", "));
+        return rechazadas.size() + " omitida(s): " + detalle;
     }
 
     /** Lee {baseDir}/{filename} y devuelve sus bytes crudos. */

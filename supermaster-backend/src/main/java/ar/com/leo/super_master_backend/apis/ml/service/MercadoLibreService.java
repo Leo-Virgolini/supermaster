@@ -1898,7 +1898,7 @@ public class MercadoLibreService {
     public ResultadoAltaMl crearItemEnMl(ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto) {
         if (!isConfigured()) return ResultadoAltaMl.error("Mercado Libre no configurado");
         verificarTokens();
-        return crearItemEnMlCore(
+        ResultadoAltaMl r = crearItemEnMlCore(
                 producto, objectMapper,
                 sku -> false,  // existencia ya verificada por el caller (upsert en MlExportService)
                 sku -> imagenService.resolverArchivosPorSku(sku),
@@ -1907,6 +1907,15 @@ public class MercadoLibreService {
                 json -> postearItem(json),
                 (itemId, plainText) -> retryHandler.postJson("/items/" + itemId + "/description",
                         () -> tokens.accessToken, objectMapper.writeValueAsString(Map.of("plain_text", plainText))));
+
+        // Producto inactivo: dejar la publicación recién creada en paused (best-effort).
+        if (r.estado() == ResultadoAltaMl.Estado.CREADO
+                && r.itemId() != null
+                && !Boolean.TRUE.equals(producto.getActivo())
+                && !updateItemStatus(r.itemId(), "paused")) {
+            return r.conAdvertencia("estado no actualizado (no se pudo pausar)");
+        }
+        return r;
     }
 
     /** Sube una imagen a ML por multipart y devuelve su picture_id (o null si falla). */

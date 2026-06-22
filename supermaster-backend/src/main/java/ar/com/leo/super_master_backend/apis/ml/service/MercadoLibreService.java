@@ -1911,7 +1911,7 @@ public class MercadoLibreService {
                 sku -> false,  // existencia ya verificada por el caller (upsert en MlExportService)
                 sku -> imagenService.resolverArchivosPorSku(sku),
                 filename -> subirImagenItem(filename),
-                titulo -> predecirCategoria(titulo),
+                titulo -> resolverCategoriaMl(producto.getMlCategoryId(), titulo, this::predecirCategoria),
                 json -> postearItem(json),
                 (itemId, plainText) -> retryHandler.postJson("/items/" + itemId + "/description",
                         () -> tokens.accessToken, objectMapper.writeValueAsString(Map.of("plain_text", plainText))));
@@ -1972,6 +1972,12 @@ public class MercadoLibreService {
     private String predecirCategoria(String titulo) {
         List<PrediccionCategoriaMlDTO> preds = predecirCategorias(titulo, 1);
         return preds.isEmpty() ? null : preds.get(0).categoryId();
+    }
+
+    /** Categoría a usar en el alta de ML: la guardada en el producto si existe, sino la del predictor automático. */
+    public static String resolverCategoriaMl(String categoriaGuardada, String tituloMl, Function<String, String> autoPredictor) {
+        if (categoriaGuardada != null && !categoriaGuardada.isBlank()) return categoriaGuardada;
+        return autoPredictor.apply(tituloMl);
     }
 
     /** POST /items devolviendo el body (éxito o, ante 4xx, el body de error de ML). */

@@ -221,9 +221,9 @@ export default function ProductosPage() {
     const [tituloNube, setTituloNube] = useState("");
     const [esCombo, setEsCombo] = useState(false);
     const [subirADux, setSubirADux] = useState(true);
-    const [subirKtHogar, setSubirKtHogar] = useState(false);
-    const [subirKtGastro, setSubirKtGastro] = useState(false);
-    const [subirMl, setSubirMl] = useState(false);
+    const [subirKtHogar, setSubirKtHogar] = useState(true);
+    const [subirKtGastro, setSubirKtGastro] = useState(true);
+    const [subirMl, setSubirMl] = useState(true);
     const [cuotaHogar, setCuotaHogar] = useState<number>(-1);
     const [cuotaGastro, setCuotaGastro] = useState<number>(6);
     const [cuotasHogarOpts, setCuotasHogarOpts] = useState<CuotaOpcion[]>([]);
@@ -644,8 +644,8 @@ export default function ProductosPage() {
         setEsCombo(!!producto.esCombo);
         setUxb(producto.uxb ?? 1);
         setActivo(!!producto.activo);
-        setSubirADux(false);
-        setSubirKtHogar(false); setSubirKtGastro(false); setSubirMl(false);
+        setSubirADux(true);
+        setSubirKtHogar(true); setSubirKtGastro(true); setSubirMl(true);
         setCapacidad(producto.capacidad ?? "");
         setLargo(producto.largo ?? ""); setAncho(producto.ancho ?? ""); setAlto(producto.alto ?? "");
         setDiamboca(producto.diamboca ?? ""); setDiambase(producto.diambase ?? ""); setEspesor(producto.espesor ?? "");
@@ -954,7 +954,7 @@ export default function ProductosPage() {
         setSku(""); setLastSuggestedSku(""); setCodExt(""); setTituloDux(""); setTituloMl(""); setTituloNube(""); setImagenUrl("");
         setMlCategoryId(null); setMlCategoryNombre(null); setPrediccionesMl([]);
         setEsCombo(false); setUxb(1); setActivo(true); setSubirADux(true);
-        setSubirKtHogar(false); setSubirKtGastro(false); setSubirMl(false);
+        setSubirKtHogar(true); setSubirKtGastro(true); setSubirMl(true);
         setCapacidad(""); setLargo(""); setAncho(""); setAlto(""); setDiamboca(""); setDiambase(""); setEspesor("");
         setCosto(""); setIva(21.0);
         setMarcaId(null); setOrigenId(null); setClasifGralId(null); setClasifGastroId(null);

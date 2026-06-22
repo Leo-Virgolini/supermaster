@@ -26,13 +26,16 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -41,6 +44,7 @@ public class TiendaNubeService {
     public static final String STORE_HOGAR = "KT HOGAR";
     public static final String STORE_GASTRO = "KT GASTRO";
     private static final long BASE_WAIT_MS = 2000L;
+    private static final Set<String> EXT_NUBE = Set.of("gif", "jpg", "jpeg", "png", "webp");
 
     private final RestClient restClient;
     private final NubeProperties properties;
@@ -1094,17 +1098,27 @@ public class TiendaNubeService {
         }
     }
 
+    /** Une partes de advertencia no vacías con "; "; null si no hay ninguna. */
+    static String combinarAdvertencias(String... partes) {
+        String r = Arrays.stream(partes)
+                .filter(p -> p != null && !p.isBlank())
+                .collect(Collectors.joining("; "));
+        return r.isBlank() ? null : r;
+    }
+
     /**
      * Sube a TN todas las imágenes del SKU (principal + adicionales) al producto recién creado.
+     * Filtra por formato válido (EXT_NUBE) y reporta las omitidas.
      * Devuelve una advertencia para el resumen, o null si subió todas. Un fallo de una imagen
      * (lectura o POST) no frena las demás ni revierte el alta.
      */
     private String subirImagenesProducto(StoreCredentials store, Long productoNubeId, String sku) {
-        List<String> archivos = imagenService.resolverArchivosPorSku(sku);
-        if (archivos.isEmpty()) {
+        ImagenService.FiltroImagenes filtro = imagenService.filtrarParaCanal(sku, EXT_NUBE);
+        if (filtro.validas().isEmpty() && filtro.rechazadas().isEmpty()) {
             return "creado sin imagen";
         }
-        return subirImagenes(store, productoNubeId, archivos);
+        String advSubida = filtro.validas().isEmpty() ? null : subirImagenes(store, productoNubeId, filtro.validas());
+        return combinarAdvertencias(advSubida, ImagenService.describirRechazadas(filtro.rechazadas()));
     }
 
     /** Sube la lista de imágenes ya resuelta. Devuelve null si subió todas, o una advertencia con el conteo. */
@@ -1150,12 +1164,13 @@ public class TiendaNubeService {
         } catch (Exception e) {
             log.warn("NUBE - No se pudieron listar/borrar imágenes del producto {}: {}", productoNubeId, e.getMessage());
         }
-        // 2) Subir las locales actuales (misma lógica que el alta).
-        List<String> archivos = imagenService.resolverArchivosPorSku(sku);
-        if (archivos.isEmpty()) {
-            return null; // sin imágenes locales: nada que sincronizar, no es advertencia en update
+        // 2) Subir las locales válidas (filtradas por formato/tamaño); reportar omitidas.
+        ImagenService.FiltroImagenes filtro = imagenService.filtrarParaCanal(sku, EXT_NUBE);
+        if (filtro.validas().isEmpty() && filtro.rechazadas().isEmpty()) {
+            return null; // sin imágenes locales: nada que sincronizar
         }
-        return subirImagenes(store, productoNubeId, archivos);
+        String advSubida = filtro.validas().isEmpty() ? null : subirImagenes(store, productoNubeId, filtro.validas());
+        return combinarAdvertencias(advSubida, ImagenService.describirRechazadas(filtro.rechazadas()));
     }
 
     private String construirBodyPatchVariantes(List<VariantePriceUpdate> updates) {

@@ -1084,7 +1084,7 @@ export default function ProductosPage() {
     const checkboxCardClassName = "flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200";
     // Card de canal (sección Canales de venta): layout en columna y altura uniforme para que el
     // selector de cuotas no comprima el título ni desalinee las tarjetas entre sí.
-    const canalCardClassName = "flex h-full flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200";
+    const canalCardClassName = "flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200";
     const selectBaseClassName = `${inputBaseClassName} appearance-none`;
 
     return (
@@ -1209,7 +1209,7 @@ export default function ProductosPage() {
                     <fieldset className={sectionClassName}>
                         <legend className={sectionTitleClassName}><BuildingStorefrontIcon className="h-5 w-5" /> Canales de venta</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Dónde publicar/subir el producto.</p>
-                        <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 xl:grid-cols-4">
+                        <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-4">
                             {canExportarDux && (
                                 <div className={canalCardClassName}>
                                     <div className="flex items-center gap-3">

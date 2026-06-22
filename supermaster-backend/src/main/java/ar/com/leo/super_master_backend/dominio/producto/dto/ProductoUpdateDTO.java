@@ -69,6 +69,11 @@ public record ProductoUpdateDTO(
         BigDecimal iva,
 
         TagReposicion tagReposicion,
-        Tag tag
+        Tag tag,
+
+        @Size(max = 20, message = "La categoría ML no puede exceder 20 caracteres")
+        String mlCategoryId,
+        @Size(max = 255, message = "El nombre de categoría ML no puede exceder 255 caracteres")
+        String mlCategoryNombre
 ) {
 }

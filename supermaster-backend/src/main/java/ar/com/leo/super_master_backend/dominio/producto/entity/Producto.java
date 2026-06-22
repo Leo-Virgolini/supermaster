@@ -58,6 +58,14 @@ public class Producto {
     @Column(name = "titulo_nube", length = 100)
     private String tituloNube;
 
+    @Size(max = 20)
+    @Column(name = "ml_category_id", length = 20)
+    private String mlCategoryId;
+
+    @Size(max = 255)
+    @Column(name = "ml_category_nombre", length = 255)
+    private String mlCategoryNombre;
+
     @Column(name = "es_combo")
     private Boolean esCombo;
 

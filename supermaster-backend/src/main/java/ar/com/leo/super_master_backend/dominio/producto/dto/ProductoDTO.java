@@ -65,6 +65,10 @@ public record ProductoDTO(
 
         // Márgenes (de producto_margen, expuestos para edición inline en la tabla)
         BigDecimal margenMinorista,
-        BigDecimal margenMayorista
+        BigDecimal margenMayorista,
+
+        // Categoría de Mercado Libre (predictor)
+        String mlCategoryId,
+        String mlCategoryNombre
 ) {
 }

@@ -42,6 +42,8 @@ public class ProductoPatchDTO {
     private JsonNullable<BigDecimal> iva = JsonNullable.undefined();
     private JsonNullable<TagReposicion> tagReposicion = JsonNullable.undefined();
     private JsonNullable<Tag> tag = JsonNullable.undefined();
+    private JsonNullable<String> mlCategoryId = JsonNullable.undefined();
+    private JsonNullable<String> mlCategoryNombre = JsonNullable.undefined();
 }
 
 

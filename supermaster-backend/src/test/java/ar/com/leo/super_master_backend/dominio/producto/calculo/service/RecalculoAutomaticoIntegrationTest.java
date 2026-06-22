@@ -412,7 +412,8 @@ class RecalculoAutomaticoIntegrationTest {
                 costoOverride != null ? costoOverride : producto.getCosto(),
                 ivaOverride != null ? ivaOverride : producto.getIva(),
                 producto.getTagReposicion(),
-                producto.getTag()
+                producto.getTag(),
+                null, null
         );
     }
 

@@ -1157,6 +1157,12 @@ public class ProductoServiceImpl implements ProductoService {
         if (presente(patchDto.getTituloMl())) {
             entity.setTituloMl(leerStringOpcional(patchDto.getTituloMl(), "tituloMl", 100));
         }
+        if (presente(patchDto.getMlCategoryId())) {
+            entity.setMlCategoryId(leerStringOpcional(patchDto.getMlCategoryId(), "mlCategoryId", 20));
+        }
+        if (presente(patchDto.getMlCategoryNombre())) {
+            entity.setMlCategoryNombre(leerStringOpcional(patchDto.getMlCategoryNombre(), "mlCategoryNombre", 255));
+        }
         if (presente(patchDto.getTituloNube())) {
             entity.setTituloNube(leerStringOpcional(patchDto.getTituloNube(), "tituloNube", 100));
         }

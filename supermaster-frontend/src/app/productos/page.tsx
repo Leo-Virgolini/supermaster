@@ -1294,7 +1294,7 @@ export default function ProductosPage() {
                                         {mlCategoryId && (
                                             <span className="inline-flex items-center gap-1 rounded-full border border-yellow-300 bg-yellow-50 px-2 py-0.5 text-xs font-medium text-yellow-800 dark:border-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300">
                                                 {mlCategoryNombre || mlCategoryId}
-                                                <button type="button" onClick={() => { setMlCategoryId(null); setMlCategoryNombre(null); }} className="leading-none hover:text-red-500" aria-label="Quitar categoría">×</button>
+                                                <button type="button" onClick={() => { setMlCategoryId(null); setMlCategoryNombre(null); setPrediccionesMl([]); }} className="leading-none hover:text-red-500" aria-label="Quitar categoría">×</button>
                                             </span>
                                         )}
                                     </div>

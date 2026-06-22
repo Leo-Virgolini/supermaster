@@ -1747,7 +1747,7 @@ public class MercadoLibreService {
 
             String estadoTarget = Boolean.TRUE.equals(producto.getActivo()) ? "active" : "paused";
             if (!putStatus.actualizar(mla, estadoTarget)) {
-                advertencia = concatAdv(advertencia, "estado no actualizado");
+                advertencia = concatAdv(advertencia, "estado de publicación no actualizado");
             }
 
             ResultadoAltaMl r = ResultadoAltaMl.actualizado(mla);
@@ -1921,7 +1921,7 @@ public class MercadoLibreService {
                 && r.itemId() != null
                 && !Boolean.TRUE.equals(producto.getActivo())
                 && !updateItemStatus(r.itemId(), "paused")) {
-            return r.conAdvertencia(MercadoLibreService.concatAdv(r.advertencia(), "estado no actualizado (no se pudo pausar)"));
+            return r.conAdvertencia(MercadoLibreService.concatAdv(r.advertencia(), "estado de publicación no actualizado (no se pudo pausar)"));
         }
         return r;
     }

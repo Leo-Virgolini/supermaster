@@ -1691,6 +1691,11 @@ public class MercadoLibreService {
         boolean actualizar(String mla, String status);
     }
 
+    /** Concatena un mensaje de advertencia best-effort al acumulado (separador "; "); null-safe (no pisa la previa). */
+    public static String concatAdv(String previa, String mensaje) {
+        return (previa == null || previa.isBlank()) ? mensaje : previa + "; " + mensaje;
+    }
+
     /**
      * Núcleo testeable de la actualización de un item ML (sin red).
      *  - soldQtyFn(mla) → unidades vendidas (para decidir si se puede cambiar el título).
@@ -1728,7 +1733,7 @@ public class MercadoLibreService {
 
             double price = producto.getCosto().multiply(MULTIPLICADOR_PRECIO_ML).doubleValue();
             if (!updatePrice.actualizar(mla, price)) {
-                advertencia = (advertencia == null ? "" : advertencia + "; ") + "precio no actualizado";
+                advertencia = concatAdv(advertencia, "precio no actualizado");
             }
 
             try {
@@ -1737,12 +1742,12 @@ public class MercadoLibreService {
                     putPictures.accept(mla, pictureIds);
                 }
             } catch (Exception e) {
-                advertencia = (advertencia == null ? "" : advertencia + "; ") + "imágenes no actualizadas";
+                advertencia = concatAdv(advertencia, "imágenes no actualizadas");
             }
 
             String estadoTarget = Boolean.TRUE.equals(producto.getActivo()) ? "active" : "paused";
             if (!putStatus.actualizar(mla, estadoTarget)) {
-                advertencia = (advertencia == null ? "" : advertencia + "; ") + "estado no actualizado";
+                advertencia = concatAdv(advertencia, "estado no actualizado");
             }
 
             ResultadoAltaMl r = ResultadoAltaMl.actualizado(mla);
@@ -1847,7 +1852,8 @@ public class MercadoLibreService {
             // Precio de alta en ML: costo x 5 (regla de negocio de la Fase C1).
             BigDecimal price = producto.getCosto().multiply(MULTIPLICADOR_PRECIO_ML);
 
-            // Crear con stock 0: deja la publicación pausada (out_of_stock) si la cuenta lo admite.
+            // Crear con stock 0: queda out_of_stock; si el producto está inactivo, crearItemEnMl
+            // lo pausa explícitamente (paused_by_seller) después del alta.
             String respuesta = poster.apply(om.writeValueAsString(
                     MlItemPayloadBuilder.construir(producto, categoryId, price, 0, pictureIds)));
             String error = extraerErrorMl(om, respuesta);
@@ -1910,11 +1916,12 @@ public class MercadoLibreService {
                         () -> tokens.accessToken, objectMapper.writeValueAsString(Map.of("plain_text", plainText))));
 
         // Producto inactivo: dejar la publicación recién creada en paused (best-effort).
+        // concatAdv preserva una advertencia previa del alta (p. ej. la de la descripción).
         if (r.estado() == ResultadoAltaMl.Estado.CREADO
                 && r.itemId() != null
                 && !Boolean.TRUE.equals(producto.getActivo())
                 && !updateItemStatus(r.itemId(), "paused")) {
-            return r.conAdvertencia("estado no actualizado (no se pudo pausar)");
+            return r.conAdvertencia(MercadoLibreService.concatAdv(r.advertencia(), "estado no actualizado (no se pudo pausar)"));
         }
         return r;
     }

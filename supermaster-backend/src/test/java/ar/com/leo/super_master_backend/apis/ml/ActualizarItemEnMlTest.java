@@ -172,4 +172,23 @@ class ActualizarItemEnMlTest {
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);
         assertThat(r.advertencia()).contains("estado");
     }
+
+    @Test
+    void concatAdv_preservaLaAdvertenciaPrevia() {
+        assertThat(MercadoLibreService.concatAdv(null, "estado")).isEqualTo("estado");
+        assertThat(MercadoLibreService.concatAdv("", "estado")).isEqualTo("estado");
+        assertThat(MercadoLibreService.concatAdv("descripción", "estado")).isEqualTo("descripción; estado");
+    }
+
+    @Test
+    void fallanPrecioYEstado_concatenaAmbasAdvertencias() {
+        ResultadoAltaMl r = MercadoLibreService.actualizarItemEnMlCore(
+                producto(), "MLA1212",
+                mla -> 0, (mla, t) -> {}, (mla, d) -> {},
+                (mla, p) -> false,                 // precio falla
+                sku -> java.util.List.of(), (mla, pics) -> {},
+                (mla, status) -> false);           // estado falla
+        assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);
+        assertThat(r.advertencia()).contains("precio").contains("estado").contains("; ");
+    }
 }

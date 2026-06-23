@@ -758,7 +758,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 </div>
                                 {subirKtHogar && (
                                     <div className="flex items-center gap-2 border-t border-slate-200/70 pt-2 dark:border-slate-700/60">
-                                        <span className="text-xs font-normal text-slate-500 dark:text-slate-400">Cuota a subir</span>
+                                        <span className="text-xs font-normal text-slate-500 dark:text-slate-400">Cuota del precio</span>
                                         <Tooltip content="Plan de cuotas del canal con el que se publica el precio en Tienda Nube (cada plan aplica su recargo/descuento de financiación)." className="flex-1">
                                             <select className={`${selectBaseClassName} w-full`} value={cuotaHogar} onChange={e => setCuotaHogar(Number(e.target.value))}>
                                                 {(cuotasHogarOpts.length ? cuotasHogarOpts : [{cuotas:-1,descripcion:"Transferencia"},{cuotas:6,descripcion:"6 cuotas"}]).map(c => (
@@ -780,7 +780,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 </div>
                                 {subirKtGastro && (
                                     <div className="flex items-center gap-2 border-t border-slate-200/70 pt-2 dark:border-slate-700/60">
-                                        <span className="text-xs font-normal text-slate-500 dark:text-slate-400">Cuota a subir</span>
+                                        <span className="text-xs font-normal text-slate-500 dark:text-slate-400">Cuota del precio</span>
                                         <Tooltip content="Plan de cuotas del canal con el que se publica el precio en Tienda Nube (cada plan aplica su recargo/descuento de financiación)." className="flex-1">
                                             <select className={`${selectBaseClassName} w-full`} value={cuotaGastro} onChange={e => setCuotaGastro(Number(e.target.value))}>
                                                 {(cuotasGastroOpts.length ? cuotasGastroOpts : [{cuotas:-1,descripcion:"Transferencia"},{cuotas:6,descripcion:"6 cuotas"}]).map(c => (

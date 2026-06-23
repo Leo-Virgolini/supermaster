@@ -33,7 +33,6 @@ public class ProductoAuditoriaServiceImpl implements ProductoAuditoriaService {
         snapshot.put("esCombo", normalizar(producto.getEsCombo()));
         snapshot.put("uxb", normalizar(producto.getUxb()));
         snapshot.put("moq", normalizar(producto.getMoq()));
-        snapshot.put("imagenUrl", normalizar(producto.getImagenUrl()));
         snapshot.put("stock", normalizar(producto.getStock()));
         snapshot.put("activo", normalizar(producto.getActivo()));
         snapshot.put("tagReposicion", producto.getTagReposicion() != null ? producto.getTagReposicion().name() : null);

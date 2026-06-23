@@ -11,7 +11,7 @@ public record CatalogoPdfItem(
         String nombre,
         BigDecimal precio,
         Integer uxb,
-        String imagenUrl,
+        String imagen,
         String marca,
         String tipo
 ) {

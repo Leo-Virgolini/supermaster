@@ -50,7 +50,7 @@ public final class CellBuilder {
                 ? UxbComponent.build(item.uxb(), renderConfig.fontSizeUxb(), parseHexColor(renderConfig.colorUxb(), theme.cardTextColor()))
                 : null;
         Image image = incluirImagenes
-                ? ImagenComponent.build(item.imagenUrl(), imageSize, imagenesDirActual, item.sku(), stats)
+                ? ImagenComponent.build(item.imagen(), imageSize, imagenesDirActual, item.sku(), stats)
                 : null;
 
         if (productsPerPage <= 4) {

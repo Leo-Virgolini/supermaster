@@ -7,6 +7,7 @@ import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCanalPrecio;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoCanalPrecioRepository;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoRepository;
+import ar.com.leo.super_master_backend.dominio.imagen.service.ImagenService;
 import ar.com.leo.super_master_backend.dominio.reposicion.entity.TagReposicion;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,7 @@ public class EstadisticasServiceImpl implements EstadisticasService {
     private final ProductoRepository productoRepository;
     private final ProductoCanalPrecioRepository precioRepository;
     private final CanalConceptoCuotaRepository canalConceptoCuotaRepository;
+    private final ImagenService imagenService;
 
     @Override
     @Transactional(readOnly = true)
@@ -230,7 +232,7 @@ public class EstadisticasServiceImpl implements EstadisticasService {
 
         int productosConMla = (int) productos.stream().filter(p -> p.getMla() != null).count();
         int productosSinProveedor = (int) productos.stream().filter(p -> p.getProveedor() == null).count();
-        int productosSinImagen = (int) productos.stream().filter(p -> p.getImagenUrl() == null || p.getImagenUrl().isBlank()).count();
+        int productosSinImagen = (int) productos.stream().filter(p -> imagenService.resolverArchivoPorSku(p.getSku()) == null).count();
         int productosCombos = (int) productos.stream().filter(p -> Boolean.TRUE.equals(p.getEsCombo())).count();
         int productosPrio = (int) productos.stream().filter(p -> p.getTagReposicion() == TagReposicion.PRIO).count();
         int productosConPrecio = idsConPrecio.size();

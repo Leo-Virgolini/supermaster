@@ -111,11 +111,8 @@ public class CatalogoPdfServiceImpl implements CatalogoPdfService {
             }
 
             BigDecimal precioFinal = calcularPrecioCatalogo(precioOpt.get(), producto, catalogo);
-            // La imagen manual (imagen_url) tiene prioridad; si no hay, se resuelve por SKU desde la carpeta.
-            String imagenRef = producto.getImagenUrl();
-            if (imagenRef == null || imagenRef.isBlank()) {
-                imagenRef = imagenService.resolverArchivoPorSku(producto.getSku());
-            }
+            // La imagen se resuelve por SKU desde la carpeta.
+            String imagenRef = imagenService.resolverArchivoPorSku(producto.getSku());
             items.add(new CatalogoPdfItem(
                     producto.getSku(),
                     resolverNombreProducto(producto),

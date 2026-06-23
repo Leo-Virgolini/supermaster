@@ -24,8 +24,6 @@ public record ProductoCreateDTO(
         Integer uxb,
         @Positive(message = "MOQ debe ser mayor a 0")
         Integer moq,
-        @Size(max = 500, message = "La URL de imagen no puede exceder 500 caracteres")
-        String imagenUrl,
         @PositiveOrZero(message = "El stock debe ser mayor o igual a 0")
         Integer stock,
         Boolean activo,

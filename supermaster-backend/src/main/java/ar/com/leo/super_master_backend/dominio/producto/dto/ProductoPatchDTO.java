@@ -19,7 +19,6 @@ public class ProductoPatchDTO {
     private JsonNullable<Boolean> esCombo = JsonNullable.undefined();
     private JsonNullable<Integer> uxb = JsonNullable.undefined();
     private JsonNullable<Integer> moq = JsonNullable.undefined();
-    private JsonNullable<String> imagenUrl = JsonNullable.undefined();
     private JsonNullable<Integer> stock = JsonNullable.undefined();
     private JsonNullable<Boolean> activo = JsonNullable.undefined();
     private JsonNullable<Integer> marcaId = JsonNullable.undefined();

@@ -104,6 +104,7 @@ public class ExcelServiceImpl implements ExcelService {
     private final ProductoMargenRepository productoMargenRepository;
     private final ReglaDescuentoRepository reglaDescuentoRepository;
     private final CanalConceptoRepository canalConceptoRepository;
+    private final ar.com.leo.super_master_backend.dominio.imagen.service.ImagenService imagenService;
     private final ProductoCanalPrecioInfladoRepository productoCanalPrecioInfladoRepository;
     private final PrecioInfladoRepository precioInfladoRepository;
     private final ProductoService productoService;
@@ -3138,7 +3139,7 @@ public class ExcelServiceImpl implements ExcelService {
                 // Si clasifGastro es null, esMaquina debe ser false
                 Boolean esMaquinaExport = producto.clasifGastroNombre() == null ? false : producto.esMaquina();
                 setCellValue(row.createCell(cellIndex++), esMaquinaExport, currentDataStyle);
-                setCellValue(row.createCell(cellIndex++), producto.imagenUrl(), currentDataStyle);
+                setCellValue(row.createCell(cellIndex++), imagenService.resolverArchivoPorSku(producto.sku()), currentDataStyle);
                 setCellValue(row.createCell(cellIndex++), producto.stock(), currentDataStyle);
                 setCellValue(row.createCell(cellIndex++), producto.activo(), currentDataStyle);
                 setCellValue(row.createCell(cellIndex++), producto.marcaNombre(), currentDataStyle);

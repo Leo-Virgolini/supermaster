@@ -17,7 +17,6 @@ public record ProductoDTO(
         Boolean esCombo,
         Integer uxb,
         Integer moq,
-        String imagenUrl,
         Integer stock,
         Boolean activo,
         TagReposicion tagReposicion,

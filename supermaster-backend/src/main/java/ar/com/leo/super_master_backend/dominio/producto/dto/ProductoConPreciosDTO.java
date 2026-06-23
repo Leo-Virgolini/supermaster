@@ -25,7 +25,6 @@ public record ProductoConPreciosDTO(
         String tituloNube,
         Boolean esCombo,
         Boolean esMaquina,
-        String imagenUrl,
         Integer stock,
         Boolean activo,
         TagReposicion tagReposicion,

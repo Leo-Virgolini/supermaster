@@ -1120,7 +1120,6 @@ public class ProductoServiceImpl implements ProductoService {
                 && !presente(patchDto.getEsCombo())
                 && !presente(patchDto.getUxb())
                 && !presente(patchDto.getMoq())
-                && !presente(patchDto.getImagenUrl())
                 && !presente(patchDto.getStock())
                 && !presente(patchDto.getActivo())
                 && !presente(patchDto.getMarcaId())
@@ -1202,9 +1201,6 @@ public class ProductoServiceImpl implements ProductoService {
         }
         if (presente(patchDto.getMoq())) {
             entity.setMoq(leerIntegerPositivoOpcional(patchDto.getMoq(), "moq"));
-        }
-        if (presente(patchDto.getImagenUrl())) {
-            entity.setImagenUrl(leerStringOpcional(patchDto.getImagenUrl(), "imagenUrl", 500));
         }
         if (presente(patchDto.getStock())) {
             entity.setStock(leerIntegerNoNegativoOpcional(patchDto.getStock(), "stock"));

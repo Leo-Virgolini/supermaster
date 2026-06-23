@@ -1141,7 +1141,11 @@ public class ProductoServiceImpl implements ProductoService {
                 && !presente(patchDto.getCosto())
                 && !presente(patchDto.getIva())
                 && !presente(patchDto.getTagReposicion())
-                && !presente(patchDto.getTag());
+                && !presente(patchDto.getTag())
+                && !presente(patchDto.getMlPaqAlto())
+                && !presente(patchDto.getMlPaqAncho())
+                && !presente(patchDto.getMlPaqLargo())
+                && !presente(patchDto.getMlPaqPeso());
     }
 
     /**
@@ -1275,6 +1279,18 @@ public class ProductoServiceImpl implements ProductoService {
         }
         if (presente(patchDto.getTag())) {
             entity.setTag(leerEnumOpcional(patchDto.getTag(), "tag", Tag.class));
+        }
+        if (presente(patchDto.getMlPaqAlto())) {
+            entity.setMlPaqAlto(leerDecimalNoNegativoOpcional(patchDto.getMlPaqAlto(), "mlPaqAlto"));
+        }
+        if (presente(patchDto.getMlPaqAncho())) {
+            entity.setMlPaqAncho(leerDecimalNoNegativoOpcional(patchDto.getMlPaqAncho(), "mlPaqAncho"));
+        }
+        if (presente(patchDto.getMlPaqLargo())) {
+            entity.setMlPaqLargo(leerDecimalNoNegativoOpcional(patchDto.getMlPaqLargo(), "mlPaqLargo"));
+        }
+        if (presente(patchDto.getMlPaqPeso())) {
+            entity.setMlPaqPeso(leerDecimalNoNegativoOpcional(patchDto.getMlPaqPeso(), "mlPaqPeso"));
         }
     }
 

@@ -167,6 +167,18 @@ public class Producto {
     @Column(name = "iva", nullable = false, precision = 6, scale = 3)
     private BigDecimal iva;
 
+    @Column(name = "ml_paq_alto", precision = 6, scale = 2)
+    private BigDecimal mlPaqAlto;
+
+    @Column(name = "ml_paq_ancho", precision = 6, scale = 2)
+    private BigDecimal mlPaqAncho;
+
+    @Column(name = "ml_paq_largo", precision = 6, scale = 2)
+    private BigDecimal mlPaqLargo;
+
+    @Column(name = "ml_paq_peso", precision = 8, scale = 3)
+    private BigDecimal mlPaqPeso;
+
     // ---------------------------
     // RELACIÓN MANY TO ONE CON MLA
     // ---------------------------

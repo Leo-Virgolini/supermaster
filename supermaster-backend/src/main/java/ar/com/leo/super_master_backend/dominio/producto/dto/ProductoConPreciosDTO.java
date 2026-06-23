@@ -70,6 +70,12 @@ public record ProductoConPreciosDTO(
         List<String> clientes,
 
         // Canales con sus precios
-        List<CanalPreciosDTO> canales
+        List<CanalPreciosDTO> canales,
+
+        // Dimensiones del paquete de envío para Mercado Libre
+        BigDecimal mlPaqAlto,
+        BigDecimal mlPaqAncho,
+        BigDecimal mlPaqLargo,
+        BigDecimal mlPaqPeso
 ) {
 }

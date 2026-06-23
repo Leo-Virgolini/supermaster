@@ -68,6 +68,12 @@ public record ProductoDTO(
 
         // Categoría de Mercado Libre (predictor)
         String mlCategoryId,
-        String mlCategoryNombre
+        String mlCategoryNombre,
+
+        // Dimensiones del paquete de envío para Mercado Libre
+        BigDecimal mlPaqAlto,
+        BigDecimal mlPaqAncho,
+        BigDecimal mlPaqLargo,
+        BigDecimal mlPaqPeso
 ) {
 }

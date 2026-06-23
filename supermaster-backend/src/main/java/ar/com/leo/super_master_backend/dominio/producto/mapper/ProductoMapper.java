@@ -98,7 +98,11 @@ public interface ProductoMapper {
                 margen != null ? margen.getMargenMinorista() : null,
                 margen != null ? margen.getMargenMayorista() : null,
                 entity.getMlCategoryId(),
-                entity.getMlCategoryNombre()
+                entity.getMlCategoryNombre(),
+                entity.getMlPaqAlto(),
+                entity.getMlPaqAncho(),
+                entity.getMlPaqLargo(),
+                entity.getMlPaqPeso()
         );
     }
 
@@ -421,7 +425,13 @@ public interface ProductoMapper {
                         : List.of(),
 
                 // Precios por canal
-                preciosCanales
+                preciosCanales,
+
+                // Dimensiones del paquete ML
+                producto.getMlPaqAlto(),
+                producto.getMlPaqAncho(),
+                producto.getMlPaqLargo(),
+                producto.getMlPaqPeso()
         );
     }
 

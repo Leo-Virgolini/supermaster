@@ -72,6 +72,15 @@ public record ProductoUpdateDTO(
         @Size(max = 20, message = "La categoría ML no puede exceder 20 caracteres")
         String mlCategoryId,
         @Size(max = 255, message = "El nombre de categoría ML no puede exceder 255 caracteres")
-        String mlCategoryNombre
+        String mlCategoryNombre,
+
+        @PositiveOrZero(message = "El alto del paquete ML debe ser mayor o igual a 0")
+        BigDecimal mlPaqAlto,
+        @PositiveOrZero(message = "El ancho del paquete ML debe ser mayor o igual a 0")
+        BigDecimal mlPaqAncho,
+        @PositiveOrZero(message = "El largo del paquete ML debe ser mayor o igual a 0")
+        BigDecimal mlPaqLargo,
+        @PositiveOrZero(message = "El peso del paquete ML debe ser mayor o igual a 0")
+        BigDecimal mlPaqPeso
 ) {
 }

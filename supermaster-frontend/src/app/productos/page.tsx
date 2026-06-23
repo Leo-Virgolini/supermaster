@@ -40,15 +40,18 @@ import { ProductoCreateDTO, ProductoDTO, ProductoPatchDTO } from "./types";
 import { type SortingState } from "@tanstack/react-table";
 
 
-function reportarExportToast(plataforma: string, r: { creados: number; actualizados?: string[]; yaExistian: string[]; errores: string[]; advertencias?: string[] }) {
+type CanalExport = "Dux" | "Tienda Nube" | "Mercado Libre";
+type ResultadoCanal = { canal: CanalExport; estado: "ok" | "error"; detalle: string };
+
+// Convierte el resultado de un export de canal en ok/error + detalle legible.
+function clasificarExport(canal: CanalExport, r: { creados?: number; actualizados?: string[]; yaExistian?: string[]; errores: string[]; advertencias?: string[] }): ResultadoCanal {
+    if (r.errores.length) return { canal, estado: "error", detalle: r.errores.join("; ") };
     const partes: string[] = [];
-    if (r.creados > 0) partes.push(`${r.creados} creado(s)`);
+    if (r.creados) partes.push(`${r.creados} creado(s)`);
     if (r.actualizados?.length) partes.push(`${r.actualizados.length} actualizado(s)`);
-    if (r.yaExistian.length) partes.push(`${r.yaExistian.length} ya existía(n)`);
+    if (r.yaExistian?.length) partes.push(`${r.yaExistian.length} ya existía(n)`);
     if (r.advertencias?.length) partes.push(`avisos: ${r.advertencias.join("; ")}`);
-    if (r.errores.length) partes.push(`${r.errores.length} con error: ${r.errores.join("; ")}`);
-    if (r.errores.length) notificar.error(`${plataforma}: ${partes.join(" · ")}`);
-    else notificar.success(`${plataforma}: ${partes.join(" · ") || "sin cambios"}`);
+    return { canal, estado: "ok", detalle: partes.join(" · ") || "sin cambios" };
 }
 
 function ImagePickerModal({ onSelect, onClose }: { onSelect: (name: string) => void; onClose: () => void }) {
@@ -234,6 +237,10 @@ export default function ProductosPage() {
     const [cuotaGastro, setCuotaGastro] = useState<number>(6);
     const [cuotasHogarOpts, setCuotasHogarOpts] = useState<CuotaOpcion[]>([]);
     const [cuotasGastroOpts, setCuotasGastroOpts] = useState<CuotaOpcion[]>([]);
+    // Resultado de las subidas a canales (para el panel de estado + reintento).
+    const [resultadosCanal, setResultadosCanal] = useState<ResultadoCanal[]>([]);
+    const [skuSubida, setSkuSubida] = useState("");
+    const [reintentando, setReintentando] = useState(false);
     const [uxb, setUxb] = useState(1);
     const [activo, setActivo] = useState(true);
     const [imagenUrl, setImagenUrl] = useState("");
@@ -552,6 +559,58 @@ export default function ProductosPage() {
         }
     };
 
+    // Canales marcados según los checkboxes (Nube agrupa HOGAR/GASTRO).
+    const canalesMarcados = (): CanalExport[] => {
+        const c: CanalExport[] = [];
+        if (subirADux && canExportarDux) c.push("Dux");
+        if ((subirKtHogar || subirKtGastro) && canExportarDux) c.push("Tienda Nube");
+        if (subirMl && canExportarDux) c.push("Mercado Libre");
+        return c;
+    };
+
+    // Ejecuta en paralelo los exports de los canales pedidos. Cada wrapper captura su error
+    // y devuelve un ResultadoCanal — nunca rechaza, así un canal no corta a los demás.
+    const ejecutarExportsCanales = async (skuExport: string, canales: CanalExport[]): Promise<ResultadoCanal[]> => {
+        const tareas: Promise<ResultadoCanal>[] = [];
+        if (canales.includes("Dux")) {
+            tareas.push((async (): Promise<ResultadoCanal> => {
+                try {
+                    const r = await exportarProductosADuxAPI([skuExport]);
+                    if (r.productosEnviados > 0) return { canal: "Dux", estado: "ok", detalle: "subido" };
+                    return { canal: "Dux", estado: "error", detalle: r.errores?.length ? r.errores.join("; ") : "no se envió a Dux" };
+                } catch (e) {
+                    return { canal: "Dux", estado: "error", detalle: e instanceof Error ? e.message : "error al subir" };
+                }
+            })());
+        }
+        if (canales.includes("Tienda Nube")) {
+            const tiendas: { tienda: "KT HOGAR" | "KT GASTRO"; cuotas: number }[] = [];
+            if (subirKtHogar) tiendas.push({ tienda: "KT HOGAR", cuotas: cuotaHogar });
+            if (subirKtGastro) tiendas.push({ tienda: "KT GASTRO", cuotas: cuotaGastro });
+            if (tiendas.length) {
+                tareas.push((async (): Promise<ResultadoCanal> => {
+                    try {
+                        const r = await exportarProductosANubeAPI([skuExport], tiendas);
+                        return clasificarExport("Tienda Nube", r);
+                    } catch (e) {
+                        return { canal: "Tienda Nube", estado: "error", detalle: e instanceof Error ? e.message : "error al subir" };
+                    }
+                })());
+            }
+        }
+        if (canales.includes("Mercado Libre")) {
+            tareas.push((async (): Promise<ResultadoCanal> => {
+                try {
+                    const r = await exportarProductosAMlAPI([skuExport]);
+                    return clasificarExport("Mercado Libre", r);
+                } catch (e) {
+                    return { canal: "Mercado Libre", estado: "error", detalle: e instanceof Error ? e.message : "error al subir" };
+                }
+            })());
+        }
+        return Promise.all(tareas);
+    };
+
     const handleCreate = async () => {
         if (!validateForm()) return;
         try {
@@ -601,42 +660,19 @@ export default function ProductosPage() {
             if (creado?.id && (subirKtHogar || subirKtGastro) && canExportarDux) {
                 try { await recalcularProductoAPI(creado.id); } catch { /* el export avisará si falta el precio */ }
             }
-            // Subida a Dux (opcional, no invalida el producto ya creado).
-            if (subirADux && canExportarDux) {
-                try {
-                    const resultadoDux = await exportarProductosADuxAPI([sku.trim()]);
-                    if (resultadoDux.productosEnviados > 0) {
-                        notificar.success(`Producto ${sku.trim()} enviado a Dux`);
-                    } else {
-                        const detalle = resultadoDux.errores?.length ? `: ${resultadoDux.errores.join("; ")}` : "";
-                        notificar.error(`El producto se creó, pero no se subió a Dux${detalle}`);
-                    }
-                } catch (e) {
-                    notificar.error(e instanceof Error ? `El producto se creó, pero falló al subirlo a Dux: ${e.message}` : "El producto se creó, pero falló al subirlo a Dux");
-                }
+            // Exportar a los canales marcados EN PARALELO. El producto ya está creado.
+            const sk = sku.trim();
+            setSkuSubida(sk);
+            const resultados = await ejecutarExportsCanales(sk, canalesMarcados());
+            setResultadosCanal(resultados);
+            if (resultados.every(r => r.estado === "ok")) {
+                resultados.forEach(r => notificar.success(`${r.canal}: ${r.detalle}`));
+                resetForm();
+                setIsModalOpen(false);
+            } else {
+                // Mantener el modal abierto con el panel de estado por canal.
+                notificar.error("El producto se creó, pero falló la subida a algún canal. Revisá el detalle.");
             }
-            // Subida a Tienda Nube (KT HOGAR / KT GASTRO).
-            const tiendasNube: { tienda: "KT HOGAR" | "KT GASTRO"; cuotas: number }[] = [];
-            if (subirKtHogar) tiendasNube.push({ tienda: "KT HOGAR", cuotas: cuotaHogar });
-            if (subirKtGastro) tiendasNube.push({ tienda: "KT GASTRO", cuotas: cuotaGastro });
-            if (tiendasNube.length && canExportarDux) {
-                try {
-                    const r = await exportarProductosANubeAPI([sku.trim()], tiendasNube);
-                    reportarExportToast("Tienda Nube", r);
-                } catch (e) {
-                    notificar.error(`Tienda Nube: ${e instanceof Error ? e.message : "error al subir"}`);
-                }
-            }
-            if (subirMl && canExportarDux) {
-                try {
-                    const r = await exportarProductosAMlAPI([sku.trim()]);
-                    reportarExportToast("Mercado Libre", r);
-                } catch (e) {
-                    notificar.error(`Mercado Libre: ${e instanceof Error ? e.message : "error al subir"}`);
-                }
-            }
-            resetForm();
-            setIsModalOpen(false);
         } catch (e) { /* hook already toasts */ } finally { setIsSaving(false); }
     };
 
@@ -765,55 +801,48 @@ export default function ProductosPage() {
 
             notificar.success(`Producto ${sku} actualizado`);
 
-            // Actualización en Dux (opcional, no invalida los cambios ya guardados).
-            // El endpoint de Dux (nuevoItem) hace upsert por cod_item: si el SKU ya
-            // existe, lo actualiza con los datos actuales del producto.
-            if (subirADux && canExportarDux) {
-                try {
-                    const resultadoDux = await exportarProductosADuxAPI([sku.trim()]);
-                    if (resultadoDux.productosEnviados > 0) {
-                        notificar.success(`Producto ${sku} actualizado en Dux`);
-                    } else {
-                        const detalle = resultadoDux.errores?.length ? `: ${resultadoDux.errores.join("; ")}` : "";
-                        notificar.error(`No se actualizó en Dux${detalle}`);
-                    }
-                } catch (e) {
-                    notificar.error(e instanceof Error ? `Falló la actualización en Dux: ${e.message}` : "Falló la actualización en Dux");
-                }
-            }
             // Recálculo SÍNCRONO antes de exportar a Nube: si se cambió el costo, el PVP queda
             // obsoleto (recálculo async) y el export daría "precio desactualizado".
             if ((subirKtHogar || subirKtGastro) && canExportarDux) {
                 try { await recalcularProductoAPI(id); } catch { /* el export avisará si falta el precio */ }
             }
-            // Subida a Tienda Nube (KT HOGAR / KT GASTRO) — en edición reportará "ya existía" si corresponde.
-            const tiendasNubeEdit: { tienda: "KT HOGAR" | "KT GASTRO"; cuotas: number }[] = [];
-            if (subirKtHogar) tiendasNubeEdit.push({ tienda: "KT HOGAR", cuotas: cuotaHogar });
-            if (subirKtGastro) tiendasNubeEdit.push({ tienda: "KT GASTRO", cuotas: cuotaGastro });
-            if (tiendasNubeEdit.length && canExportarDux) {
-                try {
-                    const r = await exportarProductosANubeAPI([sku.trim()], tiendasNubeEdit);
-                    reportarExportToast("Tienda Nube", r);
-                } catch (e) {
-                    notificar.error(`Tienda Nube: ${e instanceof Error ? e.message : "error al subir"}`);
-                }
-            }
-            if (subirMl && canExportarDux) {
-                try {
-                    const r = await exportarProductosAMlAPI([sku.trim()]);
-                    reportarExportToast("Mercado Libre", r);
-                } catch (e) {
-                    notificar.error(`Mercado Libre: ${e instanceof Error ? e.message : "error al subir"}`);
-                }
-            }
-
-            resetForm();
-            setEditandoProductoId(null);
-            setIsModalOpen(false);
+            // Exportar a los canales marcados EN PARALELO (los cambios ya están guardados).
+            const sk = sku.trim();
+            setSkuSubida(sk);
+            const resultados = await ejecutarExportsCanales(sk, canalesMarcados());
+            setResultadosCanal(resultados);
             await refresh();
+            if (resultados.every(r => r.estado === "ok")) {
+                resultados.forEach(r => notificar.success(`${r.canal}: ${r.detalle}`));
+                resetForm();
+                setEditandoProductoId(null);
+                setIsModalOpen(false);
+            } else {
+                notificar.error("Los cambios se guardaron, pero falló la subida a algún canal. Revisá el detalle.");
+            }
         } catch (e) {
             notificar.error(e instanceof Error ? e.message : "Error al guardar los cambios");
         } finally { setIsSaving(false); }
+    };
+
+    // Reintenta solo los canales que quedaron en error, sobre el producto ya creado (sin re-crear).
+    const reintentarFallidos = async () => {
+        const fallidos = resultadosCanal.filter(r => r.estado === "error").map(r => r.canal);
+        if (!fallidos.length || !skuSubida) return;
+        setReintentando(true);
+        try {
+            const nuevos = await ejecutarExportsCanales(skuSubida, fallidos);
+            setResultadosCanal(prev => prev.map(p => nuevos.find(n => n.canal === p.canal) ?? p));
+            if (nuevos.every(r => r.estado === "ok")) {
+                nuevos.forEach(r => notificar.success(`${r.canal}: ${r.detalle}`));
+                resetForm();
+                setEditandoProductoId(null);
+                setIsModalOpen(false);
+                await refresh();
+            }
+        } finally {
+            setReintentando(false);
+        }
     };
 
     // Pide al backend el menor SKU libre del rango y lo carga en el form.
@@ -1000,6 +1029,7 @@ export default function ProductosPage() {
         setPreciosInfladosSel([]);
         imagenTocadaManualmenteRef.current = false;
         setFormErrors({});
+        setResultadosCanal([]); setSkuSubida("");
     };
 
     const handleDelete = async () => {
@@ -1670,6 +1700,31 @@ export default function ProductosPage() {
                             ? <PreciosInfladosSection productoId={editandoProductoId} />
                             : <PreciosInfladosSection value={preciosInfladosSel} onChange={setPreciosInfladosSel} />}
                     </fieldset>
+
+                    {/* Estado de las subidas a canales: solo aparece si alguna falló. El producto ya se guardó. */}
+                    {resultadosCanal.some(r => r.estado === "error") && (
+                        <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-950/20">
+                            <div className="mb-2 font-semibold text-amber-800 dark:text-amber-300">
+                                El producto se guardó. Faltó publicar en algún canal:
+                            </div>
+                            <ul className="space-y-1">
+                                {resultadosCanal.map(r => (
+                                    <li key={r.canal} className="flex items-start gap-2">
+                                        <span className={r.estado === "ok" ? "font-bold text-emerald-600" : "font-bold text-red-600"}>
+                                            {r.estado === "ok" ? "✓" : "✗"}
+                                        </span>
+                                        <span className="font-medium">{r.canal}:</span>
+                                        <span className="text-slate-600 dark:text-slate-300">{r.detalle}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                            <div className="mt-3">
+                                <Button variant="dark" onClick={reintentarFallidos} disabled={reintentando}>
+                                    {reintentando ? "Reintentando…" : "Reintentar los que fallaron"}
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                     </div>
                 </div>
             </Modal>

@@ -22,7 +22,7 @@ import {
     searchMarcas, searchClasifGral, searchClasifGastro, searchTipos, searchProveedores, searchOrigenes, searchMateriales, searchMlas,
     searchCatalogos, searchAptos, searchClientes, searchCanales, addProductoCatalogoAPI, addProductoAptoAPI, addProductoClienteAPI,
     removeProductoCatalogoAPI, removeProductoAptoAPI, removeProductoClienteAPI, updateProductoAPI, getNombreById,
-    exportarProductosADuxAPI, calcularEnvioMlaAPI, exportarProductosANubeAPI, exportarProductosAMlAPI,
+    exportarProductosADuxAPI, calcularEnvioMlaAPI, exportarProductosANubeAPI, exportarProductosAMlAPI, recalcularProductoAPI,
     searchSectoresDeposito, predecirCategoriasMlAPI, type PrediccionCategoriaMl,
     getImagenDetalleAPI, type ImagenDetalle,
 } from "./productosService";
@@ -589,11 +589,17 @@ export default function ProductosPage() {
                 mlCategoryId: mlCategoryId, mlCategoryNombre: mlCategoryNombre,
             };
             const creado = await createProducto(payload, asociarMargenYRelaciones);
-            // Si el producto quedó asociado a un MLA, ahora SÍ se puede calcular su
-            // precio de envío (el cálculo necesita el producto). Se dispara en segundo
-            // plano; el resultado se refleja luego en el Monitor de Precios.
+            // Si el producto quedó asociado a un MLA, calcular su precio de envío (el cálculo
+            // necesita el producto). Se ESPERA (no fire-and-forget) para que el recálculo que
+            // dispara no pise el PVP justo cuando se exporta a Nube.
             if (mlaIdFinal && creado?.id) {
-                calcularEnvioMlaAPI(creado.id).catch(() => { /* se recalcula luego desde ML */ });
+                try { await calcularEnvioMlaAPI(creado.id); } catch { /* se recalcula luego desde ML */ }
+            }
+            // Recálculo SÍNCRONO del precio antes de exportar a Nube (que lee el PVP de
+            // producto_canal_precios): cierra el race entre los recálculos async
+            // (alta / margen / precio inflado / envío MLA) y el export.
+            if (creado?.id && (subirKtHogar || subirKtGastro) && canExportarDux) {
+                try { await recalcularProductoAPI(creado.id); } catch { /* el export avisará si falta el precio */ }
             }
             // Subida a Dux (opcional, no invalida el producto ya creado).
             if (subirADux && canExportarDux) {
@@ -774,6 +780,11 @@ export default function ProductosPage() {
                 } catch (e) {
                     notificar.error(e instanceof Error ? `Falló la actualización en Dux: ${e.message}` : "Falló la actualización en Dux");
                 }
+            }
+            // Recálculo SÍNCRONO antes de exportar a Nube: si se cambió el costo, el PVP queda
+            // obsoleto (recálculo async) y el export daría "precio desactualizado".
+            if ((subirKtHogar || subirKtGastro) && canExportarDux) {
+                try { await recalcularProductoAPI(id); } catch { /* el export avisará si falta el precio */ }
             }
             // Subida a Tienda Nube (KT HOGAR / KT GASTRO) — en edición reportará "ya existía" si corresponde.
             const tiendasNubeEdit: { tienda: "KT HOGAR" | "KT GASTRO"; cuotas: number }[] = [];

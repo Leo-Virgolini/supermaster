@@ -249,6 +249,18 @@ export const exportarProductosANubeAPI = async (skus: string[], tiendas: Destino
 	return await res.json();
 };
 
+/**
+ * Recalcula SÍNCRONAMENTE el precio del producto en todos los canales (todas las cuotas).
+ * Se usa antes de exportar a Tienda Nube para garantizar que el PVP esté calculado y fresco,
+ * cerrando el race con los recálculos asíncronos (alta/margen/precio inflado/envío MLA).
+ */
+export const recalcularProductoAPI = async (productoId: number): Promise<void> => {
+	const res = await fetchAPI(`${API_BASE_URL}/api/precios/calcular?productoId=${productoId}`, {
+		method: "POST",
+	});
+	if (!res.ok) throw new Error(await extraerMensajeError(res, "No se pudo recalcular el precio del producto"));
+};
+
 export const exportarProductosAMlAPI = async (skus: string[]): Promise<ExportCanalResultDTO> => {
 	const res = await fetchAPI(`${API_BASE_URL}/api/ml/exportar-productos`, {
 		method: "POST",

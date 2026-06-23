@@ -2028,31 +2028,34 @@ public class MercadoLibreService {
         return out;
     }
 
-    /** Predictor de categorías de ML: top-N predicciones a partir del título. Lista vacía si falla. */
-    public List<PrediccionCategoriaMlDTO> predecirCategorias(String titulo, int limit) {
+    /** Predicciones base (domain_discovery) SIN enriquecer el path. Lista vacía si falla. */
+    private List<PrediccionCategoriaMlDTO> predecirCategoriasBase(String titulo, int limit) {
         verificarTokens();
         try {
             String uri = "/sites/MLA/domain_discovery/search?limit=" + limit + "&q="
                     + URLEncoder.encode(titulo, StandardCharsets.UTF_8);
             String resp = retryHandler.get(uri, () -> tokens.accessToken);
-            List<PrediccionCategoriaMlDTO> base = parsePredicciones(objectMapper.readTree(resp));
-            // Enriquecer cada predicción con su herencia completa (Padre > ... > Hoja).
-            List<PrediccionCategoriaMlDTO> out = new ArrayList<>();
-            for (PrediccionCategoriaMlDTO p : base) {
-                String path = obtenerCategoriaPath(p.categoryId());
-                out.add(new PrediccionCategoriaMlDTO(p.categoryId(), p.categoryName(),
-                        path != null ? path : p.categoryName()));
-            }
-            return out;
+            return parsePredicciones(objectMapper.readTree(resp));
         } catch (Exception e) {
             log.warn("ML - Falló predecir categorías para '{}': {}", titulo, e.getMessage());
             return List.of();
         }
     }
 
-    /** Categoría de mayor probabilidad (o null) — fallback automático del alta. */
+    /** Predictor para el formulario: top-N con la herencia completa (Padre > ... > Hoja). Un GET /categories por predicción. */
+    public List<PrediccionCategoriaMlDTO> predecirCategorias(String titulo, int limit) {
+        List<PrediccionCategoriaMlDTO> out = new ArrayList<>();
+        for (PrediccionCategoriaMlDTO p : predecirCategoriasBase(titulo, limit)) {
+            String path = obtenerCategoriaPath(p.categoryId());
+            out.add(new PrediccionCategoriaMlDTO(p.categoryId(), p.categoryName(),
+                    path != null ? path : p.categoryName()));
+        }
+        return out;
+    }
+
+    /** Categoría de mayor probabilidad (o null) — fallback automático del alta. No pide el path (no se usa al publicar). */
     private String predecirCategoria(String titulo) {
-        List<PrediccionCategoriaMlDTO> preds = predecirCategorias(titulo, 1);
+        List<PrediccionCategoriaMlDTO> preds = predecirCategoriasBase(titulo, 1);
         return preds.isEmpty() ? null : preds.get(0).categoryId();
     }
 

@@ -65,7 +65,7 @@ export default function ImagenesCarousel({ sku, onClose }: { sku: string; onClos
                             <div className="flex max-w-[80vw] flex-wrap justify-center gap-1.5">
                                 {nombres.map((n, i) => (
                                     <button key={n} onClick={() => setIdx(i)} className={`h-12 w-12 overflow-hidden rounded border-2 ${i === idx ? "border-blue-400" : "border-transparent opacity-70 hover:opacity-100"}`}>
-                                        <img src={`${API_BASE_URL}/api/imagenes/${n}`} alt={n} className="h-full w-full bg-white object-contain" />
+                                        <img src={`${API_BASE_URL}/api/imagenes/${n}`} alt={n} loading="lazy" className="h-full w-full bg-white object-contain" />
                                     </button>
                                 ))}
                             </div>

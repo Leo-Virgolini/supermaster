@@ -45,7 +45,7 @@ function ImagenCeldaSku({ sku }: { sku: string }) {
                 className={`shrink-0 overflow-hidden rounded-lg border transition ${mostrar ? "border-gray-200 dark:border-slate-600 hover:border-blue-400 hover:shadow-md cursor-pointer" : "border-dashed border-gray-300 dark:border-slate-600 cursor-default"}`}
             >
                 {mostrar ? (
-                    <img src={src} alt="" className="h-8 w-8 bg-gray-50 object-contain dark:bg-slate-700/50" onError={() => setImgError(true)} />
+                    <img src={src} alt="" loading="lazy" className="h-8 w-8 bg-gray-50 object-contain dark:bg-slate-700/50" onError={() => setImgError(true)} />
                 ) : (
                     <div className="flex h-8 w-8 items-center justify-center bg-gray-50 text-gray-400 dark:bg-slate-800 dark:text-slate-500">
                         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.41a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5a1.5 1.5 0 001.5-1.5V4.5a1.5 1.5 0 00-1.5-1.5H3.75a1.5 1.5 0 00-1.5 1.5v15a1.5 1.5 0 001.5 1.5z" /></svg>

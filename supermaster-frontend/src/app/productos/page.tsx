@@ -1283,7 +1283,7 @@ export default function ProductosPage() {
                                             {imagenesDetectadas.map((img) => (
                                                 <button key={img.nombre} type="button" onClick={() => setCarouselSku(sku.trim())}
                                                     className="h-16 w-16 overflow-hidden rounded-xl border border-slate-200 hover:border-blue-400 dark:border-slate-700" title={img.nombre}>
-                                                    <img src={`${API_BASE_URL}/api/imagenes/${img.nombre}`} alt={img.nombre} className="h-full w-full bg-white object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                                    <img src={`${API_BASE_URL}/api/imagenes/${img.nombre}`} alt={img.nombre} loading="lazy" className="h-full w-full bg-white object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                                                 </button>
                                             ))}
                                         </div>

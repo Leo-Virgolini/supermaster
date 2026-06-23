@@ -61,12 +61,11 @@ type ProductoFormModalProps = {
     canEditProductos: boolean;
     canExportarDux: boolean;
     createProducto: (data: ProductoCreateDTO, afterCreate?: (id: number) => Promise<void>) => Promise<ProductoDTO>;
-    updateProductoMargen: (id: number, data: { margenMinorista?: number; margenMayorista?: number }) => Promise<void>;
     onClose: () => void;
     onSuccess: () => void | Promise<void>;
 };
 
-export default function ProductoFormModal({ producto, canEditProductos, canExportarDux, createProducto, updateProductoMargen, onClose, onSuccess }: ProductoFormModalProps) {
+export default function ProductoFormModal({ producto, canEditProductos, canExportarDux, createProducto, onClose, onSuccess }: ProductoFormModalProps) {
     const [isSaving, setIsSaving] = useState(false);
 
     // --- Campos del Formulario ---

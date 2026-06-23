@@ -379,7 +379,6 @@ export default function ProductosPage() {
                     canEditProductos={canEditProductos}
                     canExportarDux={canExportarDux}
                     createProducto={createProducto}
-                    updateProductoMargen={updateProductoMargen}
                     onClose={cerrarModal}
                     onSuccess={refresh}
                 />

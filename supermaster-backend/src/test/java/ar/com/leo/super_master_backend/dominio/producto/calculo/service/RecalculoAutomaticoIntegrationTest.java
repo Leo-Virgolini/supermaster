@@ -2415,5 +2415,36 @@ class RecalculoAutomaticoIntegrationTest {
                         .findByProductoIdAndCanalIdAndCuotas(producto.getId(), canal.getId(), 1).isPresent(),
                 "Producto de tipo bloqueado no debe tener precio (regla INCLUIR no cumple)");
     }
+
+    @Test
+    @Order(45)
+    @DisplayName("45. recalcularProductoTodosCanales desmarca el flag obsoleto (regresión: rechazo de Tienda Nube)")
+    void testRecalcularProductoTodosCanalesDesmarcaObsoleto() {
+        // Precondición: marcar como obsoletas las filas de precio del producto, como haría un
+        // cambio de costo/margen que deja el precio pendiente de recálculo.
+        productoCanalPrecioRepository.marcarObsoletoPorProductos(
+                List.of(producto.getId()), TEST_PREFIX + "regresion obsoleto");
+        entityManager.flush();
+        entityManager.clear();
+
+        List<ProductoCanalPrecio> antes = productoCanalPrecioRepository.findByProductoId(producto.getId());
+        assertFalse(antes.isEmpty(), "Precondición: el producto debe tener filas de precio");
+        assertTrue(antes.stream().allMatch(ProductoCanalPrecio::isObsoleto),
+                "Precondición: todas las filas deben quedar marcadas obsoletas");
+
+        // Acción: recálculo COMPLETO, la ruta que usa el endpoint POST /api/precios/calcular
+        // (el que el front llama antes de exportar a canales).
+        calculoPrecioService.recalcularProductoTodosCanales(producto.getId());
+        entityManager.flush();
+        entityManager.clear();
+
+        // Verificación: el recálculo completo debe dejar las filas NO obsoletas, para que la
+        // exportación a canales no rechace (NubeExportService valida isObsoleto() y respondía
+        // "precio desactualizado, recalcular antes de subir"). Sin el desmarcado, esto falla.
+        List<ProductoCanalPrecio> despues = productoCanalPrecioRepository.findByProductoId(producto.getId());
+        assertFalse(despues.isEmpty(), "El producto debe seguir teniendo filas de precio");
+        assertTrue(despues.stream().noneMatch(ProductoCanalPrecio::isObsoleto),
+                "Tras el recálculo completo, ninguna fila debe quedar obsoleta");
+    }
 }
 

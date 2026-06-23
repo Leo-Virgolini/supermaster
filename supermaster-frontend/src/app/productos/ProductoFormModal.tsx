@@ -896,7 +896,12 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
 
                             {/* Imágenes del SKU (solo lectura; click → carousel con todas) */}
                             <div className="block xl:col-span-4">
-                                <span className={fieldLabelClassName}>Imágenes (por SKU)</span>
+                                <div className="flex items-center gap-1.5">
+                                    <span className={fieldLabelClassName}>Imágenes (por SKU)</span>
+                                    <Tooltip content="Las imágenes se asocian automáticamente por SKU: el sistema toma de la carpeta de imágenes los archivos cuyo nombre coincide con el SKU del producto. No se cargan a mano desde acá — para agregar o cambiar fotos, poné los archivos en esa carpeta nombrados con el SKU y se detectan solos. Click en una miniatura para verlas todas." className="flex items-center">
+                                        <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
+                                    </Tooltip>
+                                </div>
                                 <div className="mt-1 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-700 dark:bg-slate-800/70">
                                     {imagenesDetectadas.length === 0 ? (
                                         <div className="space-y-1 text-xs text-amber-600 dark:text-amber-400">

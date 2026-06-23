@@ -31,17 +31,37 @@ import { ProductoCreateDTO, ProductoDTO, ProductoPatchDTO } from "./types";
 
 
 type CanalExport = "Dux" | "Tienda Nube" | "Mercado Libre";
-type ResultadoCanal = { canal: CanalExport; estado: "ok" | "error"; detalle: string };
+type ResultadoCanal = { canal: CanalExport; estado: "ok" | "error"; detalle: string; conAvisos?: boolean };
+
+// Plural correcto: "1 creado" / "3 creados".
+const plural = (n: number, sing: string, plur: string) => `${n} ${n === 1 ? sing : plur}`;
+// Quita el prefijo redundante "{sku} / " de los mensajes del backend (al subir un solo producto el SKU sobra).
+const sinPrefijoSku = (msgs: string[], sku: string) => { const pref = `${sku} / `; return msgs.map(m => (m.startsWith(pref) ? m.slice(pref.length) : m)); };
 
 // Convierte el resultado de un export de canal en ok/error + detalle legible.
-function clasificarExport(canal: CanalExport, r: { creados?: number; actualizados?: string[]; yaExistian?: string[]; errores: string[]; advertencias?: string[] }): ResultadoCanal {
-    if (r.errores.length) return { canal, estado: "error", detalle: r.errores.join("; ") };
+function clasificarExport(canal: CanalExport, r: { creados?: number; actualizados?: string[]; yaExistian?: string[]; errores: string[]; advertencias?: string[] }, sku: string): ResultadoCanal {
+    if (r.errores.length) return { canal, estado: "error", detalle: sinPrefijoSku(r.errores, sku).join("; ") };
     const partes: string[] = [];
-    if (r.creados) partes.push(`${r.creados} creado(s)`);
-    if (r.actualizados?.length) partes.push(`${r.actualizados.length} actualizado(s)`);
-    if (r.yaExistian?.length) partes.push(`${r.yaExistian.length} ya existía(n)`);
-    if (r.advertencias?.length) partes.push(`avisos: ${r.advertencias.join("; ")}`);
-    return { canal, estado: "ok", detalle: partes.join(" · ") || "sin cambios" };
+    if (r.creados) partes.push(plural(r.creados, "creado", "creados"));
+    if (r.actualizados?.length) partes.push(plural(r.actualizados.length, "actualizado", "actualizados"));
+    if (r.yaExistian?.length) partes.push(plural(r.yaExistian.length, "ya existía", "ya existían"));
+    const conAvisos = !!r.advertencias?.length;
+    if (conAvisos) partes.push(`⚠ ${sinPrefijoSku(r.advertencias!, sku).join("; ")}`);
+    return { canal, estado: "ok", detalle: partes.join(" · ") || "sin cambios", conAvisos };
+}
+
+// Emite un toast por canal: warning si trae avisos (ej. "creado sin imagen"), success si salió limpio.
+const notificarCanales = (resultados: ResultadoCanal[]) =>
+    resultados.forEach(r => (r.conAvisos ? notificar.warning : notificar.success)(`${r.canal}: ${r.detalle}`));
+
+// Spinner del botón de submit mientras se crea/edita el producto.
+function SpinnerIcon() {
+    return (
+        <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+        </svg>
+    );
 }
 
 // El selector manual de imagen se eliminó: las imágenes se resuelven por SKU y se ven con ImagenesCarousel.
@@ -310,7 +330,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 tareas.push((async (): Promise<ResultadoCanal> => {
                     try {
                         const r = await exportarProductosANubeAPI([skuExport], tiendas);
-                        return clasificarExport("Tienda Nube", r);
+                        return clasificarExport("Tienda Nube", r, skuExport);
                     } catch (e) {
                         return { canal: "Tienda Nube", estado: "error", detalle: e instanceof Error ? e.message : "error al subir" };
                     }
@@ -321,7 +341,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             tareas.push((async (): Promise<ResultadoCanal> => {
                 try {
                     const r = await exportarProductosAMlAPI([skuExport]);
-                    return clasificarExport("Mercado Libre", r);
+                    return clasificarExport("Mercado Libre", r, skuExport);
                 } catch (e) {
                     return { canal: "Mercado Libre", estado: "error", detalle: e instanceof Error ? e.message : "error al subir" };
                 }
@@ -389,7 +409,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             const resultados = await ejecutarExportsCanales(sk, canalesMarcados());
             setResultadosCanal(resultados);
             if (resultados.every(r => r.estado === "ok")) {
-                resultados.forEach(r => notificar.success(`${r.canal}: ${r.detalle}`));
+                notificarCanales(resultados);
                 onClose();
             } else {
                 // Mantener el modal abierto con el panel de estado por canal.
@@ -566,7 +586,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             setResultadosCanal(resultados);
             await onSuccess();
             if (resultados.every(r => r.estado === "ok")) {
-                resultados.forEach(r => notificar.success(`${r.canal}: ${r.detalle}`));
+                notificarCanales(resultados);
                 onClose();
             } else {
                 notificar.error("Los cambios se guardaron, pero falló la subida a algún canal. Revisá el detalle.");
@@ -585,7 +605,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             const nuevos = await ejecutarExportsCanales(skuSubida, fallidos);
             setResultadosCanal(prev => prev.map(p => nuevos.find(n => n.canal === p.canal) ?? p));
             if (nuevos.every(r => r.estado === "ok")) {
-                nuevos.forEach(r => notificar.success(`${r.canal}: ${r.detalle}`));
+                notificarCanales(nuevos);
                 onClose();
                 await onSuccess();
             }
@@ -727,7 +747,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         <>
             {/* MODAL CREAR / EDITAR PRODUCTO */}
             <Modal isOpen={true} onClose={onClose} title={editandoProductoId ? `Editar Producto${sku ? ` · ${sku}` : ""}` : "Nuevo Producto"} size="3xl" closeOnEscape={false}
-                footer={<><Button variant="light" onClick={onClose}><XMarkIcon className="w-4 h-4" /> Cancelar</Button><Button variant="dark" onClick={editandoProductoId ? handleGuardarEdicion : handleCreate} disabled={isSaving || (!editandoProductoId && skuYaExiste)}><CheckIcon className="w-4 h-4" /> {isSaving ? (editandoProductoId ? "Guardando..." : "Creando Producto...") : (editandoProductoId ? "Guardar Cambios" : "Crear Producto")}</Button></>}>
+                footer={<><Button variant="light" onClick={onClose}><XMarkIcon className="w-4 h-4" /> Cancelar</Button><Button variant="dark" onClick={editandoProductoId ? handleGuardarEdicion : handleCreate} disabled={isSaving || (!editandoProductoId && skuYaExiste)}>{isSaving ? <SpinnerIcon /> : <CheckIcon className="w-4 h-4" />} {isSaving ? (editandoProductoId ? "Guardando..." : "Creando Producto...") : (editandoProductoId ? "Guardar Cambios" : "Crear Producto")}</Button></>}>
                 <div className="text-sm">
                     {/* Tabs solo en modo edición: Datos (form) e Historial */}
                     {editandoProductoId && (

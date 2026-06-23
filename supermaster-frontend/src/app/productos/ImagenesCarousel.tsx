@@ -32,7 +32,7 @@ export default function ImagenesCarousel({ sku, onClose }: { sku: string; onClos
     const ir = (d: number) => setIdx((i) => (nombres.length ? (i + d + nombres.length) % nombres.length : 0));
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4" onClick={onClose}>
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/80 p-4" onClick={onClose}>
             <div className="relative flex max-h-full flex-col items-center gap-3" onClick={(e) => e.stopPropagation()}>
                 <button
                     onClick={onClose}

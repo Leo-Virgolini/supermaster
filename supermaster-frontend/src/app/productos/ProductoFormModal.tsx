@@ -58,14 +58,13 @@ const MAX_BYTES_IMG = 10 * 1024 * 1024; // 10 MB
 
 type ProductoFormModalProps = {
     producto: ProductoDTO | null;            // null = crear; ProductoDTO = editar
-    canEditProductos: boolean;
     canExportarDux: boolean;
     createProducto: (data: ProductoCreateDTO, afterCreate?: (id: number) => Promise<void>) => Promise<ProductoDTO>;
     onClose: () => void;
     onSuccess: () => void | Promise<void>;
 };
 
-export default function ProductoFormModal({ producto, canEditProductos, canExportarDux, createProducto, onClose, onSuccess }: ProductoFormModalProps) {
+export default function ProductoFormModal({ producto, canExportarDux, createProducto, onClose, onSuccess }: ProductoFormModalProps) {
     const [isSaving, setIsSaving] = useState(false);
 
     // --- Campos del Formulario ---
@@ -374,7 +373,7 @@ export default function ProductoFormModal({ producto, canEditProductos, canExpor
                 // Mantener el modal abierto con el panel de estado por canal.
                 notificar.error("El producto se creó, pero falló la subida a algún canal. Revisá el detalle.");
             }
-        } catch (e) { /* hook already toasts */ } finally { setIsSaving(false); }
+        } catch { /* hook already toasts */ } finally { setIsSaving(false); }
     };
 
     // Pide al backend el menor SKU libre del rango y lo carga en el form.

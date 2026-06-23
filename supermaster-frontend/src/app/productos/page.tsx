@@ -376,7 +376,6 @@ export default function ProductosPage() {
             {isModalOpen && (
                 <ProductoFormModal
                     producto={productoAEditar}
-                    canEditProductos={canEditProductos}
                     canExportarDux={canExportarDux}
                     createProducto={createProducto}
                     onClose={cerrarModal}

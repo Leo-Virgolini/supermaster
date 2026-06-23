@@ -56,6 +56,14 @@ const EXT_ML = new Set(["jpg", "jpeg", "png"]);
 const EXT_NUBE = new Set(["gif", "jpg", "jpeg", "png", "webp"]);
 const MAX_BYTES_IMG = 10 * 1024 * 1024; // 10 MB
 
+// Resalta en negrita el último segmento (la categoría hoja) de un path "A > B > C".
+function pathConHojaResaltada(path: string) {
+    const partes = path.split(/\s*>\s*/);
+    const hoja = partes.pop() ?? path;
+    const prefijo = partes.length ? partes.join(" > ") + " > " : "";
+    return <>{prefijo}<span className="font-semibold">{hoja}</span></>;
+}
+
 type ProductoFormModalProps = {
     producto: ProductoDTO | null;            // null = crear; ProductoDTO = editar
     canExportarDux: boolean;
@@ -880,7 +888,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                                     onClick={() => { setMlCategoryId(p.categoryId); setMlCategoryNombre(p.categoryPath || p.categoryName); setPrediccionesMl([]); }}
                                                     className={`rounded-lg border px-2 py-1 text-left text-xs transition-colors ${mlCategoryId === p.categoryId ? "border-yellow-400 bg-yellow-100 text-yellow-900" : "border-slate-300 hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-700"}`}
                                                 >
-                                                    {p.categoryPath || p.categoryName} <span className="text-slate-400">({p.categoryId})</span>
+                                                    {pathConHojaResaltada(p.categoryPath || p.categoryName)} <span className="text-slate-400">({p.categoryId})</span>
                                                 </button>
                                             ))}
                                         </div>

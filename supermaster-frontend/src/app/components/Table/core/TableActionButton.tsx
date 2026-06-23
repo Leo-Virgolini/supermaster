@@ -22,7 +22,7 @@ const TONE_CLASS_MAP: Record<TableActionTone, string> = {
 export function getTableActionButtonClasses(tone: TableActionTone = "neutral", extraClassName = "") {
     return [
         "inline-flex items-center justify-center gap-1.5 rounded border px-2.5 py-1 text-xs font-medium whitespace-nowrap transition-colors",
-        "disabled:cursor-not-allowed disabled:opacity-50",
+        "cursor-pointer disabled:cursor-not-allowed disabled:opacity-50",
         TONE_CLASS_MAP[tone],
         extraClassName,
     ].join(" ").trim();

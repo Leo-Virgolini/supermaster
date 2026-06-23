@@ -1197,7 +1197,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         <legend className={sectionTitleClassName}><ShoppingBagIcon /> Paquete para Mercado Libre (envío)</legend>
                         <div className="flex items-center gap-1.5 mt-1 mb-4">
                             <p className={sectionDescriptionClassName}>Dimensiones del paquete que se envían a ML al publicar.</p>
-                            <Tooltip content="ML exige las dimensiones del paquete para publicar. Se envían en cm y gramos, redondeadas a enteros." className="flex items-center">
+                            <Tooltip content="ML exige las dimensiones del paquete para publicar. Cargá alto/ancho/largo en cm y el peso en kg; se envían a ML en cm y gramos, redondeados a enteros." className="flex items-center">
                                 <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
                             </Tooltip>
                         </div>

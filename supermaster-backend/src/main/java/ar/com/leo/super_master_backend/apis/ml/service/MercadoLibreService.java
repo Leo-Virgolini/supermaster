@@ -1698,6 +1698,30 @@ public class MercadoLibreService {
         return (previa == null || previa.isBlank()) ? mensaje : previa + "; " + mensaje;
     }
 
+    /** Recorta el family_name (Título ML) al máximo del dominio; trim antes y después del recorte. */
+    static String construirFamilyName(String tituloMl, int maxLen) {
+        String t = tituloMl == null ? "" : tituloMl.trim();
+        return t.length() > maxLen ? t.substring(0, maxLen).trim() : t;
+    }
+
+    /** max_title_length del dominio/categoría (settings.max_title_length); 60 si no se puede determinar. */
+    static int parseMaxTitleLength(JsonNode categoria) {
+        int v = categoria.path("settings").path("max_title_length").asInt(0);
+        return v > 0 ? v : 60;
+    }
+
+    /** Consulta GET /categories/{id} y devuelve su max_title_length (60 si falla la consulta). */
+    int obtenerMaxTitleLength(String categoryId) {
+        if (categoryId == null || categoryId.isBlank()) return 60;
+        try {
+            String body = retryHandler.get("/categories/" + categoryId, () -> tokens.accessToken);
+            return body == null ? 60 : parseMaxTitleLength(objectMapper.readTree(body));
+        } catch (Exception e) {
+            log.warn("ML - no se pudo obtener max_title_length de la categoría {}: {}", categoryId, e.getMessage());
+            return 60;
+        }
+    }
+
     /** Si el alta/actualización fue exitosa y hubo imágenes omitidas, las agrega como advertencia. */
     static ResultadoAltaMl aplicarRechazadasImagenes(ResultadoAltaMl r, List<ImagenService.ImagenRechazada> rechazadas) {
         if (rechazadas == null || rechazadas.isEmpty()) return r;
@@ -1771,13 +1795,16 @@ public class MercadoLibreService {
         if (!isConfigured()) return ResultadoAltaMl.error("Mercado Libre no configurado");
         verificarTokens();
         ImagenService.FiltroImagenes filtro = imagenService.filtrarParaCanal(producto.getSku(), EXT_ML);
+        // Nuevo modelo User Products: se actualiza el family_name (no el title). El core invoca este
+        // callback solo si la publicación no tuvo ventas, regla que también aplica al family_name.
+        String familyNameUpd = construirFamilyName(producto.getTituloMl(), obtenerMaxTitleLength(producto.getMlCategoryId()));
         ResultadoAltaMl r = actualizarItemEnMlCore(
                 producto, mla,
                 this::leerSoldQuantity,
-                (m, title) -> {
+                (m, ignoradoTitle) -> {
                     try { retryHandler.putJson("/items/" + m, () -> tokens.accessToken,
-                            objectMapper.writeValueAsString(Map.of("title", title))); }
-                    catch (Exception e) { throw new RuntimeException("título: " + e.getMessage(), e); }
+                            objectMapper.writeValueAsString(Map.of("family_name", familyNameUpd))); }
+                    catch (Exception e) { throw new RuntimeException("family_name: " + e.getMessage(), e); }
                 },
                 (m, plainText) -> {
                     try { retryHandler.putJson("/items/" + m + "/description", () -> tokens.accessToken,
@@ -1834,6 +1861,7 @@ public class MercadoLibreService {
             Function<String, List<String>> archivosResolver,
             Function<String, String> subidorImagen,
             Function<String, String> predictor,
+            Function<String, Integer> maxTitleLengthFn,
             Function<String, String> poster,
             BiFunction<String, String, String> posterDescripcion) {
         try {
@@ -1859,6 +1887,7 @@ public class MercadoLibreService {
             String categoryId = predictor.apply(producto.getTituloMl());
             if (categoryId == null || categoryId.isBlank())
                 return ResultadoAltaMl.error("no se pudo predecir la categoría");
+            String familyName = construirFamilyName(producto.getTituloMl(), maxTitleLengthFn.apply(categoryId));
 
             // Precio de alta en ML: costo x 5 (regla de negocio de la Fase C1).
             BigDecimal price = producto.getCosto().multiply(MULTIPLICADOR_PRECIO_ML);
@@ -1866,7 +1895,7 @@ public class MercadoLibreService {
             // Crear con stock 0: queda out_of_stock; si el producto está inactivo, crearItemEnMl
             // lo pausa explícitamente (paused_by_seller) después del alta.
             String respuesta = poster.apply(om.writeValueAsString(
-                    MlItemPayloadBuilder.construir(producto, categoryId, price, 0, pictureIds)));
+                    MlItemPayloadBuilder.construir(producto, categoryId, price, 0, pictureIds, familyName)));
             String error = extraerErrorMl(om, respuesta);
             if (error != null) return ResultadoAltaMl.error(error);
 
@@ -1928,6 +1957,7 @@ public class MercadoLibreService {
                 sku -> filtro.validas(),
                 filename -> subirImagenItem(filename),
                 titulo -> resolverCategoriaMl(producto.getMlCategoryId(), titulo, this::predecirCategoria),
+                this::obtenerMaxTitleLength,
                 json -> postearItem(json),
                 (itemId, plainText) -> retryHandler.postJson("/items/" + itemId + "/description",
                         () -> tokens.accessToken, objectMapper.writeValueAsString(Map.of("plain_text", plainText))));

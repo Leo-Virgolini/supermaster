@@ -23,9 +23,10 @@ class MlItemPayloadBuilderTest {
     @SuppressWarnings("unchecked")
     void construir_camposBasicosYAtributos() {
         Map<String, Object> payload = MlItemPayloadBuilder.construir(
-                base(), "MLA1234", new BigDecimal("5000"), 0, List.of("PIC1", "PIC2"));
+                base(), "MLA1234", new BigDecimal("5000"), 0, List.of("PIC1", "PIC2"), "Olla acero 5L");
 
-        assertThat(payload.get("title")).isEqualTo("Olla acero 5L");
+        assertThat(payload.get("family_name")).isEqualTo("Olla acero 5L");
+        assertThat(payload).doesNotContainKey("title");
         assertThat(payload.get("category_id")).isEqualTo("MLA1234");
         assertThat(payload.get("price")).isEqualTo(new BigDecimal("5000"));
         assertThat(payload.get("currency_id")).isEqualTo("ARS");
@@ -59,7 +60,7 @@ class MlItemPayloadBuilderTest {
     @SuppressWarnings("unchecked")
     void construir_sinMarca_noIncluyeBrand() {
         Producto p = base(); p.setMarca(null);
-        Map<String, Object> payload = MlItemPayloadBuilder.construir(p, "MLA1", new BigDecimal("100"), 1, List.of("P1"));
+        Map<String, Object> payload = MlItemPayloadBuilder.construir(p, "MLA1", new BigDecimal("100"), 1, List.of("P1"), "fam");
         List<Map<String, Object>> attrs = (List<Map<String, Object>>) payload.get("attributes");
         assertThat(attrs).noneSatisfy(a -> assertThat(a.get("id")).isEqualTo("BRAND"));
     }

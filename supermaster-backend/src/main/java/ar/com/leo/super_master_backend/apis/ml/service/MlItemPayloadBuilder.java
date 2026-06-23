@@ -14,9 +14,10 @@ public final class MlItemPayloadBuilder {
     private MlItemPayloadBuilder() {}
 
     public static Map<String, Object> construir(Producto p, String categoryId, BigDecimal price,
-                                                int availableQuantity, List<String> pictureIds) {
+                                                int availableQuantity, List<String> pictureIds, String familyName) {
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("title", p.getTituloMl());
+        // Nuevo modelo User Products: se envía family_name (requerido); ML genera el title.
+        payload.put("family_name", familyName);
         payload.put("category_id", categoryId);
         payload.put("price", price);
         payload.put("currency_id", "ARS");

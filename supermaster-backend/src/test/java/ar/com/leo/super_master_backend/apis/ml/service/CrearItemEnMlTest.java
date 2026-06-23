@@ -35,7 +35,7 @@ class CrearItemEnMlTest {
     void sinTitulo_error() {
         Producto p = producto(); p.setTituloMl("  ");
         ResultadoAltaMl r = MercadoLibreService.crearItemEnMlCore(
-                p, om, noExiste, conImagen, subeOk, predice,
+                p, om, noExiste, conImagen, subeOk, predice, cat -> 60,
                 json -> "{\"id\":\"MLA1\"}", (id, txt) -> "{}");
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ERROR);
         assertThat(r.motivo()).containsIgnoringCase("título");
@@ -45,7 +45,7 @@ class CrearItemEnMlTest {
     void yaExiste_noPostea() {
         AtomicReference<String> posted = new AtomicReference<>();
         ResultadoAltaMl r = MercadoLibreService.crearItemEnMlCore(
-                producto(), om, sku -> true, conImagen, subeOk, predice,
+                producto(), om, sku -> true, conImagen, subeOk, predice, cat -> 60,
                 json -> { posted.set(json); return "{\"id\":\"MLA1\"}"; }, (id, txt) -> "{}");
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.YA_EXISTIA);
         assertThat(posted.get()).isNull();
@@ -54,7 +54,7 @@ class CrearItemEnMlTest {
     @Test
     void sinImagenes_error() {
         ResultadoAltaMl r = MercadoLibreService.crearItemEnMlCore(
-                producto(), om, noExiste, sku -> List.of(), subeOk, predice,
+                producto(), om, noExiste, sku -> List.of(), subeOk, predice, cat -> 60,
                 json -> "{\"id\":\"MLA1\"}", (id, txt) -> "{}");
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ERROR);
         assertThat(r.motivo()).containsIgnoringCase("imágenes");
@@ -64,7 +64,7 @@ class CrearItemEnMlTest {
     void ok_creadoConItemIdYMlau() {
         AtomicReference<String> descripcion = new AtomicReference<>();
         ResultadoAltaMl r = MercadoLibreService.crearItemEnMlCore(
-                producto(), om, noExiste, conImagen, subeOk, predice,
+                producto(), om, noExiste, conImagen, subeOk, predice, cat -> 60,
                 json -> "{\"id\":\"MLA999\",\"user_product_id\":\"MLAU99\"}",
                 (id, txt) -> { descripcion.set(id + "|" + txt); return "{}"; });
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.CREADO);
@@ -76,7 +76,7 @@ class CrearItemEnMlTest {
     @Test
     void respuestaConError_devuelveError() {
         ResultadoAltaMl r = MercadoLibreService.crearItemEnMlCore(
-                producto(), om, noExiste, conImagen, subeOk, predice,
+                producto(), om, noExiste, conImagen, subeOk, predice, cat -> 60,
                 json -> "{\"message\":\"Validation error\",\"cause\":[{\"type\":\"error\",\"message\":\"Attribute [BRAND] is required\"}]}",
                 (id, txt) -> "{}");
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ERROR);
@@ -86,7 +86,7 @@ class CrearItemEnMlTest {
     @Test
     void respuestaConSoloWarnings_creado() {
         ResultadoAltaMl r = MercadoLibreService.crearItemEnMlCore(
-                producto(), om, noExiste, conImagen, subeOk, predice,
+                producto(), om, noExiste, conImagen, subeOk, predice, cat -> 60,
                 json -> "{\"id\":\"MLA555\",\"cause\":[{\"type\":\"warning\",\"message\":\"ME2 adoption is mandatory\"}]}",
                 (id, txt) -> "{}");
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.CREADO);

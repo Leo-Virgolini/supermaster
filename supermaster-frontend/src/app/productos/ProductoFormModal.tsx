@@ -758,7 +758,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 </div>
                                 {subirKtHogar && (
                                     <div className="flex items-center gap-2 border-t border-slate-200/70 pt-2 dark:border-slate-700/60">
-                                        <span className="text-xs font-normal text-slate-500 dark:text-slate-400">Cuotas</span>
+                                        <span className="text-xs font-normal text-slate-500 dark:text-slate-400">Cuota a subir</span>
                                         <Tooltip content="Plan de cuotas del canal con el que se publica el precio en Tienda Nube (cada plan aplica su recargo/descuento de financiación)." className="flex-1">
                                             <select className={`${selectBaseClassName} w-full`} value={cuotaHogar} onChange={e => setCuotaHogar(Number(e.target.value))}>
                                                 {(cuotasHogarOpts.length ? cuotasHogarOpts : [{cuotas:-1,descripcion:"Transferencia"},{cuotas:6,descripcion:"6 cuotas"}]).map(c => (
@@ -780,7 +780,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 </div>
                                 {subirKtGastro && (
                                     <div className="flex items-center gap-2 border-t border-slate-200/70 pt-2 dark:border-slate-700/60">
-                                        <span className="text-xs font-normal text-slate-500 dark:text-slate-400">Cuotas</span>
+                                        <span className="text-xs font-normal text-slate-500 dark:text-slate-400">Cuota a subir</span>
                                         <Tooltip content="Plan de cuotas del canal con el que se publica el precio en Tienda Nube (cada plan aplica su recargo/descuento de financiación)." className="flex-1">
                                             <select className={`${selectBaseClassName} w-full`} value={cuotaGastro} onChange={e => setCuotaGastro(Number(e.target.value))}>
                                                 {(cuotasGastroOpts.length ? cuotasGastroOpts : [{cuotas:-1,descripcion:"Transferencia"},{cuotas:6,descripcion:"6 cuotas"}]).map(c => (
@@ -899,7 +899,12 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 <span className={fieldLabelClassName}>Imágenes (por SKU)</span>
                                 <div className="mt-1 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-700 dark:bg-slate-800/70">
                                     {imagenesDetectadas.length === 0 ? (
-                                        <div className="text-xs text-slate-500 dark:text-slate-400">No hay imágenes para este SKU en la carpeta.</div>
+                                        <div className="space-y-1 text-xs text-amber-600 dark:text-amber-400">
+                                            <div className="font-medium">&#9888; No hay imágenes para este SKU en la carpeta.</div>
+                                            {(subirMl || subirKtHogar || subirKtGastro) && (
+                                                <div>Mercado Libre y Tienda Nube requieren al menos una imagen; la subida a esos canales puede fallar o quedar sin foto.</div>
+                                            )}
+                                        </div>
                                     ) : (
                                         <div className="flex flex-wrap gap-2">
                                             {imagenesDetectadas.map((img) => (

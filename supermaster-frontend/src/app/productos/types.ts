@@ -13,7 +13,6 @@ export interface ProductoDTO {
 	esCombo: boolean;
 	uxb: number;
 	moq: number | null;
-	imagenUrl: string | null;
 	stock: number | null;
 	activo: boolean;
 	tagReposicion: TagReposicion | null;
@@ -85,7 +84,6 @@ export interface ProductoCreateDTO {
 	esCombo: boolean;
 	uxb: number;
 	activo: boolean;
-	imagenUrl: string | null;
 	tagReposicion: TagReposicion | null;
 	tag: Tag | null;
 	marcaId: number | null;

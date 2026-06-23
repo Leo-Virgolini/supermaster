@@ -47,7 +47,6 @@ export function HistorialSection({ productoId, productoSku }: { productoId: numb
         esCombo: "Es combo",
         uxb: "UxB",
         moq: "MOQ",
-        imagenUrl: "Imagen",
         stock: "Stock",
         activo: "Activo",
         tagReposicion: "Tag reposición",

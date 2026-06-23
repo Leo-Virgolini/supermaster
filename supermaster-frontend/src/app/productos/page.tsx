@@ -28,6 +28,7 @@ import {
 } from "./productosService";
 import { updateProductoMargenAPI } from "./productoMargenService";
 import { getCuotasPorCanalAPI } from "../canal-concepto-cuotas/canalConceptoCuotaService";
+import ImagenesCarousel from "./ImagenesCarousel";
 import {
     getProductoAptosAPI, getProductoCatalogosAPI, getProductoClientesAPI,
     getAllAptosAPI, getAllCatalogosAPI, getAllClientesAPI, asignarPrecioInfladoAPI,
@@ -54,123 +55,7 @@ function clasificarExport(canal: CanalExport, r: { creados?: number; actualizado
     return { canal, estado: "ok", detalle: partes.join(" · ") || "sin cambios" };
 }
 
-function ImagePickerModal({ onSelect, onClose }: { onSelect: (name: string) => void; onClose: () => void }) {
-    const [search, setSearch] = useState("");
-    const [files, setFiles] = useState<string[]>([]);
-    const [total, setTotal] = useState(0);
-    const [loading, setLoading] = useState(false);
-
-    const load = useCallback(async (q: string, signal?: AbortSignal) => {
-        setLoading(true);
-        try {
-            const params = q ? `?search=${encodeURIComponent(q)}` : "";
-            const res = await fetch(`${API_BASE_URL}/api/imagenes/listar${params}`, { signal });
-            if (!res.ok) {
-                if (!signal?.aborted) {
-                    notificar.error(`Error cargando imágenes (HTTP ${res.status})`);
-                    setFiles([]);
-                    setTotal(0);
-                }
-                return;
-            }
-            const data = await res.json();
-            if (!signal?.aborted) {
-                setFiles(Array.isArray(data?.archivos) ? data.archivos : []);
-                setTotal(typeof data?.total === "number" ? data.total : 0);
-            }
-        } catch (e) {
-            if ((e as { name?: string })?.name === "AbortError") return;
-            setFiles([]);
-            setTotal(0);
-        } finally {
-            if (!signal?.aborted) setLoading(false);
-        }
-    }, []);
-
-    // Debounce + AbortController: si el usuario tipea rápido, cancelamos la
-    // request anterior para que respuestas viejas no pisen el state nuevo.
-    useEffect(() => {
-        const controller = new AbortController();
-        const t = setTimeout(() => { void load(search, controller.signal); }, 300);
-        return () => {
-            clearTimeout(t);
-            controller.abort();
-        };
-    }, [search, load]);
-
-    // Escape cierra SOLO este selector, no el modal del producto que está detrás.
-    // Lo capturamos en fase de captura y frenamos la propagación antes de que
-    // llegue al listener (en bubble) del Modal del producto.
-    useEffect(() => {
-        const onKeyDown = (e: KeyboardEvent) => {
-            if (e.key === "Escape") {
-                e.stopImmediatePropagation();
-                e.stopPropagation();
-                onClose();
-            }
-        };
-        window.addEventListener("keydown", onKeyDown, true);
-        return () => window.removeEventListener("keydown", onKeyDown, true);
-    }, [onClose]);
-
-    return (
-        <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-            <div className="flex max-h-[75vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900" onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-700">
-                    <div>
-                        <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Seleccionar imagen</div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400">Elegí una imagen existente de la carpeta configurada en el backend.</div>
-                    </div>
-                    <button onClick={onClose} className="text-slate-400 transition hover:text-slate-700 dark:hover:text-slate-200" aria-label="Cerrar selector">
-                        <XMarkIcon className="h-5 w-5" />
-                    </button>
-                </div>
-
-                <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-700">
-                    <input
-                        autoFocus
-                        type="text"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Buscar imagen..."
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:ring-blue-500/20"
-                    />
-                    {!loading && total > files.length && (
-                        <div className="mt-2 text-xs text-amber-600 dark:text-amber-400">
-                            Mostrando las primeras {files.length} de {total} imágenes — refiná la búsqueda para acotar.
-                        </div>
-                    )}
-                </div>
-
-                <div className="grid min-h-[220px] flex-1 grid-cols-2 gap-3 overflow-y-auto p-4 sm:grid-cols-3 lg:grid-cols-4">
-                    {loading ? (
-                        <div className="col-span-full flex items-center justify-center text-sm text-slate-500 dark:text-slate-400">Cargando...</div>
-                    ) : files.length === 0 ? (
-                        <div className="col-span-full flex items-center justify-center text-sm text-slate-500 dark:text-slate-400">No hay imágenes para mostrar.</div>
-                    ) : (
-                        files.map((file) => (
-                            <button
-                                key={file}
-                                type="button"
-                                onClick={() => { onSelect(file); onClose(); }}
-                                className="group flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-2 text-left shadow-sm transition hover:border-blue-400 hover:bg-blue-50/60 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-blue-900/20"
-                                title={file}
-                            >
-                                <img
-                                    src={`${API_BASE_URL}/api/imagenes/${file}`}
-                                    alt={file}
-                                    className="h-24 w-full rounded-xl object-cover"
-                                    onError={(e) => { (e.target as HTMLImageElement).src = ""; }}
-                                />
-                                <span className="truncate text-[11px] text-slate-500 group-hover:text-blue-700 dark:text-slate-400 dark:group-hover:text-blue-300">{file}</span>
-                            </button>
-                        ))
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-}
+// El selector manual de imagen se eliminó: las imágenes se resuelven por SKU y se ven con ImagenesCarousel.
 
 // Etiqueta legible para una cuota de canal: usa la descripción configurada, o la deriva del número.
 const etiquetaCuota = (cuotas: number, descripcion?: string) =>
@@ -210,7 +95,6 @@ export default function ProductosPage() {
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [isImagePickerOpen, setIsImagePickerOpen] = useState(false);
 
     // --- Campos del Formulario ---
     const [sku, setSku] = useState("");
@@ -243,7 +127,7 @@ export default function ProductosPage() {
     const [reintentando, setReintentando] = useState(false);
     const [uxb, setUxb] = useState(1);
     const [activo, setActivo] = useState(true);
-    const [imagenUrl, setImagenUrl] = useState("");
+    const [carouselSku, setCarouselSku] = useState<string | null>(null);
     const [capacidad, setCapacidad] = useState("");
     const [largo, setLargo] = useState("");
     const [ancho, setAncho] = useState("");
@@ -298,9 +182,6 @@ export default function ProductosPage() {
     // Ref estable hacia abrirEdicion (definida más abajo) para usarla en el
     // useMemo de columnas sin invalidar la memoización en cada render.
     const abrirEdicionRef = useRef<(p: ProductoDTO) => void>(() => {});
-    // True si el usuario tocó la imagen a mano (la quitó o la eligió del picker):
-    // mientras esté en true, el autocompletado por SKU no la vuelve a pisar.
-    const imagenTocadaManualmenteRef = useRef(false);
     // Snapshot de N-a-N al abrir en edición, para calcular el diff al guardar.
     const [catalogosOriginal, setCatalogosOriginal] = useState<MultiOption[]>([]);
     const [aptosOriginal, setAptosOriginal] = useState<MultiOption[]>([]);
@@ -636,7 +517,7 @@ export default function ProductosPage() {
                 }
             }
             const payload: ProductoCreateDTO = {
-                sku: sku.trim(), codExt, tituloDux: tituloDux.trim(), tituloMl: tituloMl.trim() || null, tituloNube: tituloNube.trim() || null, esCombo, uxb, activo, imagenUrl,
+                sku: sku.trim(), codExt, tituloDux: tituloDux.trim(), tituloMl: tituloMl.trim() || null, tituloNube: tituloNube.trim() || null, esCombo, uxb, activo,
                 capacidad, largo: largo || null, ancho: ancho || null, alto: alto || null,
                 diamboca: diamboca || null, diambase: diambase || null, espesor: espesor || null,
                 costo: costoNum, iva,
@@ -688,7 +569,6 @@ export default function ProductosPage() {
         setMlCategoryNombre(producto.mlCategoryNombre ?? null);
         setPrediccionesMl([]);
         setTituloNube(producto.tituloNube ?? "");
-        setImagenUrl(producto.imagenUrl ?? "");
         setEsCombo(!!producto.esCombo);
         setUxb(producto.uxb ?? 1);
         setActivo(!!producto.activo);
@@ -755,7 +635,7 @@ export default function ProductosPage() {
             const id = editandoProductoId;
             const costoNum = costo === "" ? 0 : costo;
             const patch = {
-                codExt, tituloDux: tituloDux.trim(), tituloMl: tituloMl.trim() || null, tituloNube: tituloNube.trim() || null, esCombo, uxb, activo, imagenUrl,
+                codExt, tituloDux: tituloDux.trim(), tituloMl: tituloMl.trim() || null, tituloNube: tituloNube.trim() || null, esCombo, uxb, activo,
                 capacidad, largo: largo || null, ancho: ancho || null, alto: alto || null,
                 diamboca: diamboca || null, diambase: diambase || null, espesor: espesor || null,
                 costo: costoNum, iva, stock: stock !== "" ? stock : null, moq: moq !== "" ? moq : null,
@@ -918,28 +798,6 @@ export default function ProductosPage() {
         return () => clearTimeout(t);
     }, [sku, isModalOpen]);
 
-    // Autocompleta la imagen cuando el nombre del archivo coincide con el SKU.
-    // Solo en alta y mientras el usuario no haya elegido una imagen a mano.
-    useEffect(() => {
-        if (!isModalOpen || editandoProductoId || imagenTocadaManualmenteRef.current) return;
-        const skuTrim = sku.trim();
-        if (!skuTrim || imagenUrl) return;
-        const controller = new AbortController();
-        const t = setTimeout(async () => {
-            try {
-                const res = await fetch(`${API_BASE_URL}/api/imagenes/listar?search=${encodeURIComponent(skuTrim)}`, { signal: controller.signal });
-                if (!res.ok) return;
-                const data = await res.json();
-                const archivos: string[] = Array.isArray(data?.archivos) ? data.archivos : [];
-                // El backend filtra case-insensitive: comparamos en minúsculas para
-                // que abc123.png matchee el SKU ABC123 (y viceversa).
-                const match = archivos.find(a => a.replace(/\.[^.]+$/, "").toLowerCase() === skuTrim.toLowerCase());
-                if (match) setImagenUrl(match);
-            } catch { /* abort o sin match: ignorar */ }
-        }, 400);
-        return () => { controller.abort(); clearTimeout(t); };
-    }, [sku, isModalOpen, editandoProductoId, imagenUrl]);
-
     const aplicarMlaEnForm = (mla: { id: number; mla: string; mlau: string | null; precioEnvio: number | null; comisionPorcentaje: number | null; topePromocion: number | null }) => {
         setMlaId(mla.id);
         setMlaDisplay(mla.mla);
@@ -1010,7 +868,7 @@ export default function ProductosPage() {
     };
 
     const resetForm = () => {
-        setSku(""); setLastSuggestedSku(""); setCodExt(""); setTituloDux(""); setTituloMl(""); setTituloNube(""); setImagenUrl("");
+        setSku(""); setLastSuggestedSku(""); setCodExt(""); setTituloDux(""); setTituloMl(""); setTituloNube("");
         setMlCategoryId(null); setMlCategoryNombre(null); setPrediccionesMl([]);
         setEsCombo(false); setUxb(1); setActivo(true); setSubirADux(true);
         setSubirKtHogar(true); setSubirKtGastro(true); setSubirMl(true);
@@ -1027,7 +885,6 @@ export default function ProductosPage() {
         setMargenMinorista(""); setMargenMayorista("");
         setCatalogosSel([]); setAptosSel([]); setClientesSel([]);
         setPreciosInfladosSel([]);
-        imagenTocadaManualmenteRef.current = false;
         setFormErrors({});
         setResultadosCanal([]); setSkuSubida("");
     };
@@ -1415,40 +1272,22 @@ export default function ProductosPage() {
                                 {formErrors.tituloNube && <p className="mt-1 text-xs text-red-500">{formErrors.tituloNube}</p>}
                             </label>
 
-                            {/* Imagen */}
+                            {/* Imágenes del SKU (solo lectura; click → carousel con todas) */}
                             <div className="block xl:col-span-4">
-                                <span className={fieldLabelClassName}>Imagen</span>
-                                <div className="mt-1 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-700 dark:bg-slate-800/70">
-                                    <div className="flex items-center gap-3">
-                                        {imagenUrl ? (
-                                            <img
-                                                src={`${API_BASE_URL}/api/imagenes/${imagenUrl}`}
-                                                alt={imagenUrl}
-                                                className="h-20 w-20 rounded-2xl border border-slate-200 object-cover shadow-sm dark:border-slate-700"
-                                                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                                            />
-                                        ) : (
-                                            <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white text-xs text-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-500">
-                                                Sin imagen
-                                            </div>
-                                        )}
-                                        <div className="min-w-0 flex-1">
-                                            <div className="truncate text-sm font-medium text-slate-700 dark:text-slate-200">
-                                                {imagenUrl || "No hay imagen seleccionada"}
-                                            </div>
-                                            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                                Seleccioná una imagen existente igual que en la tabla de productos.
-                                            </div>
+                                <span className={fieldLabelClassName}>Imágenes (por SKU)</span>
+                                <div className="mt-1 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-700 dark:bg-slate-800/70">
+                                    {imagenesDetectadas.length === 0 ? (
+                                        <div className="text-xs text-slate-500 dark:text-slate-400">No hay imágenes para este SKU en la carpeta.</div>
+                                    ) : (
+                                        <div className="flex flex-wrap gap-2">
+                                            {imagenesDetectadas.map((img) => (
+                                                <button key={img.nombre} type="button" onClick={() => setCarouselSku(sku.trim())}
+                                                    className="h-16 w-16 overflow-hidden rounded-xl border border-slate-200 hover:border-blue-400 dark:border-slate-700" title={img.nombre}>
+                                                    <img src={`${API_BASE_URL}/api/imagenes/${img.nombre}`} alt={img.nombre} className="h-full w-full bg-white object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                                </button>
+                                            ))}
                                         </div>
-                                    </div>
-                                    <div className="flex flex-wrap gap-2">
-                                        <Button variant="dark" onClick={() => setIsImagePickerOpen(true)}>
-                                            Seleccionar imagen
-                                        </Button>
-                                        <Button variant="light" onClick={() => { imagenTocadaManualmenteRef.current = true; setImagenUrl(""); }} disabled={!imagenUrl}>
-                                            Quitar imagen
-                                        </Button>
-                                    </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -1729,12 +1568,7 @@ export default function ProductosPage() {
                 </div>
             </Modal>
 
-            {isImagePickerOpen && (
-                <ImagePickerModal
-                    onSelect={(name) => { imagenTocadaManualmenteRef.current = true; setImagenUrl(name); }}
-                    onClose={() => setIsImagePickerOpen(false)}
-                />
-            )}
+            {carouselSku && <ImagenesCarousel sku={carouselSku} onClose={() => setCarouselSku(null)} />}
 
         </main>
     );

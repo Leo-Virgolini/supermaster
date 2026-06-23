@@ -720,7 +720,7 @@ export default function ProductosPage() {
                 setIsModalOpen(false);
                 await refresh();
             }
-        } finally {
+        } catch { /* los exports nunca rechazan; un fallo de refresh ya se maneja en el hook */ } finally {
             setReintentando(false);
         }
     };

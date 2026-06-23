@@ -1819,16 +1819,18 @@ public class MercadoLibreService {
         if (!isConfigured()) return ResultadoAltaMl.error("Mercado Libre no configurado");
         verificarTokens();
         ImagenService.FiltroImagenes filtro = imagenService.filtrarParaCanal(producto.getSku(), EXT_ML);
-        // Nuevo modelo User Products: se actualiza el family_name (no el title). El core invoca este
-        // callback solo si la publicación no tuvo ventas, regla que también aplica al family_name.
-        String familyNameUpd = construirFamilyName(producto.getTituloMl(), obtenerMaxTitleLength(producto.getMlCategoryId()));
         ResultadoAltaMl r = actualizarItemEnMlCore(
                 producto, mla,
                 this::leerSoldQuantity,
+                // Nuevo modelo User Products: se actualiza el family_name (no el title), solo si no hubo
+                // ventas. El cálculo (con su GET a /categories) es lazy: el core invoca este callback
+                // únicamente cuando soldQty == 0.
                 (m, ignoradoTitle) -> {
-                    try { retryHandler.putJson("/items/" + m, () -> tokens.accessToken,
-                            objectMapper.writeValueAsString(Map.of("family_name", familyNameUpd))); }
-                    catch (Exception e) { throw new RuntimeException("family_name: " + e.getMessage(), e); }
+                    try {
+                        String familyNameUpd = construirFamilyName(producto.getTituloMl(), obtenerMaxTitleLength(producto.getMlCategoryId()));
+                        retryHandler.putJson("/items/" + m, () -> tokens.accessToken,
+                                objectMapper.writeValueAsString(Map.of("family_name", familyNameUpd)));
+                    } catch (Exception e) { throw new RuntimeException("family_name: " + e.getMessage(), e); }
                 },
                 (m, plainText) -> {
                     try { retryHandler.putJson("/items/" + m + "/description", () -> tokens.accessToken,

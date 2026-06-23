@@ -312,7 +312,7 @@ public class TiendaNubeService {
      * Convierte URLs absolutas a relativas (sin el baseUrl) para el RestClient.
      * Formato: {@code <url>; rel="next", <url>; rel="last"}
      */
-    private String parseLinkNext(org.springframework.http.HttpHeaders headers) {
+    String parseLinkNext(org.springframework.http.HttpHeaders headers) {
         if (headers == null) return null;
         List<String> linkHeaders = headers.get("Link");
         if (linkHeaders == null) return null;
@@ -324,6 +324,11 @@ public class TiendaNubeService {
                     int end = part.indexOf('>');
                     if (start > 0 && end > start) {
                         String url = part.substring(start, end).trim();
+                        // La URL del header Link viene con el query ya codificado (ej. fields=id%2Cname%2Cparent).
+                        // La decodificamos para que el RestClient la vuelva a codificar UNA sola vez, igual que
+                        // la primera página (construida con comas literales). Sin esto hay doble codificación
+                        // (%2C -> %252C) y Tienda Nube responde 422 "Invalid fields for this resource".
+                        url = java.net.URLDecoder.decode(url, java.nio.charset.StandardCharsets.UTF_8);
                         // Convertir URL absoluta a relativa para el RestClient
                         String baseUrl = properties.baseUrl();
                         if (url.startsWith(baseUrl)) {

@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.*;
 
 class MlItemPayloadBuilderTest {
 
@@ -63,5 +64,52 @@ class MlItemPayloadBuilderTest {
         Map<String, Object> payload = MlItemPayloadBuilder.construir(p, "MLA1", new BigDecimal("100"), 1, List.of("P1"), "fam");
         List<Map<String, Object>> attrs = (List<Map<String, Object>>) payload.get("attributes");
         assertThat(attrs).noneSatisfy(a -> assertThat(a.get("id")).isEqualTo("BRAND"));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Map<String, Object>> attrs(Map<String, Object> payload) {
+        return (List<Map<String, Object>>) payload.get("attributes");
+    }
+    private static Map<String, Object> attr(Map<String, Object> payload, String id) {
+        return attrs(payload).stream().filter(a -> id.equals(a.get("id"))).findFirst().orElse(null);
+    }
+
+    @Test
+    void incluyeDimensionesEnteras_yAtributosFiscales() {
+        Producto p = new Producto();
+        p.setSku("CUT-001");
+        p.setIva(new BigDecimal("21.000"));
+        p.setMlPaqAlto(new BigDecimal("6"));
+        p.setMlPaqAncho(new BigDecimal("25"));
+        p.setMlPaqLargo(new BigDecimal("31"));
+        p.setMlPaqPeso(new BigDecimal("0.214")); // 214 g
+
+        var payload = MlItemPayloadBuilder.construir(p, "MLA30083", new BigDecimal("100"), 0, List.of(), "Fam");
+
+        assertEquals("6 cm",   attr(payload, "SELLER_PACKAGE_HEIGHT").get("value_name"));
+        assertEquals("25 cm",  attr(payload, "SELLER_PACKAGE_WIDTH").get("value_name"));
+        assertEquals("31 cm",  attr(payload, "SELLER_PACKAGE_LENGTH").get("value_name"));
+        assertEquals("214 g",  attr(payload, "SELLER_PACKAGE_WEIGHT").get("value_name"));
+
+        var vat = attr(payload, "VALUE_ADDED_TAX");
+        assertEquals("48405909", vat.get("value_id"));
+        assertEquals("21 %",     vat.get("value_name"));
+
+        var imp = attr(payload, "IMPORT_DUTY");
+        assertEquals("49553239", imp.get("value_id"));
+        assertEquals("0 %",      imp.get("value_name"));
+    }
+
+    @Test
+    void omiteDimensiones_siFaltaAlguna_yIva105() {
+        Producto p = new Producto();
+        p.setSku("X");
+        p.setIva(new BigDecimal("10.5"));
+        p.setMlPaqAlto(new BigDecimal("6")); // faltan las otras 3
+        var payload = MlItemPayloadBuilder.construir(p, "MLA1", new BigDecimal("1"), 0, List.of(), "F");
+
+        assertNull(attr(payload, "SELLER_PACKAGE_HEIGHT"));
+        assertEquals("10.5 %", attr(payload, "VALUE_ADDED_TAX").get("value_name"));
+        assertEquals("48405908", attr(payload, "VALUE_ADDED_TAX").get("value_id"));
     }
 }

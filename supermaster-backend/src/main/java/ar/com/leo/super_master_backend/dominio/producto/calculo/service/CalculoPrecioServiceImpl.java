@@ -2908,9 +2908,18 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
         }
 
         // Recalcular para cada canal (todas las cuotas)
-        return canalIds.stream()
+        List<CanalPreciosDTO> resultado = canalIds.stream()
                 .map(canalId -> recalcularYGuardarPrecioCanalTodasCuotas(productoId, canalId))
                 .toList();
+
+        // Recálculo completo y persistido: el precio ya no está desactualizado. Desmarcamos el
+        // flag `obsoleto` de las filas del producto (igual que RecalculoPrecioFacade), porque la
+        // exportación a canales lo valida —p. ej. NubeExportService rechaza con "precio
+        // desactualizado (recalcular antes de subir)" si isObsoleto()—. Sin esto, el front
+        // recalculaba antes de subir pero el flag quedaba en true y Nube/ML rechazaban igual.
+        recalculoPendienteService.desmarcarProductoCompletado(productoId);
+
+        return resultado;
     }
 
     @Override

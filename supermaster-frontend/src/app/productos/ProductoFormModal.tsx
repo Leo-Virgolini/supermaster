@@ -148,6 +148,10 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     // Márgenes (se asocian tras crear el producto)
     const [margenMinorista, setMargenMinorista] = useState<number | "">("");
     const [margenMayorista, setMargenMayorista] = useState<number | "">("");
+    const [mlPaqAlto, setMlPaqAlto] = useState<number | "">("");
+    const [mlPaqAncho, setMlPaqAncho] = useState<number | "">("");
+    const [mlPaqLargo, setMlPaqLargo] = useState<number | "">("");
+    const [mlPaqPeso, setMlPaqPeso] = useState<number | "">("");
     // Relaciones N-a-N (se asocian tras crear el producto)
     const [catalogosSel, setCatalogosSel] = useState<MultiOption[]>([]);
     const [aptosSel, setAptosSel] = useState<MultiOption[]>([]);
@@ -227,6 +231,12 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         if (largo.length > 45) errors.largo = "Máximo 45 caracteres";
         if (ancho.length > 45) errors.ancho = "Máximo 45 caracteres";
         if (alto.length > 45) errors.alto = "Máximo 45 caracteres";
+        if (subirMl) {
+            if (mlPaqAlto === "" || Number(mlPaqAlto) <= 0) errors.mlPaqAlto = "Requerido para subir a ML";
+            if (mlPaqAncho === "" || Number(mlPaqAncho) <= 0) errors.mlPaqAncho = "Requerido para subir a ML";
+            if (mlPaqLargo === "" || Number(mlPaqLargo) <= 0) errors.mlPaqLargo = "Requerido para subir a ML";
+            if (mlPaqPeso === "" || Number(mlPaqPeso) <= 0) errors.mlPaqPeso = "Requerido para subir a ML";
+        }
         setFormErrors(errors);
         return Object.keys(errors).length === 0;
     };
@@ -355,6 +365,10 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 tag: tag || null,
                 marcaId, origenId, clasifGralId: clasifGralId!, clasifGastroId, tipoId: tipoId!, proveedorId, materialId, sectorDepositoId, mlaId: mlaIdFinal,
                 mlCategoryId: mlCategoryId, mlCategoryNombre: mlCategoryNombre,
+                mlPaqAlto: mlPaqAlto === "" ? null : Number(mlPaqAlto),
+                mlPaqAncho: mlPaqAncho === "" ? null : Number(mlPaqAncho),
+                mlPaqLargo: mlPaqLargo === "" ? null : Number(mlPaqLargo),
+                mlPaqPeso: mlPaqPeso === "" ? null : Number(mlPaqPeso),
             };
             const creado = await createProducto(payload, asociarMargenYRelaciones);
             // Si el producto quedó asociado a un MLA, calcular su precio de envío (el cálculo
@@ -442,6 +456,10 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             // sectorDeposito tampoco trae nombre: se deja vacío (AsyncSelect lo resuelve).
             setOrigenDisplay(""); setMaterialDisplay(""); setProveedorDisplay(""); setSectorDepositoDisplay("");
             setMargenMinorista(producto.margenMinorista ?? ""); setMargenMayorista(producto.margenMayorista ?? "");
+            setMlPaqAlto(producto.mlPaqAlto ?? "");
+            setMlPaqAncho(producto.mlPaqAncho ?? "");
+            setMlPaqLargo(producto.mlPaqLargo ?? "");
+            setMlPaqPeso(producto.mlPaqPeso ?? "");
             setFormErrors({});
             setCatalogosSel([]); setAptosSel([]); setClientesSel([]);
             setCatalogosOriginal([]); setAptosOriginal([]); setClientesOriginal([]);
@@ -493,6 +511,10 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 tagReposicion: tagReposicion || null, tag: tag || null,
                 marcaId, origenId, clasifGralId, clasifGastroId, tipoId, proveedorId, materialId, sectorDepositoId, mlaId,
                 mlCategoryId: mlCategoryId, mlCategoryNombre: mlCategoryNombre,
+                mlPaqAlto: mlPaqAlto === "" ? null : Number(mlPaqAlto),
+                mlPaqAncho: mlPaqAncho === "" ? null : Number(mlPaqAncho),
+                mlPaqLargo: mlPaqLargo === "" ? null : Number(mlPaqLargo),
+                mlPaqPeso: mlPaqPeso === "" ? null : Number(mlPaqPeso),
             } as ProductoPatchDTO;
             await updateProductoAPI(id, patch, "FORM");
 
@@ -1168,6 +1190,42 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                             <div className="md:col-span-2 xl:col-span-4">
                                 <MultiAsyncSelect label="Aptos" loadOptions={(q) => searchAptos(q)} value={aptosSel} onChange={setAptosSel} placeholder="Buscar apto" inputClassName={inputBaseClassName} />
                             </div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset className={sectionClassName}>
+                        <legend className={sectionTitleClassName}><ShoppingBagIcon /> Paquete para Mercado Libre (envío)</legend>
+                        <div className="flex items-center gap-1.5 mt-1 mb-4">
+                            <p className={sectionDescriptionClassName}>Dimensiones del paquete que se envían a ML al publicar.</p>
+                            <Tooltip content="ML exige las dimensiones del paquete para publicar. Se envían en cm y gramos, redondeadas a enteros." className="flex items-center">
+                                <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
+                            </Tooltip>
+                        </div>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                            <label className="block">
+                                <span className={fieldLabelClassName}>Alto (cm){subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
+                                <input type="number" min={0} className={`${inputBaseClassName} ${formErrors.mlPaqAlto ? inputErrorClassName : ""}`}
+                                    value={mlPaqAlto} onChange={e => { setMlPaqAlto(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.mlPaqAlto) setFormErrors(p => ({ ...p, mlPaqAlto: "" })); }} />
+                                {formErrors.mlPaqAlto && <p className="mt-1 text-xs text-red-500">{formErrors.mlPaqAlto}</p>}
+                            </label>
+                            <label className="block">
+                                <span className={fieldLabelClassName}>Ancho (cm){subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
+                                <input type="number" min={0} className={`${inputBaseClassName} ${formErrors.mlPaqAncho ? inputErrorClassName : ""}`}
+                                    value={mlPaqAncho} onChange={e => { setMlPaqAncho(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.mlPaqAncho) setFormErrors(p => ({ ...p, mlPaqAncho: "" })); }} />
+                                {formErrors.mlPaqAncho && <p className="mt-1 text-xs text-red-500">{formErrors.mlPaqAncho}</p>}
+                            </label>
+                            <label className="block">
+                                <span className={fieldLabelClassName}>Largo (cm){subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
+                                <input type="number" min={0} className={`${inputBaseClassName} ${formErrors.mlPaqLargo ? inputErrorClassName : ""}`}
+                                    value={mlPaqLargo} onChange={e => { setMlPaqLargo(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.mlPaqLargo) setFormErrors(p => ({ ...p, mlPaqLargo: "" })); }} />
+                                {formErrors.mlPaqLargo && <p className="mt-1 text-xs text-red-500">{formErrors.mlPaqLargo}</p>}
+                            </label>
+                            <label className="block">
+                                <span className={fieldLabelClassName}>Peso (kg){subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
+                                <input type="number" min={0} className={`${inputBaseClassName} ${formErrors.mlPaqPeso ? inputErrorClassName : ""}`}
+                                    value={mlPaqPeso} onChange={e => { setMlPaqPeso(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.mlPaqPeso) setFormErrors(p => ({ ...p, mlPaqPeso: "" })); }} />
+                                {formErrors.mlPaqPeso && <p className="mt-1 text-xs text-red-500">{formErrors.mlPaqPeso}</p>}
+                            </label>
                         </div>
                     </fieldset>
 

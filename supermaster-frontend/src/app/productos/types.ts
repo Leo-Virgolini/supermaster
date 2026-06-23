@@ -38,6 +38,12 @@ export interface ProductoDTO {
 	diambase: string | null;
 	espesor: string | null;
 
+	// Dimensiones paquete ML
+	mlPaqAlto?: number | null;
+	mlPaqAncho?: number | null;
+	mlPaqLargo?: number | null;
+	mlPaqPeso?: number | null;
+
 	// Económicos
 	costo: number;
 	fechaUltimoCosto: string;
@@ -106,6 +112,10 @@ export interface ProductoCreateDTO {
 	stock: number | null;
 	moq: number | null;
 	iva: number;
+	mlPaqAlto?: number | null;
+	mlPaqAncho?: number | null;
+	mlPaqLargo?: number | null;
+	mlPaqPeso?: number | null;
 }
 
 export type ProductoPatchDTO = Partial<ProductoCreateDTO>;

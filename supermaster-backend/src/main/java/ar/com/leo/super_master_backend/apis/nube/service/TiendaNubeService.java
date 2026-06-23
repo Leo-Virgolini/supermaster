@@ -324,12 +324,8 @@ public class TiendaNubeService {
                     int end = part.indexOf('>');
                     if (start > 0 && end > start) {
                         String url = part.substring(start, end).trim();
-                        // La URL del header Link viene con el query ya codificado (ej. fields=id%2Cname%2Cparent).
-                        // La decodificamos para que el RestClient la vuelva a codificar UNA sola vez, igual que
-                        // la primera página (construida con comas literales). Sin esto hay doble codificación
-                        // (%2C -> %252C) y Tienda Nube responde 422 "Invalid fields for this resource".
-                        url = java.net.URLDecoder.decode(url, java.nio.charset.StandardCharsets.UTF_8);
-                        // Convertir URL absoluta a relativa para el RestClient
+                        // Usamos la URL del header Link TAL CUAL (la doc de Tienda Nube recomienda
+                        // "use the Link URLs instead of building your own"); solo la pasamos a relativa.
                         String baseUrl = properties.baseUrl();
                         if (url.startsWith(baseUrl)) {
                             return url.substring(baseUrl.length());
@@ -654,7 +650,10 @@ public class TiendaNubeService {
         }
         if (store == null) return arbol;
 
-        String uri = String.format("/%s/categories?per_page=200&fields=id,name,parent", store.getStoreId());
+        // No usamos el parámetro `fields`: no está documentado en la API de Tienda Nube y, aunque
+        // hoy lo procesa, en la paginación rechazaba sus valores con 422 ("Invalid fields"). Traemos
+        // la categoría completa (igual solo leemos id/name/parent del JSON).
+        String uri = String.format("/%s/categories?per_page=200", store.getStoreId());
         int paginas = 0;
 
         while (uri != null) {

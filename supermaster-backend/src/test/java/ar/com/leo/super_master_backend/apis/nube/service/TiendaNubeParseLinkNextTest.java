@@ -8,10 +8,9 @@ import tools.jackson.databind.ObjectMapper;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Regresión del bug del árbol de categorías de Tienda Nube: la URL de paginación viene del
- * header Link ya codificada (fields=id%2Cname%2Cparent). Si se reenvía tal cual, el RestClient
- * la vuelve a codificar (%2C -> %252C) y Nube responde 422 "Invalid fields for this resource".
- * parseLinkNext debe DECODIFICAR la URL para que se codifique una sola vez, igual que la página 1.
+ * parseLinkNext extrae la URL con rel="next" del header Link y la pasa a relativa al baseUrl.
+ * La doc de Tienda Nube recomienda usar las URLs del Link tal cual ("use the Link URLs instead
+ * of building your own"), así que NO se modifica el query (no se decodifica ni reconstruye).
  */
 class TiendaNubeParseLinkNextTest {
 
@@ -21,15 +20,15 @@ class TiendaNubeParseLinkNextTest {
     }
 
     @Test
-    void decodificaComasDelQuery_evitaDobleCodificacion() {
+    void extraeRelNext_yLaPasaARelativa() {
         HttpHeaders headers = new HttpHeaders();
-        headers.add("Link", "<https://api.tiendanube.com/v1/999/categories?per_page=200&fields=id%2Cname%2Cparent&page=2>; rel=\"next\"");
+        headers.add("Link", "<https://api.tiendanube.com/v1/999/categories?per_page=200&page=2>; rel=\"last\", "
+                + "<https://api.tiendanube.com/v1/999/categories?per_page=200&page=2>; rel=\"next\"");
 
         String next = service().parseLinkNext(headers);
 
-        // Relativa al baseUrl y con las comas DECODIFICADAS (literales): el RestClient las
-        // recodifica una sola vez. Sin el fix devolvería "...fields=id%2Cname%2Cparent...".
-        assertThat(next).isEqualTo("/999/categories?per_page=200&fields=id,name,parent&page=2");
+        // Tal cual viene en el Link (relativa al baseUrl), sin tocar el query.
+        assertThat(next).isEqualTo("/999/categories?per_page=200&page=2");
     }
 
     @Test

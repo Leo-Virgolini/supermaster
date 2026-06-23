@@ -271,7 +271,7 @@ export const exportarProductosAMlAPI = async (skus: string[]): Promise<ExportCan
 	return await res.json();
 };
 
-export type PrediccionCategoriaMl = { categoryId: string; categoryName: string };
+export type PrediccionCategoriaMl = { categoryId: string; categoryName: string; categoryPath: string };
 
 export const predecirCategoriasMlAPI = async (titulo: string): Promise<PrediccionCategoriaMl[]> => {
 	const res = await fetchAPI(`${API_BASE_URL}/api/ml/predecir-categorias?titulo=${encodeURIComponent(titulo)}`);

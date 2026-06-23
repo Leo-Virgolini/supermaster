@@ -1722,6 +1722,30 @@ public class MercadoLibreService {
         }
     }
 
+    /** Arma "Padre > ... > Hoja" desde el path_from_root de GET /categories/{id}; null si no hay. */
+    public static String parsePathFromRoot(JsonNode categoria) {
+        JsonNode pfr = categoria.path("path_from_root");
+        if (!pfr.isArray() || pfr.isEmpty()) return null;
+        List<String> nombres = new ArrayList<>();
+        for (JsonNode n : pfr) {
+            String name = n.path("name").asString("");
+            if (!name.isBlank()) nombres.add(name);
+        }
+        return nombres.isEmpty() ? null : String.join(" > ", nombres);
+    }
+
+    /** Path completo "Padre > ... > Hoja" de una categoría (null si no se puede obtener). */
+    String obtenerCategoriaPath(String categoryId) {
+        if (categoryId == null || categoryId.isBlank()) return null;
+        try {
+            String body = retryHandler.get("/categories/" + categoryId, () -> tokens.accessToken);
+            return body == null ? null : parsePathFromRoot(objectMapper.readTree(body));
+        } catch (Exception e) {
+            log.warn("ML - no se pudo obtener el path de la categoría {}: {}", categoryId, e.getMessage());
+            return null;
+        }
+    }
+
     /** Si el alta/actualización fue exitosa y hubo imágenes omitidas, las agrega como advertencia. */
     static ResultadoAltaMl aplicarRechazadasImagenes(ResultadoAltaMl r, List<ImagenService.ImagenRechazada> rechazadas) {
         if (rechazadas == null || rechazadas.isEmpty()) return r;
@@ -1994,7 +2018,8 @@ public class MercadoLibreService {
             for (JsonNode n : arr) {
                 String id = n.path("category_id").asString("");
                 if (!id.isBlank()) {
-                    out.add(new PrediccionCategoriaMlDTO(id, n.path("category_name").asString("")));
+                    // El path se enriquece luego (predecirCategorias) con un GET por categoría.
+                    out.add(new PrediccionCategoriaMlDTO(id, n.path("category_name").asString(""), null));
                 }
             }
         }
@@ -2008,7 +2033,15 @@ public class MercadoLibreService {
             String uri = "/sites/MLA/domain_discovery/search?limit=" + limit + "&q="
                     + URLEncoder.encode(titulo, StandardCharsets.UTF_8);
             String resp = retryHandler.get(uri, () -> tokens.accessToken);
-            return parsePredicciones(objectMapper.readTree(resp));
+            List<PrediccionCategoriaMlDTO> base = parsePredicciones(objectMapper.readTree(resp));
+            // Enriquecer cada predicción con su herencia completa (Padre > ... > Hoja).
+            List<PrediccionCategoriaMlDTO> out = new ArrayList<>();
+            for (PrediccionCategoriaMlDTO p : base) {
+                String path = obtenerCategoriaPath(p.categoryId());
+                out.add(new PrediccionCategoriaMlDTO(p.categoryId(), p.categoryName(),
+                        path != null ? path : p.categoryName()));
+            }
+            return out;
         } catch (Exception e) {
             log.warn("ML - Falló predecir categorías para '{}': {}", titulo, e.getMessage());
             return List.of();

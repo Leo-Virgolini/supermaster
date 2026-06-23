@@ -44,6 +44,18 @@ class PredecirCategoriasMlTest {
     }
 
     @Test
+    void parsePathFromRoot_armaJerarquiaCompleta() {
+        JsonNode cat = tree("{\"path_from_root\":[{\"id\":\"MLA5\",\"name\":\"Cocina\"},"
+                + "{\"id\":\"MLA50\",\"name\":\"Baterías\"},{\"id\":\"MLA1234\",\"name\":\"Ollas\"}]}");
+        assertThat(MercadoLibreService.parsePathFromRoot(cat)).isEqualTo("Cocina > Baterías > Ollas");
+    }
+
+    @Test
+    void parsePathFromRoot_sinPath_null() {
+        assertThat(MercadoLibreService.parsePathFromRoot(tree("{}"))).isNull();
+    }
+
+    @Test
     void resolverCategoriaMl_usaLaGuardadaSiExiste() {
         String cat = MercadoLibreService.resolverCategoriaMl("MLA999", "un título", t -> "AUTO");
         assertThat(cat).isEqualTo("MLA999");

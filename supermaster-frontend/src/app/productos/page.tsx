@@ -1398,10 +1398,10 @@ export default function ProductosPage() {
                                                 <button
                                                     key={p.categoryId}
                                                     type="button"
-                                                    onClick={() => { setMlCategoryId(p.categoryId); setMlCategoryNombre(p.categoryName); setPrediccionesMl([]); }}
-                                                    className={`rounded-lg border px-2 py-1 text-xs transition-colors ${mlCategoryId === p.categoryId ? "border-yellow-400 bg-yellow-100 text-yellow-900" : "border-slate-300 hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-700"}`}
+                                                    onClick={() => { setMlCategoryId(p.categoryId); setMlCategoryNombre(p.categoryPath || p.categoryName); setPrediccionesMl([]); }}
+                                                    className={`rounded-lg border px-2 py-1 text-left text-xs transition-colors ${mlCategoryId === p.categoryId ? "border-yellow-400 bg-yellow-100 text-yellow-900" : "border-slate-300 hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-700"}`}
                                                 >
-                                                    {p.categoryName} <span className="text-slate-400">({p.categoryId})</span>
+                                                    {p.categoryPath || p.categoryName} <span className="text-slate-400">({p.categoryId})</span>
                                                 </button>
                                             ))}
                                         </div>

@@ -2192,4 +2192,138 @@ public class MercadoLibreService {
         return pvp == null ? null : pvp.setScale(0, java.math.RoundingMode.HALF_UP);
     }
 
+    // =====================================================
+    // CÁLCULO DE PRECIO FINAL PARA PUBLICAR (SIN MLA)
+    // =====================================================
+
+    /**
+     * Obtiene el zip del vendedor consultando {@code GET /users/me}.
+     * El campo {@code address.zip_code} de la respuesta es el mismo origen que usa
+     * {@code calcularCostoEnvioInterno} (via {@code sellerAddress.zipCode} del ítem).
+     *
+     * @return zip del vendedor, o null si no se puede obtener (el cálculo continúa con costo 0).
+     */
+    private String obtenerZipVendedor() {
+        try {
+            String body = retryHandler.get("/users/me", () -> tokens.accessToken);
+            if (body == null) return null;
+            String zip = objectMapper.readTree(body).path("address").path("zip_code").asString("");
+            return zip.isBlank() ? null : zip;
+        } catch (Exception e) {
+            log.warn("ML - No se pudo obtener zip del vendedor: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Calcula el PVP final a publicar en ML ANTES de crear la publicación (sin MLA),
+     * iterando precio ↔ envío ↔ comisión hasta estabilizar.
+     *
+     * <p>Bucle (via {@link EnvioEstabilizador}):
+     * <ol>
+     *   <li>{@code pvpFn}: calcula PVP tentativo con {@code comisionMlOverride=ZERO},
+     *       luego consulta la comisión real para ese PVP y recalcula con esa comisión.</li>
+     *   <li>{@code envioConIvaFn}: si {@code pvp >= umbralEnvioGratis} consulta la API ML
+     *       ({@link #consultarEnvioConIvaSinItem}); si no, usa el tier configurado.</li>
+     * </ol>
+     *
+     * @param producto    entidad de dominio (necesita id, iva, dimensiones ML)
+     * @param categoryId  categoría ML a publicar
+     * @param cuotas      número de cuotas
+     * @return PVP final redondeado a entero (sin centavos)
+     * @throws IllegalStateException si el motor no puede calcular (sin margen/canal/costo)
+     *                               o si el PVP calculado no es válido
+     */
+    public BigDecimal calcularPrecioFinalParaPublicar(
+            ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto,
+            String categoryId,
+            int cuotas) {
+        verificarTokens();
+
+        Canal canalMl = canalRepository.findByNombreIgnoreCase(CANAL_ML)
+                .orElseThrow(() -> new IllegalStateException("No se encontró el canal " + CANAL_ML));
+
+        ConfiguracionMl config = configuracionMlService.obtenerEntidad();
+        BigDecimal umbral = config.getUmbralEnvioGratis();
+
+        final String listingType = "gold_special";
+        final String logisticType = "drop_off";
+
+        // Obtener zip del vendedor (para consultarEnvioConIvaSinItem); null es tolerable.
+        String zip;
+        try {
+            zip = obtenerZipVendedor();
+        } catch (Exception e) {
+            log.warn("ML - calcularPrecioFinalParaPublicar: no se pudo obtener zip del vendedor: {}", e.getMessage());
+            zip = null;
+        }
+        final String zipFinal = zip;
+
+        // userId (cacheado); capturado aquí para que la lambda no repita llamadas.
+        final String userId;
+        try {
+            userId = getUserId();
+        } catch (IOException e) {
+            throw new IllegalStateException("No se pudo obtener el userId de MercadoLibre: " + e.getMessage());
+        }
+
+        // Divisor de IVA: convierte el costo de envío CON IVA (lo que devuelve la API)
+        // al valor neto sin IVA que entra en la fórmula del motor de cálculo.
+        BigDecimal ivaProducto = producto.getIva() != null ? producto.getIva() : new BigDecimal("21");
+        BigDecimal divisorIva = BigDecimal.ONE.add(
+                ivaProducto.divide(new BigDecimal("100"), 6, RoundingMode.HALF_UP));
+
+        // pvpFn: (a) calcula PVP tentativo con comisionMlOverride=ZERO,
+        //        (b) consulta la comisión real para ese PVP,
+        //        (c) recalcula con esa comisión y devuelve el PVP.
+        Function<BigDecimal, BigDecimal> pvpFn = costoEnvioSinIva -> {
+            BigDecimal pvpTentativo = calculoPrecioService
+                    .calcularPrecioCanalConEnvio(
+                            producto.getId(), canalMl.getId(), cuotas,
+                            costoEnvioSinIva, BigDecimal.ZERO)
+                    .pvp();
+            BigDecimal comision = consultarComisionPorcentaje(categoryId, pvpTentativo, listingType, logisticType);
+            return calculoPrecioService
+                    .calcularPrecioCanalConEnvio(
+                            producto.getId(), canalMl.getId(), cuotas,
+                            costoEnvioSinIva, comision)
+                    .pvp();
+        };
+
+        // envioConIvaFn: si pvp >= umbral → API ML sin item; si no → tier (null → ZERO).
+        Function<BigDecimal, BigDecimal> envioConIvaFn = pvp -> {
+            if (pvp.compareTo(umbral) >= 0) {
+                return consultarEnvioConIvaSinItem(userId, producto, categoryId, listingType, logisticType, zipFinal, pvp);
+            } else {
+                BigDecimal tier = configuracionMlService.obtenerCostoEnvioPorPvp(pvp);
+                return tier != null ? tier : BigDecimal.ZERO;
+            }
+        };
+
+        // Ejecutar el núcleo iterativo; capturar excepciones de negocio del motor.
+        EnvioEstabilizador.ResultadoEstabilizacion r;
+        try {
+            r = EnvioEstabilizador.estabilizar(pvpFn, envioConIvaFn, divisorIva, 10);
+        } catch (BadRequestException | NotFoundException e) {
+            throw new IllegalStateException(e.getMessage());
+        } catch (RuntimeException e) {
+            // Las lambdas pueden envolver excepciones de negocio en RuntimeException
+            // si el núcleo no las propaga directamente.
+            Throwable cause = e.getCause();
+            if (cause instanceof BadRequestException || cause instanceof NotFoundException) {
+                throw new IllegalStateException(cause.getMessage());
+            }
+            throw e;
+        }
+
+        if (r.pvp() == null || r.pvp().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalStateException("PVP calculado no válido (pvp=" + r.pvp() + ")");
+        }
+
+        log.info("ML - calcularPrecioFinalParaPublicar SKU={} category={}: pvp={}, costoEnvioSinIva={}, iteraciones={}",
+                producto.getSku(), categoryId, r.pvp(), r.costoEnvioSinIva(), r.iteraciones());
+
+        return redondearPrecioMl(r.pvp());
+    }
+
 }

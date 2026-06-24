@@ -31,10 +31,10 @@ public final class OpenAiSeoPrompts {
 
     /** Regla extra solo para el canal gastronómico. */
     static final String REGLA_GASTRO =
-            "\n- Orientá el vocabulario y las palabras clave al rubro gastronómico y profesional"
-            + " (uso en cocinas de restaurantes, cafeterías, pastelerías, panaderías, pizzerías y bares),"
-            + " pero NO enumeres literalmente esos comercios en la descripción ni escribas frases del tipo"
-            + " \"apto para restaurantes, cafeterías...\".";
+            "\n- Enfocá el SEO en el rubro gastronómico y profesional. Podés mencionar en la descripción los"
+            + " usos en cocinas de restaurantes, cafeterías, pastelerías, panaderías, pizzerías o bares cuando"
+            + " ayuden al posicionamiento, integrados de forma natural en el texto (no como una lista forzada"
+            + " ni una muletilla al final). No agregues el rubro como sufijo del seo_title.";
 
     public static String systemPrompt(SeoCanal canal) {
         return canal == SeoCanal.GASTRO ? SYSTEM_BASE + REGLA_GASTRO : SYSTEM_BASE;

@@ -422,8 +422,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 onClose();
             } else {
                 // Mantener el modal abierto con el panel de estado por canal.
-                const fallidos = resultados.filter(r => r.estado === "error").map(r => `${r.canal} — ${r.detalle}`).join(" · ");
-                notificar.error(`El producto se creó, pero falló la subida: ${fallidos}`);
+                const fallidos = resultados.filter(r => r.estado === "error").map(r => `• ${r.canal} — ${r.detalle}`).join("\n");
+                notificar.error(`El producto se creó, pero falló la subida:\n${fallidos}`);
             }
         } catch { /* hook already toasts */ } finally { setIsSaving(false); }
     };
@@ -599,8 +599,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 notificarCanales(resultados);
                 onClose();
             } else {
-                const fallidos = resultados.filter(r => r.estado === "error").map(r => `${r.canal} — ${r.detalle}`).join(" · ");
-                notificar.error(`Los cambios se guardaron, pero falló la subida: ${fallidos}`);
+                const fallidos = resultados.filter(r => r.estado === "error").map(r => `• ${r.canal} — ${r.detalle}`).join("\n");
+                notificar.error(`Los cambios se guardaron, pero falló la subida:\n${fallidos}`);
             }
         } catch (e) {
             notificar.error(e instanceof Error ? e.message : "Error al guardar los cambios");

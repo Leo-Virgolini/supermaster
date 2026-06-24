@@ -13,6 +13,8 @@ type ModalProps = {
     size?: ModalSize;
     blurBackdrop?: boolean;
     closeOnEscape?: boolean;
+    /** Mientras es true, bloquea los inputs y el cierre (backdrop/X) — p. ej. mientras se guarda. */
+    busy?: boolean;
 };
 
 const sizeClasses: Record<ModalSize, string> = {
@@ -33,6 +35,7 @@ const Modal = ({
     size = "lg",
     blurBackdrop = false,
     closeOnEscape = true,
+    busy = false,
 }: ModalProps) => {
     const dialogRef = useRef<HTMLDivElement>(null);
     const titleId = useId();
@@ -126,7 +129,7 @@ const Modal = ({
             {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-black/60"
-                onClick={onClose}
+                onClick={busy ? undefined : onClose}
             />
 
             {/* Contenido */}
@@ -145,18 +148,21 @@ const Modal = ({
                         <h3 id={titleId} className="text-lg font-bold text-white">{title}</h3>
                     </div>
                     <button
-                        onClick={onClose}
+                        onClick={busy ? undefined : onClose}
+                        disabled={busy}
                         type="button"
                         aria-label="Cerrar modal"
-                        className="text-2xl leading-none text-blue-100/70 transition-colors hover:text-white"
+                        className="text-2xl leading-none text-blue-100/70 transition-colors hover:text-white disabled:opacity-40"
                     >
                         &times;
                     </button>
                 </div>
 
                 {/* Body con scroll */}
-                <div className="modal-form-shell min-h-0 flex-1 overflow-y-auto bg-slate-50/70 p-6 dark:bg-slate-900">
-                    {children}
+                <div className="modal-form-shell min-h-0 flex-1 overflow-y-auto bg-slate-50/70 p-6 dark:bg-slate-900" aria-busy={busy}>
+                    <fieldset disabled={busy} className="m-0 min-w-0 border-0 p-0" style={busy ? { opacity: 0.6, pointerEvents: "none" } : undefined}>
+                        {children}
+                    </fieldset>
                 </div>
 
                 {/* Footer fijo */}

@@ -744,18 +744,20 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     // Estructura base de cada sección; el color de fondo lo aporta un tinte propio (SECTION_TINT)
     // para diferenciar visualmente cada sección del fondo del modal.
     const sectionClassName = "rounded-2xl border p-4 shadow-sm";
+    // El `!` (important) vence la regla global `.modal-form-shell fieldset { background:#fff }`
+    // de globals.css, que si no deja todas las secciones blancas.
     const SECTION_TINT = {
-        canales:        "border-blue-200 bg-blue-50/60 dark:border-blue-900/40 dark:bg-blue-950/20",
-        identificacion: "border-indigo-200 bg-indigo-50/50 dark:border-indigo-900/40 dark:bg-indigo-950/20",
-        economicos:     "border-emerald-200 bg-emerald-50/50 dark:border-emerald-900/40 dark:bg-emerald-950/20",
-        reposicion:     "border-amber-200 bg-amber-50/50 dark:border-amber-900/40 dark:bg-amber-950/20",
-        margenes:       "border-teal-200 bg-teal-50/50 dark:border-teal-900/40 dark:bg-teal-950/20",
-        clasificacion:  "border-violet-200 bg-violet-50/50 dark:border-violet-900/40 dark:bg-violet-950/20",
-        catalogos:      "border-cyan-200 bg-cyan-50/50 dark:border-cyan-900/40 dark:bg-cyan-950/20",
-        ml:             "border-yellow-200 bg-yellow-50/60 dark:border-yellow-900/40 dark:bg-yellow-950/20",
-        dimensiones:    "border-sky-200 bg-sky-50/50 dark:border-sky-900/40 dark:bg-sky-950/20",
-        paqueteMl:      "border-orange-200 bg-orange-50/50 dark:border-orange-900/40 dark:bg-orange-950/20",
-        inflados:       "border-rose-200 bg-rose-50/50 dark:border-rose-900/40 dark:bg-rose-950/20",
+        canales:        "!border-blue-200 !bg-blue-50/60 dark:!border-blue-900/40 dark:!bg-blue-950/20",
+        identificacion: "!border-indigo-200 !bg-indigo-50/60 dark:!border-indigo-900/40 dark:!bg-indigo-950/20",
+        economicos:     "!border-emerald-200 !bg-emerald-50/60 dark:!border-emerald-900/40 dark:!bg-emerald-950/20",
+        reposicion:     "!border-amber-200 !bg-amber-50/60 dark:!border-amber-900/40 dark:!bg-amber-950/20",
+        margenes:       "!border-teal-200 !bg-teal-50/60 dark:!border-teal-900/40 dark:!bg-teal-950/20",
+        clasificacion:  "!border-violet-200 !bg-violet-50/60 dark:!border-violet-900/40 dark:!bg-violet-950/20",
+        catalogos:      "!border-cyan-200 !bg-cyan-50/60 dark:!border-cyan-900/40 dark:!bg-cyan-950/20",
+        ml:             "!border-yellow-200 !bg-yellow-50/70 dark:!border-yellow-900/40 dark:!bg-yellow-950/20",
+        dimensiones:    "!border-sky-200 !bg-sky-50/60 dark:!border-sky-900/40 dark:!bg-sky-950/20",
+        paqueteMl:      "!border-orange-200 !bg-orange-50/60 dark:!border-orange-900/40 dark:!bg-orange-950/20",
+        inflados:       "!border-rose-200 !bg-rose-50/60 dark:!border-rose-900/40 dark:!bg-rose-950/20",
     } as const;
     const sectionTitleClassName = "flex items-center gap-2 text-base font-semibold text-slate-900 dark:text-slate-100 [&_svg]:h-5 [&_svg]:w-5 [&_svg]:text-blue-500 dark:[&_svg]:text-blue-400";
     const sectionDescriptionClassName = "mt-1 text-xs text-slate-500 dark:text-slate-400";

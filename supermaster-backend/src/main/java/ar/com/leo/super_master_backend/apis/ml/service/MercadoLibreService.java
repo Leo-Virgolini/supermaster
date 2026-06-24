@@ -518,6 +518,40 @@ public class MercadoLibreService {
         return obtenerCostoVenta(mla.getMla());
     }
 
+    /**
+     * Extrae {@code meli_percentage_fee} del listing_type pedido en la respuesta de listing_prices.
+     * Devuelve {@link BigDecimal#ZERO} si el array es null/no-array o si no se encuentra el listing_type.
+     */
+    static BigDecimal parseMeliPercentageFee(JsonNode arr, String listingTypeId) {
+        if (arr == null || !arr.isArray()) return BigDecimal.ZERO;
+        for (JsonNode listing : arr) {
+            if (listingTypeId.equals(listing.path("listing_type_id").asString(""))) {
+                return BigDecimal.valueOf(listing.path("sale_fee_details").path("meli_percentage_fee").asDouble(0));
+            }
+        }
+        return BigDecimal.ZERO;
+    }
+
+    /**
+     * Comisión ({@code meli_percentage_fee}) SIN necesitar el ítem: calculador read-only de listing_prices.
+     * Consulta {@code GET /sites/MLA/listing_prices?...} y devuelve el porcentaje, o {@link BigDecimal#ZERO}
+     * si no se puede determinar.
+     */
+    BigDecimal consultarComisionPorcentaje(String categoryId, BigDecimal price, String listingTypeId, String logisticType) {
+        verificarTokens();
+        String uri = String.format(
+                "/sites/MLA/listing_prices?category_id=%s&price=%s&currency_id=ARS&listing_type_id=%s&logistic_type=%s&shipping_mode=me2",
+                categoryId, price.setScale(0, java.math.RoundingMode.HALF_UP), listingTypeId, logisticType);
+        String body = retryHandler.get(uri, () -> tokens.accessToken);
+        if (body == null) return BigDecimal.ZERO;
+        try {
+            return parseMeliPercentageFee(objectMapper.readTree(body), listingTypeId);
+        } catch (Exception e) {
+            log.warn("ML - No se pudo parsear listing_prices para categoria {}: {}", categoryId, e.getMessage());
+            return BigDecimal.ZERO;
+        }
+    }
+
     // =====================================================
     // PROCESO MASIVO - COSTO DE VENTA
     // =====================================================

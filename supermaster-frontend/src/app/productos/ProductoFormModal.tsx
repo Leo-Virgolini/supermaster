@@ -927,9 +927,9 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                                     key={p.categoryId}
                                                     type="button"
                                                     onClick={() => { setMlCategoryId(p.categoryId); setMlCategoryNombre(p.categoryPath || p.categoryName); setPrediccionesMl([]); }}
-                                                    className={`rounded-lg border px-2 py-1 text-left text-xs transition-colors ${mlCategoryId === p.categoryId ? "border-yellow-400 bg-yellow-100 text-yellow-900" : "border-slate-300 hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-700"}`}
+                                                    className={`rounded-lg border px-2 py-1 text-left text-xs transition-colors ${mlCategoryId === p.categoryId ? "border-yellow-400 bg-yellow-100 text-yellow-900" : "border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-100 dark:border-blue-700 dark:bg-blue-900/20 dark:text-blue-200 dark:hover:bg-blue-800/40"}`}
                                                 >
-                                                    {pathConHojaResaltada(p.categoryPath || p.categoryName)} <span className="text-slate-400">({p.categoryId})</span>
+                                                    {pathConHojaResaltada(p.categoryPath || p.categoryName)} <span className="text-blue-400 dark:text-blue-300/70">({p.categoryId})</span>
                                                 </button>
                                             ))}
                                         </div>

@@ -1771,7 +1771,8 @@ public class MercadoLibreService {
             ActualizadorPrecioItem updatePrice,
             Function<String, List<String>> resolverPictureIds,
             BiConsumer<String, List<String>> putPictures,
-            ActualizadorEstadoItem putStatus) {
+            ActualizadorEstadoItem putStatus,
+            BiConsumer<String, List<Map<String, Object>>> putAttributes) {
         try {
             if (producto.getTituloMl() == null || producto.getTituloMl().isBlank())
                 return ResultadoAltaMl.error("falta título ML");
@@ -1787,6 +1788,14 @@ public class MercadoLibreService {
             }
 
             putDesc.accept(mla, MlDescripcionBuilder.construir(producto));
+
+            // Atributos (marca, dimensiones del paquete, IVA, impuesto de importación). Best-effort:
+            // si ML rechaza algún atributo no editable, queda como advertencia y no aborta el resto.
+            try {
+                putAttributes.accept(mla, MlItemPayloadBuilder.construirAtributos(producto));
+            } catch (Exception e) {
+                advertencia = concatAdv(advertencia, "atributos no actualizados");
+            }
 
             double price = producto.getCosto().multiply(MULTIPLICADOR_PRECIO_ML).doubleValue();
             if (!updatePrice.actualizar(mla, price)) {
@@ -1855,7 +1864,13 @@ public class MercadoLibreService {
                                 objectMapper.writeValueAsString(Map.of("pictures", pics)));
                     } catch (Exception e) { throw new RuntimeException("imágenes: " + e.getMessage(), e); }
                 },
-                this::updateItemStatus);
+                this::updateItemStatus,
+                (m, attrs) -> {
+                    try {
+                        retryHandler.putJson("/items/" + m, () -> tokens.accessToken,
+                                objectMapper.writeValueAsString(Map.of("attributes", attrs)));
+                    } catch (Exception e) { throw new RuntimeException("atributos: " + e.getMessage(), e); }
+                });
         return aplicarRechazadasImagenes(r, filtro.rechazadas());
     }
 

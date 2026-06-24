@@ -27,6 +27,27 @@ public final class MlItemPayloadBuilder {
         payload.put("listing_type_id", "gold_special");
         payload.put("condition", "new");
 
+        payload.put("attributes", construirAtributos(p));
+
+        Map<String, Object> shipping = new LinkedHashMap<>();
+        shipping.put("mode", "me2");
+        shipping.put("local_pick_up", false);
+        shipping.put("free_shipping", false);
+        shipping.put("free_methods", new ArrayList<>());
+        payload.put("shipping", shipping);
+
+        List<Map<String, Object>> pictures = new ArrayList<>();
+        for (String id : pictureIds) pictures.add(Map.of("id", id));
+        payload.put("pictures", pictures);
+
+        return payload;
+    }
+
+    /**
+     * Atributos del item ML, compartidos por el alta (POST) y la actualización (PUT /items/{id}):
+     * condición, marca, SKU, dimensiones del paquete de envío, IVA e impuesto de importación.
+     */
+    public static List<Map<String, Object>> construirAtributos(Producto p) {
         List<Map<String, Object>> attributes = new ArrayList<>();
         attributes.add(Map.of("id", "ITEM_CONDITION", "value_id", "2230284"));
         if (p.getMarca() != null && p.getMarca().getNombre() != null) {
@@ -48,20 +69,7 @@ public final class MlItemPayloadBuilder {
         }
         // Impuesto de importación: siempre 0 %.
         attributes.add(Map.of("id", "IMPORT_DUTY", "value_id", "49553239", "value_name", "0 %"));
-        payload.put("attributes", attributes);
-
-        Map<String, Object> shipping = new LinkedHashMap<>();
-        shipping.put("mode", "me2");
-        shipping.put("local_pick_up", false);
-        shipping.put("free_shipping", false);
-        shipping.put("free_methods", new ArrayList<>());
-        payload.put("shipping", shipping);
-
-        List<Map<String, Object>> pictures = new ArrayList<>();
-        for (String id : pictureIds) pictures.add(Map.of("id", id));
-        payload.put("pictures", pictures);
-
-        return payload;
+        return attributes;
     }
 
     private static String cm(BigDecimal valor) {

@@ -426,19 +426,19 @@ export function getColumns(onEditarProducto: (producto: ProductoDTO) => void, ca
     // --- PAQUETE ML (envío): alto/ancho/largo en cm, peso en kg ---
     {
         accessorKey: "mlPaqAlto", header: "Alto ML", size: 70, enableColumnFilter: false, meta: { editable: true },
-        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={String(getValue() ?? "")} nullable className={FONT.codeSoft} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val)} disabled={!canEdit} />)
+        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={String(getValue() ?? "")} type="number" nullable className={FONT.codeSoft} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val === null ? null : Number(val))} disabled={!canEdit} />)
     },
     {
         accessorKey: "mlPaqAncho", header: "Ancho ML", size: 70, enableColumnFilter: false, meta: { editable: true },
-        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={String(getValue() ?? "")} nullable className={FONT.codeSoft} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val)} disabled={!canEdit} />)
+        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={String(getValue() ?? "")} type="number" nullable className={FONT.codeSoft} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val === null ? null : Number(val))} disabled={!canEdit} />)
     },
     {
         accessorKey: "mlPaqLargo", header: "Largo ML", size: 70, enableColumnFilter: false, meta: { editable: true },
-        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={String(getValue() ?? "")} nullable className={FONT.codeSoft} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val)} disabled={!canEdit} />)
+        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={String(getValue() ?? "")} type="number" nullable className={FONT.codeSoft} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val === null ? null : Number(val))} disabled={!canEdit} />)
     },
     {
         accessorKey: "mlPaqPeso", header: "Peso ML", size: 70, enableColumnFilter: false, meta: { editable: true },
-        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={String(getValue() ?? "")} nullable className={FONT.codeSoft} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val)} disabled={!canEdit} />)
+        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={String(getValue() ?? "")} type="number" nullable className={FONT.codeSoft} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val === null ? null : Number(val))} disabled={!canEdit} />)
     },
 
     // --- FECHAS (al final) ---

@@ -1,8 +1,8 @@
 package ar.com.leo.super_master_backend.apis.dux.controller;
 
 import ar.com.leo.super_master_backend.apis.dux.dto.ExportDuxRequestDTO;
-import ar.com.leo.super_master_backend.apis.dux.dto.ExportDuxResultDTO;
 import ar.com.leo.super_master_backend.apis.dux.dto.ImportDuxResultDTO;
+import ar.com.leo.super_master_backend.dominio.common.dto.ExportCanalResultDTO;
 import ar.com.leo.super_master_backend.apis.dux.model.Item;
 import ar.com.leo.super_master_backend.apis.dux.service.DuxService;
 import ar.com.leo.super_master_backend.apis.dux.service.DuxService.ProductoPrecioData;
@@ -215,10 +215,10 @@ public class DuxController {
 
     @PostMapping("/exportar-productos")
     @PreAuthorize(Permisos.INTEGRACIONES_EDITAR)
-    public ResponseEntity<ExportDuxResultDTO> exportarProductos(
+    public ResponseEntity<ExportCanalResultDTO> exportarProductos(
             @RequestBody(required = false) ExportDuxRequestDTO request) {
         List<String> skus = request != null ? request.skus() : null;
-        ExportDuxResultDTO resultado = duxService.exportarProductosADux(skus);
+        ExportCanalResultDTO resultado = duxService.exportarProductosADux(skus);
         return ResponseEntity.ok(resultado);
     }
 

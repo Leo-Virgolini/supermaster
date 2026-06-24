@@ -1822,15 +1822,16 @@ public class MercadoLibreService {
         ResultadoAltaMl r = actualizarItemEnMlCore(
                 producto, mla,
                 this::leerSoldQuantity,
-                // Nuevo modelo User Products: se actualiza el family_name (no el title), solo si no hubo
-                // ventas. El cálculo (con su GET a /categories) es lazy: el core invoca este callback
-                // únicamente cuando soldQty == 0.
+                // Se actualiza el title (recortado al máximo del dominio), solo si no hubo ventas.
+                // family_name es un campo del ALTA (POST): en el PUT de actualización ML lo rechaza
+                // (BODY_INVALID_FIELDS / "family name is invalid"). El cálculo del máximo (GET a
+                // /categories) es lazy: el core invoca este callback únicamente cuando soldQty == 0.
                 (m, ignoradoTitle) -> {
                     try {
-                        String familyNameUpd = construirFamilyName(producto.getTituloMl(), obtenerMaxTitleLength(producto.getMlCategoryId()));
+                        String tituloUpd = construirFamilyName(producto.getTituloMl(), obtenerMaxTitleLength(producto.getMlCategoryId()));
                         retryHandler.putJson("/items/" + m, () -> tokens.accessToken,
-                                objectMapper.writeValueAsString(Map.of("family_name", familyNameUpd)));
-                    } catch (Exception e) { throw new RuntimeException("family_name: " + e.getMessage(), e); }
+                                objectMapper.writeValueAsString(Map.of("title", tituloUpd)));
+                    } catch (Exception e) { throw new RuntimeException("título: " + e.getMessage(), e); }
                 },
                 (m, plainText) -> {
                     try { retryHandler.putJson("/items/" + m + "/description", () -> tokens.accessToken,

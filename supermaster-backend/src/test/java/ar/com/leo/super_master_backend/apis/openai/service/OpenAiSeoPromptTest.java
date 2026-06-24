@@ -31,5 +31,14 @@ class OpenAiSeoPromptTest {
         String u = OpenAiSeoPrompts.userMessage(c);
         assertThat(u).contains("Sartén 24cm").contains("Tramontina").contains("Aluminio")
                 .contains("Diámetro: 24 cm").contains("Horno").contains("Freezer");
+        // El "nombre interno" (título Dux) ya no se manda.
+        assertThat(u).doesNotContain("SARTEN 24").doesNotContain("Nombre interno");
+    }
+
+    @Test
+    void userMessage_limpiaCodigosEntreParentesisDelTitulo() {
+        SeoContexto c = new SeoContexto("Hermético Flor 2,7 L (712B)", null, null, null, null, null);
+        String u = OpenAiSeoPrompts.userMessage(c);
+        assertThat(u).contains("Hermético Flor 2,7 L").doesNotContain("712B");
     }
 }

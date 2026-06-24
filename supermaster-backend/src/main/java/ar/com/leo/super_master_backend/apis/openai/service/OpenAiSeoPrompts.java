@@ -22,7 +22,7 @@ public final class OpenAiSeoPrompts {
             Reglas:
             - seo_title: máximo 70 caracteres.
             - seo_description: máximo 320 caracteres.
-            - tags: entre 4 y 6 tags separados por comas; sin códigos, SKU ni el texto entre paréntesis.
+            - tags: entre 4 y 6 tags separados por comas. Usá términos de búsqueda generales (tipo de producto, material, color, marca, uso); NO uses como tags las dimensiones ni medidas (por ejemplo 21x21x9,5 cm), ni códigos, SKU o referencias (ni siquiera dentro de otra palabra, por ejemplo nada de "modelo712B").
             - No inventar características que no estén presentes en la información.
             - Optimizar para búsquedas en español.
             - No incluir explicaciones ni texto fuera del JSON.
@@ -43,8 +43,10 @@ public final class OpenAiSeoPrompts {
     /** Arma el mensaje de usuario con la info del producto en texto plano. */
     public static String userMessage(SeoContexto c) {
         StringBuilder sb = new StringBuilder();
-        if (notBlank(c.tituloNube())) sb.append("Título: ").append(c.tituloNube().trim()).append("\n");
-        if (notBlank(c.tituloDux())) sb.append("Nombre interno: ").append(c.tituloDux().trim()).append("\n");
+        // El "nombre interno" (título Dux) NO se manda: trae abreviaturas y códigos
+        // internos que ensucian el SEO. El título Nube + las características alcanzan.
+        String titulo = sinParentesis(c.tituloNube());
+        if (notBlank(titulo)) sb.append("Título: ").append(titulo).append("\n");
         if (notBlank(c.marca())) sb.append("Marca: ").append(c.marca().trim()).append("\n");
         if (notBlank(c.material())) sb.append("Material: ").append(c.material().trim()).append("\n");
         if (c.dimensiones() != null) {
@@ -61,5 +63,11 @@ public final class OpenAiSeoPrompts {
 
     private static boolean notBlank(String s) {
         return s != null && !s.isBlank();
+    }
+
+    /** Quita el contenido entre paréntesis (códigos internos como "(712B)") y colapsa espacios. */
+    private static String sinParentesis(String s) {
+        if (s == null) return "";
+        return s.replaceAll("\\([^)]*\\)", "").replaceAll("\\s+", " ").trim();
     }
 }

@@ -11,25 +11,38 @@ public final class NubeDescripcionBuilder {
 
     private NubeDescripcionBuilder() {}
 
+    /** Color del título de cada característica (negrita + subrayado). */
+    private static final String LABEL_COLOR = "#1e40af";
+
     public static String construir(Producto p) {
-        List<String> bullets = new ArrayList<>();
-
-        String dimensiones = dimensiones(p);
-        if (!dimensiones.isBlank()) bullets.add("Dimensiones: " + dimensiones);
-        if (p.getMaterial() != null && p.getMaterial().getNombre() != null)
-            bullets.add("Material: " + p.getMaterial().getNombre());
-        String aptos = aptos(p);
-        if (!aptos.isBlank()) bullets.add("Aptos: " + aptos);
-        if (p.getMarca() != null && p.getMarca().getNombre() != null)
-            bullets.add("Marca: " + p.getMarca().getNombre());
-
         StringBuilder sb = new StringBuilder("<p><b>CARACTERÍSTICAS</b></p><ul>");
-        for (String b : bullets) sb.append("<li>").append(escape(b)).append("</li>");
+
+        List<String> dims = dimensiones(p);
+        if (!dims.isEmpty()) {
+            // Dimensiones como sub-lista: un sub-bullet por medida.
+            sb.append("<li>").append(label("Dimensiones")).append("<ul>");
+            for (String d : dims) sb.append("<li>").append(escape(d)).append("</li>");
+            sb.append("</ul></li>");
+        }
+        if (p.getMaterial() != null && p.getMaterial().getNombre() != null)
+            sb.append("<li>").append(label("Material")).append(" ").append(escape(p.getMaterial().getNombre())).append("</li>");
+        String aptos = aptos(p);
+        if (!aptos.isBlank())
+            sb.append("<li>").append(label("Apto")).append(" ").append(escape(aptos)).append("</li>");
+        if (p.getMarca() != null && p.getMarca().getNombre() != null)
+            sb.append("<li>").append(label("Marca")).append(" ").append(escape(p.getMarca().getNombre())).append("</li>");
+
         sb.append("</ul>");
         return sb.toString();
     }
 
-    private static String dimensiones(Producto p) {
+    /** Título de característica en negrita + subrayado + color, ej. {@code <b><u><span ...>Material:</span></u></b>}. */
+    private static String label(String texto) {
+        return "<b><u><span style=\"color:" + LABEL_COLOR + "\">" + escape(texto) + ":</span></u></b>";
+    }
+
+    /** Una entrada por dimensión presente: "Capacidad: 200 ml", "Largo: 25 cm", ... (la unidad la trae el valor cargado). */
+    private static List<String> dimensiones(Producto p) {
         List<String> partes = new ArrayList<>();
         agregar(partes, "Capacidad", p.getCapacidad());
         agregar(partes, "Largo", p.getLargo());
@@ -38,7 +51,7 @@ public final class NubeDescripcionBuilder {
         agregar(partes, "Diámetro boca", p.getDiamboca());
         agregar(partes, "Diámetro base", p.getDiambase());
         agregar(partes, "Espesor", p.getEspesor());
-        return String.join(", ", partes);
+        return partes;
     }
 
     private static void agregar(List<String> partes, String label, String valor) {

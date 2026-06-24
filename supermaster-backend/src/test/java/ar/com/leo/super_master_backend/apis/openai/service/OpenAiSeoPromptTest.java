@@ -13,14 +13,14 @@ class OpenAiSeoPromptTest {
     @Test
     void gastro_incluyeReglaRubroGastronomico() {
         String p = OpenAiSeoPrompts.systemPrompt(SeoCanal.GASTRO);
-        assertThat(p).contains("rubro gastronomico");
+        assertThat(p).contains("gastronómico");
         assertThat(p).contains("seo_title: máximo 70 caracteres");
     }
 
     @Test
     void hogar_noIncluyeReglaRubroGastronomico() {
         String p = OpenAiSeoPrompts.systemPrompt(SeoCanal.HOGAR);
-        assertThat(p).doesNotContain("rubro gastronomico");
+        assertThat(p).doesNotContain("gastronómico");
         assertThat(p).contains("seo_title: máximo 70 caracteres");
     }
 

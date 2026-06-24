@@ -25,12 +25,16 @@ public final class OpenAiSeoPrompts {
             - tags: entre 5 y 10 tags separados por comas.
             - No inventar características que no estén presentes en la información.
             - Optimizar para búsquedas en español.
-            - No incluir explicaciones ni texto fuera del JSON.""";
+            - No incluir explicaciones ni texto fuera del JSON.
+            - No incluir códigos internos, SKU ni referencias (por ejemplo textos entre paréntesis como 712B) en ningún campo.
+            - No agregar al seo_title sufijos ni etiquetas de rubro o categoría (por ejemplo nada de "- Gastronómico" al final).""";
 
     /** Regla extra solo para el canal gastronómico. */
     static final String REGLA_GASTRO =
-            "\n- Todo lo que generes, que sea enfocado en el rubro gastronomico, no hogareño."
-            + " Vendemos productos para restaurantes, cafeterias, pastelerias, panaderias, pizzerias, bares, etc.";
+            "\n- Orientá el vocabulario y las palabras clave al rubro gastronómico y profesional"
+            + " (uso en cocinas de restaurantes, cafeterías, pastelerías, panaderías, pizzerías y bares),"
+            + " pero NO enumeres literalmente esos comercios en la descripción ni escribas frases del tipo"
+            + " \"apto para restaurantes, cafeterías...\".";
 
     public static String systemPrompt(SeoCanal canal) {
         return canal == SeoCanal.GASTRO ? SYSTEM_BASE + REGLA_GASTRO : SYSTEM_BASE;

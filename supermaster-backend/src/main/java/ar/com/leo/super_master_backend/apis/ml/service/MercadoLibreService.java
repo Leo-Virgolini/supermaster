@@ -1931,7 +1931,12 @@ public class MercadoLibreService {
         try {
             ar.com.leo.super_master_backend.apis.ml.model.Producto itemPublicado = getItemByMLA(mla);
             String categoryId = (itemPublicado != null) ? itemPublicado.categoryId : null;
-            precioFinal = calcularPrecioFinalParaPublicar(producto, categoryId, 0); // 0 = contado (Fase 1)
+            if (categoryId == null || categoryId.isBlank()) {
+                log.warn("ML - sin categoría para {}, no se recalcula el precio", mla);
+                precioFinal = null;
+            } else {
+                precioFinal = calcularPrecioFinalParaPublicar(producto, categoryId, 0); // 0 = contado (Fase 1)
+            }
         } catch (Exception e) {
             log.warn("ML - no se pudo calcular precio para actualización de {}: {}", mla, e.getMessage());
             precioFinal = null;

@@ -208,21 +208,6 @@ export function getColumns(onEditarProducto: (producto: ProductoDTO) => void, ca
         )
     },
     {
-        id: "tipo", accessorFn: (row) => row.tipoId, header: "Tipo", meta: { editable: true },
-        cell: ({ row, table }) => (
-            <EditableRelationCell
-                fullName={row.original.tipoNombreCompleto}
-                initialId={row.original.tipoId}
-                loadOptions={searchTipos}
-                placeholder="Tipo..."
-                endpoint="tipos"
-                displayClassName={FONT.relation}
-                disabled={!canEdit}
-                onSave={(newId) => (table.options.meta as any)?.updateData?.(row.index, "tipoId", newId)}
-            />
-        )
-    },
-    {
         id: "rubro", accessorFn: (row) => row.clasifGralId, header: "Clasif. Gral.", size: 150, meta: { editable: true },
         cell: ({ row, table }) => (
             <EditableRelationCell
@@ -253,6 +238,39 @@ export function getColumns(onEditarProducto: (producto: ProductoDTO) => void, ca
                 onSave={(newId) => (table.options.meta as any)?.updateData?.(row.index, "clasifGastroId", newId)}
             />
         )
+    },
+    {
+        id: "tipo", accessorFn: (row) => row.tipoId, header: "Tipo", meta: { editable: true },
+        cell: ({ row, table }) => (
+            <EditableRelationCell
+                fullName={row.original.tipoNombreCompleto}
+                initialId={row.original.tipoId}
+                loadOptions={searchTipos}
+                placeholder="Tipo..."
+                endpoint="tipos"
+                displayClassName={FONT.relation}
+                disabled={!canEdit}
+                onSave={(newId) => (table.options.meta as any)?.updateData?.(row.index, "tipoId", newId)}
+            />
+        )
+    },
+    {
+        // Categoría de Mercado Libre: solo lectura (se elige con el predictor en el formulario).
+        accessorKey: "mlCategoryNombre", header: "Categoría ML", size: 170, enableColumnFilter: false, meta: { headerClassName: HEADER_ML },
+        cell: ({ getValue }) => {
+            const v = getValue() as string | null;
+            if (!v) return <span className="block truncate text-xs text-slate-600 dark:text-slate-300">—</span>;
+            // Resalta la hoja (último segmento del path "A > B > Hoja").
+            const partes = v.split(">").map(s => s.trim());
+            const hoja = partes.pop() ?? "";
+            const prefijo = partes.join(" > ");
+            return (
+                <span className="block truncate text-xs text-slate-600 dark:text-slate-300" title={v}>
+                    {prefijo && <>{prefijo} {">"} </>}
+                    <span className="font-semibold text-slate-800 dark:text-slate-100">{hoja}</span>
+                </span>
+            );
+        }
     },
     {
         id: "proveedor", accessorFn: (row) => row.proveedorId, header: "Proveedor", size: 180, meta: { editable: true },
@@ -459,24 +477,6 @@ export function getColumns(onEditarProducto: (producto: ProductoDTO) => void, ca
     {
         accessorKey: "mlPaqPeso", header: "Peso ML", size: 70, enableColumnFilter: false, meta: { editable: true, headerClassName: HEADER_ML },
         cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={String(getValue() ?? "")} type="number" nullable className={FONT.codeSoft} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val === null ? null : Number(val))} disabled={!canEdit} />)
-    },
-    {
-        // Categoría de Mercado Libre: solo lectura (se elige con el predictor en el formulario).
-        accessorKey: "mlCategoryNombre", header: "Categoría ML", size: 170, enableColumnFilter: false, meta: { headerClassName: HEADER_ML },
-        cell: ({ getValue }) => {
-            const v = getValue() as string | null;
-            if (!v) return <span className="block truncate text-xs text-slate-600 dark:text-slate-300">—</span>;
-            // Resalta la hoja (último segmento del path "A > B > Hoja").
-            const partes = v.split(">").map(s => s.trim());
-            const hoja = partes.pop() ?? "";
-            const prefijo = partes.join(" > ");
-            return (
-                <span className="block truncate text-xs text-slate-600 dark:text-slate-300" title={v}>
-                    {prefijo && <>{prefijo} {">"} </>}
-                    <span className="font-semibold text-slate-800 dark:text-slate-100">{hoja}</span>
-                </span>
-            );
-        }
     },
 
     // --- FECHAS (al final) ---

@@ -2250,14 +2250,8 @@ public class MercadoLibreService {
         final String logisticType = "drop_off";
 
         // Obtener zip del vendedor (para consultarEnvioConIvaSinItem); null es tolerable.
-        String zip;
-        try {
-            zip = obtenerZipVendedor();
-        } catch (Exception e) {
-            log.warn("ML - calcularPrecioFinalParaPublicar: no se pudo obtener zip del vendedor: {}", e.getMessage());
-            zip = null;
-        }
-        final String zipFinal = zip;
+        // obtenerZipVendedor() ya atrapa todas las excepciones y devuelve null si falla.
+        final String zipFinal = obtenerZipVendedor();
 
         // userId (cacheado); capturado aquí para que la lambda no repita llamadas.
         final String userId;
@@ -2300,7 +2294,33 @@ public class MercadoLibreService {
             }
         };
 
-        // Ejecutar el núcleo iterativo; capturar excepciones de negocio del motor.
+        BigDecimal pvpFinal = estabilizarYRedondear(pvpFn, envioConIvaFn, divisorIva);
+
+        log.info("ML - calcularPrecioFinalParaPublicar SKU={} category={}: pvpFinal={}",
+                producto.getSku(), categoryId, pvpFinal);
+
+        return pvpFinal;
+    }
+
+    /**
+     * Ejecuta el núcleo iterativo ({@link EnvioEstabilizador#estabilizar}) con las lambdas
+     * dadas, traduce las excepciones de negocio del motor a {@link IllegalStateException} y
+     * aplica el redondeo final ({@link #redondearPrecioMl}).
+     *
+     * <p>Este método es {@code package-private} para permitir tests unitarios directos del
+     * bloque try/catch de traducción de excepciones sin levantar un contexto Spring completo.
+     *
+     * @param pvpFn          función que calcula el PVP a partir del costo de envío sin IVA
+     * @param envioConIvaFn  función que devuelve el costo de envío con IVA a partir del PVP
+     * @param divisorIva     divisor para convertir costo con IVA a sin IVA
+     * @return PVP redondeado a entero (sin centavos)
+     * @throws IllegalStateException si el motor lanza {@link BadRequestException} o
+     *                               {@link NotFoundException}, o si el PVP resultante no es válido
+     */
+    BigDecimal estabilizarYRedondear(
+            Function<BigDecimal, BigDecimal> pvpFn,
+            Function<BigDecimal, BigDecimal> envioConIvaFn,
+            BigDecimal divisorIva) {
         EnvioEstabilizador.ResultadoEstabilizacion r;
         try {
             r = EnvioEstabilizador.estabilizar(pvpFn, envioConIvaFn, divisorIva, 10);
@@ -2319,9 +2339,6 @@ public class MercadoLibreService {
         if (r.pvp() == null || r.pvp().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalStateException("PVP calculado no válido (pvp=" + r.pvp() + ")");
         }
-
-        log.info("ML - calcularPrecioFinalParaPublicar SKU={} category={}: pvp={}, costoEnvioSinIva={}, iteraciones={}",
-                producto.getSku(), categoryId, r.pvp(), r.costoEnvioSinIva(), r.iteraciones());
 
         return redondearPrecioMl(r.pvp());
     }

@@ -233,130 +233,122 @@ public class MercadoLibreService {
         BigDecimal divisorIva = BigDecimal.ONE.add(
                 ivaProducto.divide(new BigDecimal("100"), 6, RoundingMode.HALF_UP));
 
-        // CÁLCULO ITERATIVO
-        // costoEnvioActual: valor SIN IVA que se pasa al cálculo de precio
-        // costoEnvioConIvaActual: valor CON IVA para comparar con API/tiers
-        BigDecimal costoEnvioActual = BigDecimal.ZERO;
-        BigDecimal costoEnvioConIvaActual = BigDecimal.ZERO;
-        BigDecimal pvpActual = BigDecimal.ZERO;
-        int iteracion = 0;
-        String tipoCalculo = "";
-        String motivoFallo = null;
-        // Valores CON IVA ya vistos, para detectar oscilación entre tiers (ciclo que nunca estabiliza).
-        List<BigDecimal> valoresVistos = new ArrayList<>();
+        // Estado mutable capturado por las lambdas del núcleo iterativo.
+        // Arrays de un elemento como workaround al requisito de effectively-final en lambdas.
+        String[] tipoCalculoHolder = {""};
+        String[] motivoFalloHolder = {null};
+        // productoMl, userId, status son locales y se inicializan lazy dentro de la lambda;
+        // se necesitan fuera para construir el DTO de retorno (status).
+        // Wrapeamos los early-exit de error como RuntimeException para poder abortar desde la lambda.
+        final Producto[] productoMlHolder = {productoMl};
+        final String[] userIdHolder = {userId};
+        final String[] statusHolder = {status};
 
-        while (iteracion < MAX_ITERACIONES) {
-            iteracion++;
-
-            // Calcular PVP con el costo de envío actual
-            PrecioCalculadoDTO precioCalculado;
+        // pvpFn: recibe costoEnvioSinIva y devuelve pvp del motor de cálculo.
+        Function<BigDecimal, BigDecimal> pvpFn = costoEnvioSinIva -> {
             try {
-                precioCalculado = calculoPrecioService.calcularPrecioCanalConEnvio(
-                        productoDb.getId(), canalMl.getId(), 0, costoEnvioActual);
+                return calculoPrecioService.calcularPrecioCanalConEnvio(
+                        productoDb.getId(), canalMl.getId(), 0, costoEnvioSinIva).pvp();
             } catch (Exception e) {
-                log.warn("ML - MLA {} - Error calculando PVP en iteración {}: {}",
-                        mlaCode, iteracion, e.getMessage());
-                return new CostoEnvioResponseDTO(mlaCode, status, pvpActual, BigDecimal.ZERO, BigDecimal.ZERO,
-                        "Error calculando PVP: " + e.getMessage());
+                throw new RuntimeException("PVP_ERROR:" + e.getMessage(), e);
             }
+        };
 
-            pvpActual = precioCalculado.pvp();
-
-            // Determinar costo de envío según el PVP
-            BigDecimal nuevoCostoEnvio;
-
-            if (pvpActual.compareTo(umbralEnvioGratis) >= 0) {
-                // PVP >= umbral: consultar API ML
-                tipoCalculo = "API ML";
-
-                // Inicializar conexión con ML si es la primera vez
-                if (productoMl == null) {
+        // envioConIvaFn: recibe pvp y devuelve costo de envío CON IVA (API ML o tier).
+        // Inicializa la conexión con ML lazy (primera vez que pvp >= umbral).
+        Function<BigDecimal, BigDecimal> envioConIvaFn = pvp -> {
+            if (pvp.compareTo(umbralEnvioGratis) >= 0) {
+                tipoCalculoHolder[0] = "API ML";
+                if (productoMlHolder[0] == null) {
                     verificarTokens();
-                    productoMl = getItemByMLA(mlaCode);
-                    if (productoMl == null) {
+                    productoMlHolder[0] = getItemByMLA(mlaCode);
+                    if (productoMlHolder[0] == null) {
                         log.warn("ML - No se pudo obtener el producto con MLA: {}", mlaCode);
-                        return new CostoEnvioResponseDTO(mlaCode, null, pvpActual, BigDecimal.ZERO, BigDecimal.ZERO,
-                                "No se pudo obtener el producto de MercadoLibre");
+                        throw new RuntimeException("ML_PRODUCTO_NULL");
                     }
-                    status = productoMl.status;
-                    if (!"active".equals(status)) {
-                        log.warn("ML - El producto id: {} se encuentra en estado: '{}'", productoMl.id, status);
+                    statusHolder[0] = productoMlHolder[0].status;
+                    if (!"active".equals(statusHolder[0])) {
+                        log.warn("ML - El producto id: {} se encuentra en estado: '{}'",
+                                productoMlHolder[0].id, statusHolder[0]);
                     }
                     try {
-                        userId = getUserId();
+                        userIdHolder[0] = getUserId();
                     } catch (IOException e) {
                         log.error("Error al obtener userId de ML", e);
-                        return new CostoEnvioResponseDTO(mlaCode, status, pvpActual, BigDecimal.ZERO, BigDecimal.ZERO,
-                                "Error al obtener userId de MercadoLibre");
+                        throw new RuntimeException("ML_USERID_ERROR:" + e.getMessage(), e);
                     }
                 }
-
-                ResultadoEnvio resultado = calcularCostoEnvioInterno(userId, productoMl, pvpActual);
-                nuevoCostoEnvio = resultado.costo();
+                ResultadoEnvio resultado = calcularCostoEnvioInterno(
+                        userIdHolder[0], productoMlHolder[0], pvp);
                 if (resultado.motivoFallo() != null) {
-                    motivoFallo = resultado.motivoFallo();
+                    motivoFalloHolder[0] = resultado.motivoFallo();
                 }
+                return resultado.costo();
             } else {
-                // PVP < umbral: usar tiers fijos
-                nuevoCostoEnvio = configuracionMlService.obtenerCostoEnvioPorPvp(pvpActual);
-                if (nuevoCostoEnvio == null) {
+                tipoCalculoHolder[0] = "Tier";
+                BigDecimal costoTier = configuracionMlService.obtenerCostoEnvioPorPvp(pvp);
+                if (costoTier == null) {
                     log.warn("ML - MLA {} - Tiers no configurados", mlaCode);
-                    return new CostoEnvioResponseDTO(mlaCode, status, pvpActual, BigDecimal.ZERO, BigDecimal.ZERO,
-                            "Tiers de costo de envío no configurados");
+                    throw new RuntimeException("ML_TIERS_NULL");
                 }
-                tipoCalculo = "Tier";
+                return costoTier;
             }
+        };
 
-            log.info("ML - MLA {} - Iteración {}: costoEnvioSinIva=${}, PVP=${}, nuevoCostoEnvioConIva=${} ({})",
-                    mlaCode, iteracion, costoEnvioActual, pvpActual, nuevoCostoEnvio, tipoCalculo);
-
-            // Verificar si se estabilizó (comparar valores CON IVA)
-            if (nuevoCostoEnvio.compareTo(costoEnvioConIvaActual) == 0) {
-                log.info("ML - MLA {} - Estabilizado en iteración {}: PVP=${}, costoEnvioConIva=${}, costoEnvioSinIva=${} ({})",
-                        mlaCode, iteracion, pvpActual, nuevoCostoEnvio, costoEnvioActual, tipoCalculo);
-                break;
+        // CÁLCULO ITERATIVO: núcleo puro delegado a EnvioEstabilizador.
+        // El logging detallado por iteración ya no está disponible dentro del núcleo;
+        // se registra el resultado final.
+        EnvioEstabilizador.ResultadoEstabilizacion resultado;
+        try {
+            resultado = EnvioEstabilizador.estabilizar(pvpFn, envioConIvaFn, divisorIva, MAX_ITERACIONES);
+        } catch (RuntimeException ex) {
+            String msg = ex.getMessage() != null ? ex.getMessage() : "";
+            // Reconstruir la señal de pvp actual a partir del holder del status (puede ser null).
+            // No hay pvp parcial disponible en este punto de aborto; se usa ZERO.
+            if (msg.startsWith("PVP_ERROR:")) {
+                String causa = msg.substring("PVP_ERROR:".length());
+                log.warn("ML - MLA {} - Error calculando PVP: {}", mlaCode, causa);
+                return new CostoEnvioResponseDTO(mlaCode, statusHolder[0], BigDecimal.ZERO,
+                        BigDecimal.ZERO, BigDecimal.ZERO, "Error calculando PVP: " + causa);
+            } else if ("ML_PRODUCTO_NULL".equals(msg)) {
+                return new CostoEnvioResponseDTO(mlaCode, null, BigDecimal.ZERO,
+                        BigDecimal.ZERO, BigDecimal.ZERO,
+                        "No se pudo obtener el producto de MercadoLibre");
+            } else if (msg.startsWith("ML_USERID_ERROR:")) {
+                return new CostoEnvioResponseDTO(mlaCode, statusHolder[0], BigDecimal.ZERO,
+                        BigDecimal.ZERO, BigDecimal.ZERO,
+                        "Error al obtener userId de MercadoLibre");
+            } else if ("ML_TIERS_NULL".equals(msg)) {
+                return new CostoEnvioResponseDTO(mlaCode, statusHolder[0], BigDecimal.ZERO,
+                        BigDecimal.ZERO, BigDecimal.ZERO,
+                        "Tiers de costo de envío no configurados");
             }
-
-            // Detección de oscilación: el nuevo costo ya apareció en una iteración previa,
-            // así que el cálculo está rebotando entre tiers y nunca va a estabilizar. Cortamos
-            // y tomamos el mayor de los dos últimos (conservador: no subvalúa el envío).
-            boolean oscila = valoresVistos.stream().anyMatch(v -> v.compareTo(nuevoCostoEnvio) == 0);
-            if (oscila) {
-                BigDecimal costoCiclo = nuevoCostoEnvio.max(costoEnvioConIvaActual);
-                log.warn("ML - MLA {} - Oscilación detectada en iteración {} entre ${} y ${}. Se toma el mayor (${}).",
-                        mlaCode, iteracion, costoEnvioConIvaActual, nuevoCostoEnvio, costoCiclo);
-                costoEnvioConIvaActual = costoCiclo;
-                costoEnvioActual = costoCiclo.compareTo(BigDecimal.ZERO) > 0
-                        ? costoCiclo.divide(divisorIva, 2, RoundingMode.HALF_UP)
-                        : BigDecimal.ZERO;
-                break;
-            }
-            valoresVistos.add(nuevoCostoEnvio);
-
-            // Guardar el valor CON IVA para comparación
-            costoEnvioConIvaActual = nuevoCostoEnvio;
-            // Convertir a base neta usando el IVA del PRODUCTO (no el 21% del servicio
-            // de envío). Así cuando el motor multiplique al final por (1 + iva_producto),
-            // se reconstruye exactamente el valor que ML cobra.
-            costoEnvioActual = nuevoCostoEnvio.compareTo(BigDecimal.ZERO) > 0
-                    ? nuevoCostoEnvio.divide(divisorIva, 2, RoundingMode.HALF_UP)
-                    : BigDecimal.ZERO;
+            throw ex;
         }
 
-        if (iteracion >= MAX_ITERACIONES) {
+        BigDecimal pvpActual = resultado.pvp();
+        String tipoCalculo = tipoCalculoHolder[0];
+        String motivoFallo = motivoFalloHolder[0];
+        status = statusHolder[0];
+
+        if (resultado.iteraciones() >= MAX_ITERACIONES) {
             log.warn("ML - MLA {} - No convergió después de {} iteraciones. Último PVP=${}, costoEnvioConIva=${}",
-                    mlaCode, MAX_ITERACIONES, pvpActual, costoEnvioConIvaActual);
+                    mlaCode, MAX_ITERACIONES, pvpActual, resultado.costoEnvioConIva());
+        } else {
+            log.info("ML - MLA {} - Estabilizado en {} iteraciones: PVP=${}, costoEnvioConIva=${}, costoEnvioSinIva=${} ({})",
+                    mlaCode, resultado.iteraciones(), pvpActual,
+                    resultado.costoEnvioConIva(), resultado.costoEnvioSinIva(), tipoCalculo);
         }
 
         // Los valores finales
-        BigDecimal costoEnvioConIva = costoEnvioConIvaActual;
-        BigDecimal costoEnvioSinIva = costoEnvioActual;
+        BigDecimal costoEnvioConIva = resultado.costoEnvioConIva();
+        BigDecimal costoEnvioSinIva = resultado.costoEnvioSinIva();
 
         // Guardar resultado (se guarda el costo SIN IVA)
         String mensaje;
         if (costoEnvioSinIva.compareTo(BigDecimal.ZERO) > 0) {
             mensaje = String.format("Costo envío: $%.2f (sin IVA: $%.2f) - %s (iteraciones: %d)",
-                    costoEnvioConIva, costoEnvioSinIva, tipoCalculo, iteracion);
+                    costoEnvioConIva, costoEnvioSinIva, tipoCalculo, resultado.iteraciones());
             guardarCostoEnvio(mlaCode, costoEnvioSinIva);
         } else {
             mensaje = motivoFallo != null ? motivoFallo : "No se pudo calcular el costo de envío";

@@ -1,6 +1,7 @@
 package ar.com.leo.super_master_backend.apis.dux.controller;
 
 import ar.com.leo.super_master_backend.apis.dux.dto.ExportDuxRequestDTO;
+import ar.com.leo.super_master_backend.apis.dux.dto.ExportDuxResultDTO;
 import ar.com.leo.super_master_backend.apis.dux.dto.ImportDuxResultDTO;
 import ar.com.leo.super_master_backend.dominio.common.dto.ExportCanalResultDTO;
 import ar.com.leo.super_master_backend.apis.dux.model.Item;
@@ -215,10 +216,19 @@ public class DuxController {
 
     @PostMapping("/exportar-productos")
     @PreAuthorize(Permisos.INTEGRACIONES_EDITAR)
-    public ResponseEntity<ExportCanalResultDTO> exportarProductos(
+    public ResponseEntity<ExportDuxResultDTO> exportarProductos(
             @RequestBody(required = false) ExportDuxRequestDTO request) {
         List<String> skus = request != null ? request.skus() : null;
-        ExportCanalResultDTO resultado = duxService.exportarProductosADux(skus);
+        ExportDuxResultDTO resultado = duxService.exportarProductosADux(skus);
+        return ResponseEntity.ok(resultado);
+    }
+
+    @PostMapping("/exportar-productos/confirmar")
+    @PreAuthorize(Permisos.INTEGRACIONES_EDITAR)
+    public ResponseEntity<ExportCanalResultDTO> exportarProductosConfirmado(
+            @RequestBody(required = false) ExportDuxRequestDTO request) {
+        List<String> skus = request != null ? request.skus() : null;
+        ExportCanalResultDTO resultado = duxService.exportarProductosADuxConfirmado(skus);
         return ResponseEntity.ok(resultado);
     }
 

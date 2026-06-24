@@ -212,7 +212,7 @@ export const calcularEnvioMlaAPI = async (productoId: number): Promise<void> => 
 // a los campos del ítem de Dux (cod_item, descripción, costo, IVA, combo, etc.).
 // Devuelve el mismo DTO que Nube/ML (ExportCanalResultDTO).
 export const exportarProductosADuxAPI = async (skus: string[]): Promise<ExportCanalResultDTO> => {
-	const res = await fetchAPI(`${API_BASE_URL}/api/dux/exportar-productos`, {
+	const res = await fetchAPI(`${API_BASE_URL}/api/dux/exportar-productos/confirmar`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ skus }),

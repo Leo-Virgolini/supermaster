@@ -3,6 +3,7 @@ package ar.com.leo.super_master_backend.apis.dux.service;
 import ar.com.leo.super_master_backend.apis.dux.DuxRetryHandler;
 import ar.com.leo.super_master_backend.apis.dux.config.DuxProperties;
 import ar.com.leo.super_master_backend.apis.dux.dto.DeudaClienteDuxDTO;
+import ar.com.leo.super_master_backend.apis.dux.dto.ExportDuxResultDTO;
 import ar.com.leo.super_master_backend.apis.dux.dto.ImportDuxResultDTO;
 import ar.com.leo.super_master_backend.dominio.common.dto.ExportCanalResultDTO;
 import ar.com.leo.super_master_backend.apis.dux.model.*;
@@ -280,7 +281,7 @@ public class DuxService {
     }
 
     /**
-     * Obtiene el estado de un proceso de importación.
+     * Obtiene el estado de un proceso DUX (importación o exportación).
      */
     public String obtenerEstadoProceso(int idProceso) {
         verificarTokens();
@@ -1307,12 +1308,12 @@ public class DuxService {
 
     /**
      * Exporta productos locales a DUX usando el endpoint nuevoItem.
-     * Confirma el resultado real consultando el proceso async con polling.
+     * Encola el proceso y devuelve el ID de proceso DUX sin esperar confirmación.
      *
      * @param skus lista de SKUs a exportar, o null para exportar todos
-     * @return resultado con cantidad creada, errores y advertencias
+     * @return resultado con productosEnviados, idProceso y errores
      */
-    public ExportCanalResultDTO exportarProductosADux(List<String> skus) {
+    public ExportDuxResultDTO exportarProductosADux(List<String> skus) {
         log.info("Iniciando exportación de productos a DUX...");
         List<String> errores = new ArrayList<>();
 
@@ -1320,7 +1321,7 @@ public class DuxService {
 
         if (productosJson.isEmpty()) {
             log.warn("DUX Export - No hay productos válidos para enviar");
-            return new ExportCanalResultDTO(0, List.of(), List.of(), List.copyOf(errores), List.of());
+            return new ExportDuxResultDTO(0, 0, List.copyOf(errores));
         }
 
         verificarTokens();
@@ -1331,7 +1332,7 @@ public class DuxService {
         } catch (Exception e) {
             log.error("DUX Export - Error serializando productos", e);
             errores.add("Error preparando datos para DUX: " + e.getMessage());
-            return new ExportCanalResultDTO(0, List.of(), List.of(), List.copyOf(errores), List.of());
+            return new ExportDuxResultDTO(0, 0, List.copyOf(errores));
         }
 
         String response = retryHandler.postJson("/item/nuevoItem", tokens.token, jsonBody);
@@ -1339,18 +1340,41 @@ public class DuxService {
         int idProceso = extraerIdProceso(response);
         if (idProceso == 0) {
             errores.add("Dux no devolvió ID de proceso");
-            return new ExportCanalResultDTO(0, List.of(), List.of(), List.copyOf(errores), List.of());
+            return new ExportDuxResultDTO(0, 0, List.copyOf(errores));
         }
 
-        int cantidad = productosJson.size();
+        int productosEnviados = productosJson.size();
+        return new ExportDuxResultDTO(productosEnviados, idProceso, List.copyOf(errores));
+    }
+
+    /**
+     * Exporta productos locales a DUX y confirma el resultado con polling.
+     * Usado por el formulario de 1 producto (tope 30s); no apto para exportaciones masivas.
+     *
+     * @param skus lista de SKUs a exportar, o null para exportar todos
+     * @return resultado con cantidad creada, errores y advertencias
+     */
+    public ExportCanalResultDTO exportarProductosADuxConfirmado(List<String> skus) {
+        ExportDuxResultDTO encolado = exportarProductosADux(skus);
+
+        if (encolado.idProceso() == 0) {
+            return new ExportCanalResultDTO(0, List.of(), List.of(), List.copyOf(encolado.errores()), List.of());
+        }
+
+        int idProceso = encolado.idProceso();
         final long TIMEOUT_MS = 30_000;
         final long INTERVALO_MS = 5_000;
         long deadline = System.currentTimeMillis() + TIMEOUT_MS;
         while (System.currentTimeMillis() < deadline) {
-            EstadoProceso estado = parsearEstadoProceso(obtenerEstadoProceso(idProceso), objectMapper);
-            if (estado.finalizado()) {
-                log.info("DUX Export - proceso {} FINALIZADO ({} errores)", idProceso, estado.errores().size());
-                return mapearResultadoProceso(estado, cantidad);
+            try {
+                EstadoProceso estado = parsearEstadoProceso(obtenerEstadoProceso(idProceso), objectMapper);
+                if (estado.finalizado()) {
+                    log.info("DUX Export - proceso {} FINALIZADO ({} errores)", idProceso, estado.errores().size());
+                    return mapearResultadoProceso(estado, encolado.productosEnviados());
+                }
+            } catch (Exception ex) {
+                log.warn("DUX Export - error consultando estado proceso {}: {}", idProceso, ex.getMessage());
+                return resultadoSinConfirmar(idProceso);
             }
             try {
                 Thread.sleep(INTERVALO_MS);

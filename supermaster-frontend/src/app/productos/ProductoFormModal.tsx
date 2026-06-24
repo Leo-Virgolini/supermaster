@@ -741,7 +741,22 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         }
     };
 
-    const sectionClassName = "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900";
+    // Estructura base de cada sección; el color de fondo lo aporta un tinte propio (SECTION_TINT)
+    // para diferenciar visualmente cada sección del fondo del modal.
+    const sectionClassName = "rounded-2xl border p-4 shadow-sm";
+    const SECTION_TINT = {
+        canales:        "border-blue-200 bg-blue-50/60 dark:border-blue-900/40 dark:bg-blue-950/20",
+        identificacion: "border-indigo-200 bg-indigo-50/50 dark:border-indigo-900/40 dark:bg-indigo-950/20",
+        economicos:     "border-emerald-200 bg-emerald-50/50 dark:border-emerald-900/40 dark:bg-emerald-950/20",
+        reposicion:     "border-amber-200 bg-amber-50/50 dark:border-amber-900/40 dark:bg-amber-950/20",
+        margenes:       "border-teal-200 bg-teal-50/50 dark:border-teal-900/40 dark:bg-teal-950/20",
+        clasificacion:  "border-violet-200 bg-violet-50/50 dark:border-violet-900/40 dark:bg-violet-950/20",
+        catalogos:      "border-cyan-200 bg-cyan-50/50 dark:border-cyan-900/40 dark:bg-cyan-950/20",
+        ml:             "border-yellow-200 bg-yellow-50/60 dark:border-yellow-900/40 dark:bg-yellow-950/20",
+        dimensiones:    "border-sky-200 bg-sky-50/50 dark:border-sky-900/40 dark:bg-sky-950/20",
+        paqueteMl:      "border-orange-200 bg-orange-50/50 dark:border-orange-900/40 dark:bg-orange-950/20",
+        inflados:       "border-rose-200 bg-rose-50/50 dark:border-rose-900/40 dark:bg-rose-950/20",
+    } as const;
     const sectionTitleClassName = "flex items-center gap-2 text-base font-semibold text-slate-900 dark:text-slate-100 [&_svg]:h-5 [&_svg]:w-5 [&_svg]:text-blue-500 dark:[&_svg]:text-blue-400";
     const sectionDescriptionClassName = "mt-1 text-xs text-slate-500 dark:text-slate-400";
     const fieldLabelClassName = "block text-sm font-semibold text-slate-700 dark:text-slate-200";
@@ -786,7 +801,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         </div>
                     )}
 
-                    <fieldset className={sectionClassName}>
+                    <fieldset className={`${sectionClassName} ${SECTION_TINT.canales}`}>
                         <legend className={sectionTitleClassName}><BuildingStorefrontIcon className="h-5 w-5" /> Canales de venta</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Dónde publicar/subir el producto.</p>
                         <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -812,7 +827,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                     <HomeIcon className="h-5 w-5 shrink-0 text-sky-500" />
                                     <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirKtHogar} onChange={e => setSubirKtHogar(e.target.checked)} id="subirKtHogar" disabled={!canExportarDux} />
                                     <label htmlFor="subirKtHogar" className="flex-1 cursor-pointer">Sincronizar con KT HOGAR (Nube)</label>
-                                    <Tooltip content="Sube o actualiza en Tienda Nube: título, descripción, precio (según el plan de cuotas), categorías, imágenes, y publica u oculta según el flag 'Activo'." className="flex items-center">
+                                    <Tooltip content="Sube o actualiza en Tienda Nube: título, descripción, precio (según el plan de cuotas), categorías e imágenes. El producto se sube oculto (no visible en la tienda); la visibilidad se controla manualmente en Nube. El flag 'Activo' no aplica a Nube." className="flex items-center">
                                         <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
                                     </Tooltip>
                                 </div>
@@ -834,7 +849,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                     <FireIcon className="h-5 w-5 shrink-0 text-emerald-500" />
                                     <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirKtGastro} onChange={e => setSubirKtGastro(e.target.checked)} id="subirKtGastro" disabled={!canExportarDux} />
                                     <label htmlFor="subirKtGastro" className="flex-1 cursor-pointer">Sincronizar con KT GASTRO (Nube)</label>
-                                    <Tooltip content="Sube o actualiza en Tienda Nube: título, descripción, precio (según el plan de cuotas), categorías, imágenes, y publica u oculta según el flag 'Activo'." className="flex items-center">
+                                    <Tooltip content="Sube o actualiza en Tienda Nube: título, descripción, precio (según el plan de cuotas), categorías e imágenes. El producto se sube oculto (no visible en la tienda); la visibilidad se controla manualmente en Nube. El flag 'Activo' no aplica a Nube." className="flex items-center">
                                         <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
                                     </Tooltip>
                                 </div>
@@ -878,7 +893,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         )}
                     </fieldset>
 
-                    <fieldset className={sectionClassName}>
+                    <fieldset className={`${sectionClassName} ${SECTION_TINT.identificacion}`}>
                         <legend className={sectionTitleClassName}><IdentificationIcon /> Identificación</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Datos principales para reconocer el producto en la tabla y en web.</p>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -988,7 +1003,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                     </fieldset>
 
                     <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.05fr_0.95fr]">
-                    <fieldset className={sectionClassName}>
+                    <fieldset className={`${sectionClassName} ${SECTION_TINT.economicos}`}>
                         <legend className={sectionTitleClassName}><CurrencyDollarIcon /> Económicos</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Base mínima para costos y cálculo de precios.</p>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -1015,7 +1030,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         </div>
                     </fieldset>
 
-                    <fieldset className={sectionClassName}>
+                    <fieldset className={`${sectionClassName} ${SECTION_TINT.reposicion}`}>
                         <legend className={sectionTitleClassName}><ArchiveBoxIcon /> Reposición y Stock</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Disponibilidad inicial y prioridades de compra.</p>
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -1045,7 +1060,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                     </fieldset>
                     </div>
 
-                    <fieldset className={sectionClassName}>
+                    <fieldset className={`${sectionClassName} ${SECTION_TINT.margenes}`}>
                         <legend className={sectionTitleClassName}><ReceiptPercentIcon /> Márgenes</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Márgenes minorista y mayorista (porcentaje).{!esCombo ? " Al menos uno obligatorio." : " Opcionales para combos."}</p>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -1061,7 +1076,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         {formErrors.margen && <p className="mt-2 text-xs text-red-500">{formErrors.margen}</p>}
                     </fieldset>
 
-                    <fieldset className={sectionClassName}>
+                    <fieldset className={`${sectionClassName} ${SECTION_TINT.clasificacion}`}>
                         <legend className={sectionTitleClassName}><Squares2X2Icon /> Clasificación y Relaciones</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Asociaciones maestras para filtros, navegación y reglas del sistema.</p>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -1118,7 +1133,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         </div>
                     </fieldset>
 
-                    <fieldset className={sectionClassName}>
+                    <fieldset className={`${sectionClassName} ${SECTION_TINT.catalogos}`}>
                         <legend className={sectionTitleClassName}><UserGroupIcon /> Catálogos y Clientes</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Asociaciones múltiples. Buscá y agregá los que correspondan.</p>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -1127,7 +1142,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         </div>
                     </fieldset>
 
-                    <fieldset className={sectionClassName}>
+                    <fieldset className={`${sectionClassName} ${SECTION_TINT.ml}`}>
                         <legend className={sectionTitleClassName}><ShoppingBagIcon /> MercadoLibre</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Publicación de MercadoLibre (MLA) asociada al producto.</p>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -1185,7 +1200,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         )}
                     </fieldset>
 
-                    <fieldset className={sectionClassName}>
+                    <fieldset className={`${sectionClassName} ${SECTION_TINT.dimensiones}`}>
                         <legend className={sectionTitleClassName}><CubeIcon /> Dimensiones Físicas</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Medidas y atributos técnicos para logística y catálogo.</p>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -1226,7 +1241,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         </div>
                     </fieldset>
 
-                    <fieldset className={sectionClassName}>
+                    <fieldset className={`${sectionClassName} ${SECTION_TINT.paqueteMl}`}>
                         <legend className={sectionTitleClassName}><ShoppingBagIcon /> Paquete para Mercado Libre (envío)</legend>
                         <div className="flex items-center gap-1.5 mt-1 mb-4">
                             <p className={sectionDescriptionClassName}>Dimensiones del paquete que se envían a ML al publicar.</p>
@@ -1263,7 +1278,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                     </fieldset>
 
                     {/* Precios inflados por canal: en edición opera en vivo; en alta se difiere al crear */}
-                    <fieldset className={sectionClassName}>
+                    <fieldset className={`${sectionClassName} ${SECTION_TINT.inflados}`}>
                         <legend className={sectionTitleClassName}><BanknotesIcon /> Precios Inflados por Canal</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Asigná, cambiá o quitá el precio inflado de este producto en cada canal.</p>
                         {editandoProductoId

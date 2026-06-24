@@ -127,12 +127,25 @@ Una vez validadas las campañas "Ahora" habilitadas en la cuenta:
   real de financiación y el comprador vea las cuotas. El motor incorpora ese costo de
   cuotas en el PVP.
 
+## Envío en el alta (contexto confirmado)
+
+El alta crea el ítem con `shipping.mode = "me2"` y `free_shipping = false`
+(`MlItemPayloadBuilder`), y **no fija `logistic_type`** (ML lo infiere). El vendedor opera
+**ME2** de forma general. Implicancias para el cálculo previo:
+
+- El **costo de envío solo recae sobre el vendedor cuando el PVP supera el umbral de envío
+  gratis** (ahí ML obliga `mandatory_free_shipping`). Si el PVP queda por debajo, el envío
+  lo paga el comprador y no afecta el precio. El bucle ya distingue ambos casos (API ML vs
+  tiers fijos según el umbral), por lo que esta lógica se conserva.
+- Para `listing_prices` y `shipping_options/free` se usa `shipping_mode = me2`. El
+  `logistic_type` a asumir en el cálculo previo se toma de `ConfiguracionMl` (configurable),
+  con un default razonable de ME2; en recálculos de ítems ya publicados se lee del ítem.
+
 ## Riesgos / a validar en implementación
 
 - **Parámetros nuevos de `listing_prices`**: la doc (15/04/2026) marca `logistic_type`,
   `shipping_mode` y `billable_weight` (obligatorio en Argentina) para que el `fixed_fee`
-  coincida con lo real. Revisar que la consulta de comisión los envíe.
-- **`logistic_type` antes de publicar**: hoy se lee del ítem; para el cálculo previo hay
-  que tomar el que tendrá la publicación (config del canal/vendedor o default ME2/drop_off).
+  coincida con lo real. Revisar que la consulta de comisión los envíe (el `billable_weight`
+  sale del peso del paquete ML del producto).
 - **Disponibilidad de `prices/standard`**: cuando ML la habilite, migrar el PUT de precio
   de la actualización a esa API.

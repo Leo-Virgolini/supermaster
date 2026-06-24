@@ -314,11 +314,16 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         const tareas: Promise<ResultadoCanal>[] = [];
         if (canales.includes("Dux")) {
             tareas.push((async (): Promise<ResultadoCanal> => {
+                // Dux confirma el alta de forma asíncrona (puede tardar). Mostramos un toast de
+                // carga mientras se espera la respuesta del proceso y lo cerramos al terminar.
+                const toastId = toast.loading("Subiendo a Dux… esperando confirmación del proceso (puede tardar)");
                 try {
                     const r = await exportarProductosADuxAPI([skuExport]);
                     return clasificarExport("Dux", r, skuExport);
                 } catch (e) {
                     return { canal: "Dux", estado: "error", detalle: e instanceof Error ? e.message : "error al subir" };
+                } finally {
+                    toast.dismiss(toastId);
                 }
             })());
         }
@@ -409,6 +414,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             const resultados = await ejecutarExportsCanales(sk, canalesMarcados());
             setResultadosCanal(resultados);
             if (resultados.every(r => r.estado === "ok")) {
+                notificar.success(`Producto ${sk} creado`);
                 notificarCanales(resultados);
                 onClose();
             } else {
@@ -572,8 +578,6 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 ...dCli.remove.map(x => removeProductoClienteAPI(id, x)),
             ]);
 
-            notificar.success(`Producto ${sku} actualizado`);
-
             // Recálculo SÍNCRONO antes de exportar a Nube: si se cambió el costo, el PVP queda
             // obsoleto (recálculo async) y el export daría "precio desactualizado".
             if ((subirKtHogar || subirKtGastro) && canExportarDux) {
@@ -586,6 +590,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             setResultadosCanal(resultados);
             await onSuccess();
             if (resultados.every(r => r.estado === "ok")) {
+                notificar.success(`Producto ${sku} actualizado`);
                 notificarCanales(resultados);
                 onClose();
             } else {

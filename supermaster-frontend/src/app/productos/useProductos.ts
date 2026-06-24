@@ -69,7 +69,8 @@ export function useProductos(pageIndex: number, pageSize: number, filters: Recor
 			// para que la tabla ya las refleje al recargar.
 			if (afterCreate) await afterCreate(result.id);
 			await getProductos();
-			notificar.success(`[Productos] Registro #${result.id} creado`);
+			// El toast de éxito lo emite el formulario al FINAL (tras subir a los canales),
+			// para no avisar "creado" mientras la subida a Dux/Nube/ML sigue en curso.
 			return result;
 		} catch (e: unknown) {
 			notificar.error(e instanceof Error ? e.message : "Error al crear");

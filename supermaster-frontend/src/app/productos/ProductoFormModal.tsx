@@ -825,6 +825,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         dimensiones:    "!border-sky-200 !bg-sky-50/60 dark:!border-sky-900/40 dark:!bg-sky-950/20",
         paqueteMl:      "!border-orange-200 !bg-orange-50/60 dark:!border-orange-900/40 dark:!bg-orange-950/20",
         inflados:       "!border-rose-200 !bg-rose-50/60 dark:!border-rose-900/40 dark:!bg-rose-950/20",
+        seo:            "!border-fuchsia-200 !bg-fuchsia-50/70 dark:!border-fuchsia-900/40 dark:!bg-fuchsia-950/20",
     } as const;
     const sectionTitleClassName = "flex items-center gap-2 text-base font-semibold text-slate-900 dark:text-slate-100 [&_svg]:h-5 [&_svg]:w-5 [&_svg]:text-blue-500 dark:[&_svg]:text-blue-400";
     const sectionDescriptionClassName = "mt-1 text-xs text-slate-500 dark:text-slate-400";
@@ -961,45 +962,6 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                             </div>
                         )}
                     </fieldset>
-
-                    {(subirKtHogar || subirKtGastro) && (
-                        <fieldset className={`${sectionClassName} ${SECTION_TINT.canales}`}>
-                            <legend className={sectionTitleClassName}><BuildingStorefrontIcon className="h-5 w-5" /> SEO de Tienda Nube</legend>
-                            <p className={`${sectionDescriptionClassName} mb-4`}>Title, descripción y tags para SEO. Generalos con IA o editalos a mano. Si los dejás vacíos, se generan automáticamente al subir.</p>
-                            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                                {([
-                                    ["GASTRO", "KT Gastro", subirKtGastro, seoGastro, setSeoGastro] as const,
-                                    ["HOGAR", "KT Hogar", subirKtHogar, seoHogar, setSeoHogar] as const,
-                                ]).filter(([, , activoCanal]) => activoCanal).map(([canal, titulo, , seo, setSeo]) => (
-                                    <div key={canal} className="rounded-2xl border border-slate-200 bg-white/70 p-4 dark:border-slate-700 dark:bg-slate-800/60">
-                                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{titulo}</span>
-                                            <Button variant="light" onClick={() => generarSeo(canal)} disabled={generandoSeo !== null}>
-                                                {generandoSeo === canal ? <SpinnerIcon /> : null}
-                                                {generandoSeo === canal ? "Generando..." : "Generar SEO con IA"}
-                                            </Button>
-                                        </div>
-                                        <div className="grid grid-cols-1 gap-3">
-                                            <label className="block">
-                                                <span className={fieldLabelClassName}>SEO Title</span>
-                                                <input type="text" maxLength={70} className={inputBaseClassName} value={seo.title} onChange={e => setSeo(p => ({ ...p, title: e.target.value }))} placeholder="Título SEO" />
-                                                <span className="mt-1 block text-right text-xs text-slate-400">{seo.title.length}/70</span>
-                                            </label>
-                                            <label className="block">
-                                                <span className={fieldLabelClassName}>SEO Description</span>
-                                                <textarea maxLength={320} rows={3} className={inputBaseClassName} value={seo.description} onChange={e => setSeo(p => ({ ...p, description: e.target.value }))} placeholder="Descripción SEO" />
-                                                <span className="mt-1 block text-right text-xs text-slate-400">{seo.description.length}/320</span>
-                                            </label>
-                                            <label className="block">
-                                                <span className={fieldLabelClassName}>Tags</span>
-                                                <input type="text" className={inputBaseClassName} value={seo.tags} onChange={e => setSeo(p => ({ ...p, tags: e.target.value }))} placeholder="tag1, tag2, ..." />
-                                            </label>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </fieldset>
-                    )}
 
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.identificacion}`}>
                         <legend className={sectionTitleClassName}><IdentificationIcon /> Identificación</legend>
@@ -1386,6 +1348,45 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                     </fieldset>
 
                     {/* Precios inflados por canal: en edición opera en vivo; en alta se difiere al crear */}
+                    {(subirKtHogar || subirKtGastro) && (
+                        <fieldset className={`${sectionClassName} ${SECTION_TINT.seo}`}>
+                            <legend className={sectionTitleClassName}><BuildingStorefrontIcon className="h-5 w-5" /> SEO de Tienda Nube</legend>
+                            <p className={`${sectionDescriptionClassName} mb-4`}>Title, descripción y tags para SEO. Generalos con IA o editalos a mano. Si los dejás vacíos, se generan automáticamente al subir.</p>
+                            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                                {([
+                                    ["GASTRO", "KT Gastro", subirKtGastro, seoGastro, setSeoGastro] as const,
+                                    ["HOGAR", "KT Hogar", subirKtHogar, seoHogar, setSeoHogar] as const,
+                                ]).filter(([, , activoCanal]) => activoCanal).map(([canal, titulo, , seo, setSeo]) => (
+                                    <div key={canal} className="rounded-2xl border border-slate-200 bg-white/70 p-4 dark:border-slate-700 dark:bg-slate-800/60">
+                                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{titulo}</span>
+                                            <Button variant="light" onClick={() => generarSeo(canal)} disabled={generandoSeo !== null}>
+                                                {generandoSeo === canal ? <SpinnerIcon /> : null}
+                                                {generandoSeo === canal ? "Generando..." : "Generar SEO con IA"}
+                                            </Button>
+                                        </div>
+                                        <div className="grid grid-cols-1 gap-3">
+                                            <label className="block">
+                                                <span className={fieldLabelClassName}>SEO Title</span>
+                                                <input type="text" maxLength={70} className={inputBaseClassName} value={seo.title} onChange={e => setSeo(p => ({ ...p, title: e.target.value }))} placeholder="Título SEO" />
+                                                <span className="mt-1 block text-right text-xs text-slate-400">{seo.title.length}/70</span>
+                                            </label>
+                                            <label className="block">
+                                                <span className={fieldLabelClassName}>SEO Description</span>
+                                                <textarea maxLength={320} rows={3} className={inputBaseClassName} value={seo.description} onChange={e => setSeo(p => ({ ...p, description: e.target.value }))} placeholder="Descripción SEO" />
+                                                <span className="mt-1 block text-right text-xs text-slate-400">{seo.description.length}/320</span>
+                                            </label>
+                                            <label className="block">
+                                                <span className={fieldLabelClassName}>Tags</span>
+                                                <input type="text" className={inputBaseClassName} value={seo.tags} onChange={e => setSeo(p => ({ ...p, tags: e.target.value }))} placeholder="tag1, tag2, ..." />
+                                            </label>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </fieldset>
+                    )}
+
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.inflados}`}>
                         <legend className={sectionTitleClassName}><BanknotesIcon /> Precios Inflados por Canal</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Asigná, cambiá o quitá el precio inflado de este producto en cada canal.</p>

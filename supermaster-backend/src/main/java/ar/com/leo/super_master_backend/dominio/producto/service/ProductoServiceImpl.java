@@ -1145,7 +1145,9 @@ public class ProductoServiceImpl implements ProductoService {
                 && !presente(patchDto.getMlPaqAlto())
                 && !presente(patchDto.getMlPaqAncho())
                 && !presente(patchDto.getMlPaqLargo())
-                && !presente(patchDto.getMlPaqPeso());
+                && !presente(patchDto.getMlPaqPeso())
+                && !presente(patchDto.getMlCategoryId())
+                && !presente(patchDto.getMlCategoryNombre());
     }
 
     /**

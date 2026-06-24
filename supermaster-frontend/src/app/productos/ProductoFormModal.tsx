@@ -234,6 +234,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         if (!tituloDux.trim()) errors.tituloDux = "El Título Dux es obligatorio";
         else if (tituloDux.trim().length > 100) errors.tituloDux = "Máximo 100 caracteres";
         if (tituloMl.trim().length > 100) errors.tituloMl = "Máximo 100 caracteres";
+        if (tituloMl.trim() && !mlCategoryId) errors.mlCategory = "Si hay Título ML, predecí y elegí una categoría de Mercado Libre";
         if (tituloNube.trim().length > 100) errors.tituloNube = "Máximo 100 caracteres";
         if (costo === "" || Number(costo) <= 0) errors.costo = "El costo debe ser mayor a 0";
         if (uxb < 1) errors.uxb = "UxB debe ser al menos 1";
@@ -906,7 +907,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                             </label>
                             <label className="block md:col-span-2">
                                 <span className={fieldLabelClassName}>Título ML</span>
-                                <input type="text" className={`${inputBaseClassName} ${formErrors.tituloMl ? inputErrorClassName : ""}`} value={tituloMl} onChange={e => { setTituloMl(e.target.value); if (formErrors.tituloMl) setFormErrors(p => ({ ...p, tituloMl: "" })); }} placeholder="Título para Mercado Libre" />
+                                <input type="text" className={`${inputBaseClassName} ${formErrors.tituloMl ? inputErrorClassName : ""}`} value={tituloMl} onChange={e => { setTituloMl(e.target.value); if (formErrors.tituloMl) setFormErrors(p => ({ ...p, tituloMl: "" })); }} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handlePredecirCategoriasMl(); } }} placeholder="Título para Mercado Libre" />
                                 {formErrors.tituloMl && <p className="mt-1 text-xs text-red-500">{formErrors.tituloMl}</p>}
                                 <div className="mt-2 flex flex-col gap-2">
                                     <div className="flex items-center gap-2">
@@ -926,7 +927,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                                 <button
                                                     key={p.categoryId}
                                                     type="button"
-                                                    onClick={() => { setMlCategoryId(p.categoryId); setMlCategoryNombre(p.categoryPath || p.categoryName); setPrediccionesMl([]); }}
+                                                    onClick={() => { setMlCategoryId(p.categoryId); setMlCategoryNombre(p.categoryPath || p.categoryName); setPrediccionesMl([]); if (formErrors.mlCategory) setFormErrors(prev => ({ ...prev, mlCategory: "" })); }}
                                                     className={`rounded-lg border px-2 py-1 text-left text-xs transition-colors ${mlCategoryId === p.categoryId ? "border-yellow-400 bg-yellow-100 text-yellow-900" : "border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-100 dark:border-blue-700 dark:bg-blue-900/20 dark:text-blue-200 dark:hover:bg-blue-800/40"}`}
                                                 >
                                                     {pathConHojaResaltada(p.categoryPath || p.categoryName)} <span className="text-blue-400 dark:text-blue-300/70">({p.categoryId})</span>
@@ -934,7 +935,9 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                             ))}
                                         </div>
                                     )}
-                                    <p className="text-xs text-slate-500 dark:text-slate-400">Si no elegís una, al publicar se usa la categoría que el predictor considere más probable.</p>
+                                    {formErrors.mlCategory
+                                        ? <p className="text-xs text-red-500">{formErrors.mlCategory}</p>
+                                        : <p className="text-xs text-slate-500 dark:text-slate-400">Si cargás Título ML, es obligatorio elegir una categoría: predecí (o Enter) y seleccioná una de las opciones.</p>}
                                 </div>
                             </label>
                             <label className="block md:col-span-2">

@@ -237,6 +237,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         else if (subirMl && !tituloMl.trim()) errors.tituloMl = "Requerido para subir a Mercado Libre";
         if (tituloMl.trim() && !mlCategoryId) errors.mlCategory = "Si hay Título ML, predecí y elegí una categoría de Mercado Libre";
         if (tituloNube.trim().length > 100) errors.tituloNube = "Máximo 100 caracteres";
+        else if ((subirKtHogar || subirKtGastro) && !tituloNube.trim()) errors.tituloNube = "Requerido para subir a Tienda Nube";
         if (costo === "" || Number(costo) <= 0) errors.costo = "El costo debe ser mayor a 0";
         if (uxb < 1) errors.uxb = "UxB debe ser al menos 1";
         if (!clasifGralId && !clasifGastroId) errors.clasificacion = "Seleccioná al menos una clasificación (general o gastronómica)";

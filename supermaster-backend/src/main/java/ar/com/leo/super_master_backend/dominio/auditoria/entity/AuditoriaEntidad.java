@@ -23,6 +23,7 @@ public enum AuditoriaEntidad {
     TIPO,
     MATERIAL,
     ORIGEN,
+    SECTOR_DEPOSITO,
     CLASIF_GRAL,
     CLASIF_GASTRO,
     APTO,

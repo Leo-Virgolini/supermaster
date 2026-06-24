@@ -60,6 +60,8 @@ public interface ProductoRepository extends JpaRepository<Producto, Integer>, Jp
 
     List<Producto> findByMaterialId(Integer materialId);
 
+    List<Producto> findBySectorDepositoId(Integer sectorDepositoId);
+
     @Query("SELECT p FROM Producto p JOIN FETCH p.proveedor WHERE p.activo = true AND p.proveedor IS NOT NULL")
     List<Producto> findActivosConProveedor();
 

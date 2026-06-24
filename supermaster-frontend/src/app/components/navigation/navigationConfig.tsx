@@ -3,6 +3,7 @@
 import type { ElementType, SVGProps } from "react";
 import {
     AdjustmentsHorizontalIcon,
+    ArchiveBoxIcon,
     ArrowPathIcon,
     ArrowTrendingUpIcon,
     BoltIcon,
@@ -211,6 +212,14 @@ export const navigationSections: NavSectionConfig[] = [
                 label: "Orígenes",
                 description: "País o región de origen",
                 icon: GlobeAltIcon,
+                color: "violet",
+                requiredPermission: "MAESTROS_VER",
+            },
+            {
+                href: "/sectores-deposito",
+                label: "Sectores de depósito",
+                description: "Sectores/zonas de depósito (Dux)",
+                icon: ArchiveBoxIcon,
                 color: "violet",
                 requiredPermission: "MAESTROS_VER",
             },

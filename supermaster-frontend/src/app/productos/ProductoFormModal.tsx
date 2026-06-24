@@ -482,8 +482,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             setClasifGastroDisplay(producto.clasifGastroNombreCompleto ?? "");
             setTipoDisplay(producto.tipoNombreCompleto ?? "");
             setMlaDisplay(producto.mlaNombre ?? "");
-            // Origen/material/proveedor no traen nombre en el DTO: se resuelven por id.
-            // sectorDeposito tampoco trae nombre: se deja vacío (AsyncSelect lo resuelve).
+            // Origen/material/proveedor/sectorDeposito no traen nombre en el DTO: se
+            // resuelven por id más abajo (el AsyncSelect no resuelve nombre por id).
             setOrigenDisplay(""); setMaterialDisplay(""); setProveedorDisplay(""); setSectorDepositoDisplay("");
             setMargenMinorista(producto.margenMinorista ?? ""); setMargenMayorista(producto.margenMayorista ?? "");
             setMlPaqAlto(producto.mlPaqAlto ?? "");
@@ -495,10 +495,11 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             setCatalogosOriginal([]); setAptosOriginal([]); setClientesOriginal([]);
             setShowNuevoMla(false);
 
-            // Nombres de origen/material/proveedor (no vienen en el DTO de la tabla).
+            // Nombres de origen/material/proveedor/sector (no vienen en el DTO de la tabla).
             if (producto.origenId) getNombreById("origenes", producto.origenId).then(r => setOrigenDisplay(r.nombre)).catch(() => {});
             if (producto.materialId) getNombreById("materiales", producto.materialId).then(r => setMaterialDisplay(r.nombre)).catch(() => {});
             if (producto.proveedorId) getNombreById("proveedores", producto.proveedorId).then(r => setProveedorDisplay(r.nombre)).catch(() => {});
+            if (producto.sectorDepositoId) getNombreById("sectores-deposito", producto.sectorDepositoId, "codigo").then(r => setSectorDepositoDisplay(r.nombre)).catch(() => {});
 
             // Relaciones N-a-N: los GET dan ids; cruzamos con getAll* para los nombres.
             void (async () => {

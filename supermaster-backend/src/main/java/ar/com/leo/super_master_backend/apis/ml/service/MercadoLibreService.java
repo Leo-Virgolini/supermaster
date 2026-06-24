@@ -1990,7 +1990,9 @@ public class MercadoLibreService {
      *  - yaExiste(sku) → true si ya hay publicación (no duplicar).
      *  - archivosResolver(sku) → nombres de archivo de imagen del SKU.
      *  - subidorImagen(filename) → pictureId subido (o null si falló esa imagen).
-     *  - predictor(titulo) → category_id (o null).
+     *  - categoryId → categoría ML ya resuelta (el wrapper la predice antes de llamar al core).
+     *  - precioFinal → precio calculado (PVP real); null → error sin postear.
+     *  - maxTitleLengthFn(categoryId) → longitud máxima del título para construir familyName.
      *  - poster(json) → respuesta de POST /items (éxito con "id" o body de error con "cause").
      *  - posterDescripcion(itemId, plainText) → respuesta (se ignora salvo excepción).
      */
@@ -1999,7 +2001,8 @@ public class MercadoLibreService {
             Function<String, Boolean> yaExiste,
             Function<String, List<String>> archivosResolver,
             Function<String, String> subidorImagen,
-            Function<String, String> predictor,
+            String categoryId,
+            BigDecimal precioFinal,
             Function<String, Integer> maxTitleLengthFn,
             Function<String, String> poster,
             BiFunction<String, String, String> posterDescripcion) {
@@ -2009,6 +2012,8 @@ public class MercadoLibreService {
                 return ResultadoAltaMl.error("falta título ML");
             if (producto.getCosto() == null)
                 return ResultadoAltaMl.error("falta costo");
+            if (precioFinal == null)
+                return ResultadoAltaMl.error("no se pudo calcular el precio del canal ML");
             if (Boolean.TRUE.equals(yaExiste.apply(sku)))
                 return ResultadoAltaMl.yaExistia();
 
@@ -2023,18 +2028,12 @@ public class MercadoLibreService {
             if (pictureIds.isEmpty())
                 return ResultadoAltaMl.error("no se pudieron subir las imágenes");
 
-            String categoryId = predictor.apply(producto.getTituloMl());
-            if (categoryId == null || categoryId.isBlank())
-                return ResultadoAltaMl.error("no se pudo predecir la categoría");
             String familyName = construirFamilyName(producto.getTituloMl(), maxTitleLengthFn.apply(categoryId));
-
-            // Precio de alta en ML: costo x 5 (regla de negocio de la Fase C1).
-            BigDecimal price = producto.getCosto().multiply(MULTIPLICADOR_PRECIO_ML);
 
             // Crear con stock 0: queda out_of_stock; si el producto está inactivo, crearItemEnMl
             // lo pausa explícitamente (paused_by_seller) después del alta.
             String respuesta = poster.apply(om.writeValueAsString(
-                    MlItemPayloadBuilder.construir(producto, categoryId, price, 0, pictureIds, familyName)));
+                    MlItemPayloadBuilder.construir(producto, categoryId, precioFinal, 0, pictureIds, familyName)));
             String error = extraerErrorMl(om, respuesta);
             if (error != null) return ResultadoAltaMl.error(error);
 
@@ -2090,12 +2089,25 @@ public class MercadoLibreService {
         if (filtro.validas().isEmpty() && !filtro.rechazadas().isEmpty()) {
             return ResultadoAltaMl.error("sin imágenes válidas para Mercado Libre — " + ImagenService.describirRechazadas(filtro.rechazadas()));
         }
+        // Resolver categoría antes de calcular el precio (el cálculo la necesita para la comisión).
+        String categoryId = resolverCategoriaMl(producto.getMlCategoryId(), producto.getTituloMl(), this::predecirCategoria);
+        if (categoryId == null || categoryId.isBlank()) {
+            return ResultadoAltaMl.error("no se pudo predecir la categoría");
+        }
+        // Calcular precio final (PVP real); si falla, abortar sin postear.
+        BigDecimal precioFinal;
+        try {
+            precioFinal = calcularPrecioFinalParaPublicar(producto, categoryId, 0); // 0 = contado (Fase 1)
+        } catch (Exception e) {
+            return ResultadoAltaMl.error("no se pudo calcular el precio del canal ML: " + e.getMessage());
+        }
         ResultadoAltaMl r = crearItemEnMlCore(
                 producto, objectMapper,
                 sku -> false,  // existencia ya verificada por el caller (upsert en MlExportService)
                 sku -> filtro.validas(),
                 filename -> subirImagenItem(filename),
-                titulo -> resolverCategoriaMl(producto.getMlCategoryId(), titulo, this::predecirCategoria),
+                categoryId,
+                precioFinal,
                 this::obtenerMaxTitleLength,
                 json -> postearItem(json),
                 (itemId, plainText) -> retryHandler.postJson("/items/" + itemId + "/description",

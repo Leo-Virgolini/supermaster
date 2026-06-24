@@ -32,6 +32,23 @@ public interface CalculoPrecioService {
     PrecioCalculadoDTO calcularPrecioCanalConEnvio(Integer productoId, Integer canalId, Integer numeroCuotas, BigDecimal precioEnvioOverride);
 
     /**
+     * Igual que {@link #calcularPrecioCanalConEnvio(Integer, Integer, Integer, BigDecimal)} pero
+     * además permite pasar una comisión ML por parámetro. Útil para calcular el PVP ANTES de
+     * que el producto tenga un MLA (cuando aún no se puede leer {@code mla.comisionPorcentaje}).
+     * Si {@code comisionMlOverride} es null, el motor lee la comisión del MLA del producto
+     * (comportamiento idéntico al método de 4 parámetros).
+     *
+     * @param productoId       ID del producto
+     * @param canalId          ID del canal
+     * @param numeroCuotas     Número de cuotas (opcional)
+     * @param precioEnvioOverride Costo de envío a usar en lugar del almacenado en mla.precio_envio
+     * @param comisionMlOverride  Porcentaje de comisión ML a usar en FLAG_COMISION_ML; null = leer del MLA
+     * @return PrecioCalculadoDTO con el precio simulado
+     */
+    PrecioCalculadoDTO calcularPrecioCanalConEnvio(Integer productoId, Integer canalId,
+            Integer numeroCuotas, BigDecimal precioEnvioOverride, BigDecimal comisionMlOverride);
+
+    /**
      * Calcula y además guarda/actualiza el registro en producto_canal_precios.
      *
      * @param productoId ID del producto

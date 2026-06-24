@@ -287,6 +287,13 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
     @Override
     @Transactional(readOnly = true, noRollbackFor = {NotFoundException.class, BadRequestException.class})
     public PrecioCalculadoDTO calcularPrecioCanalConEnvio(Integer productoId, Integer canalId, Integer numeroCuotas, BigDecimal precioEnvioOverride) {
+        return calcularPrecioCanalConEnvio(productoId, canalId, numeroCuotas, precioEnvioOverride, null);
+    }
+
+    @Override
+    @Transactional(readOnly = true, noRollbackFor = {NotFoundException.class, BadRequestException.class})
+    public PrecioCalculadoDTO calcularPrecioCanalConEnvio(Integer productoId, Integer canalId,
+            Integer numeroCuotas, BigDecimal precioEnvioOverride, BigDecimal comisionMlOverride) {
         Producto producto = obtenerProducto(productoId);
 
         if (!productoAplicaAlCanal(producto, canalId)) {
@@ -295,7 +302,7 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
 
         ContextoCalculo ctx = prepararContexto(producto, canalId, numeroCuotas);
         return calcularPrecioUnificado(ctx.producto(), ctx.productoMargen(), ctx.conceptosCanal(),
-                numeroCuotas, canalId, ctx.canal(), precioEnvioOverride);
+                numeroCuotas, canalId, ctx.canal(), precioEnvioOverride, comisionMlOverride);
     }
 
     /**
@@ -428,6 +435,18 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
             Integer canalId,
             Canal canalActual,
             BigDecimal precioEnvioOverride) {
+        return calcularPrecioUnificado(producto, productoMargen, conceptos, numeroCuotas, canalId, canalActual, precioEnvioOverride, null);
+    }
+
+    private PrecioCalculadoDTO calcularPrecioUnificado(
+            Producto producto,
+            ProductoMargen productoMargen,
+            List<CanalConcepto> conceptos,
+            Integer numeroCuotas,
+            Integer canalId,
+            Canal canalActual,
+            BigDecimal precioEnvioOverride,
+            BigDecimal comisionMlOverride) {
         if (producto.getCosto() == null || producto.getCosto().compareTo(BigDecimal.ZERO) == 0) {
             throw new BadRequestException("El producto no tiene costo cargado");
         }
@@ -613,14 +632,23 @@ public class CalculoPrecioServiceImpl implements CalculoPrecioService {
         List<CanalConcepto> gastosSobrePVP = conceptosPorTipo.getOrDefault(AplicaSobre.COMISION_SOBRE_PVP, List.of());
         gastosSobrePVPTotal = calcularGastosPorcentaje(gastosSobrePVP);
 
-        // FLAG_COMISION_ML: si existe, sumar comisionPorcentaje del MLA al divisor del PVP.
+        // FLAG_COMISION_ML: si existe, sumar comisionPorcentaje al divisor del PVP.
+        // El % se toma del override (si != null) o del MLA del producto.
         // La naturaleza (COSTO_VENTA por default o INFLACION si se sobreescribe) decide si
         // se cuenta como costo de venta en los indicadores — eso se evalúa en calcularCostosVenta.
         List<CanalConcepto> conceptosComisionMl = conceptosPorTipo.getOrDefault(AplicaSobre.FLAG_COMISION_ML, List.of());
-        if (!conceptosComisionMl.isEmpty() && producto.getMla() != null
-                && producto.getMla().getComisionPorcentaje() != null
-                && producto.getMla().getComisionPorcentaje().compareTo(BigDecimal.ZERO) > 0) {
-            gastosSobrePVPTotal = gastosSobrePVPTotal.add(producto.getMla().getComisionPorcentaje());
+        if (!conceptosComisionMl.isEmpty()) {
+            BigDecimal comisionAplicar;
+            if (comisionMlOverride != null) {
+                comisionAplicar = comisionMlOverride;
+            } else if (producto.getMla() != null && producto.getMla().getComisionPorcentaje() != null) {
+                comisionAplicar = producto.getMla().getComisionPorcentaje();
+            } else {
+                comisionAplicar = BigDecimal.ZERO;
+            }
+            if (comisionAplicar.compareTo(BigDecimal.ZERO) > 0) {
+                gastosSobrePVPTotal = gastosSobrePVPTotal.add(comisionAplicar);
+            }
         }
 
         // Obtener porcentaje de cuotas si aplica (ahora siempre aplica si hay cuotas)

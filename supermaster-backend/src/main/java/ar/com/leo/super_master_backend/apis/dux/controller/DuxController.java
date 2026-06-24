@@ -132,10 +132,11 @@ public class DuxController {
     @GetMapping("/procesos/{idProceso}/estado")
     @PreAuthorize(Permisos.INTEGRACIONES_VER)
     public ResponseEntity<Map<String, Object>> obtenerEstadoProceso(@PathVariable int idProceso) {
-        String estado = duxService.obtenerEstadoProceso(idProceso);
+        DuxService.EstadoProceso estado = duxService.obtenerEstadoProcesoParseado(idProceso);
         return ResponseEntity.ok(Map.of(
                 "idProceso", idProceso,
-                "estado", estado
+                "estado", estado.estado(),
+                "errores", estado.errores()
         ));
     }
 

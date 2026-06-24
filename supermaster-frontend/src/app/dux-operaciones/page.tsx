@@ -418,9 +418,6 @@ type ExportarEstado = "IDLE" | "EN_PROCESO" | "COMPLETADO" | "ERROR";
 function ExportarProductosPanel() {
     const [estado, setEstado] = useState<ExportarEstado>("IDLE");
     const [mensaje, setMensaje] = useState<string | null>(null);
-    const [jobMensaje, setJobMensaje] = useState<string | null>(null);
-    const [procesados, setProcesados] = useState(0);
-    const [total, setTotal] = useState(0);
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const idProcesoRef = useRef<number | null>(null);
 
@@ -433,21 +430,21 @@ function ExportarProductosPanel() {
         try {
             const res = await fetchAPI(`${API_BASE_URL}/api/dux/procesos/${idProcesoRef.current}/estado`);
             const data = await res.json();
-            if (data.procesados !== undefined) setProcesados(data.procesados);
-            if (data.total !== undefined) setTotal(data.total);
-            if (data.mensaje) setJobMensaje(data.mensaje);
-
-            if (data.estado === "completado") {
+            // DUX informa el estado del proceso: "PENDIENTE" (sigue) o "FINALIZADO" (con `errores` si los hubo).
+            // No expone progreso granular (procesados/total), así que el avance se muestra indeterminado.
+            if (data.estado === "FINALIZADO") {
                 clearInterval(intervalRef.current!);
                 intervalRef.current = null;
-                setEstado("COMPLETADO");
-                setMensaje(`Exportacion completada: ${data.exitosos ?? data.procesados} registros exportados.`);
-            } else if (data.estado === "cancelado" || data.estado === "error") {
-                clearInterval(intervalRef.current!);
-                intervalRef.current = null;
-                setEstado(data.estado === "error" ? "ERROR" : "IDLE");
-                setMensaje(data.estado === "error" ? (data.mensaje ?? "Error en la exportacion.") : "Proceso cancelado.");
+                const errores: string[] = data.errores ?? [];
+                if (errores.length) {
+                    setEstado("ERROR");
+                    setMensaje(`Exportacion finalizada con ${errores.length} error(es): ${errores.join("; ")}`);
+                } else {
+                    setEstado("COMPLETADO");
+                    setMensaje("Exportacion completada.");
+                }
             }
+            // Otro estado (PENDIENTE): el proceso sigue; el intervalo vuelve a consultar.
         } catch (err: unknown) {
             clearInterval(intervalRef.current!);
             intervalRef.current = null;
@@ -460,9 +457,6 @@ function ExportarProductosPanel() {
         if (!(await confirmDialog({ title: "Confirmar", message: "Iniciar la exportacion de productos a DUX? Este proceso puede tardar varios minutos.", confirmText: "Iniciar" }))) return;
         setEstado("EN_PROCESO");
         setMensaje(null);
-        setJobMensaje(null);
-        setProcesados(0);
-        setTotal(0);
         idProcesoRef.current = null;
 
         try {
@@ -480,7 +474,6 @@ function ExportarProductosPanel() {
     const enProceso = estado === "EN_PROCESO";
     const completado = estado === "COMPLETADO";
     const error = estado === "ERROR";
-    const porcentaje = total > 0 ? Math.min(Math.round((procesados / total) * 100), 100) : 0;
 
     return (
         <div className={`${shellCardClassName} flex flex-col gap-4 p-6`}>
@@ -509,22 +502,8 @@ function ExportarProductosPanel() {
                 </Button>
             </div>
 
-            {enProceso && total > 0 && (
-                <div className="mt-1">
-                    <div className="mb-1 flex justify-between text-xs text-gray-500 dark:text-slate-400">
-                        <span>{procesados} / {total} procesados</span>
-                        <span>{porcentaje}%</span>
-                    </div>
-                    <div className="h-3 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
-                        <div className="bg-blue-600 h-3 rounded-full transition-all duration-500" style={{ width: `${porcentaje}%` }} />
-                    </div>
-                </div>
-            )}
-            {enProceso && total === 0 && (
-                <p className="text-sm text-gray-500 dark:text-slate-400">Iniciando proceso...</p>
-            )}
-            {enProceso && jobMensaje && (
-                <p className="text-xs text-gray-500 dark:text-slate-400">{jobMensaje}</p>
+            {enProceso && (
+                <p className="text-sm text-gray-500 dark:text-slate-400">Procesando exportación en DUX… (puede tardar varios minutos)</p>
             )}
 
             {completado && mensaje && (

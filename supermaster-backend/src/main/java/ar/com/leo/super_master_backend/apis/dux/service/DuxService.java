@@ -99,7 +99,7 @@ public class DuxService {
     // PARSEO / MAPEO DE PROCESO DUX
     // =====================================================
 
-    record EstadoProceso(String estado, List<String> errores) {
+    public record EstadoProceso(String estado, List<String> errores) {
         boolean finalizado() { return "FINALIZADO".equalsIgnoreCase(estado); }
     }
 
@@ -286,6 +286,11 @@ public class DuxService {
     public String obtenerEstadoProceso(int idProceso) {
         verificarTokens();
         return retryHandler.get("/obtenerEstadoItem?idProceso=" + idProceso, tokens.token);
+    }
+
+    /** Estado del proceso ya parseado ({@code estado} + {@code errores}) para los consumidores que necesitan los campos. */
+    public EstadoProceso obtenerEstadoProcesoParseado(int idProceso) {
+        return parsearEstadoProceso(obtenerEstadoProceso(idProceso), objectMapper);
     }
 
     // =====================================================

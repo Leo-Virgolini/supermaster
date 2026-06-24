@@ -1003,6 +1003,77 @@ public class MercadoLibreService {
     }
 
     /**
+     * Consulta el costo de envío (CON IVA) para un producto SIN item_id, usando
+     * {@code GET /users/{userId}/shipping_options/free?dimensions=...}.
+     *
+     * <p>Útil para calcular el PVP real ANTES de crear la publicación en ML,
+     * cuando todavía no existe un {@code item_id}.
+     *
+     * <p>El string de {@code dimensions} se arma con el mismo formato que usa la API ML:
+     * {@code "altoXanchoXlargo,pesoGramos"} (sin espacios, enteros, cm y g).
+     * Los campos {@code mlPaqAlto/Ancho/Largo} están en cm, y {@code mlPaqPeso} en kg
+     * (se convierte a gramos multiplicando por 1000).
+     *
+     * @return costo de envío con IVA ({@code coverage.all_country.list_cost}),
+     *         o {@link BigDecimal#ZERO} si no aplica o la consulta falla.
+     */
+    BigDecimal consultarEnvioConIvaSinItem(
+            String userId,
+            ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto,
+            String categoryId,
+            String listingType,
+            String logisticType,
+            String zipCode,
+            BigDecimal pvp) {
+
+        // Validar que las 4 dimensiones del paquete ML estén presentes
+        BigDecimal alto  = producto.getMlPaqAlto();
+        BigDecimal ancho = producto.getMlPaqAncho();
+        BigDecimal largo = producto.getMlPaqLargo();
+        BigDecimal peso  = producto.getMlPaqPeso();
+
+        if (alto == null || ancho == null || largo == null || peso == null) {
+            log.warn("ML - consultarEnvioConIvaSinItem: dimensiones incompletas para SKU {}", producto.getSku());
+            return BigDecimal.ZERO;
+        }
+
+        if (zipCode == null || zipCode.isBlank()) {
+            log.warn("ML - consultarEnvioConIvaSinItem: zipCode no disponible para SKU {}", producto.getSku());
+            return BigDecimal.ZERO;
+        }
+
+        // Formato exacto que usa la API ML: "altoXanchoXlargo,pesoGramos" (enteros, sin espacios)
+        // Igual que apis.ml.model.Producto#getDimensions():
+        //   String.format("%.0fx%.0fx%.0f,%.0f", heightCm, widthCm, lengthCm, weightG)
+        double pesoGramos = peso.doubleValue() * 1000.0;
+        String dimensions = String.format("%.0fx%.0fx%.0f,%.0f",
+                alto.doubleValue(), ancho.doubleValue(), largo.doubleValue(), pesoGramos);
+
+        String itemPrice = String.format(Locale.forLanguageTag("en-US"), "%.2f", pvp);
+        String params = String.format(
+                "&item_price=%s&listing_type_id=%s&mode=me2&condition=new&logistic_type=%s&zip_code=%s&verbose=true&free_shipping=true&category_id=%s",
+                itemPrice, listingType, logisticType, zipCode, categoryId);
+        String uri = String.format("/users/%s/shipping_options/free?dimensions=%s%s",
+                userId, URLEncoder.encode(dimensions, StandardCharsets.UTF_8), params);
+
+        String body = retryHandler.get(uri, () -> tokens.accessToken);
+        if (body == null) {
+            log.warn("ML - consultarEnvioConIvaSinItem: sin respuesta de ML para SKU {}", producto.getSku());
+            return BigDecimal.ZERO;
+        }
+
+        try {
+            double cost = objectMapper.readTree(body)
+                    .path("coverage").path("all_country").path("list_cost").asDouble(0);
+            return cost > 0 ? BigDecimal.valueOf(cost) : BigDecimal.ZERO;
+        } catch (Exception e) {
+            log.warn("ML - consultarEnvioConIvaSinItem: error parseando respuesta para SKU {}: {}",
+                    producto.getSku(), e.getMessage());
+            return BigDecimal.ZERO;
+        }
+    }
+
+    /**
      * Obtiene un producto de ML por su MLA.
      */
     public Producto getItemByMLA(String itemId) {

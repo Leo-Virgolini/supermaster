@@ -6,7 +6,7 @@ import Link from "next/link";
 import { CurrencyDollarIcon, PencilSquareIcon } from "@heroicons/react/24/outline";
 import {
     searchMarcas, searchClasifGral, searchClasifGastro, searchTipos,
-    searchProveedores, searchOrigenes, searchMateriales, searchMlas
+    searchProveedores, searchOrigenes, searchMateriales, searchMlas, searchSectoresDeposito
 } from "./productosService";
 import { ProductoDTO } from "./types";
 import { API_BASE_URL } from "../config/runtime";
@@ -301,6 +301,22 @@ export function getColumns(onEditarProducto: (producto: ProductoDTO) => void, ca
                 displayClassName={FONT.relation}
                 disabled={!canEdit}
                 onSave={(newId) => (table.options.meta as any)?.updateData?.(row.index, "materialId", newId)}
+            />
+        )
+    },
+    {
+        id: "sectorDeposito", accessorFn: (row) => row.sectorDepositoId, header: "Sector Depósito", size: 150, meta: { editable: true },
+        cell: ({ row, table }) => (
+            <EditableRelationCell
+                initialId={row.original.sectorDepositoId}
+                loadOptions={searchSectoresDeposito}
+                placeholder="Sector..."
+                endpoint="sectores-deposito"
+                labelKey="codigo"
+                nullable
+                displayClassName={FONT.relation}
+                disabled={!canEdit}
+                onSave={(newId) => (table.options.meta as any)?.updateData?.(row.index, "sectorDepositoId", newId)}
             />
         )
     },

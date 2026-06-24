@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
     searchMarcas,
     searchClasifGral,
@@ -26,6 +26,31 @@ export default function ColumnContextMenu({ columnId, onClose, onFilter, current
 
     // ESTADO NUEVO: Acá guardamos los IDs que el usuario va clickeando [1, 5, 20...]
     const [selectedIds, setSelectedIds] = useState<any[]>(Array.isArray(currentFilters) ? currentFilters : []);
+
+    // Cierra el menú (descartando lo no aplicado) con Escape o al clickear fuera.
+    // Es el comportamiento de "Cancelar": para aplicar hay que usar el botón.
+    const menuRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "Escape") {
+                e.stopPropagation();
+                onClose();
+            }
+        };
+        const onPointerDown = (e: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+                onClose();
+            }
+        };
+        document.addEventListener("keydown", onKeyDown);
+        // Se difiere un tick para no capturar el mismo evento que abrió el menú.
+        const id = window.setTimeout(() => document.addEventListener("mousedown", onPointerDown), 0);
+        return () => {
+            window.clearTimeout(id);
+            document.removeEventListener("keydown", onKeyDown);
+            document.removeEventListener("mousedown", onPointerDown);
+        };
+    }, [onClose]);
 
     const loaders: any = {
         marca: (q: string) => searchMarcas(q, 9999),
@@ -81,7 +106,7 @@ export default function ColumnContextMenu({ columnId, onClose, onFilter, current
     // 1. Caso Buscador de Texto (Input simple)
     if (!loaders[columnId]) {
         return (
-            <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 shadow-xl rounded text-gray-800 dark:text-slate-200 flex flex-col gap-2 p-2 w-48">
+            <div ref={menuRef} className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 shadow-xl rounded text-gray-800 dark:text-slate-200 flex flex-col gap-2 p-2 w-48">
                 <span className="font-bold text-xs text-gray-500 dark:text-slate-400 uppercase">Filtrar por texto</span>
                 <input
                     autoFocus
@@ -101,8 +126,8 @@ export default function ColumnContextMenu({ columnId, onClose, onFilter, current
     // 2. Caso Checkboxes (Lista de opciones)
     return (
         <div
+            ref={menuRef}
             className="w-56 max-h-80 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 shadow-xl rounded flex flex-col text-gray-800 dark:text-slate-200"
-            onMouseLeave={() => { /* Opcional: podés quitar esto si querés obligar a usar botones */ }}
         >
             <div className="p-2 border-b border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700/50 font-bold text-xs uppercase text-gray-500 dark:text-slate-400 flex justify-between items-center">
                 <span>{columnId}</span>

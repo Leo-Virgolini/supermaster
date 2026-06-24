@@ -29,6 +29,10 @@ const FONT = {
     title: "font-medium text-gray-800 dark:text-slate-100",
 } as const;
 
+// Tono ámbar para los headers de columnas que pertenecen a Mercado Libre — las distingue del resto.
+// El `!` asegura prioridad sobre el bg-gray-100 base del <th>.
+const HEADER_ML = "!bg-amber-100 hover:!bg-amber-200 dark:!bg-amber-900/40 dark:hover:!bg-amber-900/60 text-amber-900 dark:text-amber-200";
+
 // Las imágenes se resuelven siempre por SKU; el visor multi-imagen vive en ImagenesCarousel.
 
 function ImagenCeldaSku({ sku }: { sku: string }) {
@@ -114,7 +118,7 @@ export function getColumns(onEditarProducto: (producto: ProductoDTO) => void, ca
         cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={getValue() as string || ""} nullable onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val)} className={FONT.codeSoft} disabled={!canEdit} />),
     },
     {
-        accessorKey: "mlaId", header: "MLA", meta: { editable: true },
+        accessorKey: "mlaId", header: "MLA", meta: { editable: true, headerClassName: HEADER_ML },
         cell: ({ row, table }) => (
             <EditableRelationCell
                 initialName={(row.original as any).mlaNombre}
@@ -136,7 +140,7 @@ export function getColumns(onEditarProducto: (producto: ProductoDTO) => void, ca
         cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={getValue() as string} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val)} className={FONT.text} disabled={!canEdit} />)
     },
     {
-        accessorKey: "tituloMl", header: "Título ML", size: 220, meta: { editable: true },
+        accessorKey: "tituloMl", header: "Título ML", size: 220, meta: { editable: true, headerClassName: HEADER_ML },
         cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={(getValue() as string) ?? ""} nullable onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val)} className={FONT.title} disabled={!canEdit} />)
     },
     {
@@ -425,24 +429,24 @@ export function getColumns(onEditarProducto: (producto: ProductoDTO) => void, ca
 
     // --- PAQUETE ML (envío): alto/ancho/largo en cm, peso en kg ---
     {
-        accessorKey: "mlPaqAlto", header: "Alto ML", size: 70, enableColumnFilter: false, meta: { editable: true },
+        accessorKey: "mlPaqAlto", header: "Alto ML", size: 70, enableColumnFilter: false, meta: { editable: true, headerClassName: HEADER_ML },
         cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={String(getValue() ?? "")} type="number" nullable className={FONT.codeSoft} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val === null ? null : Number(val))} disabled={!canEdit} />)
     },
     {
-        accessorKey: "mlPaqAncho", header: "Ancho ML", size: 70, enableColumnFilter: false, meta: { editable: true },
+        accessorKey: "mlPaqAncho", header: "Ancho ML", size: 70, enableColumnFilter: false, meta: { editable: true, headerClassName: HEADER_ML },
         cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={String(getValue() ?? "")} type="number" nullable className={FONT.codeSoft} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val === null ? null : Number(val))} disabled={!canEdit} />)
     },
     {
-        accessorKey: "mlPaqLargo", header: "Largo ML", size: 70, enableColumnFilter: false, meta: { editable: true },
+        accessorKey: "mlPaqLargo", header: "Largo ML", size: 70, enableColumnFilter: false, meta: { editable: true, headerClassName: HEADER_ML },
         cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={String(getValue() ?? "")} type="number" nullable className={FONT.codeSoft} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val === null ? null : Number(val))} disabled={!canEdit} />)
     },
     {
-        accessorKey: "mlPaqPeso", header: "Peso ML", size: 70, enableColumnFilter: false, meta: { editable: true },
+        accessorKey: "mlPaqPeso", header: "Peso ML", size: 70, enableColumnFilter: false, meta: { editable: true, headerClassName: HEADER_ML },
         cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={String(getValue() ?? "")} type="number" nullable className={FONT.codeSoft} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val === null ? null : Number(val))} disabled={!canEdit} />)
     },
     {
         // Categoría de Mercado Libre: solo lectura (se elige con el predictor en el formulario).
-        accessorKey: "mlCategoryNombre", header: "Categoría ML", size: 170, enableColumnFilter: false,
+        accessorKey: "mlCategoryNombre", header: "Categoría ML", size: 170, enableColumnFilter: false, meta: { headerClassName: HEADER_ML },
         cell: ({ getValue }) => { const v = getValue() as string | null; return <span className="block truncate text-xs text-slate-600 dark:text-slate-300" title={v ?? ""}>{v || "—"}</span>; }
     },
 

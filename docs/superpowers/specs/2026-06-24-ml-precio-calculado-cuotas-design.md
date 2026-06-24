@@ -65,10 +65,12 @@ y **no escribe nada en la tabla `mlas`**. La persistencia de `mlas.comisionPorce
 **sin cambios de comportamiento**. El cálculo de envío y comisión que hoy alimenta el
 monitor de precios y los recálculos **no se modifica**.
 
-Si se comparte lógica entre el cálculo previo (sin MLA) y el actual (por MLA), será
-únicamente cálculo **puro** del PVP estabilizado (sin acceso a BD), garantizando con tests
-de regresión que el flujo por-MLA produce resultados idénticos a los actuales. Alternativa
-aceptable: implementar el cálculo previo como código separado, sin tocar esos métodos.
+La matemática iterativa (PVP ↔ envío ↔ comisión) se extrae a un **núcleo puro** (sin
+acceso a BD ni red — recibe las dependencias como funciones/valores) que comparten ambos
+caminos: el cálculo previo (sin MLA) y el actual (por MLA). Esto evita duplicar la lógica
+y deja una sola fuente de verdad. Se cubre con **tests de regresión** que garantizan que el
+flujo por-MLA produce resultados idénticos a los actuales, preservando la persistencia en
+`mlas`.
 
 ## Flujo del alta (Fase 1)
 

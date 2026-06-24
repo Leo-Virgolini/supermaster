@@ -1855,10 +1855,11 @@ public class MercadoLibreService {
      *  - soldQtyFn(mla) → unidades vendidas (para decidir si se puede cambiar el título).
      *  - putTitle(mla, title) → PUT del título (solo se llama si sold_quantity == 0).
      *  - putDesc(mla, plainText) → PUT de la descripción.
-     *  - updatePrice(mla, price) → actualiza el precio (price = costo × 5).
+     *  - updatePrice(mla, price) → actualiza el precio (price = precioFinal).
      *  - resolverPictureIds(sku) → lista de picture IDs ya subidos (vacía = sin imágenes).
      *  - putPictures(mla, pictureIds) → PUT del array de imágenes (solo si no vacío).
      *  - putStatus(mla, status) → cambia el estado de publicación ("active"/"paused", best-effort).
+     *  - precioFinal → PVP calculado; si null, se agrega advertencia y se saltea updatePrice (no aborta).
      */
     public static ResultadoAltaMl actualizarItemEnMlCore(
             ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto, String mla,
@@ -1869,12 +1870,11 @@ public class MercadoLibreService {
             Function<String, List<String>> resolverPictureIds,
             BiConsumer<String, List<String>> putPictures,
             ActualizadorEstadoItem putStatus,
-            BiConsumer<String, List<Map<String, Object>>> putAttributes) {
+            BiConsumer<String, List<Map<String, Object>>> putAttributes,
+            BigDecimal precioFinal) {
         try {
             if (producto.getTituloMl() == null || producto.getTituloMl().isBlank())
                 return ResultadoAltaMl.error("falta título ML");
-            if (producto.getCosto() == null)
-                return ResultadoAltaMl.error("falta costo");
 
             String advertencia = null;
             int soldQty = soldQtyFn.apply(mla);
@@ -1894,8 +1894,9 @@ public class MercadoLibreService {
                 advertencia = concatAdv(advertencia, "atributos no actualizados");
             }
 
-            double price = producto.getCosto().multiply(MULTIPLICADOR_PRECIO_ML).doubleValue();
-            if (!updatePrice.actualizar(mla, price)) {
+            if (precioFinal == null) {
+                advertencia = concatAdv(advertencia, "precio no actualizado");
+            } else if (!updatePrice.actualizar(mla, precioFinal.doubleValue())) {
                 advertencia = concatAdv(advertencia, "precio no actualizado");
             }
 
@@ -1925,6 +1926,18 @@ public class MercadoLibreService {
         if (!isConfigured()) return ResultadoAltaMl.error("Mercado Libre no configurado");
         verificarTokens();
         ImagenService.FiltroImagenes filtro = imagenService.filtrarParaCanal(producto.getSku(), EXT_ML);
+
+        // Obtener la categoría del ítem ya publicado para calcular el precio.
+        BigDecimal precioFinal;
+        try {
+            ar.com.leo.super_master_backend.apis.ml.model.Producto itemPublicado = getItemByMLA(mla);
+            String categoryId = (itemPublicado != null) ? itemPublicado.categoryId : null;
+            precioFinal = calcularPrecioFinalParaPublicar(producto, categoryId, 0); // 0 = contado (Fase 1)
+        } catch (Exception e) {
+            log.warn("ML - no se pudo calcular precio para actualización de {}: {}", mla, e.getMessage());
+            precioFinal = null;
+        }
+
         ResultadoAltaMl r = actualizarItemEnMlCore(
                 producto, mla,
                 this::leerSoldQuantity,
@@ -1967,7 +1980,8 @@ public class MercadoLibreService {
                         retryHandler.putJson("/items/" + m, () -> tokens.accessToken,
                                 objectMapper.writeValueAsString(Map.of("attributes", attrs)));
                     } catch (Exception e) { throw new RuntimeException("atributos: " + e.getMessage(), e); }
-                });
+                },
+                precioFinal);
         return aplicarRechazadasImagenes(r, filtro.rechazadas());
     }
 

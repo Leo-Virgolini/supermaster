@@ -6,6 +6,7 @@ import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,14 +41,15 @@ class ActualizarItemEnMlTest {
                 (mla, p) -> { precio[0] = p; return true; },
                 sku -> java.util.List.of(),
                 (mla, pics) -> {},
-                (mla, status) -> true, (mla, attrs) -> {});   // putStatus + putAttributes
+                (mla, status) -> true, (mla, attrs) -> {},
+                new BigDecimal("5000"));           // precioFinal inyectado
 
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);
         assertThat(r.itemId()).isEqualTo("MLA111");
         assertThat(r.advertencia()).isNull();
         assertThat(titulo.get()).isEqualTo("Olla acero 24cm premium");
         assertThat(desc.get()).contains("CARACTERÍSTICAS");
-        assertThat(precio[0]).isEqualTo(5000.0); // 1000 x 5
+        assertThat(precio[0]).isEqualTo(5000.0);
     }
 
     @Test
@@ -63,12 +65,13 @@ class ActualizarItemEnMlTest {
                 (mla, p) -> { precio[0] = p; return true; },
                 sku -> java.util.List.of(),
                 (mla, pics) -> {},
-                (mla, status) -> true, (mla, attrs) -> {});   // putStatus + putAttributes
+                (mla, status) -> true, (mla, attrs) -> {},
+                new BigDecimal("4500"));           // precioFinal inyectado
 
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);
         assertThat(titulo.get()).isNull();          // título NO actualizado
         assertThat(r.advertencia()).contains("ventas");
-        assertThat(precio[0]).isEqualTo(5000.0);    // precio sí
+        assertThat(precio[0]).isEqualTo(4500.0);   // precio sí, con el valor inyectado
     }
 
     @Test
@@ -78,7 +81,8 @@ class ActualizarItemEnMlTest {
         ResultadoAltaMl r = MercadoLibreService.actualizarItemEnMlCore(
                 p, "MLA333", mla -> 0, (a, b) -> {}, (a, b) -> {}, (a, b) -> true,
                 sku -> java.util.List.of(), (mla, pics) -> {},
-                (mla, status) -> true, (mla, attrs) -> {});
+                (mla, status) -> true, (mla, attrs) -> {},
+                new BigDecimal("5000"));
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ERROR);
     }
 
@@ -94,7 +98,8 @@ class ActualizarItemEnMlTest {
                 (mla, p) -> true,
                 sku -> java.util.List.of("pic1", "pic2"),
                 (mla, pics) -> picsPuestas.set(pics),
-                (mla, status) -> true, (mla, attrs) -> {});   // putStatus + putAttributes
+                (mla, status) -> true, (mla, attrs) -> {},
+                new BigDecimal("5000"));
 
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);
         assertThat(picsPuestas.get()).containsExactly("pic1", "pic2");
@@ -109,7 +114,8 @@ class ActualizarItemEnMlTest {
                 mla -> 0, (mla, t) -> {}, (mla, d) -> {}, (mla, p) -> true,
                 sku -> java.util.List.of(),
                 (mla, pics) -> picsPuestas.set(pics),
-                (mla, status) -> true, (mla, attrs) -> {});   // putStatus + putAttributes
+                (mla, status) -> true, (mla, attrs) -> {},
+                new BigDecimal("5000"));
 
         assertThat(picsPuestas.get()).isNull(); // no se llamó putPictures
     }
@@ -121,7 +127,8 @@ class ActualizarItemEnMlTest {
                 mla -> 0, (mla, t) -> {}, (mla, d) -> {}, (mla, p) -> true,
                 sku -> { throw new RuntimeException("fallo subir imagen"); },
                 (mla, pics) -> {},
-                (mla, status) -> true, (mla, attrs) -> {});   // putStatus + putAttributes
+                (mla, status) -> true, (mla, attrs) -> {},
+                new BigDecimal("5000"));
 
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);
         assertThat(r.advertencia()).contains("imágenes");
@@ -134,7 +141,8 @@ class ActualizarItemEnMlTest {
                 mla -> 0, (mla, t) -> {}, (mla, d) -> {},
                 (mla, p) -> false,                 // updatePrice falla
                 sku -> java.util.List.of(), (mla, pics) -> {},
-                (mla, status) -> true, (mla, attrs) -> {});   // putStatus + putAttributes
+                (mla, status) -> true, (mla, attrs) -> {},
+                new BigDecimal("5000"));
 
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);
         assertThat(r.advertencia()).contains("precio");
@@ -147,7 +155,8 @@ class ActualizarItemEnMlTest {
                 productoActivo(true), "MLA888",
                 mla -> 0, (mla, t) -> {}, (mla, d) -> {}, (mla, p) -> true,
                 sku -> java.util.List.of(), (mla, pics) -> {},
-                (mla, status) -> { statusPuesto.set(status); return true; }, (mla, attrs) -> {});
+                (mla, status) -> { statusPuesto.set(status); return true; }, (mla, attrs) -> {},
+                new BigDecimal("5000"));
         assertThat(statusPuesto.get()).isEqualTo("active");
     }
 
@@ -158,7 +167,8 @@ class ActualizarItemEnMlTest {
                 productoActivo(false), "MLA999",
                 mla -> 0, (mla, t) -> {}, (mla, d) -> {}, (mla, p) -> true,
                 sku -> java.util.List.of(), (mla, pics) -> {},
-                (mla, status) -> { statusPuesto.set(status); return true; }, (mla, attrs) -> {});
+                (mla, status) -> { statusPuesto.set(status); return true; }, (mla, attrs) -> {},
+                new BigDecimal("5000"));
         assertThat(statusPuesto.get()).isEqualTo("paused");
     }
 
@@ -168,7 +178,8 @@ class ActualizarItemEnMlTest {
                 productoActivo(true), "MLA1010",
                 mla -> 0, (mla, t) -> {}, (mla, d) -> {}, (mla, p) -> true,
                 sku -> java.util.List.of(), (mla, pics) -> {},
-                (mla, status) -> false, (mla, attrs) -> {});   // putStatus falla
+                (mla, status) -> false, (mla, attrs) -> {},   // putStatus falla
+                new BigDecimal("5000"));
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);
         assertThat(r.advertencia()).contains("estado");
     }
@@ -187,7 +198,8 @@ class ActualizarItemEnMlTest {
                 mla -> 0, (mla, t) -> {}, (mla, d) -> {},
                 (mla, p) -> false,                 // precio falla
                 sku -> java.util.List.of(), (mla, pics) -> {},
-                (mla, status) -> false, (mla, attrs) -> {});           // estado falla
+                (mla, status) -> false, (mla, attrs) -> {},           // estado falla
+                new BigDecimal("5000"));
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);
         assertThat(r.advertencia()).contains("precio").contains("estado").contains("; ");
     }
@@ -200,7 +212,8 @@ class ActualizarItemEnMlTest {
                 mla -> 0, (mla, t) -> {}, (mla, d) -> {}, (mla, p) -> true,
                 sku -> java.util.List.of(), (mla, pics) -> {},
                 (mla, status) -> true,
-                (mla, a) -> attrs.set(a));
+                (mla, a) -> attrs.set(a),
+                new BigDecimal("5000"));
         assertThat(attrs.get()).isNotNull();
         assertThat(attrs.get().stream().anyMatch(m -> "SELLER_SKU".equals(m.get("id")))).isTrue();
         assertThat(attrs.get().stream().anyMatch(m -> "IMPORT_DUTY".equals(m.get("id")))).isTrue();
@@ -213,8 +226,70 @@ class ActualizarItemEnMlTest {
                 mla -> 0, (mla, t) -> {}, (mla, d) -> {}, (mla, p) -> true,
                 sku -> java.util.List.of(), (mla, pics) -> {},
                 (mla, status) -> true,
-                (mla, a) -> { throw new RuntimeException("ml rechaza atributo"); });
+                (mla, a) -> { throw new RuntimeException("ml rechaza atributo"); },
+                new BigDecimal("5000"));
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);
         assertThat(r.advertencia()).contains("atributos");
+    }
+
+    // ==================== Nuevos tests: precio calculado (Task 8) ====================
+
+    @Test
+    void precioFinalDado_llamaUpdatePriceConEseValor() {
+        double[] precioPasado = new double[1];
+        AtomicBoolean updatePriceLlamado = new AtomicBoolean(false);
+
+        ResultadoAltaMl r = MercadoLibreService.actualizarItemEnMlCore(
+                producto(), "MLA2001",
+                mla -> 0, (mla, t) -> {}, (mla, d) -> {},
+                (mla, p) -> { precioPasado[0] = p; updatePriceLlamado.set(true); return true; },
+                sku -> java.util.List.of(), (mla, pics) -> {},
+                (mla, status) -> true, (mla, attrs) -> {},
+                new BigDecimal("7500.00"));
+
+        assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);
+        assertThat(r.advertencia()).isNull();
+        assertThat(updatePriceLlamado.get()).isTrue();
+        assertThat(precioPasado[0]).isEqualTo(7500.0);
+    }
+
+    @Test
+    void precioFinalNull_noLlamaUpdatePriceYAgregaAdvertencia() {
+        AtomicBoolean updatePriceLlamado = new AtomicBoolean(false);
+
+        ResultadoAltaMl r = MercadoLibreService.actualizarItemEnMlCore(
+                producto(), "MLA2002",
+                mla -> 0, (mla, t) -> {}, (mla, d) -> {},
+                (mla, p) -> { updatePriceLlamado.set(true); return true; },
+                sku -> java.util.List.of(), (mla, pics) -> {},
+                (mla, status) -> true, (mla, attrs) -> {},
+                null);                             // precioFinal = null
+
+        assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);   // NO aborta
+        assertThat(updatePriceLlamado.get()).isFalse();                          // NO llama updatePrice
+        assertThat(r.advertencia()).contains("precio no actualizado");
+    }
+
+    @Test
+    void precioFinalNull_restoDelUpdateContinua() {
+        AtomicReference<String> titulo = new AtomicReference<>();
+        AtomicReference<String> desc = new AtomicReference<>();
+        AtomicReference<String> status = new AtomicReference<>();
+
+        ResultadoAltaMl r = MercadoLibreService.actualizarItemEnMlCore(
+                productoActivo(true), "MLA2003",
+                mla -> 0,
+                (mla, t) -> titulo.set(t),
+                (mla, d) -> desc.set(d),
+                (mla, p) -> true,
+                sku -> java.util.List.of(), (mla, pics) -> {},
+                (mla, s) -> { status.set(s); return true; }, (mla, attrs) -> {},
+                null);                             // precioFinal = null
+
+        assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);
+        assertThat(titulo.get()).isEqualTo("Olla acero 24cm premium"); // título actualizado
+        assertThat(desc.get()).contains("CARACTERÍSTICAS");            // descripción actualizada
+        assertThat(status.get()).isEqualTo("active");                  // estado actualizado
+        assertThat(r.advertencia()).contains("precio no actualizado");
     }
 }

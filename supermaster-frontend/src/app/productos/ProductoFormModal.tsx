@@ -242,6 +242,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         if (uxb < 1) errors.uxb = "UxB debe ser al menos 1";
         if (!clasifGralId && !clasifGastroId) errors.clasificacion = "Seleccioná al menos una clasificación (general o gastronómica)";
         if (!tipoId) errors.tipoId = "El tipo es obligatorio";
+        if (!sectorDepositoId) errors.sectorDeposito = "El sector de depósito es obligatorio (Dux lo requiere)";
         if (!esCombo) {
             if (!marcaId) errors.marcaId = "La marca es obligatoria";
             if (!origenId) errors.origenId = "El origen es obligatorio";
@@ -1093,14 +1094,15 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                             </div>
                             <div>
                                 <AsyncSelect
-                                    label="Sector de depósito"
+                                    label={<>Sector de depósito <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span></>}
                                     loadOptions={searchSectoresDeposito}
-                                    onChange={(v, label) => { setSectorDepositoId(v ? Number(v) : null); setSectorDepositoDisplay(v ? (label ?? "") : ""); }}
+                                    onChange={(v, label) => { setSectorDepositoId(v ? Number(v) : null); setSectorDepositoDisplay(v ? (label ?? "") : ""); if (formErrors.sectorDeposito) setFormErrors(p => ({ ...p, sectorDeposito: "" })); }}
                                     value={sectorDepositoId}
                                     displayValue={sectorDepositoDisplay}
                                     placeholder="Buscar sector (T1, COMBOS, ...)"
-                                    inputClassName={inputBaseClassName}
+                                    inputClassName={`${inputBaseClassName} ${formErrors.sectorDeposito ? inputErrorClassName : ""}`}
                                 />
+                                {formErrors.sectorDeposito && <p className="mt-1 text-xs text-red-500">{formErrors.sectorDeposito}</p>}
                             </div>
                             <label className="block">
                                 <span className={fieldLabelClassName}>Tag {!esCombo && <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span>}</span>

@@ -17,6 +17,12 @@ public final class NubeDescripcionBuilder {
     public static String construir(Producto p) {
         StringBuilder sb = new StringBuilder("<p><b>CARACTERÍSTICAS</b></p><ul>");
 
+        // Orden: Marca, Material, Dimensiones, Apto.
+        if (p.getMarca() != null && p.getMarca().getNombre() != null)
+            sb.append("<li>").append(label("Marca")).append(" ").append(escape(p.getMarca().getNombre())).append("</li>");
+        if (p.getMaterial() != null && p.getMaterial().getNombre() != null)
+            sb.append("<li>").append(label("Material")).append(" ").append(escape(p.getMaterial().getNombre())).append("</li>");
+
         List<String> dims = dimensiones(p);
         if (!dims.isEmpty()) {
             // Dimensiones como sub-lista: un sub-bullet por medida.
@@ -24,13 +30,14 @@ public final class NubeDescripcionBuilder {
             for (String d : dims) sb.append("<li>").append(escape(d)).append("</li>");
             sb.append("</ul></li>");
         }
-        if (p.getMaterial() != null && p.getMaterial().getNombre() != null)
-            sb.append("<li>").append(label("Material")).append(" ").append(escape(p.getMaterial().getNombre())).append("</li>");
-        String aptos = aptos(p);
-        if (!aptos.isBlank())
-            sb.append("<li>").append(label("Apto")).append(" ").append(escape(aptos)).append("</li>");
-        if (p.getMarca() != null && p.getMarca().getNombre() != null)
-            sb.append("<li>").append(label("Marca")).append(" ").append(escape(p.getMarca().getNombre())).append("</li>");
+
+        List<String> aptos = aptos(p);
+        if (!aptos.isEmpty()) {
+            // Aptos como sub-lista: un sub-bullet por apto.
+            sb.append("<li>").append(label("Apto")).append("<ul>");
+            for (String a : aptos) sb.append("<li>").append(escape(a)).append("</li>");
+            sb.append("</ul></li>");
+        }
 
         sb.append("</ul>");
         return sb.toString();
@@ -44,13 +51,14 @@ public final class NubeDescripcionBuilder {
     /** Una entrada por dimensión presente: "Capacidad: 200 ml", "Largo: 25 cm", ... (la unidad la trae el valor cargado). */
     private static List<String> dimensiones(Producto p) {
         List<String> partes = new ArrayList<>();
-        agregar(partes, "Capacidad", p.getCapacidad());
+        // Medidas primero, capacidad al final.
         agregar(partes, "Largo", p.getLargo());
         agregar(partes, "Ancho", p.getAncho());
         agregar(partes, "Alto", p.getAlto());
         agregar(partes, "Diámetro boca", p.getDiamboca());
         agregar(partes, "Diámetro base", p.getDiambase());
         agregar(partes, "Espesor", p.getEspesor());
+        agregar(partes, "Capacidad", p.getCapacidad());
         return partes;
     }
 
@@ -58,12 +66,12 @@ public final class NubeDescripcionBuilder {
         if (valor != null && !valor.isBlank()) partes.add(label + ": " + valor.trim());
     }
 
-    private static String aptos(Producto p) {
-        if (p.getProductosApto() == null) return "";
+    private static List<String> aptos(Producto p) {
+        if (p.getProductosApto() == null) return List.of();
         return p.getProductosApto().stream()
                 .filter(pa -> pa.getApto() != null && pa.getApto().getNombre() != null)
                 .map(pa -> pa.getApto().getNombre())
-                .collect(Collectors.joining(", "));
+                .collect(Collectors.toList());
     }
 
     private static String escape(String s) {

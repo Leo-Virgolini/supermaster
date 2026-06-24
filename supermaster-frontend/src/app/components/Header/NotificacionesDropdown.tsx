@@ -43,11 +43,20 @@ function NotificacionItem({ notif, onMarcarLeida }: { notif: Notificacion; onMar
             .catch(() => toast.error("No se pudo copiar al portapapeles"));
     };
 
+    // Copia el mensaje completo (más el detalle, si lo hay) de la notificación.
+    const handleCopiarMensaje = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const texto = tieneDetalle ? `${notif.mensaje}\n\n${notif.detalle}` : notif.mensaje;
+        navigator.clipboard.writeText(texto)
+            .then(() => toast.success("Notificación copiada al portapapeles"))
+            .catch(() => toast.error("No se pudo copiar al portapapeles"));
+    };
+
     return (
-        <div className={`${!notif.leida ? "bg-blue-50/50 dark:bg-blue-500/5" : ""}`}>
+        <div className={`relative group ${!notif.leida ? "bg-blue-50/50 dark:bg-blue-500/5" : ""}`}>
             <button
                 onClick={handleClick}
-                className="w-full text-left px-3 py-2.5 flex gap-3 items-start hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
+                className="w-full text-left px-3 py-2.5 pr-9 flex gap-3 items-start hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
             >
                 <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${config.dot} ${!notif.leida ? "opacity-100" : "opacity-30"}`} />
                 <div className="flex-1 min-w-0">
@@ -65,6 +74,15 @@ function NotificacionItem({ notif, onMarcarLeida }: { notif: Notificacion; onMar
                         <span>{notif.usuario}</span>
                     </div>
                 </div>
+            </button>
+            {/* Copiar la notificación completa (mensaje + detalle). Hermano del botón
+                principal para no anidar <button>; aparece al pasar el mouse. */}
+            <button
+                onClick={handleCopiarMensaje}
+                className="absolute right-2 top-2 p-1 rounded text-gray-400 opacity-0 group-hover:opacity-100 hover:text-blue-600 hover:bg-blue-50 dark:text-slate-500 dark:hover:text-blue-400 dark:hover:bg-blue-500/10 transition-all"
+                title="Copiar notificación"
+            >
+                <ClipboardDocumentIcon className="w-4 h-4" />
             </button>
             {tieneDetalle && detalleAbierto && (
                 <div className="px-3 pb-2.5 pl-8">

@@ -4,6 +4,7 @@ import ar.com.leo.super_master_backend.dominio.clasif_gral.dto.ClasifGralCreateD
 import ar.com.leo.super_master_backend.dominio.clasif_gral.dto.ClasifGralDTO;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.dto.ClasifGralPatchDTO;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.dto.ClasifGralUpdateDTO;
+import ar.com.leo.super_master_backend.dominio.common.dto.SincronizacionDuxResultDTO;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoResumenDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,5 +26,7 @@ public interface ClasifGralService {
     void eliminar(Integer id);
 
     List<ProductoResumenDTO> listarProductos(Integer clasifGralId);
+
+    SincronizacionDuxResultDTO sincronizarDuxIds();
 }
 

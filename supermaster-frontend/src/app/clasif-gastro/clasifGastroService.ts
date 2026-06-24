@@ -62,6 +62,18 @@ export const deleteClasifGastroAPI = async (id: number, origin: ClasifGastroAudi
 	return true;
 };
 
+// SINCRONIZAR DUX: dispara la sincronización de id_dux contra Dux
+export const sincronizarDuxIdsAPI = async (
+	origin: ClasifGastroAuditOrigin = "API",
+): Promise<{ nivel1: number; nivel2: number; actualizados: number; sinMatch: number }> => {
+	const response = await fetchAPI(`${API_URL}/sincronizar-dux`, {
+		method: "POST",
+		headers: withAuditOrigin(origin),
+	});
+	if (!response.ok) throw new Error("Error al sincronizar id_dux con Dux");
+	return await response.json();
+};
+
 // UPDATE
 export const updateClasifGastroAPI = async (id: number, data: Partial<{ nombre: string; esMaquina: boolean; padreId: number | null; idDux: number | null }>, origin: ClasifGastroAuditOrigin = "API") => {
 	const response = await fetchAPI(`${API_URL}/${id}`, {

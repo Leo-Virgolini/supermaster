@@ -4,6 +4,7 @@ import ar.com.leo.super_master_backend.dominio.clasif_gastro.dto.ClasifGastroCre
 import ar.com.leo.super_master_backend.dominio.clasif_gastro.dto.ClasifGastroDTO;
 import ar.com.leo.super_master_backend.dominio.clasif_gastro.dto.ClasifGastroPatchDTO;
 import ar.com.leo.super_master_backend.dominio.clasif_gastro.dto.ClasifGastroUpdateDTO;
+import ar.com.leo.super_master_backend.dominio.common.dto.SincronizacionDuxResultDTO;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoResumenDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,5 +26,7 @@ public interface ClasifGastroService {
     void eliminar(Integer id);
 
     List<ProductoResumenDTO> listarProductos(Integer clasifGastroId);
+
+    SincronizacionDuxResultDTO sincronizarDuxIds();
 }
 

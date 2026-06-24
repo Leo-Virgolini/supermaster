@@ -2,6 +2,10 @@ package ar.com.leo.super_master_backend.dominio.clasif_gral.service;
 
 import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaAccion;
 import ar.com.leo.super_master_backend.dominio.auditoria.entity.AuditoriaEntidad;
+import ar.com.leo.super_master_backend.apis.dux.dto.DuxRubro;
+import ar.com.leo.super_master_backend.apis.dux.dto.DuxSubrubro;
+import ar.com.leo.super_master_backend.apis.dux.service.ClasifDuxMatcher;
+import ar.com.leo.super_master_backend.apis.dux.service.DuxService;
 import ar.com.leo.super_master_backend.dominio.auditoria.service.AuditoriaService;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.dto.ClasifGralCreateDTO;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.dto.ClasifGralDTO;
@@ -10,23 +14,27 @@ import ar.com.leo.super_master_backend.dominio.clasif_gral.dto.ClasifGralUpdateD
 import ar.com.leo.super_master_backend.dominio.clasif_gral.entity.ClasifGral;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.mapper.ClasifGralMapper;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.repository.ClasifGralRepository;
+import ar.com.leo.super_master_backend.dominio.common.dto.SincronizacionDuxResultDTO;
 import ar.com.leo.super_master_backend.dominio.common.exception.BadRequestException;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoResumenDTO;
 import ar.com.leo.super_master_backend.dominio.producto.mapper.ProductoMapper;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import static ar.com.leo.super_master_backend.dominio.common.util.JsonNullableFields.*;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ClasifGralServiceImpl implements ClasifGralService {
@@ -36,6 +44,7 @@ public class ClasifGralServiceImpl implements ClasifGralService {
     private final ProductoRepository productoRepository;
     private final ProductoMapper productoMapper;
     private final AuditoriaService auditoriaService;
+    private final DuxService duxService;
 
     @Override
     @Transactional(readOnly = true)
@@ -137,6 +146,70 @@ public class ClasifGralServiceImpl implements ClasifGralService {
                 .toList();
     }
 
+
+    @Override
+    @Transactional
+    public SincronizacionDuxResultDTO sincronizarDuxIds() {
+        List<ClasifGral> entidades = repo.findAll();
+
+        List<ClasifDuxMatcher.ClasifNodo> nodos = new ArrayList<>();
+        for (ClasifGral e : entidades) {
+            ClasifGral padre = e.getPadre();
+            boolean tienePadre = padre != null;
+            String nombrePadre = padre != null ? padre.getNombre() : null;
+            boolean padreEsRaiz = padre != null && padre.getPadre() == null;
+            nodos.add(new ClasifDuxMatcher.ClasifNodo(e.getId(), e.getNombre(), nombrePadre, tienePadre, padreEsRaiz));
+        }
+
+        List<DuxRubro> rubros = duxService.obtenerRubros();
+        List<DuxSubrubro> subrubros = duxService.obtenerSubrubros();
+
+        Map<Integer, Integer> asign = ClasifDuxMatcher.match(nodos, rubros, subrubros);
+
+        int nivel1 = 0;
+        int nivel2 = 0;
+        int actualizados = 0;
+        int sinMatch = 0;
+        List<ClasifGral> modificadas = new ArrayList<>();
+
+        for (ClasifGral e : entidades) {
+            ClasifGral padre = e.getPadre();
+            boolean tienePadre = padre != null;
+            boolean padreEsRaiz = padre != null && padre.getPadre() == null;
+
+            boolean considerada;
+            if (!tienePadre) {
+                nivel1++;
+                considerada = true;
+            } else if (padreEsRaiz) {
+                nivel2++;
+                considerada = true;
+            } else {
+                considerada = false; // nivel 3+: ignorada
+            }
+
+            if (!considerada) continue;
+
+            Integer idDuxNuevo = asign.get(e.getId());
+            if (idDuxNuevo == null) {
+                sinMatch++;
+                continue;
+            }
+
+            if (e.getIdDux() == null || !e.getIdDux().equals(idDuxNuevo)) {
+                e.setIdDux(idDuxNuevo);
+                actualizados++;
+                modificadas.add(e);
+            }
+        }
+
+        repo.saveAll(modificadas);
+
+        log.info("ClasifGral - Sincronización Dux: nivel1={}, nivel2={}, actualizados={}, sinMatch={}",
+                nivel1, nivel2, actualizados, sinMatch);
+
+        return new SincronizacionDuxResultDTO(nivel1, nivel2, actualizados, sinMatch);
+    }
 
     private Map<String, String> capturarSnapshot(ClasifGral entity) {
         LinkedHashMap<String, String> snapshot = new LinkedHashMap<>();

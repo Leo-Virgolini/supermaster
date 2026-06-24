@@ -66,6 +66,19 @@ export const deleteClasificacionAPI = async (id: number, origin: ClasifGralAudit
 	return true;
 };
 
+// SINCRONIZAR DUX: dispara la sincronización de id_dux contra Dux
+export const sincronizarDuxIdsAPI = async (
+	origin: ClasifGralAuditOrigin = "API",
+): Promise<{ nivel1: number; nivel2: number; actualizados: number; sinMatch: number }> => {
+	const response = await fetchAPI(`${API_URL}/sincronizar-dux`, {
+		method: "POST",
+		headers: withAuditOrigin(origin),
+	});
+
+	if (!response.ok) throw new Error("Error al sincronizar id_dux con Dux");
+	return await response.json();
+};
+
 // UPDATE: Editar una clasificación existente
 export const updateClasificacionAPI = async (
 	id: number,

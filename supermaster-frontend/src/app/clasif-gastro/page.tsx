@@ -2,8 +2,9 @@
 
 import { useState, useMemo } from "react";
 import ErrorBanner from "../components/ErrorBanner/ErrorBanner";
-import { BuildingOfficeIcon, CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { BuildingOfficeIcon, CheckIcon, XMarkIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
 import { confirmDialog } from "../utils/confirmDialog";
+import { notificar } from "../utils/notificar";
 import Table, { getInitialPageSize } from "../components/Table/core/Table";
 import SearchInput from "../components/SearchInput/SearchInput";
 import Button from "../components/Button/Button";
@@ -11,7 +12,7 @@ import CreateButton from "../components/Button/CreateButton";
 import DeleteButton from "../components/Button/DeleteButton";
 import Modal from "../components/Modal/Modal";
 import { useClasifGastro } from "./useClasifGastro";
-import { getClasifGastroAPI } from "./clasifGastroService";
+import { getClasifGastroAPI, sincronizarDuxIdsAPI } from "./clasifGastroService";
 import { getColumns } from "./columns";
 import { type SortingState } from "@tanstack/react-table";
 import AsyncSelect from "../components/AsyncSelect/AsyncSelect";
@@ -33,6 +34,7 @@ export default function ClasifGastroPage() {
     const [nuevoPadreId, setNuevoPadreId] = useState<number | null>(null);
     const [nuevoIdDux, setNuevoIdDux] = useState<string>("");
     const [isSaving, setIsSaving] = useState(false);
+    const [sincronizando, setSincronizando] = useState(false);
 
     const {
         clasifGastros,
@@ -43,6 +45,7 @@ export default function ClasifGastroPage() {
         deleteClasifGastro,
         updateClasifGastro,
         searchClasifGastros,
+        refresh,
     } = useClasifGastro(pageIndex, pageSize, filters, sorting);
 
     const pageCount = totalRecords > 0 ? Math.ceil(totalRecords / pageSize) : 1;
@@ -77,6 +80,19 @@ export default function ClasifGastroPage() {
         } catch (e) { /* hook already toasts */
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleSincronizarDux = async () => {
+        setSincronizando(true);
+        try {
+            const r = await sincronizarDuxIdsAPI("FORM");
+            notificar.success(`Dux: ${r.actualizados} actualizados, ${r.sinMatch} sin coincidencia (niveles ${r.nivel1}+${r.nivel2})`);
+            await refresh();
+        } catch (e: unknown) {
+            notificar.error(e instanceof Error ? e.message : "Error al sincronizar id_dux con Dux");
+        } finally {
+            setSincronizando(false);
         }
     };
 
@@ -158,6 +174,12 @@ export default function ClasifGastroPage() {
                         <DeleteButton onClick={handleDelete}>
                             Borrar ({selectedIds.length})
                         </DeleteButton>
+                    )}
+                    {canEdit && (
+                        <Button variant="light" onClick={handleSincronizarDux} disabled={sincronizando}>
+                            <ArrowPathIcon className={`w-4 h-4 ${sincronizando ? "animate-spin" : ""}`} />
+                            {sincronizando ? "Sincronizando..." : "Sincronizar id_dux con Dux"}
+                        </Button>
                     )}
                     <CreateButton onClick={() => setIsModalOpen(true)} disabled={!canEdit}>
                         Crear Clasif. Gastro

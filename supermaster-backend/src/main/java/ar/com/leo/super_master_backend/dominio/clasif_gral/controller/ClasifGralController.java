@@ -6,6 +6,7 @@ import ar.com.leo.super_master_backend.dominio.clasif_gral.dto.ClasifGralDTO;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.dto.ClasifGralPatchDTO;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.dto.ClasifGralUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.clasif_gral.service.ClasifGralService;
+import ar.com.leo.super_master_backend.dominio.common.dto.SincronizacionDuxResultDTO;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoResumenDTO;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
@@ -81,6 +82,12 @@ public class ClasifGralController {
     public ResponseEntity<List<ProductoResumenDTO>> listarProductos(
             @PathVariable @Positive(message = "El ID debe ser positivo") Integer id) {
         return ResponseEntity.ok(service.listarProductos(id));
+    }
+
+    @PostMapping("/sincronizar-dux")
+    @PreAuthorize(Permisos.MAESTROS_EDITAR)
+    public ResponseEntity<SincronizacionDuxResultDTO> sincronizarDux() {
+        return ResponseEntity.ok(service.sincronizarDuxIds());
     }
 
 }

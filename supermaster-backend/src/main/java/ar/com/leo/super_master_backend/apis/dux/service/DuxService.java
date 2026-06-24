@@ -1519,6 +1519,89 @@ public class DuxService {
     }
 
     // =====================================================
+    // RUBROS Y SUBRUBROS (para sincronizar id_dux de clasificaciones)
+    // =====================================================
+
+    private static final int SYNC_MAX_PAGINAS = 200;
+    private static final int SYNC_MAX_ITEMS = 10000;
+
+    /**
+     * Obtiene todos los rubros de DUX (GET /rubros) con paginación automática.
+     */
+    public java.util.List<ar.com.leo.super_master_backend.apis.dux.dto.DuxRubro> obtenerRubros() {
+        verificarTokens();
+
+        List<ar.com.leo.super_master_backend.apis.dux.dto.DuxRubro> acumulado = new ArrayList<>();
+        int offset = 0;
+        int limit = 50;
+        int paginas = 0;
+
+        while (paginas < SYNC_MAX_PAGINAS && acumulado.size() < SYNC_MAX_ITEMS) {
+            String response = retryHandler.get("/rubros?offset=" + offset + "&limit=" + limit, tokens.token);
+            if (response == null) {
+                log.error("DUX - Error obteniendo rubros en offset {}", offset);
+                break;
+            }
+
+            ar.com.leo.super_master_backend.apis.dux.dto.DuxRubro[] pagina;
+            try {
+                pagina = objectMapper.readValue(response, ar.com.leo.super_master_backend.apis.dux.dto.DuxRubro[].class);
+            } catch (Exception e) {
+                log.error("DUX - Error parseando rubros en offset {}: {}", offset, e.getMessage());
+                break;
+            }
+
+            if (pagina == null || pagina.length == 0) break;
+            acumulado.addAll(Arrays.asList(pagina));
+            paginas++;
+
+            if (pagina.length < limit) break; // última página
+            offset += limit;
+        }
+
+        log.info("DUX - {} rubros obtenidos", acumulado.size());
+        return acumulado;
+    }
+
+    /**
+     * Obtiene todos los subrubros de DUX (GET /subrubros) con paginación automática.
+     */
+    public java.util.List<ar.com.leo.super_master_backend.apis.dux.dto.DuxSubrubro> obtenerSubrubros() {
+        verificarTokens();
+
+        List<ar.com.leo.super_master_backend.apis.dux.dto.DuxSubrubro> acumulado = new ArrayList<>();
+        int offset = 0;
+        int limit = 50;
+        int paginas = 0;
+
+        while (paginas < SYNC_MAX_PAGINAS && acumulado.size() < SYNC_MAX_ITEMS) {
+            String response = retryHandler.get("/subrubros?offset=" + offset + "&limit=" + limit, tokens.token);
+            if (response == null) {
+                log.error("DUX - Error obteniendo subrubros en offset {}", offset);
+                break;
+            }
+
+            ar.com.leo.super_master_backend.apis.dux.dto.DuxSubrubro[] pagina;
+            try {
+                pagina = objectMapper.readValue(response, ar.com.leo.super_master_backend.apis.dux.dto.DuxSubrubro[].class);
+            } catch (Exception e) {
+                log.error("DUX - Error parseando subrubros en offset {}: {}", offset, e.getMessage());
+                break;
+            }
+
+            if (pagina == null || pagina.length == 0) break;
+            acumulado.addAll(Arrays.asList(pagina));
+            paginas++;
+
+            if (pagina.length < limit) break; // última página
+            offset += limit;
+        }
+
+        log.info("DUX - {} subrubros obtenidos", acumulado.size());
+        return acumulado;
+    }
+
+    // =====================================================
     // TOKENS
     // =====================================================
 

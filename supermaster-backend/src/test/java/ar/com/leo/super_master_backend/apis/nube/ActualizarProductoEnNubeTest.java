@@ -2,6 +2,7 @@ package ar.com.leo.super_master_backend.apis.nube;
 
 import ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube;
 import ar.com.leo.super_master_backend.apis.nube.service.TiendaNubeService;
+import ar.com.leo.super_master_backend.apis.openai.dto.SeoGeneradoDTO;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.JsonNode;
@@ -39,7 +40,7 @@ class ActualizarProductoEnNubeTest {
 
         ResultadoAltaNube r = TiendaNubeService.actualizarProductoEnNubeCore(
                 producto(), new BigDecimal("150"), new BigDecimal("180"), om, "9",
-                java.util.List.of(),
+                java.util.List.of(), null,
                 sku -> existente,
                 (uri, body) -> { patchUri.set(uri); patchBody.set(body); },
                 (productId, variantId, price, promo) -> {
@@ -66,7 +67,7 @@ class ActualizarProductoEnNubeTest {
 
         TiendaNubeService.actualizarProductoEnNubeCore(
                 producto(), new BigDecimal("150"), null, om, "9",
-                java.util.List.of(),
+                java.util.List.of(), null,
                 sku -> existente, (uri, body) -> {},
                 (productId, variantId, price, promo) -> { precioPrice.set(price); precioPromo.set(promo); return true; });
 
@@ -78,7 +79,7 @@ class ActualizarProductoEnNubeTest {
     void actualiza_noExiste_error() {
         ResultadoAltaNube r = TiendaNubeService.actualizarProductoEnNubeCore(
                 producto(), new BigDecimal("150"), null, om, "9",
-                java.util.List.of(),
+                java.util.List.of(), null,
                 sku -> null, (uri, body) -> {}, (a, b, c, d) -> true);
         assertThat(r.estado()).isEqualTo(ResultadoAltaNube.Estado.ERROR);
     }
@@ -90,7 +91,7 @@ class ActualizarProductoEnNubeTest {
 
         TiendaNubeService.actualizarProductoEnNubeCore(
                 producto(), new BigDecimal("150"), null, om, "9",
-                java.util.List.of(10L, 20L, 30L),
+                java.util.List.of(10L, 20L, 30L), null,
                 sku -> existente,
                 (uri, body) -> patchBody.set(body),
                 (productId, variantId, price, promo) -> true);
@@ -105,7 +106,7 @@ class ActualizarProductoEnNubeTest {
 
         TiendaNubeService.actualizarProductoEnNubeCore(
                 producto(), new BigDecimal("150"), null, om, "9",
-                java.util.List.of(),
+                java.util.List.of(), null,
                 sku -> existente,
                 (uri, body) -> patchBody.set(body),
                 (productId, variantId, price, promo) -> true);
@@ -123,7 +124,7 @@ class ActualizarProductoEnNubeTest {
         // producto() tiene activo=true por default
         TiendaNubeService.actualizarProductoEnNubeCore(
                 producto(), new BigDecimal("150"), null, om, "9",
-                java.util.List.of(),
+                java.util.List.of(), null,
                 sku -> existente,
                 (uri, body) -> patchBody.set(body),
                 (productId, variantId, price, promo) -> true);
@@ -134,10 +135,29 @@ class ActualizarProductoEnNubeTest {
         AtomicReference<String> patchBody2 = new AtomicReference<>();
         TiendaNubeService.actualizarProductoEnNubeCore(
                 inactivo, new BigDecimal("150"), null, om, "9",
-                java.util.List.of(),
+                java.util.List.of(), null,
                 sku -> existente,
                 (uri, body) -> patchBody2.set(body),
                 (productId, variantId, price, promo) -> true);
         assertThat(patchBody2.get()).doesNotContain("\"published\"");
+    }
+
+    @Test
+    void actualiza_conSeo_incluyeSeoEnElPut() {
+        JsonNode existente = existente("{\"id\":7,\"variants\":[{\"id\":8,\"sku\":\"1234567\"}]}");
+        AtomicReference<String> patchBody = new AtomicReference<>();
+        SeoGeneradoDTO seo = new SeoGeneradoDTO("Titulo SEO", "Descripcion SEO", "uno, dos");
+
+        TiendaNubeService.actualizarProductoEnNubeCore(
+                producto(), new BigDecimal("150"), null, om, "9",
+                java.util.List.of(), seo,
+                sku -> existente,
+                (uri, body) -> patchBody.set(body),
+                (productId, variantId, price, promo) -> true);
+
+        assertThat(patchBody.get())
+                .contains("\"seo_title\"").contains("Titulo SEO")
+                .contains("\"seo_description\"").contains("Descripcion SEO")
+                .contains("\"tags\"").contains("uno").contains("dos");
     }
 }

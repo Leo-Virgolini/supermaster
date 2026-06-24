@@ -44,7 +44,7 @@ class CrearProductoEnNubeTest {
         AtomicReference<String> posted = new AtomicReference<>();
         ResultadoAltaNube r = TiendaNubeService.crearProductoEnNubeCore(
                 store(), producto(), new BigDecimal("1500"), null, om,
-                CLASIF, TIPO, arbol(), creador(),
+                CLASIF, TIPO, arbol(), null, creador(),
                 (sku, token) -> om.createObjectNode().put("id", 1), // existe
                 (uri, body) -> { posted.set(body); return "{}"; });
         assertThat(r.estado()).isEqualTo(ResultadoAltaNube.Estado.YA_EXISTIA);
@@ -56,7 +56,7 @@ class CrearProductoEnNubeTest {
         Producto p = producto(); p.setTituloNube("  ");
         ResultadoAltaNube r = TiendaNubeService.crearProductoEnNubeCore(
                 store(), p, new BigDecimal("1500"), null, om,
-                CLASIF, TIPO, arbol(), creador(),
+                CLASIF, TIPO, arbol(), null, creador(),
                 (sku, token) -> null, (uri, body) -> "{}");
         assertThat(r.estado()).isEqualTo(ResultadoAltaNube.Estado.ERROR);
         assertThat(r.motivo()).containsIgnoringCase("título");
@@ -69,7 +69,7 @@ class CrearProductoEnNubeTest {
         p.setActivo(false);
         ResultadoAltaNube r = TiendaNubeService.crearProductoEnNubeCore(
                 store(), p, new BigDecimal("1500"), null, om,
-                CLASIF, TIPO, arbol(), creador(),
+                CLASIF, TIPO, arbol(), null, creador(),
                 (sku, token) -> null, // no existe
                 (uri, body) -> { posted.set(body); return "{\"id\": 5}"; });
         assertThat(r.estado()).isEqualTo(ResultadoAltaNube.Estado.CREADO);
@@ -80,7 +80,7 @@ class CrearProductoEnNubeTest {
     void faltaClasif_error() {
         ResultadoAltaNube r = TiendaNubeService.crearProductoEnNubeCore(
                 store(), producto(), new BigDecimal("1500"), null, om,
-                null, TIPO, arbol(), creador(),
+                null, TIPO, arbol(), null, creador(),
                 (sku, token) -> null, (uri, body) -> "{}");
         assertThat(r.estado()).isEqualTo(ResultadoAltaNube.Estado.ERROR);
         assertThat(r.motivo()).containsIgnoringCase("clasif");
@@ -90,7 +90,7 @@ class CrearProductoEnNubeTest {
     void faltaTipo_error() {
         ResultadoAltaNube r = TiendaNubeService.crearProductoEnNubeCore(
                 store(), producto(), new BigDecimal("1500"), null, om,
-                CLASIF, List.of(), arbol(), creador(),
+                CLASIF, List.of(), arbol(), null, creador(),
                 (sku, token) -> null, (uri, body) -> "{}");
         assertThat(r.estado()).isEqualTo(ResultadoAltaNube.Estado.ERROR);
         assertThat(r.motivo()).containsIgnoringCase("tipo");
@@ -102,7 +102,7 @@ class CrearProductoEnNubeTest {
         // árbol vacío → se crean las 4: Cocina(101) Ollas(102) Acero(103) Inoxidable(104)
         ResultadoAltaNube r = TiendaNubeService.crearProductoEnNubeCore(
                 store(), producto(), new BigDecimal("1500"), null, om,
-                CLASIF, TIPO, arbol(), creador(),
+                CLASIF, TIPO, arbol(), null, creador(),
                 (sku, token) -> null,
                 (uri, body) -> { posted.set(body); return "{\"id\": 5}"; });
         assertThat(r.estado()).isEqualTo(ResultadoAltaNube.Estado.CREADO);
@@ -111,7 +111,8 @@ class CrearProductoEnNubeTest {
     }
 
     @org.junit.jupiter.api.Test
-    void alta_published_reflejaActivo() {
+    void alta_siempreOculto_publishedFalse() {
+        // El alta siempre crea el producto oculto (published=false), sin importar 'activo'.
         ar.com.leo.super_master_backend.dominio.producto.entity.Producto p =
                 new ar.com.leo.super_master_backend.dominio.producto.entity.Producto();
         p.setSku("1234567");
@@ -119,12 +120,12 @@ class CrearProductoEnNubeTest {
 
         p.setActivo(true);
         var activo = ar.com.leo.super_master_backend.apis.nube.service.NubeProductoPayloadBuilder
-                .construir(p, new java.math.BigDecimal("100"), null, java.util.List.of());
-        org.assertj.core.api.Assertions.assertThat(activo.get("published")).isEqualTo(true);
+                .construir(p, new java.math.BigDecimal("100"), null, java.util.List.of(), null);
+        org.assertj.core.api.Assertions.assertThat(activo.get("published")).isEqualTo(false);
 
         p.setActivo(false);
         var inactivo = ar.com.leo.super_master_backend.apis.nube.service.NubeProductoPayloadBuilder
-                .construir(p, new java.math.BigDecimal("100"), null, java.util.List.of());
+                .construir(p, new java.math.BigDecimal("100"), null, java.util.List.of(), null);
         org.assertj.core.api.Assertions.assertThat(inactivo.get("published")).isEqualTo(false);
     }
 }

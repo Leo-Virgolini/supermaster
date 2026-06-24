@@ -221,7 +221,30 @@ export const exportarProductosADuxAPI = async (skus: string[]): Promise<ExportCa
 	return await res.json();
 };
 
-export type DestinoNube = { tienda: "KT HOGAR" | "KT GASTRO"; cuotas: number };
+export type SeoNube = { seoTitle: string; seoDescription: string; seoTags: string };
+
+export type DestinoNube = { tienda: "KT HOGAR" | "KT GASTRO"; cuotas: number; seo?: SeoNube };
+
+export type SeoContexto = {
+	tituloNube: string;
+	tituloDux: string;
+	marca: string | null;
+	material: string | null;
+	aptos: string[];
+	dimensiones: string[];
+};
+
+// Genera con IA los campos SEO de Tienda Nube (title, description, tags) a partir
+// del contexto del producto. El canal define el tono/segmento (GASTRO vs HOGAR).
+export const generarSeoAPI = async (canal: "GASTRO" | "HOGAR", contexto: SeoContexto): Promise<SeoNube> => {
+	const res = await fetchAPI(`${API_BASE_URL}/api/productos/generar-seo`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ canal, contexto }),
+	});
+	if (!res.ok) throw new Error(await extraerMensajeError(res, "No se pudo generar el SEO con IA"));
+	return await res.json();
+};
 
 // Resultado unificado de exportar/sincronizar a un canal (Nube/ML). Refleja el ExportCanalResultDTO del backend.
 export type ExportCanalResultDTO = {

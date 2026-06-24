@@ -6,6 +6,7 @@ import ar.com.leo.super_master_backend.apis.nube.dto.StockNubeDTO;
 import ar.com.leo.super_master_backend.apis.nube.dto.VentaNubeDTO;
 import ar.com.leo.super_master_backend.apis.nube.model.NubeCredentials;
 import ar.com.leo.super_master_backend.apis.nube.model.NubeCredentials.StoreCredentials;
+import ar.com.leo.super_master_backend.apis.openai.dto.SeoGeneradoDTO;
 import ar.com.leo.super_master_backend.dominio.common.exception.ServiceNotConfiguredException;
 import ar.com.leo.super_master_backend.dominio.imagen.service.ImagenService;
 import jakarta.annotation.PostConstruct;
@@ -918,7 +919,7 @@ public class TiendaNubeService {
     public static ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube actualizarProductoEnNubeCore(
             ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto,
             BigDecimal pvp, BigDecimal pvpInflado, ObjectMapper om, String storeId,
-            List<Long> categoriaIds,
+            List<Long> categoriaIds, SeoGeneradoDTO seo,
             Function<String, JsonNode> buscador,
             BiConsumer<String, String> patcher,
             ActualizadorPrecioVariante precioFn) {
@@ -950,6 +951,7 @@ public class TiendaNubeService {
             if (categoriaIds != null && !categoriaIds.isEmpty()) {
                 body.put("categories", new ArrayList<>(categoriaIds));
             }
+            NubeSeoPayload.aplicar(body, seo);
             patcher.accept("/" + storeId + "/products/" + productId, om.writeValueAsString(body));
 
             // Precio (misma lógica que el alta: inflado => price tachado + promotional)
@@ -970,7 +972,7 @@ public class TiendaNubeService {
     /** Actualiza un producto existente en Nube (name/description/categorias/precio); reutiliza el JSON ya buscado (evita un segundo GET). */
     public ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube actualizarProductoEnNube(
             String storeName, ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto,
-            BigDecimal pvp, BigDecimal pvpInflado, JsonNode existente, List<Long> categoriaIds) {
+            BigDecimal pvp, BigDecimal pvpInflado, JsonNode existente, List<Long> categoriaIds, SeoGeneradoDTO seo) {
         StoreCredentials store;
         try {
             verificarCredenciales();
@@ -982,7 +984,7 @@ public class TiendaNubeService {
 
         ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube r = actualizarProductoEnNubeCore(
                 producto, pvp, pvpInflado, objectMapper, store.getStoreId(),
-                categoriaIds,
+                categoriaIds, seo,
                 sku -> existente,
                 // Tienda Nube actualiza productos con PUT /products/{id} (NO acepta PATCH ahí → 404).
                 (uri, body) -> retryHandler.putJson(uri, store.getAccessToken(), body),
@@ -1039,7 +1041,7 @@ public class TiendaNubeService {
      */
     public ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube crearProductoEnNube(
             String storeName, ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto,
-            java.math.BigDecimal pvp, java.math.BigDecimal pvpInflado, NubeCategoriaArbol arbol) {
+            java.math.BigDecimal pvp, java.math.BigDecimal pvpInflado, NubeCategoriaArbol arbol, SeoGeneradoDTO seo) {
         StoreCredentials store;
         try {
             verificarCredenciales();
@@ -1058,7 +1060,7 @@ public class TiendaNubeService {
         NubeCategoriaArbol arbolUsar = arbol != null ? arbol : new NubeCategoriaArbol();
         ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube r = crearProductoEnNubeCore(
                 store, producto, pvp, pvpInflado, objectMapper,
-                clasifNombres, tipoNombres, arbolUsar,
+                clasifNombres, tipoNombres, arbolUsar, seo,
                 (parentId, nombre) -> crearCategoria(store, parentId, nombre),
                 (sku, token) -> buscarProductoPorSku(sku, storeName),
                 (uri, body) -> retryHandler.postJson(uri, store.getAccessToken(), body));
@@ -1079,7 +1081,7 @@ public class TiendaNubeService {
             java.math.BigDecimal pvp, java.math.BigDecimal pvpInflado,
             ObjectMapper om,
             List<String> clasifNombres, List<String> tipoNombres,
-            NubeCategoriaArbol arbol,
+            NubeCategoriaArbol arbol, SeoGeneradoDTO seo,
             BiFunction<Long, String, Long> creadorCategoria,
             java.util.function.BiFunction<String, String, JsonNode> buscador,
             java.util.function.BiFunction<String, String, String> poster) {
@@ -1095,7 +1097,7 @@ public class TiendaNubeService {
             rutaNombres.addAll(tipoNombres);
             List<Long> categoriaIds = NubeCategoriaResolver.resolver(arbol, rutaNombres, creadorCategoria);
 
-            Map<String, Object> payload = NubeProductoPayloadBuilder.construir(producto, pvp, pvpInflado, categoriaIds);
+            Map<String, Object> payload = NubeProductoPayloadBuilder.construir(producto, pvp, pvpInflado, categoriaIds, seo);
             String body = om.writeValueAsString(payload);
             String uri = "/" + store.getStoreId() + "/products";
             String respuesta = poster.apply(uri, body);

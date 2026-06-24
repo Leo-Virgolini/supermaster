@@ -68,10 +68,10 @@ public class NubeExportService {
                 if (existenteEnNube != null) {
                     List<Long> categoriaIds = tiendaNubeService.resolverCategoriaIds(tienda, producto, arbol);
                     r = tiendaNubeService.actualizarProductoEnNube(
-                            tienda, producto, precio.get().getPvp(), precio.get().getPvpInflado(), existenteEnNube, categoriaIds);
+                            tienda, producto, precio.get().getPvp(), precio.get().getPvpInflado(), existenteEnNube, categoriaIds, destino.seo());
                 } else {
                     r = tiendaNubeService.crearProductoEnNube(
-                            tienda, producto, precio.get().getPvp(), precio.get().getPvpInflado(), arbol);
+                            tienda, producto, precio.get().getPvp(), precio.get().getPvpInflado(), arbol, destino.seo());
                 }
                 switch (r.estado()) {
                     case CREADO -> {

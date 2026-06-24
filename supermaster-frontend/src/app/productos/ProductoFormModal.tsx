@@ -14,6 +14,7 @@ import {
     searchCatalogos, searchAptos, searchClientes, searchCanales, addProductoCatalogoAPI, addProductoAptoAPI, addProductoClienteAPI,
     removeProductoCatalogoAPI, removeProductoAptoAPI, removeProductoClienteAPI, updateProductoAPI, getNombreById,
     exportarProductosADuxAPI, calcularEnvioMlaAPI, exportarProductosANubeAPI, exportarProductosAMlAPI, recalcularProductoAPI,
+    generarSeoAPI, type DestinoNube, type SeoNube,
     searchSectoresDeposito, predecirCategoriasMlAPI, type PrediccionCategoriaMl,
     getImagenDetalleAPI, type ImagenDetalle,
 } from "./productosService";
@@ -120,6 +121,11 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const [cuotaGastro, setCuotaGastro] = useState<number>(6);
     const [cuotasHogarOpts, setCuotasHogarOpts] = useState<CuotaOpcion[]>([]);
     const [cuotasGastroOpts, setCuotasGastroOpts] = useState<CuotaOpcion[]>([]);
+    // SEO de Tienda Nube por canal (NO se persiste: arranca vacío siempre, en alta y edición).
+    // Si el usuario genera/edita estos campos, se usan al exportar; si quedan vacíos, se autogeneran.
+    const [seoHogar, setSeoHogar] = useState<{ title: string; description: string; tags: string }>({ title: "", description: "", tags: "" });
+    const [seoGastro, setSeoGastro] = useState<{ title: string; description: string; tags: string }>({ title: "", description: "", tags: "" });
+    const [generandoSeo, setGenerandoSeo] = useState<null | "GASTRO" | "HOGAR">(null);
     // Resultado de las subidas a canales (para el panel de estado + reintento).
     const [resultadosCanal, setResultadosCanal] = useState<ResultadoCanal[]>([]);
     const [skuSubida, setSkuSubida] = useState("");
@@ -331,19 +337,32 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             })());
         }
         if (canales.includes("Tienda Nube")) {
-            const tiendas: { tienda: "KT HOGAR" | "KT GASTRO"; cuotas: number }[] = [];
-            if (subirKtHogar) tiendas.push({ tienda: "KT HOGAR", cuotas: cuotaHogar });
-            if (subirKtGastro) tiendas.push({ tienda: "KT GASTRO", cuotas: cuotaGastro });
-            if (tiendas.length) {
-                tareas.push((async (): Promise<ResultadoCanal> => {
-                    try {
-                        const r = await exportarProductosANubeAPI([skuExport], tiendas);
-                        return clasificarExport("Tienda Nube", r, skuExport);
-                    } catch (e) {
-                        return { canal: "Tienda Nube", estado: "error", detalle: e instanceof Error ? e.message : "error al subir" };
-                    }
-                })());
-            }
+            // Resuelve el SEO de un canal: usa el bloque editado/generado si tiene algo; si está
+            // vacío, lo autogenera con IA. Si la autogeneración falla, sigue sin SEO (no aborta el export).
+            const resolverSeo = async (
+                seoBloque: { title: string; description: string; tags: string },
+                canalSeo: "GASTRO" | "HOGAR",
+            ): Promise<SeoNube | undefined> => {
+                const existente = seoBloqueAPayload(seoBloque);
+                if (existente) return existente;
+                try {
+                    return await generarSeoAPI(canalSeo, construirContextoSeo());
+                } catch {
+                    return undefined; // El export igual ocurre (el backend puede subir sin SEO).
+                }
+            };
+            tareas.push((async (): Promise<ResultadoCanal> => {
+                const tiendas: DestinoNube[] = [];
+                if (subirKtHogar) tiendas.push({ tienda: "KT HOGAR", cuotas: cuotaHogar, seo: await resolverSeo(seoHogar, "HOGAR") });
+                if (subirKtGastro) tiendas.push({ tienda: "KT GASTRO", cuotas: cuotaGastro, seo: await resolverSeo(seoGastro, "GASTRO") });
+                if (!tiendas.length) return { canal: "Tienda Nube", estado: "ok", detalle: "sin cambios" };
+                try {
+                    const r = await exportarProductosANubeAPI([skuExport], tiendas);
+                    return clasificarExport("Tienda Nube", r, skuExport);
+                } catch (e) {
+                    return { canal: "Tienda Nube", estado: "error", detalle: e instanceof Error ? e.message : "error al subir" };
+                }
+            })());
         }
         if (canales.includes("Mercado Libre")) {
             tareas.push((async (): Promise<ResultadoCanal> => {
@@ -494,6 +513,9 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             setCatalogosSel([]); setAptosSel([]); setClientesSel([]);
             setCatalogosOriginal([]); setAptosOriginal([]); setClientesOriginal([]);
             setShowNuevoMla(false);
+            // El SEO de Nube no se persiste: arranca vacío y se autogenera/edita por sesión.
+            setSeoHogar({ title: "", description: "", tags: "" });
+            setSeoGastro({ title: "", description: "", tags: "" });
 
             // Nombres de origen/material/proveedor/sector (no vienen en el DTO de la tabla).
             if (producto.origenId) getNombreById("origenes", producto.origenId).then(r => setOrigenDisplay(r.nombre)).catch(() => {});
@@ -522,6 +544,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         } else {
             setEditandoProductoId(null);
             setPanelTab("datos");
+            setSeoHogar({ title: "", description: "", tags: "" });
+            setSeoGastro({ title: "", description: "", tags: "" });
             void cargarSkuSugerido(false);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -742,6 +766,48 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         }
     };
 
+    // Arma el contexto que recibe la IA para generar el SEO de Nube, a partir de los campos del form.
+    const construirContextoSeo = () => {
+        const dimensiones = [
+            capacidad && `Capacidad: ${capacidad}`,
+            largo && `Largo: ${largo}`,
+            ancho && `Ancho: ${ancho}`,
+            alto && `Alto: ${alto}`,
+            diamboca && `Diámetro de boca: ${diamboca}`,
+            diambase && `Diámetro de base: ${diambase}`,
+            espesor && `Espesor: ${espesor}`,
+        ].filter((d): d is string => Boolean(d));
+        return {
+            tituloNube: tituloNube.trim(),
+            tituloDux: tituloDux.trim(),
+            marca: marcaDisplay || null,
+            material: materialDisplay || null,
+            aptos: aptosSel.map(a => a.label ?? String(a.id)).filter(Boolean),
+            dimensiones,
+        };
+    };
+
+    // Genera el SEO con IA para un canal de Nube y lo carga en su estado editable.
+    const generarSeo = async (canal: "GASTRO" | "HOGAR") => {
+        setGenerandoSeo(canal);
+        try {
+            const r = await generarSeoAPI(canal, construirContextoSeo());
+            const next = { title: r.seoTitle, description: r.seoDescription, tags: r.seoTags };
+            if (canal === "HOGAR") setSeoHogar(next); else setSeoGastro(next);
+            notificar.success(`SEO de ${canal === "HOGAR" ? "KT Hogar" : "KT Gastro"} generado`);
+        } catch (e) {
+            notificar.error(e instanceof Error ? e.message : "No se pudo generar el SEO con IA");
+        } finally {
+            setGenerandoSeo(null);
+        }
+    };
+
+    // Convierte un bloque de estado SEO a payload de export SOLO si tiene algún campo cargado; si no, undefined.
+    const seoBloqueAPayload = (seo: { title: string; description: string; tags: string }): SeoNube | undefined =>
+        (seo.title.trim() || seo.description.trim() || seo.tags.trim())
+            ? { seoTitle: seo.title, seoDescription: seo.description, seoTags: seo.tags }
+            : undefined;
+
     // Estructura base de cada sección; el color de fondo lo aporta un tinte propio (SECTION_TINT)
     // para diferenciar visualmente cada sección del fondo del modal.
     const sectionClassName = "rounded-2xl border p-4 shadow-sm";
@@ -895,6 +961,45 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                             </div>
                         )}
                     </fieldset>
+
+                    {(subirKtHogar || subirKtGastro) && (
+                        <fieldset className={`${sectionClassName} ${SECTION_TINT.canales}`}>
+                            <legend className={sectionTitleClassName}><BuildingStorefrontIcon className="h-5 w-5" /> SEO de Tienda Nube</legend>
+                            <p className={`${sectionDescriptionClassName} mb-4`}>Title, descripción y tags para SEO. Generalos con IA o editalos a mano. Si los dejás vacíos, se generan automáticamente al subir.</p>
+                            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                                {([
+                                    ["GASTRO", "KT Gastro", subirKtGastro, seoGastro, setSeoGastro] as const,
+                                    ["HOGAR", "KT Hogar", subirKtHogar, seoHogar, setSeoHogar] as const,
+                                ]).filter(([, , activoCanal]) => activoCanal).map(([canal, titulo, , seo, setSeo]) => (
+                                    <div key={canal} className="rounded-2xl border border-slate-200 bg-white/70 p-4 dark:border-slate-700 dark:bg-slate-800/60">
+                                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{titulo}</span>
+                                            <Button variant="light" onClick={() => generarSeo(canal)} disabled={generandoSeo !== null}>
+                                                {generandoSeo === canal ? <SpinnerIcon /> : null}
+                                                {generandoSeo === canal ? "Generando..." : "Generar SEO con IA"}
+                                            </Button>
+                                        </div>
+                                        <div className="grid grid-cols-1 gap-3">
+                                            <label className="block">
+                                                <span className={fieldLabelClassName}>SEO Title</span>
+                                                <input type="text" maxLength={70} className={inputBaseClassName} value={seo.title} onChange={e => setSeo(p => ({ ...p, title: e.target.value }))} placeholder="Título SEO" />
+                                                <span className="mt-1 block text-right text-xs text-slate-400">{seo.title.length}/70</span>
+                                            </label>
+                                            <label className="block">
+                                                <span className={fieldLabelClassName}>SEO Description</span>
+                                                <textarea maxLength={320} rows={3} className={inputBaseClassName} value={seo.description} onChange={e => setSeo(p => ({ ...p, description: e.target.value }))} placeholder="Descripción SEO" />
+                                                <span className="mt-1 block text-right text-xs text-slate-400">{seo.description.length}/320</span>
+                                            </label>
+                                            <label className="block">
+                                                <span className={fieldLabelClassName}>Tags</span>
+                                                <input type="text" className={inputBaseClassName} value={seo.tags} onChange={e => setSeo(p => ({ ...p, tags: e.target.value }))} placeholder="tag1, tag2, ..." />
+                                            </label>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </fieldset>
+                    )}
 
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.identificacion}`}>
                         <legend className={sectionTitleClassName}><IdentificationIcon /> Identificación</legend>

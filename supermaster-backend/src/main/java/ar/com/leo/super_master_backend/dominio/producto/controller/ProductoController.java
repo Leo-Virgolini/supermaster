@@ -1,5 +1,7 @@
 package ar.com.leo.super_master_backend.dominio.producto.controller;
 
+import ar.com.leo.super_master_backend.apis.openai.dto.SeoGeneradoDTO;
+import ar.com.leo.super_master_backend.apis.openai.service.OpenAiSeoService;
 import ar.com.leo.super_master_backend.config.Permisos;
 import ar.com.leo.super_master_backend.dominio.auditoria.dto.AuditoriaCambioDTO;
 import ar.com.leo.super_master_backend.dominio.producto.dto.*;
@@ -29,6 +31,7 @@ public class ProductoController {
 
     private final ProductoService productoService;
     private final ProductoAuditoriaService productoAuditoriaService;
+    private final OpenAiSeoService openAiSeoService;
 
     // =====================================================
     // LISTAR / FILTRAR PRODUCTOS
@@ -222,6 +225,12 @@ public class ProductoController {
     @PreAuthorize(Permisos.PRODUCTOS_VER)
     public ResponseEntity<Boolean> existeSku(@RequestParam String sku) {
         return ResponseEntity.ok(productoService.existeSku(sku));
+    }
+
+    @PostMapping("/generar-seo")
+    @PreAuthorize(Permisos.PRODUCTOS_EDITAR)
+    public ResponseEntity<SeoGeneradoDTO> generarSeo(@RequestBody GenerarSeoRequestDTO req) {
+        return ResponseEntity.ok(openAiSeoService.generar(req.canal(), req.contexto()));
     }
 
     @PostMapping

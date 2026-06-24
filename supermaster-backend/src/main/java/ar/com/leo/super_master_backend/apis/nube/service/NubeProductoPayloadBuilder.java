@@ -1,5 +1,6 @@
 package ar.com.leo.super_master_backend.apis.nube.service;
 
+import ar.com.leo.super_master_backend.apis.openai.dto.SeoGeneradoDTO;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
 
 import java.math.BigDecimal;
@@ -13,7 +14,8 @@ public final class NubeProductoPayloadBuilder {
 
     private NubeProductoPayloadBuilder() {}
 
-    public static Map<String, Object> construir(Producto p, BigDecimal pvp, BigDecimal pvpInflado, List<Long> categoriaIds) {
+    public static Map<String, Object> construir(Producto p, BigDecimal pvp, BigDecimal pvpInflado,
+                                                List<Long> categoriaIds, SeoGeneradoDTO seo) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("name", Map.of("es", p.getTituloNube() != null ? p.getTituloNube() : ""));
         payload.put("description", Map.of("es", NubeDescripcionBuilder.construir(p)));
@@ -47,6 +49,8 @@ public final class NubeProductoPayloadBuilder {
         if (categoriaIds != null && !categoriaIds.isEmpty()) {
             payload.put("categories", new ArrayList<>(categoriaIds));
         }
+
+        NubeSeoPayload.aplicar(payload, seo);
         return payload;
     }
 }

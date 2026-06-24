@@ -103,6 +103,14 @@ advertencia). El alta nueva no sufre esto porque publica el precio en el POST.
 
 ### Backend
 
+- **`CalculoPrecioServiceImpl` (motor)**: el motor lee la comisión de
+  `producto.getMla().getComisionPorcentaje()`. Como el cálculo previo corre **sin MLA**,
+  se agrega un parámetro **`comisionMlOverride`** (opcional) a `calcularPrecioCanalConEnvio`
+  y a `calcularPrecioUnificado`, simétrico al `precioEnvioOverride` ya existente: si no es
+  null se usa el override; si es null se lee del MLA **exactamente como hoy**. Aditivo,
+  comportamiento actual intacto, respaldado con tests de regresión. El precio a publicar es
+  el `pvp` que estabiliza el bucle (coherente con el costo de envío/comisión calculados
+  sobre ese mismo valor), redondeado a entero.
 - **`MercadoLibreService`**:
   - Extraer del bucle de `calcularCostoEnvioGratis` un método que calcule el **PVP final
     estabilizado a partir de datos del producto** (categoría, listing_type, logistic_type,

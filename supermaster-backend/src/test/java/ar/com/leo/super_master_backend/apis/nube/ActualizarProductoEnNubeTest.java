@@ -114,7 +114,9 @@ class ActualizarProductoEnNubeTest {
     }
 
     @Test
-    void actualiza_incluyePublishedSegunActivo() {
+    void actualiza_noTocaVisibilidad_noMandaPublished() {
+        // La edición no debe mandar "published": el alta crea oculto y el PUT parcial
+        // no pisa la visibilidad que el usuario haya definido manualmente en Nube.
         JsonNode existente = existente("{\"id\":7,\"variants\":[{\"id\":8,\"sku\":\"1234567\"}]}");
         AtomicReference<String> patchBody = new AtomicReference<>();
 
@@ -125,7 +127,7 @@ class ActualizarProductoEnNubeTest {
                 sku -> existente,
                 (uri, body) -> patchBody.set(body),
                 (productId, variantId, price, promo) -> true);
-        assertThat(patchBody.get()).contains("\"published\":true");
+        assertThat(patchBody.get()).doesNotContain("\"published\"");
 
         Producto inactivo = producto();
         inactivo.setActivo(false);
@@ -136,6 +138,6 @@ class ActualizarProductoEnNubeTest {
                 sku -> existente,
                 (uri, body) -> patchBody2.set(body),
                 (productId, variantId, price, promo) -> true);
-        assertThat(patchBody2.get()).contains("\"published\":false");
+        assertThat(patchBody2.get()).doesNotContain("\"published\"");
     }
 }

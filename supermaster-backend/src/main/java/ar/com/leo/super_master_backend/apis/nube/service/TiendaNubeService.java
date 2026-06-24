@@ -939,11 +939,12 @@ public class TiendaNubeService {
             }
             if (variantId <= 0) return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error("variante Nube no encontrada");
 
-            // PUT name + description + marca + categorias (si las hay)
+            // PUT name + description + marca + categorias (si las hay).
+            // No se manda "published": la visibilidad se decide manualmente en Nube
+            // (el alta crea oculto) y el PUT parcial no la pisa al editar.
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("name", Map.of("es", producto.getTituloNube() != null ? producto.getTituloNube() : ""));
             body.put("description", Map.of("es", NubeDescripcionBuilder.construir(producto)));
-            body.put("published", Boolean.TRUE.equals(producto.getActivo()));
             if (producto.getMarca() != null && producto.getMarca().getNombre() != null && !producto.getMarca().getNombre().isBlank())
                 body.put("brand", producto.getMarca().getNombre());
             if (categoriaIds != null && !categoriaIds.isEmpty()) {

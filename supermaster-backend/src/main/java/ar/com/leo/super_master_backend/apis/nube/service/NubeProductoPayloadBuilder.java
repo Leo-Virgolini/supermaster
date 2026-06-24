@@ -17,7 +17,8 @@ public final class NubeProductoPayloadBuilder {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("name", Map.of("es", p.getTituloNube() != null ? p.getTituloNube() : ""));
         payload.put("description", Map.of("es", NubeDescripcionBuilder.construir(p)));
-        payload.put("published", Boolean.TRUE.equals(p.getActivo()));
+        // Se sube siempre oculto (no visible en la tienda); la publicación se decide manualmente en Nube.
+        payload.put("published", false);
         payload.put("free_shipping", false);
         if (p.getMarca() != null && p.getMarca().getNombre() != null && !p.getMarca().getNombre().isBlank())
             payload.put("brand", p.getMarca().getNombre());

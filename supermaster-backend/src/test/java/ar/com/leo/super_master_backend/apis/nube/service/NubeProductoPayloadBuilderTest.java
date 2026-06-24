@@ -25,8 +25,8 @@ class NubeProductoPayloadBuilderTest {
         Map<String, Object> payload = NubeProductoPayloadBuilder.construir(base(), new BigDecimal("1500.00"), null, null);
 
         assertThat(((Map<String, Object>) payload.get("name")).get("es")).isEqualTo("Producto de prueba");
-        // published mapea a Producto.activo, cuyo default es true.
-        assertThat(payload.get("published")).isEqualTo(true);
+        // Se sube siempre oculto: published=false (no visible en la tienda).
+        assertThat(payload.get("published")).isEqualTo(false);
         assertThat(payload.get("free_shipping")).isEqualTo(false);
 
         List<Map<String, Object>> variants = (List<Map<String, Object>>) payload.get("variants");

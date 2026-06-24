@@ -56,6 +56,20 @@ Las **cuotas (campañas "Ahora")** quedan fuera de Fase 1 — ver "Fase 2" al fi
 | Fallo de cálculo | **Abortar** con error claro (no publicar precio incorrecto) |
 | Cuotas | Fase 1 = solo contado. Campañas "Ahora" → Fase 2 |
 
+## Invariante: la tabla `mlas` se sigue poblando como hoy
+
+El cálculo previo del precio (paso 2 del alta) es **solo para decidir el `price` del POST**
+y **no escribe nada en la tabla `mlas`**. La persistencia de `mlas.comisionPorcentaje` y
+`mlas.precioEnvio` ocurre **únicamente** en el post-alta, con los métodos actuales
+(`obtenerCostoVenta(mlaCode)` y `calcularCostoEnvioGratis(mlaCode)`) sobre el MLA ya creado,
+**sin cambios de comportamiento**. El cálculo de envío y comisión que hoy alimenta el
+monitor de precios y los recálculos **no se modifica**.
+
+Si se comparte lógica entre el cálculo previo (sin MLA) y el actual (por MLA), será
+únicamente cálculo **puro** del PVP estabilizado (sin acceso a BD), garantizando con tests
+de regresión que el flujo por-MLA produce resultados idénticos a los actuales. Alternativa
+aceptable: implementar el cálculo previo como código separado, sin tocar esos métodos.
+
 ## Flujo del alta (Fase 1)
 
 1. **Predecir categoría** (predictor actual) y tomar `listing_type_id`, `logistic_type`,

@@ -1,5 +1,6 @@
 package ar.com.leo.super_master_backend.apis.nube.service;
 
+import ar.com.leo.super_master_backend.dominio.marca.entity.Marca;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
 import org.junit.jupiter.api.Test;
 
@@ -24,7 +25,8 @@ class NubeProductoPayloadBuilderTest {
         Map<String, Object> payload = NubeProductoPayloadBuilder.construir(base(), new BigDecimal("1500.00"), null, null);
 
         assertThat(((Map<String, Object>) payload.get("name")).get("es")).isEqualTo("Producto de prueba");
-        assertThat(payload.get("published")).isEqualTo(false);
+        // published mapea a Producto.activo, cuyo default es true.
+        assertThat(payload.get("published")).isEqualTo(true);
         assertThat(payload.get("free_shipping")).isEqualTo(false);
 
         List<Map<String, Object>> variants = (List<Map<String, Object>>) payload.get("variants");
@@ -71,5 +73,20 @@ class NubeProductoPayloadBuilderTest {
         Map<String, Object> payload = NubeProductoPayloadBuilder.construir(
                 base(), new BigDecimal("1500.00"), null, null);
         assertThat(payload).doesNotContainKey("categories");
+    }
+
+    @Test
+    void conMarca_incluyeBrandComoString() {
+        Producto p = base();
+        Marca ma = new Marca(); ma.setNombre("Tramontina"); p.setMarca(ma);
+        Map<String, Object> payload = NubeProductoPayloadBuilder.construir(p, new BigDecimal("1500.00"), null, null);
+        assertThat(payload.get("brand")).isEqualTo("Tramontina");
+    }
+
+    @Test
+    void sinMarca_noIncluyeBrand() {
+        Map<String, Object> payload = NubeProductoPayloadBuilder.construir(
+                base(), new BigDecimal("1500.00"), null, null);
+        assertThat(payload).doesNotContainKey("brand");
     }
 }

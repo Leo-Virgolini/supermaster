@@ -19,6 +19,8 @@ public final class NubeProductoPayloadBuilder {
         payload.put("description", Map.of("es", NubeDescripcionBuilder.construir(p)));
         payload.put("published", Boolean.TRUE.equals(p.getActivo()));
         payload.put("free_shipping", false);
+        if (p.getMarca() != null && p.getMarca().getNombre() != null && !p.getMarca().getNombre().isBlank())
+            payload.put("brand", p.getMarca().getNombre());
 
         Map<String, Object> variant = new LinkedHashMap<>();
         variant.put("sku", p.getSku());

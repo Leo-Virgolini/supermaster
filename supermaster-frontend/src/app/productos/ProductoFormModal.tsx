@@ -234,6 +234,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         if (!tituloDux.trim()) errors.tituloDux = "El Título Dux es obligatorio";
         else if (tituloDux.trim().length > 100) errors.tituloDux = "Máximo 100 caracteres";
         if (tituloMl.trim().length > 100) errors.tituloMl = "Máximo 100 caracteres";
+        else if (subirMl && !tituloMl.trim()) errors.tituloMl = "Requerido para subir a Mercado Libre";
         if (tituloMl.trim() && !mlCategoryId) errors.mlCategory = "Si hay Título ML, predecí y elegí una categoría de Mercado Libre";
         if (tituloNube.trim().length > 100) errors.tituloNube = "Máximo 100 caracteres";
         if (costo === "" || Number(costo) <= 0) errors.costo = "El costo debe ser mayor a 0";
@@ -753,7 +754,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     return (
         <>
             {/* MODAL CREAR / EDITAR PRODUCTO */}
-            <Modal isOpen={true} onClose={onClose} title={editandoProductoId ? `Editar Producto${sku ? ` · ${sku}` : ""}` : "Nuevo Producto"} size="3xl" closeOnEscape={false}
+            <Modal isOpen={true} onClose={onClose} title={editandoProductoId ? `Editar Producto${sku ? ` · ${sku}` : ""}` : "Nuevo Producto"} size="3xl" closeOnEscape={false} busy={isSaving}
                 footer={<><Button variant="light" onClick={onClose}><XMarkIcon className="w-4 h-4" /> Cancelar</Button><Button variant="dark" onClick={editandoProductoId ? handleGuardarEdicion : handleCreate} disabled={isSaving || (!editandoProductoId && skuYaExiste)}>{isSaving ? <SpinnerIcon /> : <CheckIcon className="w-4 h-4" />} {isSaving ? (editandoProductoId ? "Guardando..." : "Creando Producto...") : (editandoProductoId ? "Guardar Cambios" : "Crear Producto")}</Button></>}>
                 <div className="text-sm">
                     {/* Tabs solo en modo edición: Datos (form) e Historial */}

@@ -21,9 +21,15 @@ public interface TipoMapper {
 
     /** Construye "ABUELO > PADRE > HIJO" navegando recursivamente la cadena de padres. */
     default String buildNombreCompleto(Tipo t) {
+        return buildNombreCompleto(t, new java.util.HashSet<>());
+    }
+
+    /** Corta ciclos (datos con padre = sí mismo u otro ancestro) para no caer en StackOverflow. */
+    private String buildNombreCompleto(Tipo t, java.util.Set<Integer> visitados) {
         if (t == null) return null;
+        if (t.getId() != null && !visitados.add(t.getId())) return t.getNombre(); // ciclo: corta
         if (t.getPadre() == null) return t.getNombre();
-        return buildNombreCompleto(t.getPadre()) + " > " + t.getNombre();
+        return buildNombreCompleto(t.getPadre(), visitados) + " > " + t.getNombre();
     }
 
     // =============================

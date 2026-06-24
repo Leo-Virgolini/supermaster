@@ -77,6 +77,10 @@ public class ClasifGastroServiceImpl implements ClasifGastroService {
 
         Boolean esMaquinaAnterior = entity.getEsMaquina();
 
+        if (dto.padreId() != null && dto.padreId().equals(id)) {
+            throw new BadRequestException("Una clasificación gastro no puede pertenecer a sí misma");
+        }
+
         mapper.updateEntityFromDTO(dto, entity);
         repo.save(entity);
 
@@ -118,6 +122,9 @@ public class ClasifGastroServiceImpl implements ClasifGastroService {
         }
         if (presente(patchDto.getPadreId())) {
             Integer padreId = leerIdOpcional(patchDto.getPadreId(), "padreId");
+            if (padreId != null && padreId.equals(id)) {
+                throw new BadRequestException("Una clasificación gastro no puede pertenecer a sí misma");
+            }
             entity.setPadre(padreId != null ? new ClasifGastro(padreId) : null);
         }
 

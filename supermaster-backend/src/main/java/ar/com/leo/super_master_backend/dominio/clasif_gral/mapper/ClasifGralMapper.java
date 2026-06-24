@@ -21,9 +21,15 @@ public interface ClasifGralMapper {
 
     /** Construye "ABUELO > PADRE > HIJO" navegando recursivamente la cadena de padres. */
     default String buildNombreCompleto(ClasifGral c) {
+        return buildNombreCompleto(c, new java.util.HashSet<>());
+    }
+
+    /** Corta ciclos (datos con padre = sí mismo u otro ancestro) para no caer en StackOverflow. */
+    private String buildNombreCompleto(ClasifGral c, java.util.Set<Integer> visitados) {
         if (c == null) return null;
+        if (c.getId() != null && !visitados.add(c.getId())) return c.getNombre(); // ciclo: corta
         if (c.getPadre() == null) return c.getNombre();
-        return buildNombreCompleto(c.getPadre()) + " > " + c.getNombre();
+        return buildNombreCompleto(c.getPadre(), visitados) + " > " + c.getNombre();
     }
 
     // =============================

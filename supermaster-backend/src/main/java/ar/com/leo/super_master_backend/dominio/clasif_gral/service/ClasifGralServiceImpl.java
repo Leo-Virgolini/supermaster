@@ -72,6 +72,10 @@ public class ClasifGralServiceImpl implements ClasifGralService {
                 .orElseThrow(() -> new NotFoundException("Clasificación General no encontrada"));
         Map<String, String> estadoAnterior = capturarSnapshot(entity);
 
+        if (dto.padreId() != null && dto.padreId().equals(id)) {
+            throw new BadRequestException("Una clasificación general no puede pertenecer a sí misma");
+        }
+
         mapper.updateEntityFromDTO(dto, entity);
 
         repo.save(entity);
@@ -99,6 +103,9 @@ public class ClasifGralServiceImpl implements ClasifGralService {
         }
         if (presente(patchDto.getPadreId())) {
             Integer padreId = leerIdOpcional(patchDto.getPadreId(), "padreId");
+            if (padreId != null && padreId.equals(id)) {
+                throw new BadRequestException("Una clasificación general no puede pertenecer a sí misma");
+            }
             entity.setPadre(padreId != null ? new ClasifGral(padreId) : null);
         }
 

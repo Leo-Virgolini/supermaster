@@ -67,7 +67,7 @@ export function getColumns(
                     onSave={(newId) =>
                         (table.options.meta as any)?.updateData?.(row.index, "padreId", newId)
                     }
-                    loadOptions={searchMarcasFn}
+                    loadOptions={(q) => searchMarcasFn(q).then(opts => opts.filter(o => o.id !== row.original.id))}
                     placeholder="Buscar marca padre..."
                     endpoint="marcas"
                     labelKey="nombre"

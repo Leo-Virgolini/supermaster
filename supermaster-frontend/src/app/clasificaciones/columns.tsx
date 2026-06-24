@@ -65,7 +65,7 @@ export function getColumns(
                     onSave={(newId) =>
                         (table.options.meta as any)?.updateData?.(row.index, "padreId", newId)
                     }
-                    loadOptions={searchClasificacionesFn}
+                    loadOptions={(q) => searchClasificacionesFn(q).then(opts => opts.filter(o => o.id !== row.original.id))}
                     placeholder="Buscar clasificación padre..."
                     endpoint="clasif-gral"
                     labelKey="nombre"

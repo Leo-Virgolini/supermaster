@@ -21,9 +21,15 @@ public interface MarcaMapper {
 
     /** Construye "ABUELO > PADRE > HIJO" navegando recursivamente la cadena de padres. */
     default String buildNombreCompleto(Marca m) {
+        return buildNombreCompleto(m, new java.util.HashSet<>());
+    }
+
+    /** Corta ciclos (datos con padre = sí mismo u otro ancestro) para no caer en StackOverflow. */
+    private String buildNombreCompleto(Marca m, java.util.Set<Integer> visitados) {
         if (m == null) return null;
+        if (m.getId() != null && !visitados.add(m.getId())) return m.getNombre(); // ciclo: corta
         if (m.getPadre() == null) return m.getNombre();
-        return buildNombreCompleto(m.getPadre()) + " > " + m.getNombre();
+        return buildNombreCompleto(m.getPadre(), visitados) + " > " + m.getNombre();
     }
 
     // =============================

@@ -72,6 +72,10 @@ public class MarcaServiceImpl implements MarcaService {
                 .orElseThrow(() -> new NotFoundException("Marca no encontrada"));
         Map<String, String> estadoAnterior = capturarSnapshot(entity);
 
+        if (dto.padreId() != null && dto.padreId().equals(id)) {
+            throw new BadRequestException("Una marca no puede pertenecer a sí misma");
+        }
+
         mapper.updateEntityFromDTO(dto, entity);
 
         repo.save(entity);
@@ -100,6 +104,9 @@ public class MarcaServiceImpl implements MarcaService {
         }
         if (presente(patchDto.getPadreId())) {
             Integer padreId = leerIdOpcional(patchDto.getPadreId(), "padreId");
+            if (padreId != null && padreId.equals(id)) {
+                throw new BadRequestException("Una marca no puede pertenecer a sí misma");
+            }
             entity.setPadre(padreId != null ? new Marca(padreId) : null);
         }
 

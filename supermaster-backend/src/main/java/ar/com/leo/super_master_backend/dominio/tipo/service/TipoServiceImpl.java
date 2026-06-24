@@ -72,6 +72,10 @@ public class TipoServiceImpl implements TipoService {
                 .orElseThrow(() -> new NotFoundException("Tipo no encontrado"));
         Map<String, String> estadoAnterior = capturarSnapshot(entity);
 
+        if (dto.padreId() != null && dto.padreId().equals(id)) {
+            throw new BadRequestException("Un tipo no puede pertenecer a sí mismo");
+        }
+
         mapper.updateEntityFromDTO(dto, entity);
 
         repo.save(entity);
@@ -97,6 +101,9 @@ public class TipoServiceImpl implements TipoService {
         }
         if (presente(patchDto.getPadreId())) {
             Integer padreId = leerIdOpcional(patchDto.getPadreId(), "padreId");
+            if (padreId != null && padreId.equals(id)) {
+                throw new BadRequestException("Un tipo no puede pertenecer a sí mismo");
+            }
             entity.setPadre(padreId != null ? new Tipo(padreId) : null);
         }
 

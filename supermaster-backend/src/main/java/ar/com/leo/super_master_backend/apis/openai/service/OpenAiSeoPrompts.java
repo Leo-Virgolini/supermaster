@@ -22,7 +22,7 @@ public final class OpenAiSeoPrompts {
             Reglas:
             - seo_title: máximo 70 caracteres.
             - seo_description: máximo 320 caracteres.
-            - tags: entre 5 y 10 tags separados por comas.
+            - tags: entre 4 y 6 tags separados por comas; sin códigos, SKU ni el texto entre paréntesis.
             - No inventar características que no estén presentes en la información.
             - Optimizar para búsquedas en español.
             - No incluir explicaciones ni texto fuera del JSON.

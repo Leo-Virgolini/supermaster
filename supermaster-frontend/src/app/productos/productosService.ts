@@ -208,17 +208,10 @@ export const calcularEnvioMlaAPI = async (productoId: number): Promise<void> => 
 	if (!res.ok) throw new Error(await extraerMensajeError(res, "No se pudo calcular el envío del MLA"));
 };
 
-export type ExportDuxResultDTO = {
-	productosEnviados: number;
-	idProceso: number;
-	errores: string[];
-};
-
 // Sube (exporta) productos a Dux por SKU. El backend mapea los datos del producto
 // a los campos del ítem de Dux (cod_item, descripción, costo, IVA, combo, etc.).
-// Devuelve el resultado: el backend responde 200 incluso si no se exportó nada
-// (con `errores` poblado), así que hay que revisar `productosEnviados`.
-export const exportarProductosADuxAPI = async (skus: string[]): Promise<ExportDuxResultDTO> => {
+// Devuelve el mismo DTO que Nube/ML (ExportCanalResultDTO).
+export const exportarProductosADuxAPI = async (skus: string[]): Promise<ExportCanalResultDTO> => {
 	const res = await fetchAPI(`${API_BASE_URL}/api/dux/exportar-productos`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },

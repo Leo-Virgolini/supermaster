@@ -315,8 +315,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             tareas.push((async (): Promise<ResultadoCanal> => {
                 try {
                     const r = await exportarProductosADuxAPI([skuExport]);
-                    if (r.productosEnviados > 0) return { canal: "Dux", estado: "ok", detalle: "subido" };
-                    return { canal: "Dux", estado: "error", detalle: r.errores?.length ? r.errores.join("; ") : "no se envió a Dux" };
+                    return clasificarExport("Dux", r, skuExport);
                 } catch (e) {
                     return { canal: "Dux", estado: "error", detalle: e instanceof Error ? e.message : "error al subir" };
                 }

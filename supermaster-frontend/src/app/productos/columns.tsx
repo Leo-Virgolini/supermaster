@@ -440,6 +440,11 @@ export function getColumns(onEditarProducto: (producto: ProductoDTO) => void, ca
         accessorKey: "mlPaqPeso", header: "Peso ML", size: 70, enableColumnFilter: false, meta: { editable: true },
         cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={String(getValue() ?? "")} type="number" nullable className={FONT.codeSoft} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val === null ? null : Number(val))} disabled={!canEdit} />)
     },
+    {
+        // Categoría de Mercado Libre: solo lectura (se elige con el predictor en el formulario).
+        accessorKey: "mlCategoryNombre", header: "Categoría ML", size: 170, enableColumnFilter: false,
+        cell: ({ getValue }) => { const v = getValue() as string | null; return <span className="block truncate text-xs text-slate-600 dark:text-slate-300" title={v ?? ""}>{v || "—"}</span>; }
+    },
 
     // --- FECHAS (al final) ---
     {

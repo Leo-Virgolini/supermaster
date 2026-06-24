@@ -223,7 +223,18 @@ export default function AsyncSelect({ label, placeholder, loadOptions, onChange,
                         setIsOpen(true);
                         void prefetchOptions();
                     }}
-                    onBlur={() => setIsFocused(false)}
+                    onBlur={() => {
+                        setIsFocused(false);
+                        // Al salir del campo sincronizamos el valor con lo que se ve:
+                        // - vacío => limpiar la selección (vaciar el texto = quitar el valor).
+                        // - texto que no es la selección actual (se tipeó sin elegir una
+                        //   opción) => revertir al valor seleccionado, sin dejar texto huérfano.
+                        if (inputValue.trim() === "") {
+                            if (value != null && value !== "") onChange(null);
+                        } else if (inputValue !== (displayValue ?? "")) {
+                            setInputValue(displayValue ?? "");
+                        }
+                    }}
                     onKeyDown={handleKeyDown}
                     role="combobox"
                     aria-expanded={isOpen}

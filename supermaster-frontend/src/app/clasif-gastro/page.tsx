@@ -149,7 +149,7 @@ export default function ClasifGastroPage() {
                 <div>
                     <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
                         <BuildingOfficeIcon className="w-8 h-8 text-gray-600" />
-                        Clasificación Gastro
+                        Clasificaciones Gastro
                     </h1>
                 </div>
 

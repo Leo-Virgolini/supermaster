@@ -196,7 +196,10 @@ public class NubeRetryHandler {
                     throw e;
                 }
 
-                if (status == 404) throw e;
+                if (status == 404) {
+                    log.warn("NUBE - 404 Not Found ({} {}): {}", metodo, uri, e.getResponseBodyAsString());
+                    throw e;
+                }
 
                 if (status == 429) {
                     if (rateLimitRetries >= MAX_RETRIES_RATE_LIMIT) throw e;

@@ -66,7 +66,6 @@ import java.util.function.Function;
 public class MercadoLibreService {
 
     private static final String CANAL_ML = "ML";
-    private static final java.math.BigDecimal MULTIPLICADOR_PRECIO_ML = java.math.BigDecimal.valueOf(5);
     private static final Set<String> EXT_ML = Set.of("jpg", "jpeg", "png");
 
     /** Resultado interno del cálculo de envío: costo con IVA y motivo si falló (null si ok). */

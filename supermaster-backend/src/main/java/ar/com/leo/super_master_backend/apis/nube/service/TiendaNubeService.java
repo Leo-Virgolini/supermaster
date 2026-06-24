@@ -981,7 +981,8 @@ public class TiendaNubeService {
                 producto, pvp, pvpInflado, objectMapper, store.getStoreId(),
                 categoriaIds,
                 sku -> existente,
-                (uri, body) -> retryHandler.patchJson(uri, store.getAccessToken(), body),
+                // Tienda Nube actualiza productos con PUT /products/{id} (NO acepta PATCH ahí → 404).
+                (uri, body) -> retryHandler.putJson(uri, store.getAccessToken(), body),
                 (productId, variantId, price, promo) ->
                         actualizarPrecioVariante(store, storeName, productId, variantId, price, promo));
 

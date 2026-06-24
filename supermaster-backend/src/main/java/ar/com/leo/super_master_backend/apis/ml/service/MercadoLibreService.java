@@ -2090,4 +2090,9 @@ public class MercadoLibreService {
         }
     }
 
+    /** Redondea el PVP al entero más cercano (sin centavos) para publicar en ML. */
+    static BigDecimal redondearPrecioMl(BigDecimal pvp) {
+        return pvp == null ? null : pvp.setScale(0, java.math.RoundingMode.HALF_UP);
+    }
+
 }

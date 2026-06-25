@@ -77,6 +77,9 @@ public record ProductoDTO(
         BigDecimal mlPaqPeso,
 
         // Código universal de producto (EAN/GTIN)
-        String ean
+        String ean,
+
+        // Atributos de categoría de Mercado Libre
+        List<ProductoMlAtributoDTO> mlAtributos
 ) {
 }

@@ -51,7 +51,8 @@ class ProductoMapperEanTest {
                 null,        // mlPaqAncho
                 null,        // mlPaqLargo
                 null,        // mlPaqPeso
-                "7791234567890" // ean
+                "7791234567890", // ean
+                null         // mlAtributos
         );
         Producto p = mapper.toEntity(dto);
         assertThat(p.getEan()).isEqualTo("7791234567890");

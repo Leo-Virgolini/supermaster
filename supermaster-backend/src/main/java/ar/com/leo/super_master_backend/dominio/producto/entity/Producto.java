@@ -199,6 +199,10 @@ public class Producto {
     @BatchSize(size = 50)
     private Set<ProductoApto> productosApto = new LinkedHashSet<>();
 
+    @OneToMany(mappedBy = "producto", cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 50)
+    private Set<ProductoMlAtributo> mlAtributos = new LinkedHashSet<>();
+
     @OneToMany(mappedBy = "producto")
     private Set<ProductoMargen> productoMargenes = new LinkedHashSet<>();
 

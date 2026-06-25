@@ -11,6 +11,7 @@ import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCanalPrecio;
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCanalPrecioInflado;
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoMargen;
+import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoMlAtributo;
 import ar.com.leo.super_master_backend.dominio.producto.mla.entity.Mla;
 import ar.com.leo.super_master_backend.dominio.proveedor.entity.Proveedor;
 import ar.com.leo.super_master_backend.dominio.tipo.entity.Tipo;
@@ -103,7 +104,8 @@ public interface ProductoMapper {
                 entity.getMlPaqAncho(),
                 entity.getMlPaqLargo(),
                 entity.getMlPaqPeso(),
-                entity.getEan()
+                entity.getEan(),
+                toMlAtributosDTO(entity)
         );
     }
 
@@ -132,6 +134,13 @@ public interface ProductoMapper {
                     .sorted()
                     .toList()
                 : List.of();
+    }
+
+    private List<ProductoMlAtributoDTO> toMlAtributosDTO(Producto entity) {
+        if (entity.getMlAtributos() == null) return List.of();
+        return entity.getMlAtributos().stream()
+                .map(a -> new ProductoMlAtributoDTO(a.getAttributeId(), a.getValueId(), a.getValueName()))
+                .toList();
     }
 
     // ================================================================
@@ -176,8 +185,8 @@ public interface ProductoMapper {
     @Mapping(target = "mla", expression = "java(mapMla(dto.mlaId()))")
     @Mapping(target = "sectorDeposito", expression = "java(dto.sectorDepositoId() != null ? new SectorDeposito(dto.sectorDepositoId()) : null)")
     @Mapping(target = "fechaCreacion", ignore = true)     // se setea en @PrePersist
-    @Mapping(target = "fechaModificacion", ignore = true)
-    // se setea en @PreUpdate
+    @Mapping(target = "fechaModificacion", ignore = true) // se setea en @PreUpdate
+    @Mapping(target = "mlAtributos", ignore = true)       // manejado manualmente en el service
     Producto toEntity(ProductoCreateDTO dto);
 
     // ================================================================
@@ -194,6 +203,7 @@ public interface ProductoMapper {
     @Mapping(target = "sectorDeposito", expression = "java(dto.sectorDepositoId() != null ? new SectorDeposito(dto.sectorDepositoId()) : entity.getSectorDeposito())")
     @Mapping(target = "fechaCreacion", ignore = true)
     @Mapping(target = "fechaModificacion", ignore = true)
+    @Mapping(target = "mlAtributos", ignore = true)       // manejado manualmente en el service
     void updateEntityFromDTO(ProductoUpdateDTO dto, @MappingTarget Producto entity);
 
     default Mla mapMla(Integer mlaId) {

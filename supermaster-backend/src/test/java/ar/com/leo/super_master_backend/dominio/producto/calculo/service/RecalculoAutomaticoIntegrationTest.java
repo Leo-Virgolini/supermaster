@@ -415,7 +415,8 @@ class RecalculoAutomaticoIntegrationTest {
                 producto.getTag(),
                 null, null,
                 null, null, null, null,
-                null // ean
+                null, // ean
+                null  // mlAtributos
         );
     }
 

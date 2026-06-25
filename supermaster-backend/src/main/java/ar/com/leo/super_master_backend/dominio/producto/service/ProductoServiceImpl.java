@@ -26,6 +26,8 @@ import ar.com.leo.super_master_backend.dominio.regla_descuento.repository.ReglaD
 import ar.com.leo.super_master_backend.dominio.reposicion.entity.TagReposicion;
 import ar.com.leo.super_master_backend.dominio.tipo.entity.Tipo;
 import ar.com.leo.super_master_backend.dominio.sector_deposito.entity.SectorDeposito;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.criteria.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -72,6 +74,9 @@ public class ProductoServiceImpl implements ProductoService {
     @Autowired
     private DuxService duxService;
 
+    @PersistenceContext
+    private EntityManager entityManager;
+
     private static final int PRECISION_RESULTADO = 2;
 
     // ============================
@@ -112,6 +117,7 @@ public class ProductoServiceImpl implements ProductoService {
         validarAlMenosUnaClasificacion(entity);
         validarProductoSimpleCompleto(entity);
         productoRepository.save(entity);
+        reemplazarMlAtributos(entity, dto.mlAtributos());
         productoAuditoriaService.registrarCreacion(entity);
         programarRecalculoPostCommit("Producto creado", entity.getId());
         return productoMapper.toDTO(entity);
@@ -156,6 +162,7 @@ public class ProductoServiceImpl implements ProductoService {
         Tag tagAnterior = entity.getTag();
 
         productoMapper.updateEntityFromDTO(dto, entity);
+        reemplazarMlAtributos(entity, dto.mlAtributos());
         validarAlMenosUnaClasificacion(entity);
         validarProductoSimpleCompleto(entity);
         productoRepository.save(entity);
@@ -203,6 +210,10 @@ public class ProductoServiceImpl implements ProductoService {
         Tag tagAnterior = entity.getTag();
 
         aplicarPatch(entity, patchDto);
+        // Solo reemplazar atributos ML si se envió la lista explícitamente (null = no tocar)
+        if (patchDto.getMlAtributos() != null) {
+            reemplazarMlAtributos(entity, patchDto.getMlAtributos());
+        }
         validarAlMenosUnaClasificacion(entity);
         validarProductoSimpleCompleto(entity);
         productoRepository.save(entity);
@@ -1147,7 +1158,8 @@ public class ProductoServiceImpl implements ProductoService {
                 && !presente(patchDto.getMlPaqLargo())
                 && !presente(patchDto.getMlPaqPeso())
                 && !presente(patchDto.getMlCategoryId())
-                && !presente(patchDto.getMlCategoryNombre());
+                && !presente(patchDto.getMlCategoryNombre())
+                && patchDto.getMlAtributos() == null;
     }
 
     /**
@@ -1306,6 +1318,28 @@ public class ProductoServiceImpl implements ProductoService {
         Mla mla = new Mla();
         mla.setId(mlaId);
         return mla;
+    }
+
+    /**
+     * Reemplaza el set completo de atributos ML del producto.
+     * orphanRemoval=true + cascade ALL se encarga del DELETE/INSERT.
+     * Se hace flush tras el clear() para que Hibernate ejecute los DELETEs ANTES
+     * de los INSERTs, evitando violación del unique index (id_producto, attribute_id).
+     * Si la lista es null, no toca el set.
+     */
+    private void reemplazarMlAtributos(Producto entity, List<ProductoMlAtributoDTO> dtos) {
+        entity.getMlAtributos().clear();
+        entityManager.flush(); // fuerza DELETEs antes de los INSERTs
+        if (dtos != null) {
+            for (ProductoMlAtributoDTO a : dtos) {
+                ProductoMlAtributo e = new ProductoMlAtributo();
+                e.setProducto(entity);
+                e.setAttributeId(a.attributeId());
+                e.setValueId((a.valueId() == null || a.valueId().isBlank()) ? null : a.valueId());
+                e.setValueName(a.valueName());
+                entity.getMlAtributos().add(e);
+            }
+        }
     }
 
     /** Específico: igual al porcentaje [0, 100] pero requerido (no opcional), usado para el IVA del producto. */

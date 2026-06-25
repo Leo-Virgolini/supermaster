@@ -7,6 +7,7 @@ import lombok.Data;
 import org.openapitools.jackson.nullable.JsonNullable;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = false)
@@ -48,6 +49,7 @@ public class ProductoPatchDTO {
     private JsonNullable<BigDecimal> mlPaqLargo = JsonNullable.undefined();
     private JsonNullable<BigDecimal> mlPaqPeso = JsonNullable.undefined();
     private JsonNullable<String> ean = JsonNullable.undefined();
+    private List<ProductoMlAtributoDTO> mlAtributos = null;
 }
 
 

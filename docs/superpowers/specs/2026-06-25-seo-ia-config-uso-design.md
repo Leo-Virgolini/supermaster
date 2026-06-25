@@ -20,7 +20,7 @@ Una pantalla nueva "SEO IA" que permita (1) **editar los prompts** de generació
 
 1. **Registro de uso:** acumulado, **total único** (una sola fila singleton de contadores). No hay histórico por consulta.
 2. **Prompts editables:** **un prompt completo por canal** (HOGAR y GASTRO independientes, cada uno de punta a punta). Reemplaza el modelo "base + regla gastro".
-3. **Restaurar default:** no hay botón de reset. El prompt por defecto (el del código) solo **siembra** el valor inicial; después la edición es libre.
+3. **Restaurar default:** no hay botón de reset. Los prompts viven **solo en la BD**: el script de migración los **siembra** con el contenido que hoy está en el código; después la edición es libre. **No hay fallback al código** (los prompts hardcodeados se eliminan de Java).
 4. **Modelo, URL y precios:** viven en `properties` (no se editan desde la UI). La pantalla los muestra **solo lectura**.
 5. **Permisos:** se reusan `INTEGRACIONES_VER` (lectura) e `INTEGRACIONES_EDITAR` (guardar prompts). No se crea un permiso nuevo.
 
@@ -53,7 +53,7 @@ CREATE TABLE supermaster.seo_uso (
 ```
 
 **Seed (en el mismo script):**
-- `seo_prompt`: dos filas, una por canal, con el contenido actual del código — `HOGAR` = `SYSTEM_BASE`; `GASTRO` = `SYSTEM_BASE + REGLA_GASTRO`.
+- `seo_prompt`: dos filas, una por canal, con el contenido (literal en el `INSERT` del script) que hoy vive en el código — `HOGAR` = el `SYSTEM_BASE` actual; `GASTRO` = `SYSTEM_BASE + REGLA_GASTRO`. Esta es la **única** fuente de los prompts (no quedan en Java).
 - `seo_uso`: una fila `id = 1` con todos los contadores en 0.
 
 ### 2. Backend
@@ -63,7 +63,7 @@ CREATE TABLE supermaster.seo_uso (
 - `SeoUso` (`id`, `consultas`, `tokensEntrada`, `tokensSalida`, `costoUsd`) + `SeoUsoRepository`.
 
 **`SeoConfigService`**
-- `String promptDe(SeoCanal canal)`: devuelve el `contenido` de la BD; si no hay fila para el canal (tabla recién creada / sin seed), **fallback** al hardcodeado de `OpenAiSeoPrompts.systemPrompt(canal)`.
+- `String promptDe(SeoCanal canal)`: devuelve el `contenido` de la BD. Los prompts viven solo en la BD (sembrados por la migración); si no hubiera fila para el canal, lanza `IllegalStateException` con mensaje claro. **No hay fallback al código.**
 - `void actualizar(SeoCanal canal, String contenido)`: upsert del prompt + `fechaModificacion`.
 - `List<SeoPromptDTO> obtenerTodos()`: los 2 prompts para la pantalla.
 
@@ -75,6 +75,7 @@ CREATE TABLE supermaster.seo_uso (
 
 **`OpenAiSeoService.generar()` — cambios**
 - Tomar el system prompt de `SeoConfigService.promptDe(canal)` en vez de `OpenAiSeoPrompts.systemPrompt(canal)`. El `userMessage(contexto)` sigue saliendo de `OpenAiSeoPrompts` sin cambios.
+- `OpenAiSeoPrompts` pierde `SYSTEM_BASE`, `REGLA_GASTRO` y `systemPrompt(canal)` (su contenido se traslada al seed de `seo_prompt`); conserva `userMessage` y sus helpers (`sinParentesis`, `notBlank`).
 - Tras parsear la respuesta, leer `usage.prompt_tokens` y `usage.completion_tokens` del JSON del response.
 - Llamar a `SeoUsoService.registrar(in, out)` **best-effort**: envuelto en try/catch que loguea y no propaga, para que un fallo al contabilizar nunca rompa la generación de SEO.
 
@@ -101,7 +102,7 @@ Página nueva "SEO IA (config y uso)", accesible desde el menú (sección de int
 
 **Generar SEO** (alta/edición de producto, sin cambios de UX):
 1. `OpenAiSeoService.generar(canal, contexto)`.
-2. Prompt de sistema ← `SeoConfigService.promptDe(canal)` (BD, o fallback al código).
+2. Prompt de sistema ← `SeoConfigService.promptDe(canal)` (solo BD).
 3. Llamada a OpenAI → parseo del contenido → `SeoGeneradoDTO`.
 4. Lee `usage` → `SeoUsoService.registrar(in, out)` (best-effort) → `UPDATE` atómico de la fila singleton. Si el response no trae `usage`, `in = out = 0`: la consulta se cuenta igual (`consultas + 1`) con tokens y costo 0.
 5. Devuelve el `SeoGeneradoDTO` (igual que hoy).
@@ -113,16 +114,16 @@ Página nueva "SEO IA (config y uso)", accesible desde el menú (sección de int
 ## Manejo de errores
 
 - **Registro de uso falla** (BD caída, etc.) → se loguea y **no** aborta la generación de SEO.
-- **Prompt no encontrado en BD** → fallback al prompt hardcodeado del código.
+- **Prompt no encontrado en BD** (no debería ocurrir: la migración los siembra) → `IllegalStateException` con mensaje claro; la generación falla de forma explícita en vez de usar un prompt silencioso.
 - **Incremento concurrente** (dos generaciones en paralelo — recordar que Hogar/Gastro pueden correr a la vez) → `UPDATE ... SET col = col + :delta` es atómico en el motor, sin lost updates.
 - **OpenAI no configurado** → comportamiento actual sin cambios (excepción "OpenAI no configurado").
 
 ## Testing (todo offline, sin llamar a OpenAI ni APIs reales)
 
 - `SeoUsoService`: cálculo de costo (`tokensIn/1e6·precioIn + tokensOut/1e6·precioOut` en `BigDecimal`, casos con 0 tokens y con redondeo) y que `registrar` arma el delta correcto.
-- `SeoConfigService`: `promptDe` devuelve el de BD; con la fila ausente cae al fallback del código; `actualizar` persiste contenido + fecha.
+- `SeoConfigService`: `promptDe` devuelve el de BD; con la fila ausente lanza `IllegalStateException`; `actualizar` persiste contenido + fecha.
 - Parseo del `usage`: dado un JSON de response de OpenAI con `usage`, se extraen `prompt_tokens`/`completion_tokens` correctamente; un response sin `usage` no rompe y cuenta la consulta con tokens 0.
-- `OpenAiSeoPrompts.userMessage` sigue intacto (los tests existentes deben seguir verdes).
+- `OpenAiSeoPrompts.userMessage` sigue intacto (sus tests siguen verdes). Si hubiera tests sobre `systemPrompt`/`SYSTEM_BASE`/`REGLA_GASTRO`, se eliminan junto con esos métodos.
 - Migración: el backend arranca con `ddl-auto=validate` contra el schema con las 2 tablas nuevas.
 
 ## Fuera de alcance (YAGNI)

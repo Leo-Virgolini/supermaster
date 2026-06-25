@@ -324,6 +324,17 @@ export const getMlCategoriaAtributosAPI = async (categoryId: string): Promise<Ml
 	return await res.json();
 };
 
+export const getMlCategoriaMaxTitleAPI = async (categoryId: string): Promise<number> => {
+	try {
+		const res = await fetchAPI(`${API_BASE_URL}/api/ml/categorias/${encodeURIComponent(categoryId)}/max-title-length`);
+		if (!res.ok) return 60;
+		const json = await res.json();
+		return typeof json?.maxTitleLength === "number" ? json.maxTitleLength : 60;
+	} catch {
+		return 60;
+	}
+};
+
 export type PrediccionCategoriaMl = { categoryId: string; categoryName: string; categoryPath: string };
 
 export const predecirCategoriasMlAPI = async (titulo: string): Promise<PrediccionCategoriaMl[]> => {

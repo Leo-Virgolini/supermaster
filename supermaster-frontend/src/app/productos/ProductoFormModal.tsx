@@ -18,6 +18,7 @@ import {
     searchSectoresDeposito, predecirCategoriasMlAPI, type PrediccionCategoriaMl,
     getImagenDetalleAPI, type ImagenDetalle,
     getMlCategoriaAtributosAPI, type MlAtributoDef, type ProductoMlAtributo,
+    getMlCategoriaMaxTitleAPI,
 } from "./productosService";
 import { updateProductoMargenAPI } from "./productoMargenService";
 import { getCuotasPorCanalAPI } from "../canal-concepto-cuotas/canalConceptoCuotaService";
@@ -184,6 +185,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     // Atributos de la categoría ML
     const [mlAtributosDef, setMlAtributosDef] = useState<MlAtributoDef[]>([]);
     const [mlAtributosVal, setMlAtributosVal] = useState<Record<string, ProductoMlAtributo>>({});
+    // Límite de caracteres del Título ML según la categoría seleccionada (null = sin categoría).
+    const [maxTitleLengthMl, setMaxTitleLengthMl] = useState<number | null>(null);
     // Relaciones N-a-N (se asocian tras crear el producto)
     const [catalogosSel, setCatalogosSel] = useState<MultiOption[]>([]);
     const [aptosSel, setAptosSel] = useState<MultiOption[]>([]);
@@ -784,6 +787,16 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         return () => { cancel = true; };
     }, [mlCategoryId]);
 
+    // Carga el máximo de caracteres permitido para el Título ML según la categoría seleccionada.
+    useEffect(() => {
+        if (!mlCategoryId) { setMaxTitleLengthMl(null); return; }
+        let cancel = false;
+        getMlCategoriaMaxTitleAPI(String(mlCategoryId))
+            .then(n => { if (!cancel) setMaxTitleLengthMl(n); })
+            .catch(() => { if (!cancel) setMaxTitleLengthMl(null); });
+        return () => { cancel = true; };
+    }, [mlCategoryId]);
+
     // Helper para actualizar un atributo ML en el estado.
     const setAtributo = (id: string, valueName: string, valueId: string | null = null) =>
         setMlAtributosVal(prev => {
@@ -1174,8 +1187,15 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 {formErrors.tituloDux && <p className="mt-1 text-xs text-red-500">{formErrors.tituloDux}</p>}
                             </label>
                             <label className="block md:col-span-2">
-                                <span className={fieldLabelClassName}>Título ML</span>
-                                <input type="text" className={`${inputBaseClassName} ${formErrors.tituloMl ? inputErrorClassName : ""}`} value={tituloMl} onChange={e => { setTituloMl(e.target.value); if (formErrors.tituloMl) setFormErrors(p => ({ ...p, tituloMl: "" })); }} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handlePredecirCategoriasMl(); } }} placeholder="Título para Mercado Libre" />
+                                <span className={`${fieldLabelClassName} flex items-baseline gap-2`}>
+                                    Título ML
+                                    {maxTitleLengthMl != null && (
+                                        <span className={`text-xs font-normal ${tituloMl.length >= maxTitleLengthMl ? "text-red-500 dark:text-red-400" : tituloMl.length >= maxTitleLengthMl * 0.9 ? "text-amber-500 dark:text-amber-400" : "text-slate-500 dark:text-slate-400"}`}>
+                                            {tituloMl.length}/{maxTitleLengthMl}
+                                        </span>
+                                    )}
+                                </span>
+                                <input type="text" className={`${inputBaseClassName} ${formErrors.tituloMl ? inputErrorClassName : ""}`} value={tituloMl} onChange={e => { setTituloMl(e.target.value); if (formErrors.tituloMl) setFormErrors(p => ({ ...p, tituloMl: "" })); }} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handlePredecirCategoriasMl(); } }} placeholder="Título para Mercado Libre" maxLength={maxTitleLengthMl ?? undefined} />
                                 {formErrors.tituloMl && <p className="mt-1 text-xs text-red-500">{formErrors.tituloMl}</p>}
                                 <div className="mt-2 flex flex-col gap-2">
                                     <div className="flex items-center gap-2">

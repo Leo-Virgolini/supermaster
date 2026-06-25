@@ -77,6 +77,9 @@ export interface ProductoDTO {
 	// Márgenes (vienen de producto_margen, expuestos para edición inline)
 	margenMinorista?: number | null;
 	margenMayorista?: number | null;
+
+	// Mercado Libre
+	ean?: string | null;
 }
 
 export interface ProductoCreateDTO {
@@ -116,6 +119,7 @@ export interface ProductoCreateDTO {
 	mlPaqAncho?: number | null;
 	mlPaqLargo?: number | null;
 	mlPaqPeso?: number | null;
+	ean?: string | null;
 }
 
 export type ProductoPatchDTO = Partial<ProductoCreateDTO>;

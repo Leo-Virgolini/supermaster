@@ -179,6 +179,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const [mlPaqAncho, setMlPaqAncho] = useState<number | "">("");
     const [mlPaqLargo, setMlPaqLargo] = useState<number | "">("");
     const [mlPaqPeso, setMlPaqPeso] = useState<number | "">("");
+    const [ean, setEan] = useState("");
     // Relaciones N-a-N (se asocian tras crear el producto)
     const [catalogosSel, setCatalogosSel] = useState<MultiOption[]>([]);
     const [aptosSel, setAptosSel] = useState<MultiOption[]>([]);
@@ -410,6 +411,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 mlPaqAncho: mlPaqAncho === "" ? null : Number(mlPaqAncho),
                 mlPaqLargo: mlPaqLargo === "" ? null : Number(mlPaqLargo),
                 mlPaqPeso: mlPaqPeso === "" ? null : Number(mlPaqPeso),
+                ean: ean.trim() || null,
             };
             const creado = await createProducto(payload, asociarMargenYRelaciones);
             // Si se creó un MLA nuevo SIN envío cargado a mano, calcular su precio de envío (el
@@ -506,6 +508,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             setMlPaqAncho(producto.mlPaqAncho ?? "");
             setMlPaqLargo(producto.mlPaqLargo ?? "");
             setMlPaqPeso(producto.mlPaqPeso ?? "");
+            setEan(producto.ean ?? "");
             setFormErrors({});
             setCatalogosSel([]); setAptosSel([]); setClientesSel([]);
             setCatalogosOriginal([]); setAptosOriginal([]); setClientesOriginal([]);
@@ -542,6 +545,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             setPanelTab("datos");
             setSeoHogar({ title: "", description: "", tags: "" });
             setSeoGastro({ title: "", description: "", tags: "" });
+            setEan("");
             void cargarSkuSugerido(false);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -579,6 +583,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 mlPaqAncho: mlPaqAncho === "" ? null : Number(mlPaqAncho),
                 mlPaqLargo: mlPaqLargo === "" ? null : Number(mlPaqLargo),
                 mlPaqPeso: mlPaqPeso === "" ? null : Number(mlPaqPeso),
+                ean: ean.trim() || null,
             } as ProductoPatchDTO;
             await updateProductoAPI(id, patch, "FORM");
             // Si se creó un MLA nuevo SIN envío cargado a mano durante la edición, calcularlo
@@ -1408,6 +1413,20 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                     <input type="number" min={0.01} className={`${inputBaseClassName} ${formErrors.mlPaqPeso ? inputErrorClassName : ""}`}
                                         value={mlPaqPeso} onChange={e => { setMlPaqPeso(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.mlPaqPeso) setFormErrors(p => ({ ...p, mlPaqPeso: "" })); }} />
                                     {formErrors.mlPaqPeso && <p className="mt-1 text-xs text-red-500">{formErrors.mlPaqPeso}</p>}
+                                </label>
+                            </div>
+                        </div>
+
+                        {/* EAN / Código de barras */}
+                        <div className="mt-6 border-t border-slate-200/70 pt-4 dark:border-slate-700/70">
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                <label className="block">
+                                    <span className={fieldLabelClassName}>EAN / Código universal</span>
+                                    <input type="text" inputMode="numeric" className={inputBaseClassName} value={ean}
+                                        onChange={e => setEan(e.target.value)} placeholder="Código de barras (8–14 dígitos)" />
+                                    {ean.trim() && !/^\d{8,14}$/.test(ean.trim()) && (
+                                        <span className="mt-0.5 block text-[11px] text-amber-600">Debería tener 8–14 dígitos</span>
+                                    )}
                                 </label>
                             </div>
                         </div>

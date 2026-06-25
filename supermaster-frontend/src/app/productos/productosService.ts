@@ -310,6 +310,20 @@ export const exportarProductosAMlAPI = async (skus: string[]): Promise<ExportCan
 	return await res.json();
 };
 
+export type MlAtributoValor = { id: string; name: string };
+export type MlAtributoDef = {
+	id: string; name: string; valueType: "string" | "number" | "number_unit" | "boolean" | "list";
+	values: MlAtributoValor[]; allowedUnits: string[]; defaultUnit: string | null;
+	required: boolean; conditional: boolean; multivalued: boolean; grupo: "PRINCIPALES" | "SECUNDARIAS";
+};
+export type ProductoMlAtributo = { attributeId: string; valueId: string | null; valueName: string };
+
+export const getMlCategoriaAtributosAPI = async (categoryId: string): Promise<MlAtributoDef[]> => {
+	const res = await fetchAPI(`${API_BASE_URL}/api/ml/categorias/${encodeURIComponent(categoryId)}/atributos`);
+	if (!res.ok) throw new Error("No se pudieron obtener los atributos de la categoría");
+	return await res.json();
+};
+
 export type PrediccionCategoriaMl = { categoryId: string; categoryName: string; categoryPath: string };
 
 export const predecirCategoriasMlAPI = async (titulo: string): Promise<PrediccionCategoriaMl[]> => {

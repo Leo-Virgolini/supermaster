@@ -66,6 +66,10 @@ public class Producto {
     @Column(name = "ml_category_nombre", length = 255)
     private String mlCategoryNombre;
 
+    @Size(max = 20)
+    @Column(name = "ean", length = 20)
+    private String ean;
+
     @Column(name = "es_combo")
     private Boolean esCombo;
 

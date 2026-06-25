@@ -414,7 +414,8 @@ class RecalculoAutomaticoIntegrationTest {
                 producto.getTagReposicion(),
                 producto.getTag(),
                 null, null,
-                null, null, null, null
+                null, null, null, null,
+                null // ean
         );
     }
 

@@ -47,6 +47,7 @@ public class ProductoPatchDTO {
     private JsonNullable<BigDecimal> mlPaqAncho = JsonNullable.undefined();
     private JsonNullable<BigDecimal> mlPaqLargo = JsonNullable.undefined();
     private JsonNullable<BigDecimal> mlPaqPeso = JsonNullable.undefined();
+    private JsonNullable<String> ean = JsonNullable.undefined();
 }
 
 

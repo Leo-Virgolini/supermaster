@@ -1294,6 +1294,9 @@ public class ProductoServiceImpl implements ProductoService {
         if (presente(patchDto.getMlPaqPeso())) {
             entity.setMlPaqPeso(leerDecimalNoNegativoOpcional(patchDto.getMlPaqPeso(), "mlPaqPeso"));
         }
+        if (presente(patchDto.getEan())) {
+            entity.setEan(leerStringOpcional(patchDto.getEan(), "ean", 20));
+        }
     }
 
     private Mla crearReferenciaMla(Integer mlaId) {

@@ -81,6 +81,9 @@ public record ProductoUpdateDTO(
         @PositiveOrZero(message = "El largo del paquete ML debe ser mayor o igual a 0")
         BigDecimal mlPaqLargo,
         @PositiveOrZero(message = "El peso del paquete ML debe ser mayor o igual a 0")
-        BigDecimal mlPaqPeso
+        BigDecimal mlPaqPeso,
+
+        @Size(max = 20, message = "El EAN no puede exceder 20 caracteres")
+        String ean
 ) {
 }

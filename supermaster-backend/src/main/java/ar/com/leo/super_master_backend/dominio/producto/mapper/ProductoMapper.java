@@ -102,7 +102,8 @@ public interface ProductoMapper {
                 entity.getMlPaqAlto(),
                 entity.getMlPaqAncho(),
                 entity.getMlPaqLargo(),
-                entity.getMlPaqPeso()
+                entity.getMlPaqPeso(),
+                entity.getEan()
         );
     }
 

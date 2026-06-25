@@ -74,6 +74,9 @@ public record ProductoDTO(
         BigDecimal mlPaqAlto,
         BigDecimal mlPaqAncho,
         BigDecimal mlPaqLargo,
-        BigDecimal mlPaqPeso
+        BigDecimal mlPaqPeso,
+
+        // Código universal de producto (EAN/GTIN)
+        String ean
 ) {
 }

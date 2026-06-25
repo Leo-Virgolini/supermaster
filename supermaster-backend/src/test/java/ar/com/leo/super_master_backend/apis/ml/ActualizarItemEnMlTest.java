@@ -293,4 +293,14 @@ class ActualizarItemEnMlTest {
         assertThat(status.get()).isEqualTo("active");                  // estado actualizado
         assertThat(r.advertencia()).contains("precio no actualizado");
     }
+
+    @Test
+    void campoTituloMl_UPusaFamilyName_clasicoUsaTitle() {
+        // Ítem User Products (trae family_name) -> se edita family_name (el title está bloqueado).
+        assertThat(MercadoLibreService.campoTituloMl("Olla acero 24cm")).isEqualTo("family_name");
+        // Ítem del modelo clásico (sin family_name) -> se edita title.
+        assertThat(MercadoLibreService.campoTituloMl(null)).isEqualTo("title");
+        assertThat(MercadoLibreService.campoTituloMl("")).isEqualTo("title");
+        assertThat(MercadoLibreService.campoTituloMl("   ")).isEqualTo("title");
+    }
 }

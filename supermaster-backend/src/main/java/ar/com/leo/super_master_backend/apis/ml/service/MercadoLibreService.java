@@ -1818,6 +1818,15 @@ public class MercadoLibreService {
         return (previa == null || previa.isBlank()) ? mensaje : previa + "; " + mensaje;
     }
 
+    /**
+     * Campo a editar para el "título" de un ítem ML según su modelo: si el ítem ya trae
+     * {@code family_name} (modelo User Products) se edita {@code family_name} (el {@code title}
+     * queda bloqueado); si no, es del modelo clásico y se edita {@code title}.
+     */
+    public static String campoTituloMl(String familyNameDelItem) {
+        return (familyNameDelItem != null && !familyNameDelItem.isBlank()) ? "family_name" : "title";
+    }
+
     /** Recorta el family_name (Título ML) al máximo del dominio; trim antes y después del recorte. */
     static String construirFamilyName(String tituloMl, int maxLen) {
         String t = tituloMl == null ? "" : tituloMl.trim();
@@ -1954,9 +1963,11 @@ public class MercadoLibreService {
         // Obtener la categoría del ítem ya publicado para calcular el precio y los atributos válidos.
         BigDecimal precioFinal;
         String categoryIdActual = null;
+        String familyNameActual = null;
         try {
             ar.com.leo.super_master_backend.apis.ml.model.Producto itemPublicado = getItemByMLA(mla);
             categoryIdActual = (itemPublicado != null) ? itemPublicado.categoryId : null;
+            familyNameActual = (itemPublicado != null) ? itemPublicado.familyName : null;
             if (categoryIdActual == null || categoryIdActual.isBlank()) {
                 log.warn("ML - sin categoría para {}, no se recalcula el precio", mla);
                 categoryIdActual = null;
@@ -1973,19 +1984,23 @@ public class MercadoLibreService {
                 ? mlCategoriaAtributoService.idsValidos(categoryIdActual)
                 : Set.of();
 
+        // El campo del "título" depende del modelo del ítem: en User Products (family_name != null)
+        // el title está bloqueado y se edita family_name; en el modelo clásico se edita title.
+        final String campoTitulo = campoTituloMl(familyNameActual);
+
         ResultadoAltaMl r = actualizarItemEnMlCore(
                 producto, mla,
                 this::leerSoldQuantity,
-                // Se actualiza el title (recortado al máximo del dominio), solo si no hubo ventas.
-                // family_name es un campo del ALTA (POST): en el PUT de actualización ML lo rechaza
-                // (BODY_INVALID_FIELDS / "family name is invalid"). El cálculo del máximo (GET a
-                // /categories) es lazy: el core invoca este callback únicamente cuando soldQty == 0.
+                // Actualiza el "título" (recortado al máximo del dominio) solo si no hubo ventas,
+                // sobre el campo correcto según el modelo del ítem (family_name UP / title clásico).
+                // El cálculo del máximo (GET a /categories) es lazy: el core invoca este callback
+                // únicamente cuando soldQty == 0.
                 (m, ignoradoTitle) -> {
                     try {
                         String tituloUpd = construirFamilyName(producto.getTituloMl(), obtenerMaxTitleLength(producto.getMlCategoryId()));
                         retryHandler.putJson("/items/" + m, () -> tokens.accessToken,
-                                objectMapper.writeValueAsString(Map.of("title", tituloUpd)));
-                    } catch (Exception e) { throw new RuntimeException("título: " + e.getMessage(), e); }
+                                objectMapper.writeValueAsString(Map.of(campoTitulo, tituloUpd)));
+                    } catch (Exception e) { throw new RuntimeException(campoTitulo + ": " + e.getMessage(), e); }
                 },
                 (m, plainText) -> {
                     try { retryHandler.putJson("/items/" + m + "/description", () -> tokens.accessToken,

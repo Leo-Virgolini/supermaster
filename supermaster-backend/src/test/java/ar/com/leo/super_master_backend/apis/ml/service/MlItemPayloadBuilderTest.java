@@ -92,9 +92,10 @@ class MlItemPayloadBuilderTest {
 
         var payload = MlItemPayloadBuilder.construir(p, "MLA30083", new BigDecimal("100"), 0, List.of(), "Fam");
 
-        assertEquals("6 cm",   attr(payload, "SELLER_PACKAGE_HEIGHT").get("value_name"));
-        assertEquals("25 cm",  attr(payload, "SELLER_PACKAGE_WIDTH").get("value_name"));
-        assertEquals("31 cm",  attr(payload, "SELLER_PACKAGE_LENGTH").get("value_name"));
+        // ML Alto(HEIGHT)=BD Ancho(25); ML Ancho(WIDTH)=BD Largo(31); ML Profundidad(LENGTH)=BD Alto(6).
+        assertEquals("25 cm",  attr(payload, "SELLER_PACKAGE_HEIGHT").get("value_name"));
+        assertEquals("31 cm",  attr(payload, "SELLER_PACKAGE_WIDTH").get("value_name"));
+        assertEquals("6 cm",   attr(payload, "SELLER_PACKAGE_LENGTH").get("value_name"));
         assertEquals("214 g",  attr(payload, "SELLER_PACKAGE_WEIGHT").get("value_name"));
 
         var vat = attr(payload, "VALUE_ADDED_TAX");

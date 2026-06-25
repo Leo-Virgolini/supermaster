@@ -116,6 +116,7 @@ public class MercadoLibreService {
     private MLCredentials credentials;
     private volatile TokensML tokens;
     private String cachedUserId;
+    private JsonNode cachedPerfil;
 
     public MercadoLibreService(ObjectMapper objectMapper,
                                MlaRepository mlaRepository,
@@ -1090,18 +1091,23 @@ public class MercadoLibreService {
     }
 
     /**
-     * Realiza UN solo {@code GET /users/me} y devuelve el {@link JsonNode} completo.
-     * El resultado no se cachea; los callers usan lo que necesitan de él.
+     * Realiza {@code GET /users/me} y devuelve el {@link JsonNode} completo.
+     * El resultado se cachea en {@link #cachedPerfil} (el perfil del vendedor — id y zip —
+     * es estable dentro de una ejecución, misma suposición que {@link #cachedUserId}).
      * Si la llamada falla, lanza {@link IOException}.
      */
     private JsonNode obtenerPerfilVendedor() throws IOException {
+        if (cachedPerfil != null) {
+            return cachedPerfil;
+        }
         verificarTokens();
         String responseBody = retryHandler.get("/users/me", () -> tokens.accessToken);
         if (responseBody == null) {
             throw new IOException("Error al obtener perfil del vendedor de ML");
         }
         try {
-            return objectMapper.readTree(responseBody);
+            cachedPerfil = objectMapper.readTree(responseBody);
+            return cachedPerfil;
         } catch (Exception e) {
             throw new IOException("Error parseando perfil del vendedor de ML", e);
         }
@@ -1261,8 +1267,9 @@ public class MercadoLibreService {
                 tokens = refreshAccessToken(tokens.refreshToken);
                 tokens.issuedAt = System.currentTimeMillis();
                 guardarTokens(tokens);
-                // Limpiar cache de userId al renovar tokens
+                // Limpiar cache de userId y perfil al renovar tokens
                 cachedUserId = null;
+                cachedPerfil = null;
                 log.info("ML - Token renovado correctamente.");
             } catch (Exception e) {
                 log.error("ML - Error al renovar token", e);
@@ -2285,16 +2292,12 @@ public class MercadoLibreService {
         final String listingType = LISTING_TYPE_GOLD_SPECIAL;
         final String logisticType = LOGISTIC_DROP_OFF;
 
-        // Obtener perfil del vendedor en UN solo GET /users/me: extrae userId (para la API de envío)
-        // y zip (para consultarEnvioConIvaSinItem). El userId se deja también en cache.
+        // Obtener userId y zip del vendedor (cachedPerfil asegura un solo GET /users/me por ejecución).
         final String userId;
         final String zipFinal;
         try {
-            JsonNode perfil = obtenerPerfilVendedor();
-            userId = perfil.get("id").asString();
-            cachedUserId = userId; // actualizar cache
-            String zip = perfil.path("address").path("zip_code").asString("");
-            zipFinal = zip.isBlank() ? null : zip;
+            userId = getUserId();
+            zipFinal = obtenerZipVendedor();
         } catch (IOException e) {
             throw new IllegalStateException("No se pudo obtener el perfil del vendedor de MercadoLibre: " + e.getMessage());
         }

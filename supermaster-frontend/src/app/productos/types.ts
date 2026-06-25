@@ -80,6 +80,7 @@ export interface ProductoDTO {
 
 	// Mercado Libre
 	ean?: string | null;
+	mlAtributos?: { attributeId: string; valueId: string | null; valueName: string }[];
 }
 
 export interface ProductoCreateDTO {
@@ -120,6 +121,7 @@ export interface ProductoCreateDTO {
 	mlPaqLargo?: number | null;
 	mlPaqPeso?: number | null;
 	ean?: string | null;
+	mlAtributos?: { attributeId: string; valueId: string | null; valueName: string }[];
 }
 
 export type ProductoPatchDTO = Partial<ProductoCreateDTO>;

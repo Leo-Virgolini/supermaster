@@ -17,6 +17,7 @@ import {
     generarSeoAPI, type DestinoNube, type SeoNube,
     searchSectoresDeposito, predecirCategoriasMlAPI, type PrediccionCategoriaMl,
     getImagenDetalleAPI, type ImagenDetalle,
+    getMlCategoriaAtributosAPI, type MlAtributoDef, type ProductoMlAtributo,
 } from "./productosService";
 import { updateProductoMargenAPI } from "./productoMargenService";
 import { getCuotasPorCanalAPI } from "../canal-concepto-cuotas/canalConceptoCuotaService";
@@ -180,6 +181,9 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const [mlPaqLargo, setMlPaqLargo] = useState<number | "">("");
     const [mlPaqPeso, setMlPaqPeso] = useState<number | "">("");
     const [ean, setEan] = useState("");
+    // Atributos de la categoría ML
+    const [mlAtributosDef, setMlAtributosDef] = useState<MlAtributoDef[]>([]);
+    const [mlAtributosVal, setMlAtributosVal] = useState<Record<string, ProductoMlAtributo>>({});
     // Relaciones N-a-N (se asocian tras crear el producto)
     const [catalogosSel, setCatalogosSel] = useState<MultiOption[]>([]);
     const [aptosSel, setAptosSel] = useState<MultiOption[]>([]);
@@ -412,6 +416,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 mlPaqLargo: mlPaqLargo === "" ? null : Number(mlPaqLargo),
                 mlPaqPeso: mlPaqPeso === "" ? null : Number(mlPaqPeso),
                 ean: ean.trim() || null,
+                mlAtributos: Object.values(mlAtributosVal),
             };
             const creado = await createProducto(payload, asociarMargenYRelaciones);
             // Si se creó un MLA nuevo SIN envío cargado a mano, calcular su precio de envío (el
@@ -509,6 +514,14 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             setMlPaqLargo(producto.mlPaqLargo ?? "");
             setMlPaqPeso(producto.mlPaqPeso ?? "");
             setEan(producto.ean ?? "");
+            // Precarga los atributos ML guardados (si los hay).
+            if (producto.mlAtributos && producto.mlAtributos.length > 0) {
+                const map: Record<string, ProductoMlAtributo> = {};
+                for (const a of producto.mlAtributos) map[a.attributeId] = a;
+                setMlAtributosVal(map);
+            } else {
+                setMlAtributosVal({});
+            }
             setFormErrors({});
             setCatalogosSel([]); setAptosSel([]); setClientesSel([]);
             setCatalogosOriginal([]); setAptosOriginal([]); setClientesOriginal([]);
@@ -546,6 +559,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             setSeoHogar({ title: "", description: "", tags: "" });
             setSeoGastro({ title: "", description: "", tags: "" });
             setEan("");
+            setMlAtributosVal({});
             void cargarSkuSugerido(false);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -584,6 +598,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 mlPaqLargo: mlPaqLargo === "" ? null : Number(mlPaqLargo),
                 mlPaqPeso: mlPaqPeso === "" ? null : Number(mlPaqPeso),
                 ean: ean.trim() || null,
+                mlAtributos: Object.values(mlAtributosVal),
             } as ProductoPatchDTO;
             await updateProductoAPI(id, patch, "FORM");
             // Si se creó un MLA nuevo SIN envío cargado a mano durante la edición, calcularlo
@@ -759,6 +774,24 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         return () => clearTimeout(t);
     }, [mlaCodigo]);
 
+    // Carga las definiciones de atributos de la categoría ML cada vez que cambia mlCategoryId.
+    useEffect(() => {
+        if (!mlCategoryId) { setMlAtributosDef([]); return; }
+        let cancel = false;
+        getMlCategoriaAtributosAPI(mlCategoryId)
+            .then(defs => { if (!cancel) setMlAtributosDef(defs); })
+            .catch(() => { if (!cancel) setMlAtributosDef([]); });
+        return () => { cancel = true; };
+    }, [mlCategoryId]);
+
+    // Helper para actualizar un atributo ML en el estado.
+    const setAtributo = (id: string, valueName: string, valueId: string | null = null) =>
+        setMlAtributosVal(prev => {
+            const next = { ...prev };
+            if (!valueName) delete next[id]; else next[id] = { attributeId: id, valueId, valueName };
+            return next;
+        });
+
     const aplicarMlaEnForm = (mla: { id: number; mla: string; mlau: string | null; precioEnvio: number | null; comisionPorcentaje: number | null; topePromocion: number | null }) => {
         setMlaCodigo(mla.mla);
         setMlaId(mla.id);
@@ -925,6 +958,49 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     // selector de cuotas no comprima el título ni desalinee las tarjetas entre sí.
     const canalCardClassName = "flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200";
     const selectBaseClassName = `${inputBaseClassName} appearance-none`;
+
+    // Renderiza el input correcto según el tipo de atributo ML (definida aquí para acceder a las clases).
+    const renderMlAtributoInput = (d: MlAtributoDef) => {
+        const v = mlAtributosVal[d.id];
+        if (d.valueType === "list" || d.valueType === "boolean") {
+            return (
+                <select className={selectBaseClassName} value={v?.valueId ?? ""}
+                    onChange={e => { const opt = d.values.find(o => o.id === e.target.value); setAtributo(d.id, opt?.name ?? "", opt?.id ?? null); }}>
+                    <option value="">—</option>
+                    {d.values.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+                </select>
+            );
+        }
+        if (d.valueType === "number_unit") {
+            const parts = (v?.valueName ?? "").split(" ");
+            const num = parts[0] ?? "";
+            const unit = parts.slice(1).join(" ");
+            const setNU = (n: string, u: string) => setAtributo(d.id, n ? `${n} ${u}` : "");
+            return (
+                <div className="flex gap-2">
+                    <input type="number" className={inputBaseClassName} value={num}
+                        onChange={e => setNU(e.target.value, unit || d.defaultUnit || d.allowedUnits[0] || "")} />
+                    <select className={selectBaseClassName} value={unit || d.defaultUnit || ""}
+                        onChange={e => setNU(num, e.target.value)}>
+                        {d.allowedUnits.map(u => <option key={u} value={u}>{u}</option>)}
+                    </select>
+                </div>
+            );
+        }
+        // string / number: texto o numérico, con datalist de sugeridos si hay values
+        return (
+            <>
+                <input type={d.valueType === "number" ? "number" : "text"} className={inputBaseClassName}
+                    list={d.values.length ? `dl-${d.id}` : undefined} value={v?.valueName ?? ""}
+                    onChange={e => setAtributo(d.id, e.target.value)} />
+                {d.values.length > 0 && (
+                    <datalist id={`dl-${d.id}`}>
+                        {d.values.map(o => <option key={o.id} value={o.name} />)}
+                    </datalist>
+                )}
+            </>
+        );
+    };
 
     return (
         <>
@@ -1430,6 +1506,35 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 </label>
                             </div>
                         </div>
+
+                        {/* Atributos de categoría ML */}
+                        {mlCategoryId && mlAtributosDef.length > 0 && (
+                            <div className="mt-6 border-t border-slate-200/70 pt-4 dark:border-slate-700/70">
+                                {(["PRINCIPALES", "SECUNDARIAS"] as const).map(grupo => {
+                                    const defs = mlAtributosDef.filter(d => (grupo === "PRINCIPALES" ? d.grupo === "PRINCIPALES" : d.grupo !== "PRINCIPALES"));
+                                    if (defs.length === 0) return null;
+                                    return (
+                                        <div key={grupo} className="mb-4">
+                                            <h4 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                                {grupo === "PRINCIPALES" ? "Principales" : "Secundarias"}
+                                            </h4>
+                                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                                                {defs.map(d => (
+                                                    <div key={d.id}>
+                                                        <span className={fieldLabelClassName}>
+                                                            {d.name}{d.required && <span className="text-red-500"> *</span>}
+                                                        </span>
+                                                        <div className="mt-1">
+                                                            {renderMlAtributoInput(d)}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </fieldset>
 
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.dimensiones}`}>

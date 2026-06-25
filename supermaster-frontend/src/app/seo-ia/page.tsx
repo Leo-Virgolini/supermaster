@@ -15,9 +15,11 @@ export default function SeoIaPage() {
     const [borradores, setBorradores] = useState<Record<string, string>>({});
 
     useEffect(() => {
-        const inicial: Record<string, string> = {};
-        prompts.forEach(p => { inicial[p.canal] = p.contenido; });
-        setBorradores(inicial);
+        setBorradores(prev => {
+            const next = { ...prev };
+            prompts.forEach(p => { if (next[p.canal] === undefined) next[p.canal] = p.contenido; });
+            return next;
+        });
     }, [prompts]);
 
     const fmt = (n: number) => new Intl.NumberFormat("es-AR").format(n);

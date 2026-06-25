@@ -1987,6 +1987,9 @@ public class MercadoLibreService {
         // El campo del "título" depende del modelo del ítem: en User Products (family_name != null)
         // el title está bloqueado y se edita family_name; en el modelo clásico se edita title.
         final String campoTitulo = campoTituloMl(familyNameActual);
+        // El máximo (max_title_length) se toma de la categoría REAL del ítem publicado, no de la del
+        // producto (que el usuario pudo cambiar): es la categoría donde rige el límite del título.
+        final String categoriaItem = categoryIdActual;
 
         ResultadoAltaMl r = actualizarItemEnMlCore(
                 producto, mla,
@@ -1997,7 +2000,7 @@ public class MercadoLibreService {
                 // únicamente cuando soldQty == 0.
                 (m, ignoradoTitle) -> {
                     try {
-                        String tituloUpd = construirFamilyName(producto.getTituloMl(), obtenerMaxTitleLength(producto.getMlCategoryId()));
+                        String tituloUpd = construirFamilyName(producto.getTituloMl(), obtenerMaxTitleLength(categoriaItem));
                         retryHandler.putJson("/items/" + m, () -> tokens.accessToken,
                                 objectMapper.writeValueAsString(Map.of(campoTitulo, tituloUpd)));
                     } catch (Exception e) { throw new RuntimeException(campoTitulo + ": " + e.getMessage(), e); }

@@ -1,50 +1,15 @@
 package ar.com.leo.super_master_backend.apis.openai.service;
 
-import ar.com.leo.super_master_backend.apis.openai.SeoCanal;
 import ar.com.leo.super_master_backend.apis.openai.dto.SeoContexto;
 
-/** Construye los prompts (system/user) para la generación de SEO. Lógica pura, sin red. */
+/** Construye el mensaje de usuario (datos del producto) para la generación de SEO. Lógica pura, sin red. */
 public final class OpenAiSeoPrompts {
 
     private OpenAiSeoPrompts() {}
 
-    static final String SYSTEM_BASE = """
-            Eres un especialista en SEO para ecommerce.
-
-            Genera exclusivamente un JSON válido con las siguientes propiedades:
-
-            {
-              "seo_title": "",
-              "seo_description": "",
-              "tags": ""
-            }
-
-            Reglas:
-            - seo_title: máximo 70 caracteres.
-            - seo_description: máximo 320 caracteres.
-            - tags: entre 4 y 6 tags separados por comas. Usá términos de búsqueda generales (tipo de producto, material, color, marca, uso); NO uses como tags las dimensiones ni medidas (por ejemplo 21x21x9,5 cm), ni códigos, SKU o referencias (ni siquiera dentro de otra palabra, por ejemplo nada de "modelo712B").
-            - No inventar características que no estén presentes en la información.
-            - Optimizar para búsquedas en español.
-            - No incluir explicaciones ni texto fuera del JSON.
-            - No incluir códigos internos, SKU ni referencias (por ejemplo textos entre paréntesis como 712B) en ningún campo.
-            - No agregar al seo_title sufijos ni etiquetas de rubro o categoría (por ejemplo nada de "- Gastronómico" al final).""";
-
-    /** Regla extra solo para el canal gastronómico. */
-    static final String REGLA_GASTRO =
-            "\n- Enfocá el SEO en el rubro gastronómico y profesional. Podés mencionar en la descripción los"
-            + " usos en cocinas de restaurantes, cafeterías, pastelerías, panaderías, pizzerías o bares cuando"
-            + " ayuden al posicionamiento, integrados de forma natural en el texto (no como una lista forzada"
-            + " ni una muletilla al final). No agregues el rubro como sufijo del seo_title.";
-
-    public static String systemPrompt(SeoCanal canal) {
-        return canal == SeoCanal.GASTRO ? SYSTEM_BASE + REGLA_GASTRO : SYSTEM_BASE;
-    }
-
     /** Arma el mensaje de usuario con la info del producto en texto plano. */
     public static String userMessage(SeoContexto c) {
         StringBuilder sb = new StringBuilder();
-        // El "nombre interno" (título Dux) NO se manda: trae abreviaturas y códigos
-        // internos que ensucian el SEO. El título Nube + las características alcanzan.
         String titulo = sinParentesis(c.tituloNube());
         if (notBlank(titulo)) sb.append("Título: ").append(titulo).append("\n");
         if (notBlank(c.marca())) sb.append("Marca: ").append(c.marca().trim()).append("\n");

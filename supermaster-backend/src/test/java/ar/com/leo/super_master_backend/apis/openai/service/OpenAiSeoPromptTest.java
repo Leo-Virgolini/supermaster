@@ -1,6 +1,5 @@
 package ar.com.leo.super_master_backend.apis.openai.service;
 
-import ar.com.leo.super_master_backend.apis.openai.SeoCanal;
 import ar.com.leo.super_master_backend.apis.openai.dto.SeoContexto;
 import org.junit.jupiter.api.Test;
 
@@ -9,20 +8,6 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class OpenAiSeoPromptTest {
-
-    @Test
-    void gastro_incluyeReglaRubroGastronomico() {
-        String p = OpenAiSeoPrompts.systemPrompt(SeoCanal.GASTRO);
-        assertThat(p).contains("gastronómico");
-        assertThat(p).contains("seo_title: máximo 70 caracteres");
-    }
-
-    @Test
-    void hogar_noIncluyeReglaRubroGastronomico() {
-        String p = OpenAiSeoPrompts.systemPrompt(SeoCanal.HOGAR);
-        assertThat(p).doesNotContain("gastronómico");
-        assertThat(p).contains("seo_title: máximo 70 caracteres");
-    }
 
     @Test
     void userMessage_incluyeDatosDelProducto() {

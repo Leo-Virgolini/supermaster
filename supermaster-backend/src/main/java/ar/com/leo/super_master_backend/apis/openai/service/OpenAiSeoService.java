@@ -26,16 +26,21 @@ public class OpenAiSeoService {
     private final RestClient restClient;
     private final OpenAiProperties properties;
     private final ObjectMapper objectMapper;
+    private final SeoConfigService seoConfigService;
+    private final SeoUsoService seoUsoService;
 
     @Value("${app.secrets-dir}")
     private String secretsDir;
 
     private OpenAiCredentials credentials;
 
-    public OpenAiSeoService(RestClient openaiRestClient, OpenAiProperties properties, ObjectMapper objectMapper) {
+    public OpenAiSeoService(RestClient openaiRestClient, OpenAiProperties properties, ObjectMapper objectMapper,
+                            SeoConfigService seoConfigService, SeoUsoService seoUsoService) {
         this.restClient = openaiRestClient;
         this.properties = properties;
         this.objectMapper = objectMapper;
+        this.seoConfigService = seoConfigService;
+        this.seoUsoService = seoUsoService;
     }
 
     @PostConstruct
@@ -68,7 +73,9 @@ public class OpenAiSeoService {
         try {
             JsonNode root = objectMapper.readTree(respuesta);
             String contenido = root.path("choices").path(0).path("message").path("content").asString();
-            return OpenAiSeoParser.parseContenido(contenido, objectMapper);
+            SeoGeneradoDTO dto = OpenAiSeoParser.parseContenido(contenido, objectMapper);
+            registrarUso(root);
+            return dto;
         } catch (Exception e) {
             log.error("OpenAI - Error parseando la respuesta: {}", e.getMessage());
             throw new IllegalStateException("Respuesta de OpenAI no procesable: " + e.getMessage(), e);
@@ -82,7 +89,7 @@ public class OpenAiSeoService {
         ArrayNode messages = body.putArray("messages");
         ObjectNode system = messages.addObject();
         system.put("role", "system");
-        system.put("content", OpenAiSeoPrompts.systemPrompt(canal));
+        system.put("content", seoConfigService.promptDe(canal));
         ObjectNode user = messages.addObject();
         user.put("role", "user");
         user.put("content", OpenAiSeoPrompts.userMessage(contexto));
@@ -106,6 +113,18 @@ public class OpenAiSeoService {
         required.add("tags");
 
         return objectMapper.writeValueAsString(body);
+    }
+
+    /** Lee usage.{prompt_tokens, completion_tokens} y registra el consumo. Nunca rompe la generación. */
+    private void registrarUso(JsonNode root) {
+        try {
+            JsonNode usage = root.path("usage");
+            long in = usage.path("prompt_tokens").asLong(0);
+            long out = usage.path("completion_tokens").asLong(0);
+            seoUsoService.registrar(in, out);
+        } catch (Exception e) {
+            log.warn("OpenAI - no se pudo registrar el uso: {}", e.getMessage());
+        }
     }
 
     private void cargarCredenciales() {

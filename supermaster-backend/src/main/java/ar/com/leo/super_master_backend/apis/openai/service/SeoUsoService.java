@@ -4,7 +4,9 @@ import ar.com.leo.super_master_backend.apis.openai.config.OpenAiProperties;
 import ar.com.leo.super_master_backend.apis.openai.dto.SeoUsoDTO;
 import ar.com.leo.super_master_backend.apis.openai.entity.SeoUso;
 import ar.com.leo.super_master_backend.apis.openai.repository.SeoUsoRepository;
+import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,6 +14,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 
 /** Registra y lee el consumo acumulado de OpenAI (singleton id=1). */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SeoUsoService {
@@ -31,13 +34,16 @@ public class SeoUsoService {
     @Transactional
     public void registrar(long tokensEntrada, long tokensSalida) {
         BigDecimal costo = calcularCosto(tokensEntrada, tokensSalida, properties.precioInput1m(), properties.precioOutput1m());
-        repository.registrar(tokensEntrada, tokensSalida, costo);
+        int filas = repository.registrar(tokensEntrada, tokensSalida, costo);
+        if (filas == 0) {
+            log.warn("seo_uso id=1 no existe; el uso no se registró");
+        }
     }
 
     @Transactional(readOnly = true)
     public SeoUsoDTO obtener() {
         SeoUso u = repository.findById(1L).orElseThrow(
-                () -> new IllegalStateException("Fila de uso de SEO (id=1) no encontrada"));
+                () -> new NotFoundException("Fila de uso de SEO (id=1) no encontrada"));
         return new SeoUsoDTO(
                 u.getConsultas(), u.getTokensEntrada(), u.getTokensSalida(), u.getCostoUsd(),
                 properties.model(), properties.precioInput1m(), properties.precioOutput1m());

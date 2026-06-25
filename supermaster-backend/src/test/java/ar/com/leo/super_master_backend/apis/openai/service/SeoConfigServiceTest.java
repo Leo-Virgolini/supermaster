@@ -3,6 +3,7 @@ package ar.com.leo.super_master_backend.apis.openai.service;
 import ar.com.leo.super_master_backend.apis.openai.SeoCanal;
 import ar.com.leo.super_master_backend.apis.openai.entity.SeoPrompt;
 import ar.com.leo.super_master_backend.apis.openai.repository.SeoPromptRepository;
+import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
@@ -32,7 +33,7 @@ class SeoConfigServiceTest {
         when(repo.findByCanal(SeoCanal.GASTRO)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.promptDe(SeoCanal.GASTRO))
-                .isInstanceOf(IllegalStateException.class)
+                .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining("GASTRO");
     }
 

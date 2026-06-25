@@ -4,6 +4,7 @@ import ar.com.leo.super_master_backend.apis.openai.SeoCanal;
 import ar.com.leo.super_master_backend.apis.openai.dto.SeoPromptDTO;
 import ar.com.leo.super_master_backend.apis.openai.entity.SeoPrompt;
 import ar.com.leo.super_master_backend.apis.openai.repository.SeoPromptRepository;
+import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,7 +24,7 @@ public class SeoConfigService {
     public String promptDe(SeoCanal canal) {
         return repository.findByCanal(canal)
                 .map(SeoPrompt::getContenido)
-                .orElseThrow(() -> new IllegalStateException(
+                .orElseThrow(() -> new NotFoundException(
                         "No hay prompt de SEO configurado para el canal " + canal + " (revisar el seed de seo_prompt)"));
     }
 
@@ -37,7 +38,7 @@ public class SeoConfigService {
     @Transactional
     public SeoPromptDTO actualizar(SeoCanal canal, String contenido) {
         SeoPrompt p = repository.findByCanal(canal)
-                .orElseThrow(() -> new IllegalStateException(
+                .orElseThrow(() -> new NotFoundException(
                         "No hay prompt de SEO para el canal " + canal + " (revisar el seed de seo_prompt)"));
         p.setContenido(contenido);
         p.setFechaModificacion(LocalDateTime.now());

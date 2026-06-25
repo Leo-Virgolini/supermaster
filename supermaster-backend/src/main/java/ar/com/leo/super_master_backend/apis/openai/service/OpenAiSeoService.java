@@ -5,6 +5,7 @@ import ar.com.leo.super_master_backend.apis.openai.config.OpenAiProperties;
 import ar.com.leo.super_master_backend.apis.openai.dto.SeoContexto;
 import ar.com.leo.super_master_backend.apis.openai.dto.SeoGeneradoDTO;
 import ar.com.leo.super_master_backend.apis.openai.model.OpenAiCredentials;
+import ar.com.leo.super_master_backend.dominio.common.exception.ServiceNotConfiguredException;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -52,7 +53,7 @@ public class OpenAiSeoService {
     public SeoGeneradoDTO generar(SeoCanal canal, SeoContexto contexto) {
         String apiKey = credentials == null ? null : credentials.getApiKey();
         if (apiKey == null || apiKey.isBlank()) {
-            throw new IllegalStateException("OpenAI no configurado");
+            throw new ServiceNotConfiguredException("OPENAI", "OpenAI no configurado");
         }
 
         String jsonBody = construirBody(canal, contexto);
@@ -141,7 +142,4 @@ public class OpenAiSeoService {
         }
     }
 
-    public boolean isConfigured() {
-        return credentials != null && credentials.getApiKey() != null && !credentials.getApiKey().isBlank();
-    }
 }

@@ -128,7 +128,9 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     // Si el usuario genera/edita estos campos, se usan al exportar; si quedan vacíos, se autogeneran.
     const [seoHogar, setSeoHogar] = useState<{ title: string; description: string; tags: string }>({ title: "", description: "", tags: "" });
     const [seoGastro, setSeoGastro] = useState<{ title: string; description: string; tags: string }>({ title: "", description: "", tags: "" });
-    const [generandoSeo, setGenerandoSeo] = useState<null | "GASTRO" | "HOGAR">(null);
+    // Canales cuyo SEO se está generando ahora. Es un Set para permitir generar HOGAR y GASTRO
+    // en paralelo: cada botón se deshabilita solo por su propio canal, no por el del otro.
+    const [generandoSeo, setGenerandoSeo] = useState<Set<"GASTRO" | "HOGAR">>(() => new Set());
     // Resultado de las subidas a canales (para el panel de estado + reintento).
     const [resultadosCanal, setResultadosCanal] = useState<ResultadoCanal[]>([]);
     const [skuSubida, setSkuSubida] = useState("");
@@ -940,7 +942,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
 
     // Genera el SEO con IA para un canal de Nube y lo carga en su estado editable.
     const generarSeo = async (canal: "GASTRO" | "HOGAR") => {
-        setGenerandoSeo(canal);
+        setGenerandoSeo(s => new Set(s).add(canal));
         try {
             const r = await generarSeoAPI(canal, construirContextoSeo());
             const next = { title: r.seoTitle, description: r.seoDescription, tags: r.seoTags };
@@ -949,7 +951,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         } catch (e) {
             notificar.error(e instanceof Error ? e.message : "No se pudo generar el SEO con IA");
         } finally {
-            setGenerandoSeo(null);
+            setGenerandoSeo(s => { const n = new Set(s); n.delete(canal); return n; });
         }
     };
 
@@ -1634,9 +1636,9 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                     <div key={canal} className={`rounded-2xl border border-slate-200 bg-white/70 p-4 transition-opacity dark:border-slate-700 dark:bg-slate-800/60 ${activoCanal ? "" : "opacity-50"}`}>
                                         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                                             <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{titulo}</span>
-                                            <Button variant="dark" onClick={() => generarSeo(canal)} disabled={generandoSeo !== null || !activoCanal}>
-                                                {generandoSeo === canal ? <SpinnerIcon /> : <SparklesIcon className="h-4 w-4" />}
-                                                {generandoSeo === canal ? "Generando..." : "Generar SEO con IA"}
+                                            <Button variant="dark" onClick={() => generarSeo(canal)} disabled={generandoSeo.has(canal) || !activoCanal}>
+                                                {generandoSeo.has(canal) ? <SpinnerIcon /> : <SparklesIcon className="h-4 w-4" />}
+                                                {generandoSeo.has(canal) ? "Generando..." : "Generar SEO con IA"}
                                             </Button>
                                         </div>
                                         <div className="grid grid-cols-1 gap-3">

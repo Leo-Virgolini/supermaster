@@ -232,7 +232,11 @@ public class MlCategoriaAtributoService {
     // =====================================================================
 
     private void verificarTokens() {
-        if (tokens == null) {
+        // Re-lee ml_tokens.json cuando el token expiró: MercadoLibreService persiste ahí el token
+        // refrescado (guardarTokens), así este service se auto-cura sin duplicar el refresh ni
+        // inyectar MercadoLibreService (evita el ciclo de dependencias). En un 401 el retry handler
+        // llama a este método, recarga el token fresco del disco y reintenta.
+        if (tokens == null || tokens.isExpired()) {
             cargarTokens();
         }
     }

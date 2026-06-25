@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { notificar } from "../utils/notificar";
-import { BuildingStorefrontIcon, CheckIcon, CheckCircleIcon, CloudArrowDownIcon, CubeIcon, FireIcon, HomeIcon, XMarkIcon, IdentificationIcon, CurrencyDollarIcon, ArchiveBoxIcon, ReceiptPercentIcon, Squares2X2Icon, UserGroupIcon, ShoppingBagIcon, BanknotesIcon, InformationCircleIcon } from "@heroicons/react/24/outline";
+import { BuildingStorefrontIcon, CheckIcon, CheckCircleIcon, CloudArrowDownIcon, CubeIcon, FireIcon, HomeIcon, XMarkIcon, IdentificationIcon, CurrencyDollarIcon, ArchiveBoxIcon, ReceiptPercentIcon, Squares2X2Icon, UserGroupIcon, ShoppingBagIcon, BanknotesIcon, InformationCircleIcon, SparklesIcon } from "@heroicons/react/24/outline";
 import Tooltip from "../components/Tooltip/Tooltip";
 import { API_BASE_URL } from "../config/runtime";
 import Button from "../components/Button/Button";
@@ -1099,7 +1099,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 <div className="mt-2 flex flex-col gap-2">
                                     <div className="flex items-center gap-2">
                                         <Button variant="dark" onClick={handlePredecirCategoriasMl} disabled={!tituloMl.trim() || cargandoPrediccionesMl}>
-                                            {cargandoPrediccionesMl ? "Prediciendo..." : "Predecir categorías"}
+                                            <SparklesIcon className="w-4 h-4" /> {cargandoPrediccionesMl ? "Prediciendo..." : "Predecir categorías"}
                                         </Button>
                                         {mlCategoryId && (
                                             <span className="inline-flex items-center gap-1 rounded-full border border-yellow-300 bg-yellow-50 px-2 py-0.5 text-xs font-medium text-yellow-800 dark:border-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300">
@@ -1375,6 +1375,42 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 <input type="number" min={0} className={inputBaseClassName} value={mlaTope} onChange={e => setMlaTope(e.target.value === "" ? "" : Number(e.target.value))} placeholder="0" />
                             </label>
                         </div>
+
+                        {/* Subsección: dimensiones del paquete de envío de ML */}
+                        <div className="mt-6 border-t border-slate-200/70 pt-4 dark:border-slate-700/70">
+                            <div className="mb-3 flex items-center gap-1.5">
+                                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Paquete para envío</span>
+                                <Tooltip content="ML exige las dimensiones del paquete para publicar. Cargá alto/ancho/largo en cm y el peso en kg; se envían a ML en cm y gramos, redondeados a enteros." className="flex items-center">
+                                    <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
+                                </Tooltip>
+                            </div>
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                <label className="block">
+                                    <span className={fieldLabelClassName}>Alto (cm){subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
+                                    <input type="number" min={0.01} className={`${inputBaseClassName} ${formErrors.mlPaqAlto ? inputErrorClassName : ""}`}
+                                        value={mlPaqAlto} onChange={e => { setMlPaqAlto(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.mlPaqAlto) setFormErrors(p => ({ ...p, mlPaqAlto: "" })); }} />
+                                    {formErrors.mlPaqAlto && <p className="mt-1 text-xs text-red-500">{formErrors.mlPaqAlto}</p>}
+                                </label>
+                                <label className="block">
+                                    <span className={fieldLabelClassName}>Ancho (cm){subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
+                                    <input type="number" min={0.01} className={`${inputBaseClassName} ${formErrors.mlPaqAncho ? inputErrorClassName : ""}`}
+                                        value={mlPaqAncho} onChange={e => { setMlPaqAncho(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.mlPaqAncho) setFormErrors(p => ({ ...p, mlPaqAncho: "" })); }} />
+                                    {formErrors.mlPaqAncho && <p className="mt-1 text-xs text-red-500">{formErrors.mlPaqAncho}</p>}
+                                </label>
+                                <label className="block">
+                                    <span className={fieldLabelClassName}>Largo (cm){subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
+                                    <input type="number" min={0.01} className={`${inputBaseClassName} ${formErrors.mlPaqLargo ? inputErrorClassName : ""}`}
+                                        value={mlPaqLargo} onChange={e => { setMlPaqLargo(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.mlPaqLargo) setFormErrors(p => ({ ...p, mlPaqLargo: "" })); }} />
+                                    {formErrors.mlPaqLargo && <p className="mt-1 text-xs text-red-500">{formErrors.mlPaqLargo}</p>}
+                                </label>
+                                <label className="block">
+                                    <span className={fieldLabelClassName}>Peso (kg){subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
+                                    <input type="number" min={0.01} className={`${inputBaseClassName} ${formErrors.mlPaqPeso ? inputErrorClassName : ""}`}
+                                        value={mlPaqPeso} onChange={e => { setMlPaqPeso(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.mlPaqPeso) setFormErrors(p => ({ ...p, mlPaqPeso: "" })); }} />
+                                    {formErrors.mlPaqPeso && <p className="mt-1 text-xs text-red-500">{formErrors.mlPaqPeso}</p>}
+                                </label>
+                            </div>
+                        </div>
                     </fieldset>
 
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.dimensiones}`}>
@@ -1418,42 +1454,6 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         </div>
                     </fieldset>
 
-                    <fieldset className={`${sectionClassName} ${SECTION_TINT.paqueteMl}`}>
-                        <legend className={sectionTitleClassName}><ShoppingBagIcon /> Paquete para Mercado Libre (envío)</legend>
-                        <div className="flex items-center gap-1.5 mt-1 mb-4">
-                            <p className={sectionDescriptionClassName}>Dimensiones del paquete que se envían a ML al publicar.</p>
-                            <Tooltip content="ML exige las dimensiones del paquete para publicar. Cargá alto/ancho/largo en cm y el peso en kg; se envían a ML en cm y gramos, redondeados a enteros." className="flex items-center">
-                                <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
-                            </Tooltip>
-                        </div>
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                            <label className="block">
-                                <span className={fieldLabelClassName}>Alto (cm){subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
-                                <input type="number" min={0.01} className={`${inputBaseClassName} ${formErrors.mlPaqAlto ? inputErrorClassName : ""}`}
-                                    value={mlPaqAlto} onChange={e => { setMlPaqAlto(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.mlPaqAlto) setFormErrors(p => ({ ...p, mlPaqAlto: "" })); }} />
-                                {formErrors.mlPaqAlto && <p className="mt-1 text-xs text-red-500">{formErrors.mlPaqAlto}</p>}
-                            </label>
-                            <label className="block">
-                                <span className={fieldLabelClassName}>Ancho (cm){subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
-                                <input type="number" min={0.01} className={`${inputBaseClassName} ${formErrors.mlPaqAncho ? inputErrorClassName : ""}`}
-                                    value={mlPaqAncho} onChange={e => { setMlPaqAncho(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.mlPaqAncho) setFormErrors(p => ({ ...p, mlPaqAncho: "" })); }} />
-                                {formErrors.mlPaqAncho && <p className="mt-1 text-xs text-red-500">{formErrors.mlPaqAncho}</p>}
-                            </label>
-                            <label className="block">
-                                <span className={fieldLabelClassName}>Largo (cm){subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
-                                <input type="number" min={0.01} className={`${inputBaseClassName} ${formErrors.mlPaqLargo ? inputErrorClassName : ""}`}
-                                    value={mlPaqLargo} onChange={e => { setMlPaqLargo(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.mlPaqLargo) setFormErrors(p => ({ ...p, mlPaqLargo: "" })); }} />
-                                {formErrors.mlPaqLargo && <p className="mt-1 text-xs text-red-500">{formErrors.mlPaqLargo}</p>}
-                            </label>
-                            <label className="block">
-                                <span className={fieldLabelClassName}>Peso (kg){subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
-                                <input type="number" min={0.01} className={`${inputBaseClassName} ${formErrors.mlPaqPeso ? inputErrorClassName : ""}`}
-                                    value={mlPaqPeso} onChange={e => { setMlPaqPeso(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.mlPaqPeso) setFormErrors(p => ({ ...p, mlPaqPeso: "" })); }} />
-                                {formErrors.mlPaqPeso && <p className="mt-1 text-xs text-red-500">{formErrors.mlPaqPeso}</p>}
-                            </label>
-                        </div>
-                    </fieldset>
-
                     {/* Precios inflados por canal: en edición opera en vivo; en alta se difiere al crear */}
                     {(subirKtHogar || subirKtGastro) && (
                         <fieldset className={`${sectionClassName} ${SECTION_TINT.seo}`}>
@@ -1468,7 +1468,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                                             <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{titulo}</span>
                                             <Button variant="dark" onClick={() => generarSeo(canal)} disabled={generandoSeo !== null || !activoCanal}>
-                                                {generandoSeo === canal ? <SpinnerIcon /> : null}
+                                                {generandoSeo === canal ? <SpinnerIcon /> : <SparklesIcon className="h-4 w-4" />}
                                                 {generandoSeo === canal ? "Generando..." : "Generar SEO con IA"}
                                             </Button>
                                         </div>

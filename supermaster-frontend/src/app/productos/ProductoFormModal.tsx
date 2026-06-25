@@ -1102,9 +1102,9 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                             <SparklesIcon className="w-4 h-4" /> {cargandoPrediccionesMl ? "Prediciendo..." : "Predecir categorías"}
                                         </Button>
                                         {mlCategoryId && (
-                                            <span className="inline-flex items-center gap-1 rounded-full border border-yellow-300 bg-yellow-50 px-2 py-0.5 text-xs font-medium text-yellow-800 dark:border-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300">
+                                            <span title={mlCategoryNombre || String(mlCategoryId)} className="inline-block max-w-full rounded-lg border border-yellow-300 bg-yellow-50 px-2 py-1 text-xs font-medium leading-relaxed text-yellow-800 dark:border-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300">
                                                 {pathConHojaResaltada(mlCategoryNombre || String(mlCategoryId))}
-                                                <button type="button" onClick={() => { setMlCategoryId(null); setMlCategoryNombre(null); setPrediccionesMl([]); }} className="leading-none hover:text-red-500" aria-label="Quitar categoría">×</button>
+                                                <button type="button" onClick={() => { setMlCategoryId(null); setMlCategoryNombre(null); setPrediccionesMl([]); }} className="ml-1 align-middle font-bold leading-none text-yellow-600 hover:text-red-500 dark:text-yellow-400" aria-label="Quitar categoría">×</button>
                                             </span>
                                         )}
                                     </div>

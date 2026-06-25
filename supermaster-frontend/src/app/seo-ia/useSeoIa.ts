@@ -3,8 +3,7 @@ import { getErrorMessage } from "@/lib/errors";
 import { useCallback, useEffect, useState } from "react";
 import { notificar } from "../utils/notificar";
 import { getSeoPromptsAPI, getSeoUsoAPI, updateSeoPromptAPI } from "./seoService";
-import type { SeoCanal, SeoPrompt, SeoUso } from "./types";
-import { CANAL_LABEL } from "./types";
+import { CANAL_LABEL, type SeoCanal, type SeoPrompt, type SeoUso } from "./types";
 
 export function useSeoIa() {
     const [prompts, setPrompts] = useState<SeoPrompt[]>([]);

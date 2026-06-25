@@ -6,8 +6,10 @@ import ar.com.leo.super_master_backend.apis.ml.dto.CostoEnvioMasivoResponseDTO;
 import ar.com.leo.super_master_backend.apis.ml.dto.CostoEnvioResponseDTO;
 import ar.com.leo.super_master_backend.apis.ml.dto.CostoVentaMasivoResponseDTO;
 import ar.com.leo.super_master_backend.apis.ml.dto.CostoVentaResponseDTO;
+import ar.com.leo.super_master_backend.apis.ml.dto.MlAtributoDefDTO;
 import ar.com.leo.super_master_backend.apis.ml.dto.PrediccionCategoriaMlDTO;
 import ar.com.leo.super_master_backend.apis.ml.dto.ResultadoAltaMl;
+import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoMlAtributo;
 import ar.com.leo.super_master_backend.apis.ml.entity.ConfiguracionMl;
 import ar.com.leo.super_master_backend.apis.ml.model.MLCredentials;
 import ar.com.leo.super_master_backend.apis.ml.model.Producto;
@@ -56,6 +58,7 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -67,6 +70,9 @@ public class MercadoLibreService {
 
     private static final String CANAL_ML = "ML";
     private static final Set<String> EXT_ML = Set.of("jpg", "jpeg", "png");
+
+    /** Identificadores de código universal: obligatorios para ML pero gestionados por el builder; no se validan como faltantes. */
+    static final Set<String> IDENTIFICADORES_OPCIONALES = Set.of("GTIN", "EAN");
     private static final String LISTING_TYPE_GOLD_SPECIAL = "gold_special";
     private static final String LOGISTIC_DROP_OFF = "drop_off";
     private static final String SHIPPING_MODE_ME2 = "me2";
@@ -91,6 +97,7 @@ public class MercadoLibreService {
     private final MercadoLibreProperties properties;
     private final ProcesoGlobalService procesoGlobal;
     private final ImagenService imagenService;
+    private final MlCategoriaAtributoService mlCategoriaAtributoService;
     // ReentrantLock en lugar de synchronized: el bloque protegido hace I/O HTTP
     // (refreshAccessToken) y synchronized pinea el carrier thread con virtual threads.
     private final ReentrantLock tokenLock = new ReentrantLock();
@@ -129,7 +136,8 @@ public class MercadoLibreService {
                                RestClient mercadoLibreRestClient,
                                MercadoLibreProperties properties,
                                ProcesoGlobalService procesoGlobal,
-                               ImagenService imagenService) {
+                               ImagenService imagenService,
+                               MlCategoriaAtributoService mlCategoriaAtributoService) {
         this.objectMapper = objectMapper;
         this.mlaRepository = mlaRepository;
         this.productoRepository = productoRepository;
@@ -142,6 +150,7 @@ public class MercadoLibreService {
         this.properties = properties;
         this.procesoGlobal = procesoGlobal;
         this.imagenService = imagenService;
+        this.mlCategoriaAtributoService = mlCategoriaAtributoService;
     }
 
     @PostConstruct
@@ -1885,7 +1894,8 @@ public class MercadoLibreService {
             BiConsumer<String, List<String>> putPictures,
             ActualizadorEstadoItem putStatus,
             BiConsumer<String, List<Map<String, Object>>> putAttributes,
-            BigDecimal precioFinal) {
+            BigDecimal precioFinal,
+            Set<String> categoriaAttrIds) {
         try {
             if (producto.getTituloMl() == null || producto.getTituloMl().isBlank())
                 return ResultadoAltaMl.error("falta título ML");
@@ -1903,7 +1913,7 @@ public class MercadoLibreService {
             // Atributos (marca, dimensiones del paquete, IVA, impuesto de importación). Best-effort:
             // si ML rechaza algún atributo no editable, queda como advertencia y no aborta el resto.
             try {
-                putAttributes.accept(mla, MlItemPayloadBuilder.construirAtributos(producto, java.util.Set.of())); // Task 6 cableará idsValidos de la categoría
+                putAttributes.accept(mla, MlItemPayloadBuilder.construirAtributos(producto, categoriaAttrIds));
             } catch (Exception e) {
                 advertencia = concatAdv(advertencia, "atributos no actualizados");
             }
@@ -1941,21 +1951,27 @@ public class MercadoLibreService {
         verificarTokens();
         ImagenService.FiltroImagenes filtro = imagenService.filtrarParaCanal(producto.getSku(), EXT_ML);
 
-        // Obtener la categoría del ítem ya publicado para calcular el precio.
+        // Obtener la categoría del ítem ya publicado para calcular el precio y los atributos válidos.
         BigDecimal precioFinal;
+        String categoryIdActual = null;
         try {
             ar.com.leo.super_master_backend.apis.ml.model.Producto itemPublicado = getItemByMLA(mla);
-            String categoryId = (itemPublicado != null) ? itemPublicado.categoryId : null;
-            if (categoryId == null || categoryId.isBlank()) {
+            categoryIdActual = (itemPublicado != null) ? itemPublicado.categoryId : null;
+            if (categoryIdActual == null || categoryIdActual.isBlank()) {
                 log.warn("ML - sin categoría para {}, no se recalcula el precio", mla);
+                categoryIdActual = null;
                 precioFinal = null;
             } else {
-                precioFinal = calcularPrecioFinalParaPublicar(producto, categoryId, 0); // 0 = contado (Fase 1)
+                precioFinal = calcularPrecioFinalParaPublicar(producto, categoryIdActual, 0); // 0 = contado (Fase 1)
             }
         } catch (Exception e) {
             log.warn("ML - no se pudo calcular precio para actualización de {}: {}", mla, e.getMessage());
             precioFinal = null;
         }
+
+        Set<String> idsValidos = (categoryIdActual != null && !categoryIdActual.isBlank())
+                ? mlCategoriaAtributoService.idsValidos(categoryIdActual)
+                : Set.of();
 
         ResultadoAltaMl r = actualizarItemEnMlCore(
                 producto, mla,
@@ -2000,7 +2016,8 @@ public class MercadoLibreService {
                                 objectMapper.writeValueAsString(Map.of("attributes", attrs)));
                     } catch (Exception e) { throw new RuntimeException("atributos: " + e.getMessage(), e); }
                 },
-                precioFinal);
+                precioFinal,
+                idsValidos);
         return aplicarRechazadasImagenes(r, filtro.rechazadas());
     }
 
@@ -2016,6 +2033,28 @@ public class MercadoLibreService {
         }
     }
 
+    // ==================== VALIDACIÓN DE ATRIBUTOS OBLIGATORIOS ====================
+
+    /**
+     * Retorna los ids de atributos {@code required} de la categoría que el producto no tiene guardados.
+     * Excluye GTIN y EAN (gestionados por el builder según gating de la categoría).
+     *
+     * @param p    producto a publicar
+     * @param defs atributos declarados por ML para la categoría (obtenidos de {@link MlCategoriaAtributoService#obtenerAtributos})
+     * @return lista de ids required ausentes (vacía si todo ok)
+     */
+    static List<String> faltantesRequeridos(ar.com.leo.super_master_backend.dominio.producto.entity.Producto p,
+                                             List<MlAtributoDefDTO> defs) {
+        Set<String> presentes = p.getMlAtributos().stream()
+                .map(ProductoMlAtributo::getAttributeId).collect(Collectors.toSet());
+        return defs.stream()
+                .filter(MlAtributoDefDTO::required)
+                .map(MlAtributoDefDTO::id)
+                .filter(id -> !IDENTIFICADORES_OPCIONALES.contains(id))
+                .filter(id -> !presentes.contains(id))
+                .toList();
+    }
+
     // ==================== ALTA DE ITEM EN ML ====================
 
     /**
@@ -2025,6 +2064,7 @@ public class MercadoLibreService {
      *  - subidorImagen(filename) → pictureId subido (o null si falló esa imagen).
      *  - categoryId → categoría ML ya resuelta (el wrapper la predice antes de llamar al core).
      *  - precioFinal → precio calculado (PVP real); null → error sin postear.
+     *  - categoriaAttrIds → ids válidos de la categoría (para gating GTIN/EAN); pasar Set.of() si no disponibles.
      *  - maxTitleLengthFn(categoryId) → longitud máxima del título para construir familyName.
      *  - poster(json) → respuesta de POST /items (éxito con "id" o body de error con "cause").
      *  - posterDescripcion(itemId, plainText) → respuesta (se ignora salvo excepción).
@@ -2036,6 +2076,7 @@ public class MercadoLibreService {
             Function<String, String> subidorImagen,
             String categoryId,
             BigDecimal precioFinal,
+            Set<String> categoriaAttrIds,
             Function<String, Integer> maxTitleLengthFn,
             Function<String, String> poster,
             BiFunction<String, String, String> posterDescripcion) {
@@ -2066,7 +2107,7 @@ public class MercadoLibreService {
             // Crear con stock 0: queda out_of_stock; si el producto está inactivo, crearItemEnMl
             // lo pausa explícitamente (paused_by_seller) después del alta.
             String respuesta = poster.apply(om.writeValueAsString(
-                    MlItemPayloadBuilder.construir(producto, categoryId, precioFinal, 0, pictureIds, familyName)));
+                    MlItemPayloadBuilder.construir(producto, categoryId, precioFinal, 0, pictureIds, familyName, categoriaAttrIds)));
             String error = extraerErrorMl(om, respuesta);
             if (error != null) return ResultadoAltaMl.error(error);
 
@@ -2134,6 +2175,13 @@ public class MercadoLibreService {
         } catch (Exception e) {
             return ResultadoAltaMl.error("no se pudo calcular el precio del canal ML: " + e.getMessage());
         }
+        // Validar atributos obligatorios de la categoría antes de postear.
+        List<MlAtributoDefDTO> defs = mlCategoriaAtributoService.obtenerAtributos(categoryId);
+        List<String> faltan = faltantesRequeridos(producto, defs);
+        if (!faltan.isEmpty()) {
+            return ResultadoAltaMl.error("faltan atributos obligatorios de la categoría: " + faltan);
+        }
+        Set<String> idsValidos = mlCategoriaAtributoService.idsValidos(categoryId);
         ResultadoAltaMl r = crearItemEnMlCore(
                 producto, objectMapper,
                 sku -> false,  // existencia ya verificada por el caller (upsert en MlExportService)
@@ -2141,6 +2189,7 @@ public class MercadoLibreService {
                 filename -> subirImagenItem(filename),
                 categoryId,
                 precioFinal,
+                idsValidos,
                 this::obtenerMaxTitleLength,
                 json -> postearItem(json),
                 (itemId, plainText) -> retryHandler.postJson("/items/" + itemId + "/description",

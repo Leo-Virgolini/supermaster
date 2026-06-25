@@ -8,6 +8,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -42,7 +43,7 @@ class CrearItemEnMlTest {
                                   BiFunction<String, String, String> posterDesc) {
         return MercadoLibreService.crearItemEnMlCore(
                 producto(), om, yaExiste, archivos, subidor,
-                categoryId, precioFinal,
+                categoryId, precioFinal, Set.of(),
                 cat -> 60, poster, posterDesc);
     }
 
@@ -51,7 +52,7 @@ class CrearItemEnMlTest {
         Producto p = producto(); p.setTituloMl("  ");
         ResultadoAltaMl r = MercadoLibreService.crearItemEnMlCore(
                 p, om, noExiste, conImagen, subeOk,
-                CATEGORY_ID, PRECIO_FINAL,
+                CATEGORY_ID, PRECIO_FINAL, Set.of(),
                 cat -> 60,
                 json -> "{\"id\":\"MLA1\"}", (id, txt) -> "{}");
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ERROR);
@@ -63,7 +64,7 @@ class CrearItemEnMlTest {
         AtomicReference<String> posted = new AtomicReference<>();
         ResultadoAltaMl r = MercadoLibreService.crearItemEnMlCore(
                 producto(), om, sku -> true, conImagen, subeOk,
-                CATEGORY_ID, PRECIO_FINAL,
+                CATEGORY_ID, PRECIO_FINAL, Set.of(),
                 cat -> 60,
                 json -> { posted.set(json); return "{\"id\":\"MLA1\"}"; }, (id, txt) -> "{}");
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.YA_EXISTIA);
@@ -74,7 +75,7 @@ class CrearItemEnMlTest {
     void sinImagenes_error() {
         ResultadoAltaMl r = MercadoLibreService.crearItemEnMlCore(
                 producto(), om, noExiste, sku -> List.of(), subeOk,
-                CATEGORY_ID, PRECIO_FINAL,
+                CATEGORY_ID, PRECIO_FINAL, Set.of(),
                 cat -> 60,
                 json -> "{\"id\":\"MLA1\"}", (id, txt) -> "{}");
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ERROR);
@@ -86,7 +87,7 @@ class CrearItemEnMlTest {
         AtomicReference<String> descripcion = new AtomicReference<>();
         ResultadoAltaMl r = MercadoLibreService.crearItemEnMlCore(
                 producto(), om, noExiste, conImagen, subeOk,
-                CATEGORY_ID, PRECIO_FINAL,
+                CATEGORY_ID, PRECIO_FINAL, Set.of(),
                 cat -> 60,
                 json -> "{\"id\":\"MLA999\",\"user_product_id\":\"MLAU99\"}",
                 (id, txt) -> { descripcion.set(id + "|" + txt); return "{}"; });
@@ -100,7 +101,7 @@ class CrearItemEnMlTest {
     void respuestaConError_devuelveError() {
         ResultadoAltaMl r = MercadoLibreService.crearItemEnMlCore(
                 producto(), om, noExiste, conImagen, subeOk,
-                CATEGORY_ID, PRECIO_FINAL,
+                CATEGORY_ID, PRECIO_FINAL, Set.of(),
                 cat -> 60,
                 json -> "{\"message\":\"Validation error\",\"cause\":[{\"type\":\"error\",\"message\":\"Attribute [BRAND] is required\"}]}",
                 (id, txt) -> "{}");
@@ -112,7 +113,7 @@ class CrearItemEnMlTest {
     void respuestaConSoloWarnings_creado() {
         ResultadoAltaMl r = MercadoLibreService.crearItemEnMlCore(
                 producto(), om, noExiste, conImagen, subeOk,
-                CATEGORY_ID, PRECIO_FINAL,
+                CATEGORY_ID, PRECIO_FINAL, Set.of(),
                 cat -> 60,
                 json -> "{\"id\":\"MLA555\",\"cause\":[{\"type\":\"warning\",\"message\":\"ME2 adoption is mandatory\"}]}",
                 (id, txt) -> "{}");
@@ -128,7 +129,7 @@ class CrearItemEnMlTest {
         BigDecimal precioEsperado = new BigDecimal("18341");
         ResultadoAltaMl r = MercadoLibreService.crearItemEnMlCore(
                 producto(), om, noExiste, conImagen, subeOk,
-                CATEGORY_ID, precioEsperado,
+                CATEGORY_ID, precioEsperado, Set.of(),
                 cat -> 60,
                 json -> { postedJson.set(json); return "{\"id\":\"MLA777\"}"; },
                 (id, txt) -> "{}");
@@ -143,7 +144,7 @@ class CrearItemEnMlTest {
         AtomicReference<String> postedJson = new AtomicReference<>();
         ResultadoAltaMl r = MercadoLibreService.crearItemEnMlCore(
                 producto(), om, noExiste, conImagen, subeOk,
-                CATEGORY_ID, null,
+                CATEGORY_ID, null, Set.of(),
                 cat -> 60,
                 json -> { postedJson.set(json); return "{\"id\":\"MLA888\"}"; },
                 (id, txt) -> "{}");

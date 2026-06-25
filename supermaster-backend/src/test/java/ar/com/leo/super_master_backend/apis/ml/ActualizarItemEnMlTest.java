@@ -6,6 +6,7 @@ import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -42,7 +43,7 @@ class ActualizarItemEnMlTest {
                 sku -> java.util.List.of(),
                 (mla, pics) -> {},
                 (mla, status) -> true, (mla, attrs) -> {},
-                new BigDecimal("5000"));           // precioFinal inyectado
+                new BigDecimal("5000"), Set.of());           // precioFinal inyectado
 
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);
         assertThat(r.itemId()).isEqualTo("MLA111");
@@ -66,7 +67,7 @@ class ActualizarItemEnMlTest {
                 sku -> java.util.List.of(),
                 (mla, pics) -> {},
                 (mla, status) -> true, (mla, attrs) -> {},
-                new BigDecimal("4500"));           // precioFinal inyectado
+                new BigDecimal("4500"), Set.of());           // precioFinal inyectado
 
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);
         assertThat(titulo.get()).isNull();          // título NO actualizado
@@ -82,7 +83,7 @@ class ActualizarItemEnMlTest {
                 p, "MLA333", mla -> 0, (a, b) -> {}, (a, b) -> {}, (a, b) -> true,
                 sku -> java.util.List.of(), (mla, pics) -> {},
                 (mla, status) -> true, (mla, attrs) -> {},
-                new BigDecimal("5000"));
+                new BigDecimal("5000"), Set.of());
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ERROR);
     }
 
@@ -99,7 +100,7 @@ class ActualizarItemEnMlTest {
                 sku -> java.util.List.of("pic1", "pic2"),
                 (mla, pics) -> picsPuestas.set(pics),
                 (mla, status) -> true, (mla, attrs) -> {},
-                new BigDecimal("5000"));
+                new BigDecimal("5000"), Set.of());
 
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);
         assertThat(picsPuestas.get()).containsExactly("pic1", "pic2");
@@ -115,7 +116,7 @@ class ActualizarItemEnMlTest {
                 sku -> java.util.List.of(),
                 (mla, pics) -> picsPuestas.set(pics),
                 (mla, status) -> true, (mla, attrs) -> {},
-                new BigDecimal("5000"));
+                new BigDecimal("5000"), Set.of());
 
         assertThat(picsPuestas.get()).isNull(); // no se llamó putPictures
     }
@@ -128,7 +129,7 @@ class ActualizarItemEnMlTest {
                 sku -> { throw new RuntimeException("fallo subir imagen"); },
                 (mla, pics) -> {},
                 (mla, status) -> true, (mla, attrs) -> {},
-                new BigDecimal("5000"));
+                new BigDecimal("5000"), Set.of());
 
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);
         assertThat(r.advertencia()).contains("imágenes");
@@ -142,7 +143,7 @@ class ActualizarItemEnMlTest {
                 (mla, p) -> false,                 // updatePrice falla
                 sku -> java.util.List.of(), (mla, pics) -> {},
                 (mla, status) -> true, (mla, attrs) -> {},
-                new BigDecimal("5000"));
+                new BigDecimal("5000"), Set.of());
 
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);
         assertThat(r.advertencia()).contains("precio");
@@ -156,7 +157,7 @@ class ActualizarItemEnMlTest {
                 mla -> 0, (mla, t) -> {}, (mla, d) -> {}, (mla, p) -> true,
                 sku -> java.util.List.of(), (mla, pics) -> {},
                 (mla, status) -> { statusPuesto.set(status); return true; }, (mla, attrs) -> {},
-                new BigDecimal("5000"));
+                new BigDecimal("5000"), Set.of());
         assertThat(statusPuesto.get()).isEqualTo("active");
     }
 
@@ -168,7 +169,7 @@ class ActualizarItemEnMlTest {
                 mla -> 0, (mla, t) -> {}, (mla, d) -> {}, (mla, p) -> true,
                 sku -> java.util.List.of(), (mla, pics) -> {},
                 (mla, status) -> { statusPuesto.set(status); return true; }, (mla, attrs) -> {},
-                new BigDecimal("5000"));
+                new BigDecimal("5000"), Set.of());
         assertThat(statusPuesto.get()).isEqualTo("paused");
     }
 
@@ -179,7 +180,7 @@ class ActualizarItemEnMlTest {
                 mla -> 0, (mla, t) -> {}, (mla, d) -> {}, (mla, p) -> true,
                 sku -> java.util.List.of(), (mla, pics) -> {},
                 (mla, status) -> false, (mla, attrs) -> {},   // putStatus falla
-                new BigDecimal("5000"));
+                new BigDecimal("5000"), Set.of());
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);
         assertThat(r.advertencia()).contains("estado");
     }
@@ -199,7 +200,7 @@ class ActualizarItemEnMlTest {
                 (mla, p) -> false,                 // precio falla
                 sku -> java.util.List.of(), (mla, pics) -> {},
                 (mla, status) -> false, (mla, attrs) -> {},           // estado falla
-                new BigDecimal("5000"));
+                new BigDecimal("5000"), Set.of());
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);
         assertThat(r.advertencia()).contains("precio").contains("estado").contains("; ");
     }
@@ -213,7 +214,7 @@ class ActualizarItemEnMlTest {
                 sku -> java.util.List.of(), (mla, pics) -> {},
                 (mla, status) -> true,
                 (mla, a) -> attrs.set(a),
-                new BigDecimal("5000"));
+                new BigDecimal("5000"), Set.of());
         assertThat(attrs.get()).isNotNull();
         assertThat(attrs.get().stream().anyMatch(m -> "SELLER_SKU".equals(m.get("id")))).isTrue();
         assertThat(attrs.get().stream().anyMatch(m -> "IMPORT_DUTY".equals(m.get("id")))).isTrue();
@@ -227,7 +228,7 @@ class ActualizarItemEnMlTest {
                 sku -> java.util.List.of(), (mla, pics) -> {},
                 (mla, status) -> true,
                 (mla, a) -> { throw new RuntimeException("ml rechaza atributo"); },
-                new BigDecimal("5000"));
+                new BigDecimal("5000"), Set.of());
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);
         assertThat(r.advertencia()).contains("atributos");
     }
@@ -245,7 +246,7 @@ class ActualizarItemEnMlTest {
                 (mla, p) -> { precioPasado[0] = p; updatePriceLlamado.set(true); return true; },
                 sku -> java.util.List.of(), (mla, pics) -> {},
                 (mla, status) -> true, (mla, attrs) -> {},
-                new BigDecimal("7500.00"));
+                new BigDecimal("7500.00"), Set.of());
 
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);
         assertThat(r.advertencia()).isNull();
@@ -263,7 +264,7 @@ class ActualizarItemEnMlTest {
                 (mla, p) -> { updatePriceLlamado.set(true); return true; },
                 sku -> java.util.List.of(), (mla, pics) -> {},
                 (mla, status) -> true, (mla, attrs) -> {},
-                null);                             // precioFinal = null
+                null, Set.of());                   // precioFinal = null
 
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);   // NO aborta
         assertThat(updatePriceLlamado.get()).isFalse();                          // NO llama updatePrice
@@ -284,7 +285,7 @@ class ActualizarItemEnMlTest {
                 (mla, p) -> true,
                 sku -> java.util.List.of(), (mla, pics) -> {},
                 (mla, s) -> { status.set(s); return true; }, (mla, attrs) -> {},
-                null);                             // precioFinal = null
+                null, Set.of());                   // precioFinal = null
 
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);
         assertThat(titulo.get()).isEqualTo("Olla acero 24cm premium"); // título actualizado

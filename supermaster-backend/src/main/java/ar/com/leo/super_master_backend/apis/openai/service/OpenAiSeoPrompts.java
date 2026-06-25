@@ -10,6 +10,8 @@ public final class OpenAiSeoPrompts {
     /** Arma el mensaje de usuario con la info del producto en texto plano. */
     public static String userMessage(SeoContexto c) {
         StringBuilder sb = new StringBuilder();
+        // El "nombre interno" (título Dux) NO se manda: trae abreviaturas y códigos
+        // internos que ensucian el SEO. El título Nube + las características alcanzan.
         String titulo = sinParentesis(c.tituloNube());
         if (notBlank(titulo)) sb.append("Título: ").append(titulo).append("\n");
         if (notBlank(c.marca())) sb.append("Marca: ").append(c.marca().trim()).append("\n");

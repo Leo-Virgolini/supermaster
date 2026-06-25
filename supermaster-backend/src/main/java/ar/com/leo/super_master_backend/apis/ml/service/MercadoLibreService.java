@@ -1840,7 +1840,7 @@ public class MercadoLibreService {
     }
 
     /** Consulta GET /categories/{id} y devuelve su max_title_length (60 si falla la consulta). */
-    int obtenerMaxTitleLength(String categoryId) {
+    public int obtenerMaxTitleLength(String categoryId) {
         if (categoryId == null || categoryId.isBlank()) return 60;
         try {
             String body = retryHandler.get("/categories/" + categoryId, () -> tokens.accessToken);

@@ -267,4 +267,17 @@ public class MercadoLibreController {
     public ResponseEntity<List<MlAtributoDefDTO>> atributosCategoria(@PathVariable String categoryId) {
         return ResponseEntity.ok(mlCategoriaAtributoService.obtenerAtributos(categoryId));
     }
+
+    /**
+     * Devuelve el máximo de caracteres del título (max_title_length) de una categoría de ML,
+     * para limitar el input del Título ML en el formulario al elegir la categoría.
+     *
+     * @param categoryId ID de la categoría ML (ej: MLA1055)
+     * @return {@code {"maxTitleLength": <n>}} (60 si no se puede determinar)
+     */
+    @GetMapping("/categorias/{categoryId}/max-title-length")
+    @PreAuthorize(Permisos.MLAS_VER)
+    public ResponseEntity<Map<String, Integer>> maxTitleLengthCategoria(@PathVariable String categoryId) {
+        return ResponseEntity.ok(Map.of("maxTitleLength", mercadoLibreService.obtenerMaxTitleLength(categoryId)));
+    }
 }

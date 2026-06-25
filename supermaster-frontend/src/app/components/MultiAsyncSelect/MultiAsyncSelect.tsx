@@ -12,13 +12,15 @@ type Props = {
     value: MultiOption[];
     onChange: (items: MultiOption[]) => void;
     inputClassName?: string;
+    /** Clases de color de los chips de seleccionados (borde/fondo/texto). Default: azul. */
+    chipClassName?: string;
 };
 
 /**
  * Selector múltiple con búsqueda asíncrona: los elegidos se muestran como chips
  * removibles arriba y se van agregando desde un dropdown de resultados.
  */
-export default function MultiAsyncSelect({ label, placeholder, loadOptions, value, onChange, inputClassName = "" }: Props) {
+export default function MultiAsyncSelect({ label, placeholder, loadOptions, value, onChange, inputClassName = "", chipClassName = "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-300" }: Props) {
     const [inputValue, setInputValue] = useState("");
     const [options, setOptions] = useState<MultiOption[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -115,7 +117,7 @@ export default function MultiAsyncSelect({ label, placeholder, loadOptions, valu
             {value.length > 0 && (
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
                     {value.map((v) => (
-                        <span key={v.id} className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                        <span key={v.id} className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${chipClassName}`}>
                             {v.label}
                             <button type="button" onClick={() => quitar(v.id)} className="leading-none transition-colors hover:text-red-500" aria-label={`Quitar ${v.label}`}>×</button>
                         </span>

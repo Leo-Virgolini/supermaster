@@ -4,9 +4,11 @@ import ar.com.leo.super_master_backend.apis.ml.dto.ConfiguracionMlDTO;
 import ar.com.leo.super_master_backend.apis.ml.dto.CostoEnvioMasivoResponseDTO;
 import ar.com.leo.super_master_backend.apis.ml.dto.CostoEnvioResponseDTO;
 import ar.com.leo.super_master_backend.apis.ml.dto.CostoVentaMasivoResponseDTO;
+import ar.com.leo.super_master_backend.apis.ml.dto.MlAtributoDefDTO;
 import ar.com.leo.super_master_backend.apis.ml.dto.PrediccionCategoriaMlDTO;
 import ar.com.leo.super_master_backend.apis.ml.service.ConfiguracionMlService;
 import ar.com.leo.super_master_backend.apis.ml.service.MercadoLibreService;
+import ar.com.leo.super_master_backend.apis.ml.service.MlCategoriaAtributoService;
 import ar.com.leo.super_master_backend.config.Permisos;
 import ar.com.leo.super_master_backend.dominio.common.dto.ProcesoMasivoEstadoDTO;
 import jakarta.validation.Valid;
@@ -25,6 +27,7 @@ public class MercadoLibreController {
 
     private final MercadoLibreService mercadoLibreService;
     private final ConfiguracionMlService configuracionMlService;
+    private final MlCategoriaAtributoService mlCategoriaAtributoService;
 
     /**
      * Calcula y guarda el costo de envío para productos de ML.
@@ -250,5 +253,18 @@ public class MercadoLibreController {
         }
         List<PrediccionCategoriaMlDTO> predicciones = mercadoLibreService.predecirCategorias(titulo, 3);
         return ResponseEntity.ok(predicciones);
+    }
+
+    /**
+     * Devuelve los atributos de una categoría de ML, filtrados y agrupados,
+     * para construir el formulario de ficha técnica.
+     *
+     * @param categoryId ID de la categoría ML (ej: MLA1055)
+     * @return lista de {@link MlAtributoDefDTO} listos para el formulario
+     */
+    @GetMapping("/categorias/{categoryId}/atributos")
+    @PreAuthorize(Permisos.MLAS_VER)
+    public ResponseEntity<List<MlAtributoDefDTO>> atributosCategoria(@PathVariable String categoryId) {
+        return ResponseEntity.ok(mlCategoriaAtributoService.obtenerAtributos(categoryId));
     }
 }

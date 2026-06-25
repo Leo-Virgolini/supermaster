@@ -9,7 +9,7 @@ import Button from "../components/Button/Button";
 import Modal from "../components/Modal/Modal";
 import AsyncSelect from "../components/AsyncSelect/AsyncSelect";
 import {
-    getSiguienteSkuAPI, existeSkuAPI, getMlaPorSkuAPI, createMlaAPI,
+    getSiguienteSkuAPI, existeSkuAPI, getMlaPorSkuAPI, createMlaAPI, getMlaPorIdAPI, patchMlaAPI, type MlaDetalleDTO,
     searchMarcas, searchClasifGral, searchClasifGastro, searchTipos, searchProveedores, searchOrigenes, searchMateriales, searchMlas,
     searchCatalogos, searchAptos, searchClientes, searchCanales, addProductoCatalogoAPI, addProductoAptoAPI, addProductoClienteAPI,
     removeProductoCatalogoAPI, removeProductoAptoAPI, removeProductoClienteAPI, updateProductoAPI, getNombreById,
@@ -29,6 +29,7 @@ import MultiAsyncSelect, { type MultiOption } from "../components/MultiAsyncSele
 import { PreciosInfladosSection, type PrecioInfladoDraft } from "./PreciosInfladosSection";
 import { HistorialSection } from "./HistorialSection";
 import { ProductoCreateDTO, ProductoDTO, ProductoPatchDTO } from "./types";
+import { formatFechaAR } from "../utils/formatDate";
 
 
 type CanalExport = "Dux" | "Tienda Nube" | "Mercado Libre";
@@ -160,17 +161,17 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const [proveedorDisplay, setProveedorDisplay] = useState("");
     const [materialDisplay, setMaterialDisplay] = useState("");
     const [sectorDepositoDisplay, setSectorDepositoDisplay] = useState("");
+    // Sección MLA unificada: un único código editable + datos del MLA (MLAU/envío/comisión/tope).
+    // mlaId != null ⇒ el código matchea un MLA existente en la BD; null con código ⇒ se creará al guardar.
     const [mlaId, setMlaId] = useState<number | null>(null);
-    const [mlaDisplay, setMlaDisplay] = useState("");
-    // Panel "Nuevo MLA" dentro del alta de producto.
-    const [showNuevoMla, setShowNuevoMla] = useState(false);
+    // Snapshot del MLA cargado (para mostrar fechas de cálculo y detectar ediciones a persistir).
+    const [mlaDetalle, setMlaDetalle] = useState<MlaDetalleDTO | null>(null);
     const [mlaCodigo, setMlaCodigo] = useState("");
     const [mlaMlau, setMlaMlau] = useState("");
     const [mlaPrecioEnvio, setMlaPrecioEnvio] = useState<number | "">("");
     const [mlaTope, setMlaTope] = useState<number | "">("");
     const [mlaComision, setMlaComision] = useState<number | "">("");
     const [obteniendoMla, setObteniendoMla] = useState(false);
-    const [creandoMla, setCreandoMla] = useState(false);
     // Márgenes (se asocian tras crear el producto)
     const [margenMinorista, setMargenMinorista] = useState<number | "">("");
     const [margenMayorista, setMargenMayorista] = useState<number | "">("");
@@ -382,24 +383,17 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         try {
             setIsSaving(true);
             const costoNum = costo === "" ? 0 : costo;
-            // Fallback: si el usuario cargó un MLA nuevo a mano pero no lo asoció
-            // (ni con "Crear" ni con "Obtener de ML"), lo creamos ahora.
-            let mlaIdFinal = mlaId;
-            if (showNuevoMla && mlaCodigo.trim() && !mlaId) {
-                try {
-                    const mlaCreado = await createMlaAPI({
-                        mla: mlaCodigo.trim(),
-                        mlau: mlaMlau.trim() || null,
-                        precioEnvio: mlaPrecioEnvio === "" ? null : mlaPrecioEnvio,
-                        comisionPorcentaje: mlaComision === "" ? null : mlaComision,
-                        topePromocion: mlaTope === "" ? 0 : mlaTope,
-                    });
-                    mlaIdFinal = mlaCreado.id;
-                } catch (e) {
-                    notificar.error(e instanceof Error ? e.message : "Error al crear el MLA");
-                    setIsSaving(false);
-                    return;
-                }
+            // Resuelve el MLA a asociar: matchea/crea/persiste según el código cargado.
+            let mlaIdFinal: number | null;
+            let mlaFueCreado = false;
+            try {
+                const r = await resolverMlaParaGuardar();
+                mlaIdFinal = r.mlaId;
+                mlaFueCreado = r.fueCreado;
+            } catch (e) {
+                notificar.error(e instanceof Error ? e.message : "Error al guardar el MLA");
+                setIsSaving(false);
+                return;
             }
             const payload: ProductoCreateDTO = {
                 sku: sku.trim(), codExt, tituloDux: tituloDux.trim(), tituloMl: tituloMl.trim() || null, tituloNube: tituloNube.trim() || null, esCombo, uxb, activo,
@@ -418,10 +412,11 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 mlPaqPeso: mlPaqPeso === "" ? null : Number(mlPaqPeso),
             };
             const creado = await createProducto(payload, asociarMargenYRelaciones);
-            // Si el producto quedó asociado a un MLA, calcular su precio de envío (el cálculo
-            // necesita el producto). Se ESPERA (no fire-and-forget) para que el recálculo que
-            // dispara no pise el PVP justo cuando se exporta a Nube.
-            if (mlaIdFinal && creado?.id) {
+            // Si se creó un MLA nuevo SIN envío cargado a mano, calcular su precio de envío (el
+            // cálculo necesita el producto). Se ESPERA (no fire-and-forget) para que el recálculo
+            // que dispara no pise el PVP justo cuando se exporta a Nube. Para MLAs existentes o con
+            // envío manual NO se recalcula (respeta el valor guardado/editado).
+            if (mlaIdFinal && creado?.id && mlaFueCreado && mlaPrecioEnvio === "") {
                 try { await calcularEnvioMlaAPI(creado.id); } catch { /* se recalcula luego desde ML */ }
             }
             // Recálculo SÍNCRONO del precio antes de exportar a Nube (que lee el PVP de
@@ -495,12 +490,14 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             setTipoId(producto.tipoId ?? null); setProveedorId(producto.proveedorId ?? null);
             setMaterialId(producto.materialId ?? null); setSectorDepositoId(producto.sectorDepositoId ?? null);
             setMlaId(producto.mlaId ?? null);
-            // Displays: marca/clasif/tipo traen *NombreCompleto; mla trae mlaNombre.
+            // El código del MLA arranca con el del producto; el detalle (MLAU/envío/comisión)
+            // lo completa el efecto que escucha mlaId.
+            setMlaCodigo(producto.mlaId ? (producto.mlaNombre ?? "") : "");
+            // Displays: marca/clasif/tipo traen *NombreCompleto.
             setMarcaDisplay(producto.marcaNombreCompleto ?? "");
             setClasifGralDisplay(producto.clasifGralNombreCompleto ?? "");
             setClasifGastroDisplay(producto.clasifGastroNombreCompleto ?? "");
             setTipoDisplay(producto.tipoNombreCompleto ?? "");
-            setMlaDisplay(producto.mlaNombre ?? "");
             // Origen/material/proveedor/sectorDeposito no traen nombre en el DTO: se
             // resuelven por id más abajo (el AsyncSelect no resuelve nombre por id).
             setOrigenDisplay(""); setMaterialDisplay(""); setProveedorDisplay(""); setSectorDepositoDisplay("");
@@ -512,7 +509,6 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             setFormErrors({});
             setCatalogosSel([]); setAptosSel([]); setClientesSel([]);
             setCatalogosOriginal([]); setAptosOriginal([]); setClientesOriginal([]);
-            setShowNuevoMla(false);
             // El SEO de Nube no se persiste: arranca vacío y se autogenera/edita por sesión.
             setSeoHogar({ title: "", description: "", tags: "" });
             setSeoGastro({ title: "", description: "", tags: "" });
@@ -558,13 +554,26 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             setIsSaving(true);
             const id = editandoProductoId;
             const costoNum = costo === "" ? 0 : costo;
+            // Resuelve el MLA a asociar: matchea/crea/persiste según el código cargado (misma
+            // lógica que el alta — antes la edición no creaba el MLA tipeado a mano).
+            let mlaIdFinal: number | null;
+            let mlaFueCreado = false;
+            try {
+                const r = await resolverMlaParaGuardar();
+                mlaIdFinal = r.mlaId;
+                mlaFueCreado = r.fueCreado;
+            } catch (e) {
+                notificar.error(e instanceof Error ? e.message : "Error al guardar el MLA");
+                setIsSaving(false);
+                return;
+            }
             const patch = {
                 codExt, tituloDux: tituloDux.trim(), tituloMl: tituloMl.trim() || null, tituloNube: tituloNube.trim() || null, esCombo, uxb, activo,
                 capacidad, largo: largo || null, ancho: ancho || null, alto: alto || null,
                 diamboca: diamboca || null, diambase: diambase || null, espesor: espesor || null,
                 costo: costoNum, iva, stock: stock !== "" ? stock : null, moq: moq !== "" ? moq : null,
                 tagReposicion: tagReposicion || null, tag: tag || null,
-                marcaId, origenId, clasifGralId, clasifGastroId, tipoId, proveedorId, materialId, sectorDepositoId, mlaId,
+                marcaId, origenId, clasifGralId, clasifGastroId, tipoId, proveedorId, materialId, sectorDepositoId, mlaId: mlaIdFinal,
                 mlCategoryId: mlCategoryId, mlCategoryNombre: mlCategoryNombre,
                 mlPaqAlto: mlPaqAlto === "" ? null : Number(mlPaqAlto),
                 mlPaqAncho: mlPaqAncho === "" ? null : Number(mlPaqAncho),
@@ -572,6 +581,11 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 mlPaqPeso: mlPaqPeso === "" ? null : Number(mlPaqPeso),
             } as ProductoPatchDTO;
             await updateProductoAPI(id, patch, "FORM");
+            // Si se creó un MLA nuevo SIN envío cargado a mano durante la edición, calcularlo
+            // (necesita el producto ya existente). MLAs existentes o con envío manual: no se toca.
+            if (mlaIdFinal && mlaFueCreado && mlaPrecioEnvio === "") {
+                try { await calcularEnvioMlaAPI(id); } catch { /* se recalcula luego desde ML */ }
+            }
 
             // Solo enviamos los márgenes cargados (omitimos los vacíos en vez de
             // mandarlos como null). Para combos sin márgenes, omitir la llamada
@@ -697,14 +711,110 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         return () => clearTimeout(t);
     }, [sku]);
 
+    // Rellena los inputs del MLA (MLAU/envío/comisión/tope) y guarda el snapshot con sus
+    // fechas de cálculo cada vez que se asocia un MLA existente (al editar, al matchear por
+    // código o al autocompletar desde ML). Para un código nuevo (mlaId null) no toca los
+    // inputs: quedan editables para crear el MLA al guardar.
+    useEffect(() => {
+        if (!mlaId) return;
+        let cancel = false;
+        getMlaPorIdAPI(mlaId)
+            .then((d) => {
+                if (cancel) return;
+                setMlaDetalle(d);
+                setMlaMlau(d.mlau ?? "");
+                setMlaPrecioEnvio(d.precioEnvio ?? "");
+                setMlaComision(d.comisionPorcentaje ?? "");
+                setMlaTope(d.topePromocion ?? "");
+            })
+            .catch(() => { if (!cancel) setMlaDetalle(null); });
+        return () => { cancel = true; };
+    }, [mlaId]);
+
+    // Lookup por código: al tipear/pegar el código del MLA, busca un match exacto en la BD.
+    // Si existe ⇒ lo asocia (mlaId) y el efecto de arriba completa sus datos. Si no existe ⇒
+    // queda como MLA nuevo (mlaId null) a crearse al guardar (los inputs muestran lo que haya).
+    useEffect(() => {
+        const code = mlaCodigo.trim();
+        if (!code) return; // el caso vacío lo maneja el onChange del input
+        const t = setTimeout(async () => {
+            try {
+                const opts = await searchMlas(code);
+                const exact = opts.find((o) => o.label.toLowerCase() === code.toLowerCase());
+                if (exact) {
+                    setMlaId(Number(exact.id));
+                } else {
+                    // Código nuevo: desasocia y descarta el snapshot (así no quedan fechas
+                    // "calculado el…" de un MLA anterior bajo un código que aún no existe).
+                    setMlaId(null);
+                    setMlaDetalle(null);
+                }
+            } catch { /* búsqueda best-effort: si falla, no cambia la asociación */ }
+        }, 400);
+        return () => clearTimeout(t);
+    }, [mlaCodigo]);
+
     const aplicarMlaEnForm = (mla: { id: number; mla: string; mlau: string | null; precioEnvio: number | null; comisionPorcentaje: number | null; topePromocion: number | null }) => {
-        setMlaId(mla.id);
-        setMlaDisplay(mla.mla);
         setMlaCodigo(mla.mla);
+        setMlaId(mla.id);
         setMlaMlau(mla.mlau ?? "");
         setMlaPrecioEnvio(mla.precioEnvio ?? "");
         setMlaTope(mla.topePromocion ?? "");
         setMlaComision(mla.comisionPorcentaje ?? "");
+    };
+
+    // Normaliza un input numérico ("" ⇒ null) para comparar/enviar al backend.
+    const normNum = (v: number | "") => (v === "" ? null : Number(v));
+
+    // ¿Difieren los datos cargados en el form respecto del snapshot `base` del MLA en la BD?
+    // Coacciona a número ambos lados (defensivo ante BigDecimal) y trata el tope como 0 a ambos
+    // lados (mismo criterio que se envía), para no disparar PATCH espurios.
+    const mlaFueEditado = (base: MlaDetalleDTO | null): boolean => {
+        if (!base) return false;
+        const num = (v: number | null | undefined) => (v == null ? null : Number(v));
+        return (mlaMlau.trim() || null) !== (base.mlau ?? null)
+            || normNum(mlaPrecioEnvio) !== num(base.precioEnvio)
+            || normNum(mlaComision) !== num(base.comisionPorcentaje)
+            || (mlaTope === "" ? 0 : Number(mlaTope)) !== (base.topePromocion ?? 0);
+    };
+
+    // Resuelve qué MLA asociar al guardar (vale para alta y edición):
+    //  - código vacío ⇒ sin MLA (si el canal ML está marcado, lo crea/asocia el publish).
+    //  - código que matchea un MLA existente ⇒ lo asocia; si editaste sus datos, los persiste (PATCH).
+    //  - código nuevo ⇒ crea el MLA con los datos cargados.
+    // Devuelve el id a asociar y si hubo creación (para decidir el cálculo de envío inicial).
+    const resolverMlaParaGuardar = async (): Promise<{ mlaId: number | null; fueCreado: boolean }> => {
+        const code = mlaCodigo.trim();
+        if (!code) return { mlaId: null, fueCreado: false };
+        const datos = {
+            mlau: mlaMlau.trim() || null,
+            precioEnvio: normNum(mlaPrecioEnvio),
+            comisionPorcentaje: normNum(mlaComision),
+            topePromocion: mlaTope === "" ? 0 : Number(mlaTope),
+        };
+        // Re-confirma el match exacto al guardar aunque el lookup con debounce no haya
+        // corrido (p.ej. pegar el código y guardar enseguida). La columna `mla` NO es
+        // única en la BD: sin esto, crear un código ya existente generaría un MLA duplicado.
+        // Si se resuelve por re-lookup, se trae el baseline real para comparar ediciones (no
+        // alcanza el snapshot `mlaDetalle`, que aún sería null) y así no nullear datos del MLA.
+        let id = mlaId;
+        let base = mlaDetalle;
+        if (!id) {
+            try {
+                const opts = await searchMlas(code);
+                const exact = opts.find((o) => o.label.toLowerCase() === code.toLowerCase());
+                if (exact) {
+                    id = Number(exact.id);
+                    base = await getMlaPorIdAPI(id);
+                }
+            } catch { /* si la búsqueda/lectura falla, se intenta crear más abajo */ }
+        }
+        if (id) {
+            if (mlaFueEditado(base)) await patchMlaAPI(id, datos);
+            return { mlaId: id, fueCreado: false };
+        }
+        const creado = await createMlaAPI({ mla: code, ...datos });
+        return { mlaId: creado.id, fueCreado: true };
     };
 
     // Busca la publicación en ML por el SKU del form: crea/asegura el MLA, calcula
@@ -740,32 +850,6 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         }
     };
 
-    // Crea un MLA manual con los datos cargados y lo deja seleccionado.
-    const handleCrearMla = async () => {
-        if (!mlaCodigo.trim()) {
-            toast.error("Ingresá el código MLA");
-            return;
-        }
-        setCreandoMla(true);
-        try {
-            const mla = await createMlaAPI({
-                mla: mlaCodigo.trim(),
-                mlau: mlaMlau.trim() || null,
-                precioEnvio: mlaPrecioEnvio === "" ? null : mlaPrecioEnvio,
-                comisionPorcentaje: mlaComision === "" ? null : mlaComision,
-                topePromocion: mlaTope === "" ? 0 : mlaTope,
-            });
-            setMlaId(mla.id);
-            setMlaDisplay(mla.mla);
-            notificar.success(`MLA ${mla.mla} creado`);
-            setShowNuevoMla(false);
-        } catch (e) {
-            notificar.error(e instanceof Error ? e.message : "Error al crear el MLA");
-        } finally {
-            setCreandoMla(false);
-        }
-    };
-
     // Arma el contexto que recibe la IA para generar el SEO de Nube, a partir de los campos del form.
     const construirContextoSeo = () => {
         const dimensiones = [
@@ -779,7 +863,6 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         ].filter((d): d is string => Boolean(d));
         return {
             tituloNube: tituloNube.trim(),
-            tituloDux: tituloDux.trim(),
             marca: marcaDisplay || null,
             material: materialDisplay || null,
             aptos: aptosSel.map(a => a.label ?? String(a.id)).filter(Boolean),
@@ -846,7 +929,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 <div className="text-sm">
                     {/* Tabs solo en modo edición: Datos (form) e Historial */}
                     {editandoProductoId && (
-                        <div className="mb-5 flex border-b border-slate-200 dark:border-slate-700">
+                        <div className="mb-5 flex items-center border-b border-slate-200 dark:border-slate-700">
                             {([["datos", "Datos"], ["historial", "Historial"]] as const).map(([id, label]) => (
                                 <button
                                     key={id}
@@ -857,6 +940,12 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                     {label}
                                 </button>
                             ))}
+                            {producto && (
+                                <div className="ml-auto flex flex-wrap justify-end gap-x-4 gap-y-0.5 pb-2 pl-4 text-xs text-slate-400 dark:text-slate-500">
+                                    <span>Creado: <span className="font-medium text-slate-500 dark:text-slate-400">{formatFechaAR(producto.fechaCreacion)}</span></span>
+                                    <span>Últ. modificación: <span className="font-medium text-slate-500 dark:text-slate-400">{formatFechaAR(producto.fechaModificacion)}</span></span>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -880,7 +969,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                     <div className="flex items-center gap-3">
                                         <CubeIcon className="h-5 w-5 shrink-0 text-indigo-500" />
                                         <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirADux} onChange={e => setSubirADux(e.target.checked)} id="subirADux" />
-                                        <label htmlFor="subirADux" className="flex-1 cursor-pointer">Sincronizar con Dux</label>
+                                        <label htmlFor="subirADux" className="flex-1 cursor-pointer select-none">Sincronizar con Dux</label>
                                         <Tooltip content={(
                                             <>
                                                 Sube o actualiza en Dux (alta o actualización): título, costo, IVA, rubro/subrubro, marca, proveedor, sector de depósito, y habilita o deshabilita según el flag Activo.
@@ -896,7 +985,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 <div className="flex items-center gap-3">
                                     <HomeIcon className="h-5 w-5 shrink-0 text-sky-500" />
                                     <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirKtHogar} onChange={e => setSubirKtHogar(e.target.checked)} id="subirKtHogar" disabled={!canExportarDux} />
-                                    <label htmlFor="subirKtHogar" className="flex-1 cursor-pointer">Sincronizar con KT HOGAR (Nube)</label>
+                                    <label htmlFor="subirKtHogar" className="flex-1 cursor-pointer select-none">Sincronizar con KT HOGAR (Nube)</label>
                                     <Tooltip content="Sube o actualiza en Tienda Nube: título, descripción, precio (según el plan de cuotas), categorías e imágenes. El producto se sube oculto (no visible en la tienda); la visibilidad se controla manualmente en Nube. El flag 'Activo' no aplica a Nube." className="flex items-center">
                                         <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
                                     </Tooltip>
@@ -918,7 +1007,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 <div className="flex items-center gap-3">
                                     <FireIcon className="h-5 w-5 shrink-0 text-emerald-500" />
                                     <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirKtGastro} onChange={e => setSubirKtGastro(e.target.checked)} id="subirKtGastro" disabled={!canExportarDux} />
-                                    <label htmlFor="subirKtGastro" className="flex-1 cursor-pointer">Sincronizar con KT GASTRO (Nube)</label>
+                                    <label htmlFor="subirKtGastro" className="flex-1 cursor-pointer select-none">Sincronizar con KT GASTRO (Nube)</label>
                                     <Tooltip content="Sube o actualiza en Tienda Nube: título, descripción, precio (según el plan de cuotas), categorías e imágenes. El producto se sube oculto (no visible en la tienda); la visibilidad se controla manualmente en Nube. El flag 'Activo' no aplica a Nube." className="flex items-center">
                                         <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
                                     </Tooltip>
@@ -940,27 +1029,30 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 <div className="flex items-center gap-3">
                                     <ShoppingBagIcon className="h-5 w-5 shrink-0 text-yellow-500" />
                                     <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirMl} onChange={e => setSubirMl(e.target.checked)} id="subirMl" disabled={!canExportarDux} />
-                                    <label htmlFor="subirMl" className="flex-1 cursor-pointer">Sincronizar con Mercado Libre</label>
+                                    <label htmlFor="subirMl" className="flex-1 cursor-pointer select-none">Sincronizar con Mercado Libre</label>
                                     <Tooltip content="Sube o actualiza en Mercado Libre: título (si no tiene ventas), descripción, precio (costo × 5), imágenes, y activa o pausa según el flag 'Activo'. La categoría (la elegida o la que predice ML) se aplica solo al crear; no se modifica en publicaciones existentes." className="flex items-center">
                                         <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
                                     </Tooltip>
                                 </div>
                             </div>
                         </div>
-                        {imagenesDetectadas.length > 0 && (
-                            <div className="text-xs text-slate-600 dark:text-slate-300 mt-3 space-y-0.5">
-                                <div className="font-medium">{imagenesDetectadas.length} imagen{imagenesDetectadas.length === 1 ? "" : "es"} detectada{imagenesDetectadas.length === 1 ? "" : "s"} para este SKU</div>
-                                {imagenesDetectadas.flatMap((img) => {
-                                    const avisos: string[] = [];
-                                    if (img.bytes > MAX_BYTES_IMG) avisos.push(`${img.nombre} supera 10 MB — no se subirá`);
-                                    if (subirMl && !EXT_ML.has(img.extension)) avisos.push(`${img.nombre} — Mercado Libre no acepta .${img.extension}`);
-                                    if ((subirKtHogar || subirKtGastro) && !EXT_NUBE.has(img.extension)) avisos.push(`${img.nombre} — Tienda Nube no acepta .${img.extension}`);
-                                    return avisos.map((a, i) => (
-                                        <div key={`${img.nombre}-${i}`} className="text-amber-600 dark:text-amber-400">&#9888; {a}</div>
-                                    ));
-                                })}
-                            </div>
-                        )}
+                        {(() => {
+                            const avisos = imagenesDetectadas.flatMap((img) => {
+                                const a: string[] = [];
+                                if (img.bytes > MAX_BYTES_IMG) a.push(`${img.nombre} supera 10 MB — no se subirá`);
+                                if (subirMl && !EXT_ML.has(img.extension)) a.push(`${img.nombre} — Mercado Libre no acepta .${img.extension}`);
+                                if ((subirKtHogar || subirKtGastro) && !EXT_NUBE.has(img.extension)) a.push(`${img.nombre} — Tienda Nube no acepta .${img.extension}`);
+                                return a;
+                            });
+                            if (!avisos.length) return null;
+                            return (
+                                <div className="mt-3 space-y-0.5 text-xs">
+                                    {avisos.map((a, i) => (
+                                        <div key={i} className="text-amber-600 dark:text-amber-400">&#9888; {a}</div>
+                                    ))}
+                                </div>
+                            );
+                        })()}
                     </fieldset>
 
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.identificacion}`}>
@@ -971,12 +1063,12 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                             <div className={checkboxCardClassName}>
                                 <CheckCircleIcon className="h-5 w-5 shrink-0 text-emerald-500" />
                                 <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={activo} onChange={e => setActivo(e.target.checked)} id="activo" />
-                                <label htmlFor="activo" className="cursor-pointer">Activo</label>
+                                <label htmlFor="activo" className="cursor-pointer select-none">Activo</label>
                             </div>
                             <div className={checkboxCardClassName}>
                                 <Squares2X2Icon className="h-5 w-5 shrink-0 text-violet-500" />
                                 <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={esCombo} onChange={e => handleToggleCombo(e.target.checked)} id="esCombo" />
-                                <label htmlFor="esCombo" className="cursor-pointer">Es Combo</label>
+                                <label htmlFor="esCombo" className="cursor-pointer select-none">Es Combo</label>
                             </div>
                             {/* Identificadores */}
                             <label className="block">
@@ -1006,7 +1098,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 {formErrors.tituloMl && <p className="mt-1 text-xs text-red-500">{formErrors.tituloMl}</p>}
                                 <div className="mt-2 flex flex-col gap-2">
                                     <div className="flex items-center gap-2">
-                                        <Button variant="light" onClick={handlePredecirCategoriasMl} disabled={!tituloMl.trim() || cargandoPrediccionesMl}>
+                                        <Button variant="dark" onClick={handlePredecirCategoriasMl} disabled={!tituloMl.trim() || cargandoPrediccionesMl}>
                                             {cargandoPrediccionesMl ? "Prediciendo..." : "Predecir categorías"}
                                         </Button>
                                         {mlCategoryId && (
@@ -1045,6 +1137,11 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                             <div className="block xl:col-span-4">
                                 <div className="flex items-center gap-1.5">
                                     <span className={fieldLabelClassName}>Imágenes (por SKU)</span>
+                                    {imagenesDetectadas.length > 0 && (
+                                        <span className="inline-flex items-center justify-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" title={`${imagenesDetectadas.length} imagen${imagenesDetectadas.length === 1 ? "" : "es"} detectada${imagenesDetectadas.length === 1 ? "" : "s"} para este SKU`}>
+                                            {imagenesDetectadas.length}
+                                        </span>
+                                    )}
                                     <Tooltip content="Las imágenes se asocian automáticamente por SKU: el sistema toma de la carpeta de imágenes los archivos cuyo nombre coincide con el SKU del producto. No se cargan a mano desde acá — para agregar o cambiar fotos, poné los archivos en esa carpeta nombrados con el SKU y se detectan solos. Click en una miniatura para verlas todas." className="flex items-center">
                                         <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
                                     </Tooltip>
@@ -1098,6 +1195,11 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 </select>
                             </label>
                         </div>
+                        {producto && (
+                            <div className="mt-3 border-t border-slate-200/70 pt-2.5 text-xs text-slate-400 dark:border-slate-700/60 dark:text-slate-500">
+                                Últ. costo: <span className="font-medium text-slate-500 dark:text-slate-400">{formatFechaAR(producto.fechaUltimoCosto)}</span>
+                            </div>
+                        )}
                     </fieldset>
 
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.reposicion}`}>
@@ -1215,59 +1317,64 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.ml}`}>
                         <legend className={sectionTitleClassName}><ShoppingBagIcon /> MercadoLibre</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Publicación de MercadoLibre (MLA) asociada al producto.</p>
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                            <div>
-                                <AsyncSelect label="MLA" loadOptions={searchMlas} onChange={(v, label) => { setMlaId(v ? Number(v) : null); setMlaDisplay(label ?? ""); }} value={mlaId} displayValue={mlaDisplay} placeholder="Buscar MLA" inputClassName={inputBaseClassName} />
-                                <button type="button" onClick={() => setShowNuevoMla((s) => !s)} className="mt-1 text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400">
-                                    {showNuevoMla ? "− Cerrar nuevo MLA" : "+ Nuevo MLA"}
-                                </button>
-                            </div>
+                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                            <span className="text-xs">
+                                {mlaCodigo.trim()
+                                    ? (mlaId
+                                        ? <span className="font-medium text-emerald-600 dark:text-emerald-400">✓ MLA existente en la base — se cargaron sus datos</span>
+                                        : <span className="font-medium text-blue-600 dark:text-blue-400">Nuevo — se creará al guardar</span>)
+                                    : <span className="text-slate-500 dark:text-slate-400">Sin MLA — si publicás en Mercado Libre se crea y asocia al subir la publicación</span>}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={handleObtenerMlaDeML}
+                                disabled={obteniendoMla || !sku.trim()}
+                                title={!sku.trim() ? "Cargá primero el SKU" : "Trae el MLA y sus datos desde tu publicación de MercadoLibre"}
+                                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-400 px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:from-amber-300 hover:to-yellow-300 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                <CloudArrowDownIcon className={`h-4 w-4 ${obteniendoMla ? "animate-pulse" : ""}`} />
+                                {obteniendoMla ? "Trayendo de MercadoLibre..." : "Autocompletar desde MercadoLibre"}
+                            </button>
                         </div>
-
-                        {showNuevoMla && (
-                            <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50/50 p-4 dark:border-blue-800 dark:bg-blue-900/15">
-                                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Nuevo MLA</span>
-                                    <button
-                                        type="button"
-                                        onClick={handleObtenerMlaDeML}
-                                        disabled={obteniendoMla || !sku.trim()}
-                                        title={!sku.trim() ? "Cargá primero el SKU" : "Trae el MLA y sus datos desde tu publicación de MercadoLibre"}
-                                        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-400 px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:from-amber-300 hover:to-yellow-300 disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                        <CloudArrowDownIcon className={`h-4 w-4 ${obteniendoMla ? "animate-pulse" : ""}`} />
-                                        {obteniendoMla ? "Trayendo de MercadoLibre..." : "Autocompletar desde MercadoLibre"}
-                                    </button>
-                                </div>
-                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
-                                    <label className="block xl:col-span-3">
-                                        <span className={fieldLabelClassName}>Código MLA</span>
-                                        <input type="text" className={inputBaseClassName} value={mlaCodigo} onChange={e => setMlaCodigo(e.target.value)} placeholder="MLA123456789" />
-                                    </label>
-                                    <label className="block xl:col-span-3">
-                                        <span className={fieldLabelClassName}>MLAU</span>
-                                        <input type="text" className={inputBaseClassName} value={mlaMlau} onChange={e => setMlaMlau(e.target.value)} placeholder="Opcional" />
-                                    </label>
-                                    <label className="block xl:col-span-2">
-                                        <span className={fieldLabelClassName}>Precio envío</span>
-                                        <input type="number" min={0} className={inputBaseClassName} value={mlaPrecioEnvio} onChange={e => setMlaPrecioEnvio(e.target.value === "" ? "" : Number(e.target.value))} placeholder="0" />
-                                    </label>
-                                    <label className="block xl:col-span-2">
-                                        <span className={fieldLabelClassName}>Comisión (%)</span>
-                                        <input type="number" min={0} step={0.5} className={inputBaseClassName} value={mlaComision} onChange={e => setMlaComision(e.target.value === "" ? "" : Number(e.target.value))} placeholder="0" />
-                                    </label>
-                                    <label className="block xl:col-span-2">
-                                        <span className={fieldLabelClassName}>Tope promoción</span>
-                                        <input type="number" min={0} className={inputBaseClassName} value={mlaTope} onChange={e => setMlaTope(e.target.value === "" ? "" : Number(e.target.value))} placeholder="0" />
-                                    </label>
-                                </div>
-                                <div className="mt-3 flex justify-end">
-                                    <Button variant="dark" onClick={handleCrearMla} disabled={creandoMla || !mlaCodigo.trim()}>
-                                        {creandoMla ? "Creando..." : "Crear y usar este MLA"}
-                                    </Button>
-                                </div>
-                            </div>
-                        )}
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
+                            <label className="block xl:col-span-3">
+                                <span className={fieldLabelClassName}>Código MLA</span>
+                                <input
+                                    type="text"
+                                    className={inputBaseClassName}
+                                    value={mlaCodigo}
+                                    onChange={e => {
+                                        const v = e.target.value;
+                                        setMlaCodigo(v);
+                                        // Al vaciar el código se desasocia y se limpian los datos heredados.
+                                        if (!v.trim()) { setMlaId(null); setMlaDetalle(null); setMlaMlau(""); setMlaPrecioEnvio(""); setMlaComision(""); setMlaTope(""); }
+                                    }}
+                                    placeholder="MLA123456789"
+                                />
+                            </label>
+                            <label className="block xl:col-span-3">
+                                <span className={fieldLabelClassName}>MLAU</span>
+                                <input type="text" className={inputBaseClassName} value={mlaMlau} onChange={e => setMlaMlau(e.target.value)} placeholder="Opcional" />
+                            </label>
+                            <label className="block xl:col-span-2">
+                                <span className={fieldLabelClassName}>Precio envío</span>
+                                <input type="number" min={0} className={inputBaseClassName} value={mlaPrecioEnvio} onChange={e => setMlaPrecioEnvio(e.target.value === "" ? "" : Number(e.target.value))} placeholder="0" />
+                                {mlaDetalle?.fechaCalculoEnvio && (
+                                    <span className="mt-0.5 block text-[11px] text-slate-400 dark:text-slate-500">calculado el {new Date(mlaDetalle.fechaCalculoEnvio).toLocaleDateString("es-AR")}</span>
+                                )}
+                            </label>
+                            <label className="block xl:col-span-2">
+                                <span className={fieldLabelClassName}>Comisión (%)</span>
+                                <input type="number" min={0} step={0.5} className={inputBaseClassName} value={mlaComision} onChange={e => setMlaComision(e.target.value === "" ? "" : Number(e.target.value))} placeholder="0" />
+                                {mlaDetalle?.fechaCalculoComision && (
+                                    <span className="mt-0.5 block text-[11px] text-slate-400 dark:text-slate-500">calculado el {new Date(mlaDetalle.fechaCalculoComision).toLocaleDateString("es-AR")}</span>
+                                )}
+                            </label>
+                            <label className="block xl:col-span-2">
+                                <span className={fieldLabelClassName}>Tope promoción</span>
+                                <input type="number" min={0} className={inputBaseClassName} value={mlaTope} onChange={e => setMlaTope(e.target.value === "" ? "" : Number(e.target.value))} placeholder="0" />
+                            </label>
+                        </div>
                     </fieldset>
 
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.dimensiones}`}>
@@ -1354,13 +1461,13 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                             <p className={`${sectionDescriptionClassName} mb-4`}>Title, descripción y tags para SEO. Generalos con IA o editalos a mano. Si los dejás vacíos, se generan automáticamente al subir.</p>
                             <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                                 {([
-                                    ["GASTRO", "KT Gastro", subirKtGastro, seoGastro, setSeoGastro] as const,
                                     ["HOGAR", "KT Hogar", subirKtHogar, seoHogar, setSeoHogar] as const,
-                                ]).filter(([, , activoCanal]) => activoCanal).map(([canal, titulo, , seo, setSeo]) => (
-                                    <div key={canal} className="rounded-2xl border border-slate-200 bg-white/70 p-4 dark:border-slate-700 dark:bg-slate-800/60">
+                                    ["GASTRO", "KT Gastro", subirKtGastro, seoGastro, setSeoGastro] as const,
+                                ]).map(([canal, titulo, activoCanal, seo, setSeo]) => (
+                                    <div key={canal} className={`rounded-2xl border border-slate-200 bg-white/70 p-4 transition-opacity dark:border-slate-700 dark:bg-slate-800/60 ${activoCanal ? "" : "opacity-50"}`}>
                                         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                                             <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{titulo}</span>
-                                            <Button variant="light" onClick={() => generarSeo(canal)} disabled={generandoSeo !== null}>
+                                            <Button variant="dark" onClick={() => generarSeo(canal)} disabled={generandoSeo !== null || !activoCanal}>
                                                 {generandoSeo === canal ? <SpinnerIcon /> : null}
                                                 {generandoSeo === canal ? "Generando..." : "Generar SEO con IA"}
                                             </Button>
@@ -1368,17 +1475,17 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                         <div className="grid grid-cols-1 gap-3">
                                             <label className="block">
                                                 <span className={fieldLabelClassName}>SEO Title</span>
-                                                <input type="text" maxLength={70} className={inputBaseClassName} value={seo.title} onChange={e => setSeo(p => ({ ...p, title: e.target.value }))} placeholder="Título SEO" />
+                                                <input type="text" maxLength={70} disabled={!activoCanal} className={`${inputBaseClassName} disabled:cursor-not-allowed disabled:opacity-60`} value={seo.title} onChange={e => setSeo(p => ({ ...p, title: e.target.value }))} placeholder="Título SEO" />
                                                 <span className="mt-1 block text-right text-xs text-slate-400">{seo.title.length}/70</span>
                                             </label>
                                             <label className="block">
                                                 <span className={fieldLabelClassName}>SEO Description</span>
-                                                <textarea maxLength={320} rows={3} className={inputBaseClassName} value={seo.description} onChange={e => setSeo(p => ({ ...p, description: e.target.value }))} placeholder="Descripción SEO" />
+                                                <textarea maxLength={320} rows={3} disabled={!activoCanal} className={`${inputBaseClassName} disabled:cursor-not-allowed disabled:opacity-60`} value={seo.description} onChange={e => setSeo(p => ({ ...p, description: e.target.value }))} placeholder="Descripción SEO" />
                                                 <span className="mt-1 block text-right text-xs text-slate-400">{seo.description.length}/320</span>
                                             </label>
                                             <label className="block">
                                                 <span className={fieldLabelClassName}>Tags</span>
-                                                <input type="text" className={inputBaseClassName} value={seo.tags} onChange={e => setSeo(p => ({ ...p, tags: e.target.value }))} placeholder="tag1, tag2, ..." />
+                                                <input type="text" disabled={!activoCanal} className={`${inputBaseClassName} disabled:cursor-not-allowed disabled:opacity-60`} value={seo.tags} onChange={e => setSeo(p => ({ ...p, tags: e.target.value }))} placeholder="tag1, tag2, ..." />
                                             </label>
                                         </div>
                                     </div>

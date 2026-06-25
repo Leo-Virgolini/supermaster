@@ -20,6 +20,16 @@ class OpenAiSeoParseTest {
     }
 
     @Test
+    void trunca_cortaEnPalabraCompleta() {
+        String title = "Sartén de acero inoxidable profesional para cocina gastronómica industrial reforzada";
+        String content = "{\"seo_title\":\"" + title + "\",\"seo_description\":\"x\",\"tags\":\"a\"}";
+        SeoGeneradoDTO dto = OpenAiSeoParser.parseContenido(content, om);
+        assertThat(dto.seoTitle().length()).isLessThanOrEqualTo(70);
+        // No parte la última palabra: en el título original el carácter siguiente al corte es un espacio.
+        assertThat(title.charAt(dto.seoTitle().length())).isEqualTo(' ');
+    }
+
+    @Test
     void trunca_titleA70_yDescA320() {
         String title80 = "x".repeat(80);
         String desc400 = "y".repeat(400);

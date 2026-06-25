@@ -87,8 +87,23 @@ public class OpenAiSeoService {
         user.put("role", "user");
         user.put("content", OpenAiSeoPrompts.userMessage(contexto));
 
+        // response_format json_schema (structured outputs): fuerza la forma exacta del JSON.
         ObjectNode responseFormat = body.putObject("response_format");
-        responseFormat.put("type", "json_object");
+        responseFormat.put("type", "json_schema");
+        ObjectNode jsonSchema = responseFormat.putObject("json_schema");
+        jsonSchema.put("name", "seo_nube");
+        jsonSchema.put("strict", true);
+        ObjectNode schema = jsonSchema.putObject("schema");
+        schema.put("type", "object");
+        schema.put("additionalProperties", false);
+        ObjectNode props = schema.putObject("properties");
+        props.putObject("seo_title").put("type", "string");
+        props.putObject("seo_description").put("type", "string");
+        props.putObject("tags").put("type", "string");
+        ArrayNode required = schema.putArray("required");
+        required.add("seo_title");
+        required.add("seo_description");
+        required.add("tags");
 
         return objectMapper.writeValueAsString(body);
     }

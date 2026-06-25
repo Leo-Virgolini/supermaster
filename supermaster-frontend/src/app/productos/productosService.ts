@@ -173,6 +173,30 @@ export type MlaResumenDTO = {
 	topePromocion: number | null;
 };
 
+// Detalle completo de un MLA (incluye fechas de cálculo de envío/comisión).
+export type MlaDetalleDTO = MlaResumenDTO & {
+	fechaCalculoEnvio: string | null;
+	fechaCalculoComision: string | null;
+};
+
+// Trae el detalle de un MLA por id (para mostrar MLAU, envío y comisión al editar).
+export const getMlaPorIdAPI = async (id: number): Promise<MlaDetalleDTO> => {
+	const res = await fetchAPI(`${API_BASE_URL}/api/mlas/${id}`);
+	if (!res.ok) throw new Error(await extraerMensajeError(res, "No se pudo obtener el MLA"));
+	return await res.json();
+};
+
+// PATCH parcial de un MLA existente (persistir ediciones de MLAU/envío/comisión/tope).
+export const patchMlaAPI = async (id: number, data: { mlau?: string | null; precioEnvio?: number | null; comisionPorcentaje?: number | null; topePromocion?: number | null }): Promise<MlaDetalleDTO> => {
+	const res = await fetchAPI(`${API_BASE_URL}/api/mlas/${id}`, {
+		method: "PATCH",
+		headers: { "Content-Type": "application/json", "X-Audit-Origin": "FORM" },
+		body: JSON.stringify(data),
+	});
+	if (!res.ok) throw new Error(await extraerMensajeError(res, "No se pudo actualizar el MLA"));
+	return await res.json();
+};
+
 const extraerMensajeError = async (res: Response, fallback: string): Promise<string> => {
 	try {
 		const j = await res.json();
@@ -227,7 +251,6 @@ export type DestinoNube = { tienda: "KT HOGAR" | "KT GASTRO"; cuotas: number; se
 
 export type SeoContexto = {
 	tituloNube: string;
-	tituloDux: string;
 	marca: string | null;
 	material: string | null;
 	aptos: string[];

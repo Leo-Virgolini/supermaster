@@ -34,6 +34,11 @@ public final class OpenAiSeoParser {
     private static String truncar(String s, int max) {
         if (s == null) return "";
         s = s.trim();
-        return s.length() <= max ? s : s.substring(0, max).trim();
+        if (s.length() <= max) return s;
+        String corte = s.substring(0, max);
+        int ultimoEspacio = corte.lastIndexOf(' ');
+        // Si hay un espacio razonablemente cerca del límite, cortamos ahí para no partir la última palabra.
+        if (ultimoEspacio >= max * 0.6) corte = corte.substring(0, ultimoEspacio);
+        return corte.trim();
     }
 }

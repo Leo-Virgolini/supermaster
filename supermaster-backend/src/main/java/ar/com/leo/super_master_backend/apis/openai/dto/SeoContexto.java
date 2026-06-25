@@ -5,7 +5,6 @@ import java.util.List;
 /** Datos del producto que se le pasan a la IA para generar el SEO. */
 public record SeoContexto(
         String tituloNube,
-        String tituloDux,
         String marca,
         String material,
         List<String> aptos,

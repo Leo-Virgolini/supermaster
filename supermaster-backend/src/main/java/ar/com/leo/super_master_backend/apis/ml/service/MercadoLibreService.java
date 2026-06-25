@@ -1903,7 +1903,7 @@ public class MercadoLibreService {
             // Atributos (marca, dimensiones del paquete, IVA, impuesto de importación). Best-effort:
             // si ML rechaza algún atributo no editable, queda como advertencia y no aborta el resto.
             try {
-                putAttributes.accept(mla, MlItemPayloadBuilder.construirAtributos(producto));
+                putAttributes.accept(mla, MlItemPayloadBuilder.construirAtributos(producto, java.util.Set.of())); // Task 6 cableará idsValidos de la categoría
             } catch (Exception e) {
                 advertencia = concatAdv(advertencia, "atributos no actualizados");
             }

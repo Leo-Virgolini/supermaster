@@ -2,11 +2,13 @@ package ar.com.leo.super_master_backend.apis.ml.service;
 
 import ar.com.leo.super_master_backend.dominio.marca.entity.Marca;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
+import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoMlAtributo;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
@@ -18,6 +20,10 @@ class MlItemPayloadBuilderTest {
         p.setSku("ABC123"); p.setTituloMl("Olla acero 5L");
         Marca m = new Marca(); m.setNombre("Tramontina"); p.setMarca(m);
         return p;
+    }
+
+    private Producto productoBase() {
+        return base();
     }
 
     @Test
@@ -111,5 +117,59 @@ class MlItemPayloadBuilderTest {
         assertNull(attr(payload, "SELLER_PACKAGE_HEIGHT"));
         assertEquals("10.5 %", attr(payload, "VALUE_ADDED_TAX").get("value_name"));
         assertEquals("48405908", attr(payload, "VALUE_ADDED_TAX").get("value_id"));
+    }
+
+    // ==================== Task 5: retiro, EAN→GTIN, atributos guardados ====================
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void shipping_ofreceRetiroEnPersona() {
+        Map<String, Object> payload = MlItemPayloadBuilder.construir(productoBase(), "MLA1", BigDecimal.TEN, 0, List.of(), "fam");
+        Map<String, Object> shipping = (Map<String, Object>) payload.get("shipping");
+        assertThat(shipping.get("local_pick_up")).isEqualTo(true);
+    }
+
+    @Test
+    void atributos_eanComoGtin_siCategoriaDeclaraGtin() {
+        Producto p = productoBase(); p.setEan("7791234567890");
+        var attrs = MlItemPayloadBuilder.construirAtributos(p, Set.of("GTIN"));
+        assertThat(attrs).anySatisfy(a -> {
+            assertThat(a.get("id")).isEqualTo("GTIN");
+            assertThat(a.get("value_name")).isEqualTo("7791234567890");
+        });
+    }
+
+    @Test
+    void atributos_eanComoEan_siNoHayGtin() {
+        Producto p = productoBase(); p.setEan("7791234567890");
+        var attrs = MlItemPayloadBuilder.construirAtributos(p, Set.of("EAN"));
+        assertThat(attrs).anySatisfy(a -> assertThat(a.get("id")).isEqualTo("EAN"));
+    }
+
+    @Test
+    void atributos_sinEan_noAgregaIdentificador() {
+        var attrs = MlItemPayloadBuilder.construirAtributos(productoBase(), Set.of("GTIN"));
+        assertThat(attrs).noneSatisfy(a -> assertThat(a.get("id")).isIn("GTIN", "EAN"));
+    }
+
+    @Test
+    void atributos_guardadosSeInyectan_conYsinValueId() {
+        Producto p = productoBase();
+        ProductoMlAtributo a1 = new ProductoMlAtributo();
+        a1.setAttributeId("SALE_FORMAT"); a1.setValueId("1359391"); a1.setValueName("Unidad");
+        ProductoMlAtributo a2 = new ProductoMlAtributo();
+        a2.setAttributeId("MODEL"); a2.setValueName("X100");
+        p.getMlAtributos().addAll(List.of(a1, a2));
+        var attrs = MlItemPayloadBuilder.construirAtributos(p, Set.of());
+        assertThat(attrs).anySatisfy(a -> {
+            assertThat(a.get("id")).isEqualTo("SALE_FORMAT");
+            assertThat(a.get("value_id")).isEqualTo("1359391");
+            assertThat(a.get("value_name")).isEqualTo("Unidad");
+        });
+        assertThat(attrs).anySatisfy(a -> {
+            assertThat(a.get("id")).isEqualTo("MODEL");
+            assertThat(a).doesNotContainKey("value_id");
+            assertThat(a.get("value_name")).isEqualTo("X100");
+        });
     }
 }

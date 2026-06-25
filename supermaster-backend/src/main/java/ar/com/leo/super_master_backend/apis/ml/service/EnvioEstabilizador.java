@@ -35,6 +35,8 @@ final class EnvioEstabilizador {
                 costoEnvioConIva = ciclo;
                 costoEnvioSinIva = ciclo.compareTo(BigDecimal.ZERO) > 0
                         ? ciclo.divide(divisorIva, 2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
+                // Recomputar pvp coherente con el envío final elegido (max del ciclo).
+                pvp = pvpFn.apply(costoEnvioSinIva);
                 break;
             }
             vistos.add(nuevoConIva);

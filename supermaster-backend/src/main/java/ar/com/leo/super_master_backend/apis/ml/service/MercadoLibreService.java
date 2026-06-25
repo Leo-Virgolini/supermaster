@@ -67,6 +67,11 @@ public class MercadoLibreService {
 
     private static final String CANAL_ML = "ML";
     private static final Set<String> EXT_ML = Set.of("jpg", "jpeg", "png");
+    private static final String LISTING_TYPE_GOLD_SPECIAL = "gold_special";
+    private static final String LOGISTIC_DROP_OFF = "drop_off";
+    private static final String SHIPPING_MODE_ME2 = "me2";
+    private static final String CURRENCY_ARS = "ARS";
+    private static final int MAX_ITERACIONES_ENVIO = 10;
 
     /** Resultado interno del cálculo de envío: costo con IVA y motivo si falló (null si ok). */
     private record ResultadoEnvio(BigDecimal costo, String motivoFallo) {
@@ -175,7 +180,6 @@ public class MercadoLibreService {
      */
     @Transactional(noRollbackFor = {NotFoundException.class, BadRequestException.class})
     public CostoEnvioResponseDTO calcularCostoEnvioGratis(String mlaCode) {
-        final int MAX_ITERACIONES = 10;
 
         // Obtener configuración
         ConfiguracionMl config = configuracionMlService.obtenerEntidad();
@@ -299,11 +303,10 @@ public class MercadoLibreService {
         // se registra el resultado final.
         EnvioEstabilizador.ResultadoEstabilizacion resultado;
         try {
-            resultado = EnvioEstabilizador.estabilizar(pvpFn, envioConIvaFn, divisorIva, MAX_ITERACIONES);
+            resultado = EnvioEstabilizador.estabilizar(pvpFn, envioConIvaFn, divisorIva, MAX_ITERACIONES_ENVIO);
         } catch (RuntimeException ex) {
             String msg = ex.getMessage() != null ? ex.getMessage() : "";
-            // Reconstruir la señal de pvp actual a partir del holder del status (puede ser null).
-            // No hay pvp parcial disponible en este punto de aborto; se usa ZERO.
+            // Aborto temprano: no hay pvp parcial disponible; se usa ZERO.
             if (msg.startsWith("PVP_ERROR:")) {
                 String causa = msg.substring("PVP_ERROR:".length());
                 log.warn("ML - MLA {} - Error calculando PVP: {}", mlaCode, causa);
@@ -330,9 +333,9 @@ public class MercadoLibreService {
         String motivoFallo = motivoFalloHolder[0];
         status = statusHolder[0];
 
-        if (resultado.iteraciones() >= MAX_ITERACIONES) {
+        if (resultado.iteraciones() >= MAX_ITERACIONES_ENVIO) {
             log.warn("ML - MLA {} - No convergió después de {} iteraciones. Último PVP=${}, costoEnvioConIva=${}",
-                    mlaCode, MAX_ITERACIONES, pvpActual, resultado.costoEnvioConIva());
+                    mlaCode, MAX_ITERACIONES_ENVIO, pvpActual, resultado.costoEnvioConIva());
         } else {
             log.info("ML - MLA {} - Estabilizado en {} iteraciones: PVP=${}, costoEnvioConIva=${}, costoEnvioSinIva=${} ({})",
                     mlaCode, resultado.iteraciones(), pvpActual,
@@ -539,8 +542,8 @@ public class MercadoLibreService {
     BigDecimal consultarComisionPorcentaje(String categoryId, BigDecimal price, String listingTypeId, String logisticType) {
         verificarTokens();
         String uri = String.format(
-                "/sites/MLA/listing_prices?category_id=%s&price=%s&currency_id=ARS&listing_type_id=%s&logistic_type=%s&shipping_mode=me2",
-                categoryId, price.setScale(0, java.math.RoundingMode.HALF_UP), listingTypeId, logisticType);
+                "/sites/MLA/listing_prices?category_id=%s&price=%s&currency_id=%s&listing_type_id=%s&logistic_type=%s&shipping_mode=%s",
+                categoryId, price.setScale(0, java.math.RoundingMode.HALF_UP), CURRENCY_ARS, listingTypeId, logisticType, SHIPPING_MODE_ME2);
         String body = retryHandler.get(uri, () -> tokens.accessToken);
         if (body == null) return BigDecimal.ZERO;
         try {
@@ -1050,8 +1053,8 @@ public class MercadoLibreService {
 
         String itemPrice = String.format(Locale.forLanguageTag("en-US"), "%.2f", pvp);
         String params = String.format(
-                "&item_price=%s&listing_type_id=%s&mode=me2&condition=new&logistic_type=%s&zip_code=%s&verbose=true&free_shipping=true&category_id=%s",
-                itemPrice, listingType, logisticType, zipCode, categoryId);
+                "&item_price=%s&listing_type_id=%s&mode=%s&condition=new&logistic_type=%s&zip_code=%s&verbose=true&free_shipping=true&category_id=%s",
+                itemPrice, listingType, SHIPPING_MODE_ME2, logisticType, zipCode, categoryId);
         String uri = String.format("/users/%s/shipping_options/free?dimensions=%s%s",
                 userId, URLEncoder.encode(dimensions, StandardCharsets.UTF_8), params);
 
@@ -1087,28 +1090,33 @@ public class MercadoLibreService {
     }
 
     /**
+     * Realiza UN solo {@code GET /users/me} y devuelve el {@link JsonNode} completo.
+     * El resultado no se cachea; los callers usan lo que necesitan de él.
+     * Si la llamada falla, lanza {@link IOException}.
+     */
+    private JsonNode obtenerPerfilVendedor() throws IOException {
+        verificarTokens();
+        String responseBody = retryHandler.get("/users/me", () -> tokens.accessToken);
+        if (responseBody == null) {
+            throw new IOException("Error al obtener perfil del vendedor de ML");
+        }
+        try {
+            return objectMapper.readTree(responseBody);
+        } catch (Exception e) {
+            throw new IOException("Error parseando perfil del vendedor de ML", e);
+        }
+    }
+
+    /**
      * Obtiene el userId del usuario autenticado.
+     * Usa cache si está disponible; si no, hace UN solo {@code GET /users/me}.
      */
     public String getUserId() throws IOException {
-        // Usar cache si está disponible
         if (cachedUserId != null) {
             return cachedUserId;
         }
-
-        verificarTokens();
-
-        String responseBody = retryHandler.get("/users/me", () -> tokens.accessToken);
-
-        if (responseBody == null) {
-            throw new IOException("Error al obtener el user ID de ML");
-        }
-
-        try {
-            cachedUserId = objectMapper.readTree(responseBody).get("id").asString();
-            return cachedUserId;
-        } catch (Exception e) {
-            throw new IOException("Error parseando userId de ML", e);
-        }
+        cachedUserId = obtenerPerfilVendedor().get("id").asString();
+        return cachedUserId;
     }
 
     /**
@@ -2235,9 +2243,7 @@ public class MercadoLibreService {
      */
     private String obtenerZipVendedor() {
         try {
-            String body = retryHandler.get("/users/me", () -> tokens.accessToken);
-            if (body == null) return null;
-            String zip = objectMapper.readTree(body).path("address").path("zip_code").asString("");
+            String zip = obtenerPerfilVendedor().path("address").path("zip_code").asString("");
             return zip.isBlank() ? null : zip;
         } catch (Exception e) {
             log.warn("ML - No se pudo obtener zip del vendedor: {}", e.getMessage());
@@ -2276,19 +2282,21 @@ public class MercadoLibreService {
         ConfiguracionMl config = configuracionMlService.obtenerEntidad();
         BigDecimal umbral = config.getUmbralEnvioGratis();
 
-        final String listingType = "gold_special";
-        final String logisticType = "drop_off";
+        final String listingType = LISTING_TYPE_GOLD_SPECIAL;
+        final String logisticType = LOGISTIC_DROP_OFF;
 
-        // Obtener zip del vendedor (para consultarEnvioConIvaSinItem); null es tolerable.
-        // obtenerZipVendedor() ya atrapa todas las excepciones y devuelve null si falla.
-        final String zipFinal = obtenerZipVendedor();
-
-        // userId (cacheado); capturado aquí para que la lambda no repita llamadas.
+        // Obtener perfil del vendedor en UN solo GET /users/me: extrae userId (para la API de envío)
+        // y zip (para consultarEnvioConIvaSinItem). El userId se deja también en cache.
         final String userId;
+        final String zipFinal;
         try {
-            userId = getUserId();
+            JsonNode perfil = obtenerPerfilVendedor();
+            userId = perfil.get("id").asString();
+            cachedUserId = userId; // actualizar cache
+            String zip = perfil.path("address").path("zip_code").asString("");
+            zipFinal = zip.isBlank() ? null : zip;
         } catch (IOException e) {
-            throw new IllegalStateException("No se pudo obtener el userId de MercadoLibre: " + e.getMessage());
+            throw new IllegalStateException("No se pudo obtener el perfil del vendedor de MercadoLibre: " + e.getMessage());
         }
 
         // Divisor de IVA: convierte el costo de envío CON IVA (lo que devuelve la API)
@@ -2353,7 +2361,7 @@ public class MercadoLibreService {
             BigDecimal divisorIva) {
         EnvioEstabilizador.ResultadoEstabilizacion r;
         try {
-            r = EnvioEstabilizador.estabilizar(pvpFn, envioConIvaFn, divisorIva, 10);
+            r = EnvioEstabilizador.estabilizar(pvpFn, envioConIvaFn, divisorIva, MAX_ITERACIONES_ENVIO);
         } catch (BadRequestException | NotFoundException e) {
             throw new IllegalStateException(e.getMessage());
         } catch (RuntimeException e) {

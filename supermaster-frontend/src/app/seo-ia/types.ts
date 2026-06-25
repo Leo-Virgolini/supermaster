@@ -15,3 +15,8 @@ export type SeoUso = {
     precioInput1m: number;
     precioOutput1m: number;
 };
+
+export const CANAL_LABEL: Record<SeoCanal, string> = {
+    HOGAR: "KT Hogar",
+    GASTRO: "KT Gastro",
+};

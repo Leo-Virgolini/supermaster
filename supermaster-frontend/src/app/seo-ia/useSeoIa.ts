@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { notificar } from "../utils/notificar";
 import { getSeoPromptsAPI, getSeoUsoAPI, updateSeoPromptAPI } from "./seoService";
 import type { SeoCanal, SeoPrompt, SeoUso } from "./types";
+import { CANAL_LABEL } from "./types";
 
 export function useSeoIa() {
     const [prompts, setPrompts] = useState<SeoPrompt[]>([]);
@@ -31,7 +32,7 @@ export function useSeoIa() {
         try {
             const actualizado = await updateSeoPromptAPI(canal, contenido);
             setPrompts(prev => prev.map(p => p.canal === canal ? actualizado : p));
-            notificar.success(`Prompt de ${canal === "HOGAR" ? "Hogar" : "Gastro"} guardado`);
+            notificar.success(`Prompt de ${CANAL_LABEL[canal]} guardado`);
         } catch (e: unknown) {
             notificar.error(getErrorMessage(e, "Error al guardar el prompt"));
         } finally {

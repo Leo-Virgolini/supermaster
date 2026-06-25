@@ -4,11 +4,10 @@ import { useEffect, useState } from "react";
 import Button from "../components/Button/Button";
 import { useSeoIa } from "./useSeoIa";
 import type { SeoCanal } from "./types";
+import { CANAL_LABEL } from "./types";
+import { SparklesIcon } from "@heroicons/react/24/outline";
 
-const CANALES: { canal: SeoCanal; titulo: string }[] = [
-    { canal: "HOGAR", titulo: "KT Hogar" },
-    { canal: "GASTRO", titulo: "KT Gastro" },
-];
+const CANALES: SeoCanal[] = ["HOGAR", "GASTRO"];
 
 export default function SeoIaPage() {
     const { prompts, uso, isLoading, isSaving, savePrompt } = useSeoIa();
@@ -25,8 +24,16 @@ export default function SeoIaPage() {
     const fmt = (n: number) => new Intl.NumberFormat("es-AR").format(n);
 
     return (
-        <div className="mx-auto max-w-5xl px-4 py-6">
-            <h1 className="mb-6 text-2xl font-bold text-slate-800 dark:text-slate-100">SEO IA — configuración y uso</h1>
+        <main className="p-4 md:p-5 bg-gray-50 dark:bg-slate-900 flex flex-col gap-4">
+            <div>
+                <h1 className="text-3xl font-bold text-gray-800 dark:text-slate-100 flex items-center gap-3">
+                    <SparklesIcon className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+                    SEO IA
+                </h1>
+                <p className="text-gray-500 dark:text-slate-400 text-sm mt-1">
+                    Prompts de SEO de Tienda Nube y consumo de OpenAI
+                </p>
+            </div>
 
             {/* Panel de uso */}
             <div className="mb-8 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/60">
@@ -38,7 +45,7 @@ export default function SeoIaPage() {
                         <span><b>Tokens salida:</b> {fmt(uso.tokensSalida)}</span>
                         <span><b>Costo:</b> US$ {uso.costoUsd.toFixed(4)}</span>
                         <span className="text-slate-500 dark:text-slate-400">
-                            Modelo: {uso.modelo} · in US${uso.precioInput1m}/1M · out US${uso.precioOutput1m}/1M
+                            Modelo: {uso.modelo} · in US${uso.precioInput1m.toFixed(2)}/1M · out US${uso.precioOutput1m.toFixed(2)}/1M
                         </span>
                     </div>
                 ) : (
@@ -48,7 +55,8 @@ export default function SeoIaPage() {
 
             {/* Editores de prompt por canal */}
             <div className="space-y-6">
-                {CANALES.map(({ canal, titulo }) => {
+                {CANALES.map((canal) => {
+                    const titulo = CANAL_LABEL[canal];
                     const p = prompts.find(x => x.canal === canal);
                     const valor = borradores[canal] ?? "";
                     return (
@@ -80,6 +88,6 @@ export default function SeoIaPage() {
                     );
                 })}
             </div>
-        </div>
+        </main>
     );
 }

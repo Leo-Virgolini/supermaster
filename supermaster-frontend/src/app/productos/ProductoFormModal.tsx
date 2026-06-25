@@ -1360,14 +1360,14 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 <span className={fieldLabelClassName}>Precio envío</span>
                                 <input type="number" min={0} className={inputBaseClassName} value={mlaPrecioEnvio} onChange={e => setMlaPrecioEnvio(e.target.value === "" ? "" : Number(e.target.value))} placeholder="0" />
                                 {mlaDetalle?.fechaCalculoEnvio && (
-                                    <span className="mt-0.5 block text-[11px] text-slate-400 dark:text-slate-500">calculado el {new Date(mlaDetalle.fechaCalculoEnvio).toLocaleDateString("es-AR")}</span>
+                                    <span className="mt-0.5 block text-[11px] text-slate-400 dark:text-slate-500">calculado el {new Date(mlaDetalle.fechaCalculoEnvio).toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" })}</span>
                                 )}
                             </label>
                             <label className="block xl:col-span-2">
                                 <span className={fieldLabelClassName}>Comisión (%)</span>
                                 <input type="number" min={0} step={0.5} className={inputBaseClassName} value={mlaComision} onChange={e => setMlaComision(e.target.value === "" ? "" : Number(e.target.value))} placeholder="0" />
                                 {mlaDetalle?.fechaCalculoComision && (
-                                    <span className="mt-0.5 block text-[11px] text-slate-400 dark:text-slate-500">calculado el {new Date(mlaDetalle.fechaCalculoComision).toLocaleDateString("es-AR")}</span>
+                                    <span className="mt-0.5 block text-[11px] text-slate-400 dark:text-slate-500">calculado el {new Date(mlaDetalle.fechaCalculoComision).toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" })}</span>
                                 )}
                             </label>
                             <label className="block xl:col-span-2">

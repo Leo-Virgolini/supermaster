@@ -275,6 +275,14 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             if (mlPaqAncho === "" || Number(mlPaqAncho) <= 0) errors.mlPaqAncho = "Requerido para subir a ML";
             if (mlPaqLargo === "" || Number(mlPaqLargo) <= 0) errors.mlPaqLargo = "Requerido para subir a ML";
             if (mlPaqPeso === "" || Number(mlPaqPeso) <= 0) errors.mlPaqPeso = "Requerido para subir a ML";
+            // Atributos obligatorios de la categoría ML elegida (tag required/new_required): deben
+            // completarse para subir a ML (el backend igual los exige; esto avisa antes de subir).
+            const atributosMlFaltantes = mlAtributosDef
+                .filter(d => d.required && !mlAtributosVal[d.id]?.valueName?.trim())
+                .map(d => d.name);
+            if (atributosMlFaltantes.length > 0) {
+                errors.mlAtributos = `Completá los atributos obligatorios de Mercado Libre: ${atributosMlFaltantes.join(", ")}`;
+            }
         }
         setFormErrors(errors);
         return Object.keys(errors).length === 0;
@@ -805,12 +813,14 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     }, [mlCategoryId]);
 
     // Helper para actualizar un atributo ML en el estado.
-    const setAtributo = (id: string, valueName: string, valueId: string | null = null) =>
+    const setAtributo = (id: string, valueName: string, valueId: string | null = null) => {
         setMlAtributosVal(prev => {
             const next = { ...prev };
             if (!valueName) delete next[id]; else next[id] = { attributeId: id, valueId, valueName };
             return next;
         });
+        setFormErrors(p => p.mlAtributos ? { ...p, mlAtributos: "" } : p);
+    };
 
     const aplicarMlaEnForm = (mla: { id: number; mla: string; mlau: string | null; precioEnvio: number | null; comisionPorcentaje: number | null; topePromocion: number | null }) => {
         setMlaCodigo(mla.mla);
@@ -1484,6 +1494,41 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                             </label>
                         </div>
 
+                        {/* Atributos de categoría ML */}
+                        {mlCategoryId && mlAtributosDef.length > 0 && (
+                            <div className="mt-6 border-t border-slate-200/70 pt-4 dark:border-slate-700/70">
+                                <div className="mb-3 flex items-center gap-1.5">
+                                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Características</span>
+                                </div>
+                                {formErrors.mlAtributos && (
+                                    <p className="mb-3 text-sm font-medium text-red-600 dark:text-red-400">{formErrors.mlAtributos}</p>
+                                )}
+                                {(["PRINCIPALES", "SECUNDARIAS"] as const).map(grupo => {
+                                    const defs = mlAtributosDef.filter(d => (grupo === "PRINCIPALES" ? d.grupo === "PRINCIPALES" : d.grupo !== "PRINCIPALES"));
+                                    if (defs.length === 0) return null;
+                                    return (
+                                        <div key={grupo} className="mb-4">
+                                            <h4 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                                {grupo === "PRINCIPALES" ? "Principales" : "Secundarias"}
+                                            </h4>
+                                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                                                {defs.map(d => (
+                                                    <div key={d.id}>
+                                                        <span className={`${fieldLabelClassName}${d.required && formErrors.mlAtributos && !mlAtributosVal[d.id]?.valueName?.trim() ? " text-red-600 dark:text-red-400" : ""}`}>
+                                                            {d.name}{d.required && <span className="text-red-500"> *</span>}
+                                                        </span>
+                                                        <div className="mt-1">
+                                                            {renderMlAtributoInput(d)}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
                         {/* Subsección: dimensiones del paquete de envío de ML */}
                         <div className="mt-6 border-t border-slate-200/70 pt-4 dark:border-slate-700/70">
                             <div className="mb-3 flex items-center gap-1.5">
@@ -1533,35 +1578,6 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 </label>
                             </div>
                         </div>
-
-                        {/* Atributos de categoría ML */}
-                        {mlCategoryId && mlAtributosDef.length > 0 && (
-                            <div className="mt-6 border-t border-slate-200/70 pt-4 dark:border-slate-700/70">
-                                {(["PRINCIPALES", "SECUNDARIAS"] as const).map(grupo => {
-                                    const defs = mlAtributosDef.filter(d => (grupo === "PRINCIPALES" ? d.grupo === "PRINCIPALES" : d.grupo !== "PRINCIPALES"));
-                                    if (defs.length === 0) return null;
-                                    return (
-                                        <div key={grupo} className="mb-4">
-                                            <h4 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                                                {grupo === "PRINCIPALES" ? "Principales" : "Secundarias"}
-                                            </h4>
-                                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                                                {defs.map(d => (
-                                                    <div key={d.id}>
-                                                        <span className={fieldLabelClassName}>
-                                                            {d.name}{d.required && <span className="text-red-500"> *</span>}
-                                                        </span>
-                                                        <div className="mt-1">
-                                                            {renderMlAtributoInput(d)}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
                     </fieldset>
 
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.dimensiones}`}>

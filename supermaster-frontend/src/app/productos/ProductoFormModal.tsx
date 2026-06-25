@@ -361,9 +361,16 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 }
             };
             tareas.push((async (): Promise<ResultadoCanal> => {
+                // Genera el SEO de ambas tiendas en paralelo (cada una puede llamar a OpenAI); solo
+                // las marcadas lo resuelven, las demás quedan en undefined sin consultar. Recién con
+                // ambos SEO listos se arma el payload y se sube, manteniendo el orden HOGAR, GASTRO.
+                const [seoH, seoG] = await Promise.all([
+                    subirKtHogar ? resolverSeo(seoHogar, "HOGAR") : Promise.resolve(undefined),
+                    subirKtGastro ? resolverSeo(seoGastro, "GASTRO") : Promise.resolve(undefined),
+                ]);
                 const tiendas: DestinoNube[] = [];
-                if (subirKtHogar) tiendas.push({ tienda: "KT HOGAR", cuotas: cuotaHogar, seo: await resolverSeo(seoHogar, "HOGAR") });
-                if (subirKtGastro) tiendas.push({ tienda: "KT GASTRO", cuotas: cuotaGastro, seo: await resolverSeo(seoGastro, "GASTRO") });
+                if (subirKtHogar) tiendas.push({ tienda: "KT HOGAR", cuotas: cuotaHogar, seo: seoH });
+                if (subirKtGastro) tiendas.push({ tienda: "KT GASTRO", cuotas: cuotaGastro, seo: seoG });
                 if (!tiendas.length) return { canal: "Tienda Nube", estado: "ok", detalle: "sin cambios" };
                 try {
                     const r = await exportarProductosANubeAPI([skuExport], tiendas);

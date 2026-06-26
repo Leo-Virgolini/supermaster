@@ -98,11 +98,15 @@ public final class MlItemPayloadBuilder {
         }
         // Atributos guardados (formato de venta + características)
         for (ProductoMlAtributo a : p.getMlAtributos()) {
-            if (a.isNoAplica()) {
-                continue; // el usuario marcó "No aplica": no se envía a ML
-            }
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("id", a.getAttributeId());
+            if (a.isNoAplica()) {
+                // "No aplica": ML lo registra como N/A enviando value_id "-1" y value_name null.
+                m.put("value_id", "-1");
+                m.put("value_name", null);
+                attributes.add(m);
+                continue;
+            }
             if (a.getValueId() != null && !a.getValueId().isBlank()) m.put("value_id", a.getValueId());
             m.put("value_name", a.getValueName());
             attributes.add(m);

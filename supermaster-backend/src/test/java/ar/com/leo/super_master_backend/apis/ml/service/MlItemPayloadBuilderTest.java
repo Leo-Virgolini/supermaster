@@ -235,7 +235,7 @@ class MlItemPayloadBuilderTest {
     }
 
     @Test
-    void atributos_noAplicaSeOmiteDelPayload() {
+    void atributos_noAplicaSeEnviaComoNA() {
         Producto p = productoBase();
         ProductoMlAtributo na = new ProductoMlAtributo();
         na.setAttributeId("SHAPE"); na.setValueName(""); na.setNoAplica(true);
@@ -245,7 +245,11 @@ class MlItemPayloadBuilderTest {
 
         var attrs = MlItemPayloadBuilder.construirAtributos(p, Set.of());
 
-        assertThat(attrs).noneSatisfy(a -> assertThat(a.get("id")).isEqualTo("SHAPE"));
+        // El "No aplica" se envía explícito como N/A (value_id "-1", value_name null).
+        var shape = attrs.stream().filter(a -> "SHAPE".equals(a.get("id"))).findFirst().orElseThrow();
+        assertThat(shape.get("value_id")).isEqualTo("-1");
+        assertThat(shape).containsKey("value_name");
+        assertThat(shape.get("value_name")).isNull();
         assertThat(attrs).anySatisfy(a -> assertThat(a.get("id")).isEqualTo("MODEL"));
     }
 }

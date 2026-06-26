@@ -269,6 +269,23 @@ class MlItemPayloadBuilderTest {
     }
 
     @Test
+    void atributos_materialNoAplicaNoSeAutocompletaDesdeElMaterial() {
+        Producto p = productoBase();
+        Material mat = new Material(); mat.setNombre("Acero"); p.setMaterial(mat);
+        ProductoMlAtributo na = new ProductoMlAtributo();
+        na.setAttributeId("MATERIAL"); na.setValueName(""); na.setNoAplica(true);
+        p.getMlAtributos().add(na);
+
+        var attrs = MlItemPayloadBuilder.construirAtributos(p, Set.of("MATERIAL"));
+
+        // Un MATERIAL "No aplica" NO debe autocompletarse desde el material: una sola entrada, N/A.
+        var materials = attrs.stream().filter(a -> "MATERIAL".equals(a.get("id"))).toList();
+        assertThat(materials).hasSize(1);
+        assertThat(materials.get(0).get("value_id")).isEqualTo("-1");
+        assertThat(materials.get(0).get("value_name")).isNull();
+    }
+
+    @Test
     void atributos_brandNoAplicaNoSeDuplicaConLaMarca() {
         Producto p = productoBase(); // marca = "Tramontina"
         ProductoMlAtributo brand = new ProductoMlAtributo();

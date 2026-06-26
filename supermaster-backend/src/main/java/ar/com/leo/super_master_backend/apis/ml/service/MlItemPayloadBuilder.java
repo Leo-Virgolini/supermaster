@@ -18,7 +18,8 @@ public final class MlItemPayloadBuilder {
 
     public static Map<String, Object> construir(Producto p, String categoryId, BigDecimal price,
                                                 int availableQuantity, List<String> pictureIds, String familyName) {
-        return construir(p, categoryId, price, availableQuantity, pictureIds, familyName, Set.of()); // TODO: Task 6 cableará idsValidos de la categoría
+        // Sin ids de categoría: el gating cierra en seguro (no se autocompletan GTIN/EAN ni MATERIAL).
+        return construir(p, categoryId, price, availableQuantity, pictureIds, familyName, Set.of());
     }
 
     public static Map<String, Object> construir(Producto p, String categoryId, BigDecimal price,

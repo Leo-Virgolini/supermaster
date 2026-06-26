@@ -974,6 +974,22 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         });
     }, [mlFicha, fichaAttrIds, marcaDisplay]);
 
+    // El atributo MATERIAL de la ficha ML espeja SIEMPRE el Material maestro (mismo criterio que BRAND).
+    useEffect(() => {
+        if (!mlFicha || !fichaAttrIds.has("MATERIAL")) return;
+        const material = materialDisplay.trim();
+        setMlAtributosVal(prev => {
+            const cur = prev["MATERIAL"];
+            if (cur?.noAplica) return prev;                          // respeta "No aplica"
+            if ((cur?.valueName ?? "") === material) return prev;     // ya está sincronizado (evita re-render)
+            if (!material) {                                          // Material vacío → MATERIAL vacío
+                if (!cur) return prev;
+                const next = { ...prev }; delete next["MATERIAL"]; return next;
+            }
+            return { ...prev, MATERIAL: { attributeId: "MATERIAL", valueId: null, valueName: material, noAplica: false } };
+        });
+    }, [mlFicha, fichaAttrIds, materialDisplay]);
+
     const aplicarMlaEnForm = (mla: { id: number; mla: string; mlau: string | null; precioEnvio: number | null; comisionPorcentaje: number | null; topePromocion: number | null }) => {
         setMlaCodigo(mla.mla);
         setMlaId(mla.id);

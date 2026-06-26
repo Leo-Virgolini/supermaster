@@ -2114,8 +2114,9 @@ public class MercadoLibreService {
      */
     static List<String> faltantesRequeridos(ar.com.leo.super_master_backend.dominio.producto.entity.Producto p,
                                              List<MlAtributoDefDTO> defs) {
-        // Un atributo marcado "No aplica" no se envía a ML (ver MlItemPayloadBuilder), así que
-        // no cuenta como presente para la validación de requeridos.
+        // Un atributo marcado "No aplica" se envía a ML como N/A (value_id "-1", ver MlItemPayloadBuilder),
+        // pero el N/A NO satisface a un atributo REQUERIDO: por eso un required marcado "No aplica"
+        // cuenta como ausente (ML rechazaría el N/A en un required; mejor avisar antes de postear).
         Set<String> presentes = p.getMlAtributos().stream()
                 .filter(a -> !a.isNoAplica())
                 .map(ProductoMlAtributo::getAttributeId).collect(Collectors.toSet());

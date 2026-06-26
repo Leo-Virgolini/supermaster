@@ -61,10 +61,11 @@ public final class MlItemPayloadBuilder {
     public static List<Map<String, Object>> construirAtributos(Producto p, Set<String> categoriaAttrIds) {
         List<Map<String, Object>> attributes = new ArrayList<>();
         attributes.add(Map.of("id", "ITEM_CONDITION", "value_id", "2230284"));
-        // BRAND: si el usuario lo cargó en la ficha (atributo guardado, no "No aplica"), ese prevalece
-        // y se agrega en el loop de guardados; si no, se autocompleta desde la marca del producto.
+        // BRAND: si el usuario lo cargó en la ficha (guardado, con valor o "No aplica"), ese prevalece
+        // y se agrega en el loop de guardados; si no hay BRAND guardado, se autocompleta desde la marca.
+        // Considera también el "No aplica" como guardado: así NO se autocompleta y se evita BRAND duplicado.
         boolean brandGuardado = p.getMlAtributos().stream()
-                .anyMatch(a -> "BRAND".equals(a.getAttributeId()) && !a.isNoAplica());
+                .anyMatch(a -> "BRAND".equals(a.getAttributeId()));
         if (!brandGuardado && p.getMarca() != null && p.getMarca().getNombre() != null) {
             attributes.add(Map.of("id", "BRAND", "value_name", p.getMarca().getNombre()));
         }

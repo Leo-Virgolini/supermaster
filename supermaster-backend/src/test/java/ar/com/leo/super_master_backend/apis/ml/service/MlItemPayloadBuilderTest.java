@@ -235,6 +235,22 @@ class MlItemPayloadBuilderTest {
     }
 
     @Test
+    void atributos_brandNoAplicaNoSeDuplicaConLaMarca() {
+        Producto p = productoBase(); // marca = "Tramontina"
+        ProductoMlAtributo brand = new ProductoMlAtributo();
+        brand.setAttributeId("BRAND"); brand.setValueName(""); brand.setNoAplica(true);
+        p.getMlAtributos().add(brand);
+
+        var attrs = MlItemPayloadBuilder.construirAtributos(p, Set.of());
+
+        // Un BRAND guardado como "No aplica" NO debe autocompletarse además desde la marca: una sola entrada, N/A.
+        var brands = attrs.stream().filter(a -> "BRAND".equals(a.get("id"))).toList();
+        assertThat(brands).hasSize(1);
+        assertThat(brands.get(0).get("value_id")).isEqualTo("-1");
+        assertThat(brands.get(0).get("value_name")).isNull();
+    }
+
+    @Test
     void atributos_noAplicaSeEnviaComoNA() {
         Producto p = productoBase();
         ProductoMlAtributo na = new ProductoMlAtributo();

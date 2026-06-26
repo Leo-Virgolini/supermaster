@@ -217,6 +217,12 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         [mlFicha]);
     // Ids de atributos presentes en la ficha (para la sincronización con dimensiones físicas).
     const fichaAttrIds = useMemo(() => new Set(mlAtributosDef.map(d => d.id)), [mlAtributosDef]);
+    // Def de cada atributo de la ficha por id (para leer las unidades que ML declara por categoría).
+    const fichaAttrById = useMemo(() => {
+        const m = new Map<string, MlAtributoDef>();
+        for (const d of mlAtributosDef) m.set(d.id, d);
+        return m;
+    }, [mlAtributosDef]);
     const [mlAtributosVal, setMlAtributosVal] = useState<Record<string, ProductoMlAtributo>>({});
     // Límite de caracteres del Título ML según la categoría seleccionada (null = sin categoría).
     const [maxTitleLengthMl, setMaxTitleLengthMl] = useState<number | null>(null);
@@ -1279,8 +1285,14 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const renderFisico = (key: FisicoKey, label: string) => {
         const value = fisicoValues[key];
         const num = parseNumero(value);
-        const unidades = FISICO_UNITS[key];
-        const unidadActual = value.replace(/^\s*-?\d+(?:[.,]\d+)?\s*/, "").trim() || unidades[0];
+        // Las unidades las manda ML: si la ficha de la categoría declara unidades para la dimensión
+        // mapeada, se usan ESAS (sistema y ML quedan idénticos); si no hay categoría/atributo, fallback local.
+        const mlDef = Object.entries(ML_DIM_MAP)
+            .filter(([, m]) => m.fisico === key)
+            .map(([attrId]) => fichaAttrById.get(attrId))
+            .find(d => d?.valueType === "number_unit" && d.allowedUnits.length > 0);
+        const unidades = mlDef ? mlDef.allowedUnits : FISICO_UNITS[key];
+        const unidadActual = value.replace(/^\s*-?\d+(?:[.,]\d+)?\s*/, "").trim() || mlDef?.defaultUnit || unidades[0];
         const setFis = (n: string, u: string) => { onFisicoChange(key, n ? `${n} ${u}` : ""); if (formErrors[key]) setFormErrors(p => ({ ...p, [key]: "" })); };
         return (
             <label className="block">

@@ -868,9 +868,9 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     };
     // Unidades ofrecidas en "Dimensiones Físicas" (la primera es el default).
     const FISICO_UNITS: Record<FisicoKey, string[]> = {
-        largo: ["cm", "mm", "m"], ancho: ["cm", "mm", "m"], alto: ["cm", "mm", "m"],
-        diamboca: ["cm", "mm", "m"], diambase: ["cm", "mm", "m"],
-        espesor: ["mm", "cm"], capacidad: ["ml", "L", "cc"],
+        largo: ["cm", "mm"], ancho: ["cm", "mm"], alto: ["cm", "mm"],
+        diamboca: ["cm"], diambase: ["cm"],
+        espesor: ["mm"], capacidad: ["ml", "lt"],
     };
     const fisicoSetters: Record<FisicoKey, (v: string) => void> = {
         alto: setAlto, ancho: setAncho, largo: setLargo,

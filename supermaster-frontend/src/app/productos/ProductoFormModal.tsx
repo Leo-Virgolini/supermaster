@@ -457,7 +457,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 mlaIdFinal = r.mlaId;
                 mlaFueCreado = r.fueCreado;
             } catch (e) {
-                notificar.error(e instanceof Error ? e.message : "Error al guardar el MLA");
+                if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "Error al guardar el MLA");
                 setIsSaving(false);
                 return;
             }
@@ -645,7 +645,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 mlaIdFinal = r.mlaId;
                 mlaFueCreado = r.fueCreado;
             } catch (e) {
-                notificar.error(e instanceof Error ? e.message : "Error al guardar el MLA");
+                if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "Error al guardar el MLA");
                 setIsSaving(false);
                 return;
             }
@@ -725,7 +725,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 notificar.error(`Los cambios se guardaron, pero falló la subida:\n${fallidos}`);
             }
         } catch (e) {
-            notificar.error(e instanceof Error ? e.message : "Error al guardar los cambios");
+            if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "Error al guardar los cambios");
         } finally { setIsSaving(false); }
     };
 
@@ -1044,7 +1044,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             }
             notificar.success(`MLA ${r.mla.mla} traído de MercadoLibre`);
         } catch (e) {
-            notificar.error(e instanceof Error ? e.message : "Error al obtener el MLA");
+            if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "Error al obtener el MLA");
         } finally {
             setObteniendoMla(false);
         }
@@ -1058,7 +1058,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             setPrediccionesMl(preds);
             if (preds.length === 0) notificar.info("Sin sugerencias de categoría para ese título");
         } catch (e) {
-            notificar.error(e instanceof Error ? e.message : "No se pudieron predecir categorías");
+            if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "No se pudieron predecir categorías");
         } finally {
             setCargandoPrediccionesMl(false);
         }
@@ -1093,7 +1093,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             if (canal === "HOGAR") setSeoHogar(next); else setSeoGastro(next);
             notificar.success(`SEO de ${canal === "HOGAR" ? "KT Hogar" : "KT Gastro"} generado`);
         } catch (e) {
-            notificar.error(e instanceof Error ? e.message : "No se pudo generar el SEO con IA");
+            if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "No se pudo generar el SEO con IA");
         } finally {
             setGenerandoSeo(s => { const n = new Set(s); n.delete(canal); return n; });
         }
@@ -1230,7 +1230,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             <div key={d.id}>
                 <span className="flex items-center gap-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
                     <span className={faltante ? "text-red-600 dark:text-red-400" : ""}>
-                        {label}{subirMl && d.required && <span className="text-red-500"> *</span>}
+                        {label}{subirMl && d.required && <span className="ml-0.5 font-bold text-red-600">*</span>}
                     </span>
                     {mostrarAyuda && c.tooltip && (
                         <Tooltip content={c.tooltip} className="flex items-center">
@@ -1293,6 +1293,9 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             .find(d => d?.valueType === "number_unit" && d.allowedUnits.length > 0);
         const unidades = mlDef ? mlDef.allowedUnits : FISICO_UNITS[key];
         const unidadActual = value.replace(/^\s*-?\d+(?:[.,]\d+)?\s*/, "").trim() || mlDef?.defaultUnit || unidades[0];
+        // Si el valor guardado trae una unidad que ML ya no ofrece, la incluimos igual para que el
+        // select no quede en blanco (y el usuario vea/cambie la unidad real persistida).
+        const unidadesMostradas = unidadActual && !unidades.includes(unidadActual) ? [...unidades, unidadActual] : unidades;
         const setFis = (n: string, u: string) => { onFisicoChange(key, n ? `${n} ${u}` : ""); if (formErrors[key]) setFormErrors(p => ({ ...p, [key]: "" })); };
         return (
             <label className="block">
@@ -1301,7 +1304,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                     <input type="number" min={0} className={`${inputBaseClassName} ${formErrors[key] ? inputErrorClassName : ""}`}
                         value={num} onChange={e => setFis(e.target.value, unidadActual)} />
                     <select className={selectBaseClassName} value={unidadActual} onChange={e => setFis(num, e.target.value)}>
-                        {unidades.map(u => <option key={u} value={u}>{u}</option>)}
+                        {unidadesMostradas.map(u => <option key={u} value={u}>{u}</option>)}
                     </select>
                 </div>
                 {formErrors[key] && <p className="mt-1 text-xs text-red-500">{formErrors[key]}</p>}

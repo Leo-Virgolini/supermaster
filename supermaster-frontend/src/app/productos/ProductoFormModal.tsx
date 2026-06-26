@@ -1211,7 +1211,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             <div key={d.id}>
                 <span className="flex items-center gap-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
                     <span className={faltante ? "text-red-600 dark:text-red-400" : ""}>
-                        {label}{d.required && <span className="text-red-500"> *</span>}
+                        {label}{subirMl && d.required && <span className="text-red-500"> *</span>}
                     </span>
                     {mostrarAyuda && c.tooltip && (
                         <Tooltip content={c.tooltip} className="flex items-center">
@@ -1435,7 +1435,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                             </label>
                             <label className="block md:col-span-2">
                                 <span className="flex items-center justify-between gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                                    <span>Título ML</span>
+                                    <span>Título ML{subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
                                     {maxTitleLengthMl != null && (
                                         <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ${
                                             tituloMl.length >= maxTitleLengthMl
@@ -1481,7 +1481,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 </div>
                             </label>
                             <label className="block md:col-span-2">
-                                <span className={fieldLabelClassName}>Título Nube</span>
+                                <span className={fieldLabelClassName}>Título Nube{(subirKtHogar || subirKtGastro) && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
                                 <input type="text" className={`${inputBaseClassName} ${formErrors.tituloNube ? inputErrorClassName : ""}`} value={tituloNube} onChange={e => { setTituloNube(e.target.value); if (formErrors.tituloNube) setFormErrors(p => ({ ...p, tituloNube: "" })); }} placeholder="Título para Tienda Nube" />
                                 {formErrors.tituloNube && <p className="mt-1 text-xs text-red-500">{formErrors.tituloNube}</p>}
                             </label>

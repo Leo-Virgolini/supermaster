@@ -23,6 +23,20 @@ class NubeDescripcionBuilderTest {
     }
 
     @Test
+    void anteponeDescripcionManual_escapadaYConSaltos_antesDeCaracteristicas() {
+        Producto p = new Producto();
+        Marca ma = new Marca(); ma.setNombre("Tramontina"); p.setMarca(ma);
+        p.setDescripcion("Ideal para guisos & más.\nDoble fondo.");
+
+        String html = NubeDescripcionBuilder.construir(p);
+
+        // El texto manual va primero, escapado a HTML y con \n -> <br>.
+        assertThat(html).startsWith("<p>Ideal para guisos &amp; más.<br>Doble fondo.</p>");
+        assertThat(html.indexOf("Ideal para guisos")).isLessThan(html.indexOf("CARACTERÍSTICAS"));
+        assertThat(html).contains("<b>CARACTERÍSTICAS</b>");
+    }
+
+    @Test
     void ordenCaracteristicas_dimensionesYAptosComoSubBullets_yTitulosConFormato() {
         Producto p = new Producto();
         // La unidad la trae el propio valor cargado (no la agrega el builder).
@@ -67,5 +81,17 @@ class NubeDescripcionBuilderTest {
         assertThat(html).doesNotContain("Material:");
         assertThat(html).doesNotContain("Marca:");
         assertThat(html).doesNotContain("Apto"); // ni "Apto:" ni "Aptos:"
+    }
+
+    @Test
+    void incluyeSkuAlFinal_despuesDeCaracteristicas() {
+        Producto p = new Producto();
+        p.setSku("ABC123");
+        Marca ma = new Marca(); ma.setNombre("Tramontina"); p.setMarca(ma);
+
+        String html = NubeDescripcionBuilder.construir(p);
+
+        assertThat(html).contains("<b><u><span style=\"color:#1e40af\">SKU:</span></u></b> ABC123");
+        assertThat(html.indexOf("CARACTERÍSTICAS")).isLessThan(html.indexOf("SKU:"));
     }
 }

@@ -12,7 +12,13 @@ public final class MlDescripcionBuilder {
     private MlDescripcionBuilder() {}
 
     public static String construir(Producto p) {
-        StringBuilder sb = new StringBuilder("CARACTERÍSTICAS\n");
+        StringBuilder sb = new StringBuilder();
+        // Descripción manual del usuario primero (texto plano: se le quitan etiquetas HTML).
+        String manual = plano(p.getDescripcion());
+        if (!manual.isBlank()) {
+            sb.append(manual).append("\n\n");
+        }
+        sb.append("CARACTERÍSTICAS\n");
         String dimensiones = dimensiones(p);
         if (!dimensiones.isBlank()) sb.append("• Dimensiones: ").append(dimensiones).append("\n");
         if (p.getMaterial() != null && p.getMaterial().getNombre() != null)
@@ -21,7 +27,15 @@ public final class MlDescripcionBuilder {
         if (!aptos.isBlank()) sb.append("• Aptos: ").append(aptos).append("\n");
         if (p.getMarca() != null && p.getMarca().getNombre() != null)
             sb.append("• Marca: ").append(p.getMarca().getNombre()).append("\n");
+        if (p.getSku() != null && !p.getSku().isBlank())
+            sb.append("SKU: ").append(p.getSku().trim()).append("\n");
         return sb.toString();
+    }
+
+    /** Quita etiquetas HTML del texto manual (ML solo acepta texto plano) y hace trim. */
+    private static String plano(String s) {
+        if (s == null) return "";
+        return s.replaceAll("<[^>]*>", "").trim();
     }
 
     private static String dimensiones(Producto p) {

@@ -15,7 +15,13 @@ public final class NubeDescripcionBuilder {
     private static final String LABEL_COLOR = "#1e40af";
 
     public static String construir(Producto p) {
-        StringBuilder sb = new StringBuilder("<p><b>CARACTERÍSTICAS</b></p><ul>");
+        StringBuilder sb = new StringBuilder();
+        // Descripción manual del usuario primero (escapada a HTML; saltos de línea como <br>).
+        String manual = p.getDescripcion();
+        if (manual != null && !manual.isBlank()) {
+            sb.append("<p>").append(escape(manual.trim()).replace("\n", "<br>")).append("</p>");
+        }
+        sb.append("<p><b>CARACTERÍSTICAS</b></p><ul>");
 
         // Orden: Marca, Material, Dimensiones, Apto.
         if (p.getMarca() != null && p.getMarca().getNombre() != null)
@@ -40,6 +46,8 @@ public final class NubeDescripcionBuilder {
         }
 
         sb.append("</ul>");
+        if (p.getSku() != null && !p.getSku().isBlank())
+            sb.append("<p>").append(label("SKU")).append(" ").append(escape(p.getSku().trim())).append("</p>");
         return sb.toString();
     }
 

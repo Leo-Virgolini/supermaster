@@ -108,6 +108,13 @@ public final class MlItemPayloadBuilder {
         }
         // Atributos guardados (formato de venta + características)
         for (ProductoMlAtributo a : p.getMlAtributos()) {
+            // Si conocemos los atributos válidos de la categoría, descartamos los guardados que NO
+            // declara (quedaron "stale" de otra categoría; ML los rechazaría). idsValidos es un
+            // superset de la ficha, así que no descarta ninguno legítimo. Con el set vacío (no
+            // disponible) NO se filtra, para no perder características.
+            if (!categoriaAttrIds.isEmpty() && !categoriaAttrIds.contains(a.getAttributeId())) {
+                continue;
+            }
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("id", a.getAttributeId());
             if (a.isNoAplica()) {

@@ -173,7 +173,8 @@ class MlItemPayloadBuilderTest {
         a.setAttributeId("SHAPE"); a.setValueName("Cuadrada");
         p.getMlAtributos().add(a);
 
-        var attrs = MlItemPayloadBuilder.construirAtributos(p, Set.of("GTIN"));
+        // La categoría declara GTIN y SHAPE (idsValidos es el superset de atributos de la categoría).
+        var attrs = MlItemPayloadBuilder.construirAtributos(p, Set.of("GTIN", "SHAPE"));
 
         // El identificador inválido se omite, pero las características siguen.
         assertThat(attrs).noneSatisfy(x -> assertThat(x.get("id")).isIn("GTIN", "EAN"));
@@ -233,6 +234,34 @@ class MlItemPayloadBuilderTest {
         var brands = attrs.stream().filter(a -> "BRAND".equals(a.get("id"))).toList();
         assertThat(brands).hasSize(1);
         assertThat(brands.get(0).get("value_name")).isEqualTo("Tramontina");
+    }
+
+    @Test
+    void atributos_guardadosFueraDeLaCategoria_seDescartan() {
+        Producto p = productoBase();
+        ProductoMlAtributo valido = new ProductoMlAtributo();
+        valido.setAttributeId("SHAPE"); valido.setValueName("Redonda");
+        ProductoMlAtributo stale = new ProductoMlAtributo();
+        stale.setAttributeId("VOLTAGE"); stale.setValueName("220V"); // la categoría no lo declara
+        p.getMlAtributos().addAll(List.of(valido, stale));
+
+        var attrs = MlItemPayloadBuilder.construirAtributos(p, Set.of("SHAPE"));
+
+        assertThat(attrs).anySatisfy(a -> assertThat(a.get("id")).isEqualTo("SHAPE"));
+        assertThat(attrs).noneSatisfy(a -> assertThat(a.get("id")).isEqualTo("VOLTAGE"));
+    }
+
+    @Test
+    void atributos_sinIdsDeCategoria_noFiltraLosGuardados() {
+        Producto p = productoBase();
+        ProductoMlAtributo a1 = new ProductoMlAtributo();
+        a1.setAttributeId("VOLTAGE"); a1.setValueName("220V");
+        p.getMlAtributos().add(a1);
+
+        // categoriaAttrIds vacío = no disponible → fail-open, no se filtra.
+        var attrs = MlItemPayloadBuilder.construirAtributos(p, Set.of());
+
+        assertThat(attrs).anySatisfy(a -> assertThat(a.get("id")).isEqualTo("VOLTAGE"));
     }
 
     @Test

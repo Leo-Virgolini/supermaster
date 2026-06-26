@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { notificar } from "../utils/notificar";
+import { esSesionExpirada } from "../utils/fetchAPI";
 import { BuildingStorefrontIcon, CheckIcon, CheckCircleIcon, CloudArrowDownIcon, CubeIcon, FireIcon, HomeIcon, XMarkIcon, IdentificationIcon, CurrencyDollarIcon, ArchiveBoxIcon, ReceiptPercentIcon, Squares2X2Icon, UserGroupIcon, ShoppingBagIcon, BanknotesIcon, InformationCircleIcon, SparklesIcon } from "@heroicons/react/24/outline";
 import Tooltip from "../components/Tooltip/Tooltip";
 import { API_BASE_URL } from "../config/runtime";
@@ -598,8 +599,9 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                     setAptosSel(aptos); setAptosOriginal(aptos);
                     setCatalogosSel(catalogos); setCatalogosOriginal(catalogos);
                     setClientesSel(clientes); setClientesOriginal(clientes);
-                } catch {
-                    notificar.error("No se pudieron cargar catálogos/aptos/clientes del producto");
+                } catch (e) {
+                    // Si la sesión expiró (401), fetchAPI ya redirige al login: no ensuciar con un toast.
+                    if (!esSesionExpirada(e)) notificar.error("No se pudieron cargar catálogos/aptos/clientes del producto");
                 }
             })();
         } else {

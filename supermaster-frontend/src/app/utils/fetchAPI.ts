@@ -9,6 +9,12 @@
 
 import { API_BASE_URL } from "../config/runtime";
 
+export const SESION_EXPIRADA_MSG = "Sesión expirada. Por favor, volvé a iniciar sesión.";
+
+export function esSesionExpirada(error: unknown): boolean {
+    return error instanceof Error && error.message === SESION_EXPIRADA_MSG;
+}
+
 function getAuthHeaders(): Record<string, string> {
     if (typeof window === "undefined") return {};
     const token = localStorage.getItem("accessToken");
@@ -85,7 +91,7 @@ export async function fetchAPI(
         // Token expirado o inválido
         if (response.status === 401) {
             signalAuthExpired();
-            throw new Error("Sesión expirada. Por favor, volvé a iniciar sesión.");
+            throw new Error(SESION_EXPIRADA_MSG);
         }
 
         // Backend caído (gateway/proxy errors)

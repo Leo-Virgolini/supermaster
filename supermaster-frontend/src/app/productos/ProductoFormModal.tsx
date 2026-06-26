@@ -1266,7 +1266,13 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         <>
             {/* MODAL CREAR / EDITAR PRODUCTO */}
             <Modal isOpen={true} onClose={() => { if (!isSaving) onClose(); }} title={editandoProductoId ? `Editar Producto${sku ? ` · ${sku}` : ""}` : "Nuevo Producto"} size="3xl" closeOnEscape={false} busy={isSaving}
-                footer={<><Button variant="light" onClick={onClose} disabled={isSaving}><XMarkIcon className="w-4 h-4" /> Cancelar</Button><Button variant="dark" onClick={editandoProductoId ? handleGuardarEdicion : handleCreate} disabled={isSaving || (!editandoProductoId && skuYaExiste)}>{isSaving ? <SpinnerIcon /> : <CheckIcon className="w-4 h-4" />} {isSaving ? (editandoProductoId ? "Guardando..." : "Creando Producto...") : (editandoProductoId ? "Guardar Cambios" : "Crear Producto")}</Button></>}>
+                footer={<div className="flex w-full items-center justify-between gap-3">
+                    <span className={`text-sm text-red-600 dark:text-red-400 ${Object.values(formErrors).some(Boolean) ? "" : "invisible"}`}>Revisá los campos marcados antes de guardar.</span>
+                    <div className="flex items-center gap-2">
+                        <Button variant="light" onClick={onClose} disabled={isSaving}><XMarkIcon className="w-4 h-4" /> Cancelar</Button>
+                        <Button variant="dark" onClick={editandoProductoId ? handleGuardarEdicion : handleCreate} disabled={isSaving || (!editandoProductoId && skuYaExiste)}>{isSaving ? <SpinnerIcon /> : <CheckIcon className="w-4 h-4" />} {isSaving ? (editandoProductoId ? "Guardando..." : "Creando Producto...") : (editandoProductoId ? "Guardar Cambios" : "Crear Producto")}</Button>
+                    </div>
+                </div>}>
                 <div className="text-sm">
                     {/* Tabs solo en modo edición: Datos (form) e Historial */}
                     {editandoProductoId && (
@@ -1295,12 +1301,6 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                     )}
 
                     <div className={`flex-col gap-5 ${editandoProductoId && panelTab === "historial" ? "hidden" : "flex"}`}>
-                    {Object.values(formErrors).some(Boolean) && (
-                        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/20 dark:text-red-300">
-                            Revisá los campos marcados antes de guardar.
-                        </div>
-                    )}
-
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.canales}`}>
                         <legend className={sectionTitleClassName}><BuildingStorefrontIcon className="h-5 w-5" /> Canales de venta</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Dónde publicar/subir el producto.</p>

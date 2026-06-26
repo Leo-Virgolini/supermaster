@@ -69,6 +69,15 @@ public final class MlItemPayloadBuilder {
         if (!brandGuardado && p.getMarca() != null && p.getMarca().getNombre() != null) {
             attributes.add(Map.of("id", "BRAND", "value_name", p.getMarca().getNombre()));
         }
+        // MATERIAL: igual que BRAND, se autocompleta desde el material del producto si no hay uno
+        // guardado en la ficha. Gateado por la categoría (solo si declara MATERIAL): a diferencia de
+        // BRAND no es universal, y mandarlo a una categoría que no lo acepta haría que ML lo rechace.
+        boolean materialGuardado = p.getMlAtributos().stream()
+                .anyMatch(a -> "MATERIAL".equals(a.getAttributeId()));
+        if (!materialGuardado && categoriaAttrIds.contains("MATERIAL")
+                && p.getMaterial() != null && p.getMaterial().getNombre() != null) {
+            attributes.add(Map.of("id", "MATERIAL", "value_name", p.getMaterial().getNombre()));
+        }
         attributes.add(Map.of("id", "SELLER_SKU", "value_name", p.getSku()));
         // Dimensiones del paquete de envío (ML exige enteros, cm y g). Solo si están las 4.
         if (p.getMlPaqAlto() != null && p.getMlPaqAncho() != null

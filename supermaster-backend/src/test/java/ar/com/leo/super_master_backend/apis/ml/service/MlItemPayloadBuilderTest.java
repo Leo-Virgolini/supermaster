@@ -1,6 +1,7 @@
 package ar.com.leo.super_master_backend.apis.ml.service;
 
 import ar.com.leo.super_master_backend.dominio.marca.entity.Marca;
+import ar.com.leo.super_master_backend.dominio.material.entity.Material;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
 import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoMlAtributo;
 import org.junit.jupiter.api.Test;
@@ -232,6 +233,39 @@ class MlItemPayloadBuilderTest {
         var brands = attrs.stream().filter(a -> "BRAND".equals(a.get("id"))).toList();
         assertThat(brands).hasSize(1);
         assertThat(brands.get(0).get("value_name")).isEqualTo("Tramontina");
+    }
+
+    @Test
+    void atributos_materialAutoSoloSiLaCategoriaLoDeclara() {
+        Producto p = productoBase();
+        Material mat = new Material(); mat.setNombre("Acero");
+        p.setMaterial(mat);
+
+        // La categoría declara MATERIAL: se autocompleta desde el material del producto.
+        var conMaterial = MlItemPayloadBuilder.construirAtributos(p, Set.of("MATERIAL"));
+        assertThat(conMaterial).anySatisfy(a -> {
+            assertThat(a.get("id")).isEqualTo("MATERIAL");
+            assertThat(a.get("value_name")).isEqualTo("Acero");
+        });
+
+        // La categoría NO declara MATERIAL: no se envía (evita que ML lo rechace).
+        var sinMaterial = MlItemPayloadBuilder.construirAtributos(p, Set.of());
+        assertThat(sinMaterial).noneSatisfy(a -> assertThat(a.get("id")).isEqualTo("MATERIAL"));
+    }
+
+    @Test
+    void atributos_materialGuardadoPrevaleceYNoSeDuplica() {
+        Producto p = productoBase();
+        Material mat = new Material(); mat.setNombre("Acero"); p.setMaterial(mat);
+        ProductoMlAtributo guardado = new ProductoMlAtributo();
+        guardado.setAttributeId("MATERIAL"); guardado.setValueName("Aluminio");
+        p.getMlAtributos().add(guardado);
+
+        var attrs = MlItemPayloadBuilder.construirAtributos(p, Set.of("MATERIAL"));
+
+        var materials = attrs.stream().filter(a -> "MATERIAL".equals(a.get("id"))).toList();
+        assertThat(materials).hasSize(1);
+        assertThat(materials.get(0).get("value_name")).isEqualTo("Aluminio");
     }
 
     @Test

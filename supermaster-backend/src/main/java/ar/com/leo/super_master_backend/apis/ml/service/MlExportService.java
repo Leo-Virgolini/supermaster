@@ -45,7 +45,7 @@ public class MlExportService {
         for (Producto producto : productos) {
             Integer productoId = producto.getId();
             String etiqueta = producto.getSku();
-            ResultadoAltaMl r = self.procesarConProductoCargado(productoId);
+            ResultadoAltaMl r = self.procesarConProductoCargado(productoId, request.cuotas());
             switch (r.estado()) {
                 case CREADO -> {
                     acc.creado();
@@ -78,7 +78,7 @@ public class MlExportService {
      * (producto.getMla() o búsqueda por SKU) → actualizar; si no → alta.
      */
     @Transactional(readOnly = true)
-    public ResultadoAltaMl procesarConProductoCargado(Integer productoId) {
+    public ResultadoAltaMl procesarConProductoCargado(Integer productoId, int cuotas) {
         Producto p = productoRepository.findById(productoId).orElse(null);
         if (p == null) return ResultadoAltaMl.error("producto no encontrado");
 
@@ -89,7 +89,7 @@ public class MlExportService {
             if (encontrado != null) { mla = encontrado.mla(); mlauHallado = encontrado.mlau(); }
         }
         if (mla != null && !mla.isBlank()) {
-            ResultadoAltaMl r = mercadoLibreService.actualizarItemEnMl(p, mla);
+            ResultadoAltaMl r = mercadoLibreService.actualizarItemEnMl(p, mla, cuotas);
             // Si el MLA lo hallamos por búsqueda (no estaba asociado) y el update fue OK,
             // adjuntar el mlau para que exportar lo asocie al producto.
             if (mlauHallado != null && r.estado() == ResultadoAltaMl.Estado.ACTUALIZADO) {
@@ -98,7 +98,7 @@ public class MlExportService {
             }
             return r;
         }
-        return mercadoLibreService.crearItemEnMl(p);
+        return mercadoLibreService.crearItemEnMl(p, cuotas);
     }
 
     /** Asocia el MLA y calcula comisión + envío. Cada paso es best-effort en su propia tx; devuelve avisos. */

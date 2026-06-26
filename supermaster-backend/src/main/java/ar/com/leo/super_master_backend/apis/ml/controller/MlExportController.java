@@ -4,6 +4,7 @@ import ar.com.leo.super_master_backend.apis.ml.dto.MlExportRequestDTO;
 import ar.com.leo.super_master_backend.dominio.common.dto.ExportCanalResultDTO;
 import ar.com.leo.super_master_backend.apis.ml.service.MlExportService;
 import ar.com.leo.super_master_backend.config.Permisos;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -21,7 +22,7 @@ public class MlExportController {
 
     @PostMapping("/exportar-productos")
     @PreAuthorize(Permisos.INTEGRACIONES_EDITAR)
-    public ResponseEntity<ExportCanalResultDTO> exportar(@RequestBody(required = false) MlExportRequestDTO request) {
+    public ResponseEntity<ExportCanalResultDTO> exportar(@Valid @RequestBody(required = false) MlExportRequestDTO request) {
         return ResponseEntity.ok(mlExportService.exportar(request));
     }
 }

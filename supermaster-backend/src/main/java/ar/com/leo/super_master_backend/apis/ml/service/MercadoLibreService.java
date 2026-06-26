@@ -1,6 +1,7 @@
 package ar.com.leo.super_master_backend.apis.ml.service;
 
 import ar.com.leo.super_master_backend.apis.ml.MlRetryHandler;
+import ar.com.leo.super_master_backend.apis.ml.MlValidacionParser;
 import ar.com.leo.super_master_backend.apis.ml.config.MercadoLibreProperties;
 import ar.com.leo.super_master_backend.apis.ml.dto.CostoEnvioMasivoResponseDTO;
 import ar.com.leo.super_master_backend.apis.ml.dto.CostoEnvioResponseDTO;
@@ -1186,6 +1187,28 @@ public class MercadoLibreService {
     public record MlaPorSku(String mla, String mlau) {
     }
 
+    /**
+     * Trae un ítem por su código MLA directamente (GET /items/{id}), SIN filtro de status:
+     * sirve para publicaciones activas o pausadas. Devuelve el MLA, su MLAU y si es de catálogo.
+     * Devuelve null si el ítem no existe en ML.
+     */
+    public MlaPorCodigo buscarMlaPorCodigo(String mlaCode) {
+        if (mlaCode == null || mlaCode.isBlank()) {
+            return null;
+        }
+        verificarTokens();
+        JsonNode item = obtenerItemNode(mlaCode.trim(), "id,catalog_listing,user_product_id,variations");
+        if (item == null) {
+            return null;
+        }
+        boolean esCatalogo = item.path("catalog_listing").asBoolean(false);
+        return new MlaPorCodigo(mlaCode.trim(), extraerMlau(item), esCatalogo);
+    }
+
+    /** Resultado de la búsqueda por código MLA: el MLA, su MLAU (puede ser null) y si es de catálogo. */
+    public record MlaPorCodigo(String mla, String mlau, boolean esCatalogo) {
+    }
+
     /** Consulta un ítem de ML pidiendo solo los attributes indicados. Devuelve null ante error. */
     private JsonNode obtenerItemNode(String mlaCode, String attributes) {
         try {
@@ -1819,15 +1842,27 @@ public class MercadoLibreService {
     }
 
     /**
+     * Etiqueta de advertencia + el motivo del error de ML, ya legible: extrae el/los mensaje(s) de
+     * las causas de validación (ignorando warnings) en vez del JSON crudo. Si no hay motivo, deja
+     * solo la etiqueta.
+     */
+    static String conMotivo(String etiqueta, Exception e) {
+        String m = MlValidacionParser.resumirError(e == null ? null : e.getMessage());
+        return (m == null || m.isBlank()) ? etiqueta : etiqueta + ": " + m;
+    }
+
+    /**
      * Campo a editar para el "título" de un ítem ML según su modelo: si el ítem ya trae
      * {@code family_name} (modelo User Products) se edita {@code family_name} (el {@code title}
-     * queda bloqueado); si no, es del modelo clásico y se edita {@code title}.
+     * queda bloqueado y ML lo sincroniza a los ítems del UP); si no, es del modelo clásico y se
+     * edita {@code title}. ML solo acepta actualizar {@code family_name} si ninguna condición de
+     * venta del UP tuvo ventas; un rechazo se maneja best-effort en el core (no aborta el update).
      */
     public static String campoTituloMl(String familyNameDelItem) {
         return (familyNameDelItem != null && !familyNameDelItem.isBlank()) ? "family_name" : "title";
     }
 
-    /** Recorta el family_name (Título ML) al máximo del dominio; trim antes y después del recorte. */
+    /** Recorta el Título ML al máximo del dominio; trim antes y después del recorte. */
     static String construirFamilyName(String tituloMl, int maxLen) {
         String t = tituloMl == null ? "" : tituloMl.trim();
         return t.length() > maxLen ? t.substring(0, maxLen).trim() : t;
@@ -1912,19 +1947,31 @@ public class MercadoLibreService {
             String advertencia = null;
             int soldQty = soldQtyFn.apply(mla);
             if (soldQty == 0) {
-                putTitle.accept(mla, producto.getTituloMl());
+                // Best-effort: si ML rechaza el campo de título (p.ej. family_name no editable en
+                // User Products), no abortamos el resto del update; queda como advertencia.
+                try {
+                    putTitle.accept(mla, producto.getTituloMl());
+                } catch (Exception e) {
+                    advertencia = concatAdv(advertencia, conMotivo("título no actualizado", e));
+                }
             } else {
                 advertencia = "título no actualizado (la publicación tuvo ventas)";
             }
 
-            putDesc.accept(mla, MlDescripcionBuilder.construir(producto));
+            // Descripción best-effort: ML rechaza texto no-plano (emojis, HTML); el motivo queda en
+            // la advertencia para poder corregir el campo, sin abortar el resto del update.
+            try {
+                putDesc.accept(mla, MlDescripcionBuilder.construir(producto));
+            } catch (Exception e) {
+                advertencia = concatAdv(advertencia, conMotivo("descripción no actualizada", e));
+            }
 
             // Atributos (marca, dimensiones del paquete, IVA, impuesto de importación). Best-effort:
             // si ML rechaza algún atributo no editable, queda como advertencia y no aborta el resto.
             try {
                 putAttributes.accept(mla, MlItemPayloadBuilder.construirAtributos(producto, categoriaAttrIds));
             } catch (Exception e) {
-                advertencia = concatAdv(advertencia, "atributos no actualizados");
+                advertencia = concatAdv(advertencia, conMotivo("atributos no actualizados", e));
             }
 
             if (precioFinal == null) {
@@ -1939,7 +1986,7 @@ public class MercadoLibreService {
                     putPictures.accept(mla, pictureIds);
                 }
             } catch (Exception e) {
-                advertencia = concatAdv(advertencia, "imágenes no actualizadas");
+                advertencia = concatAdv(advertencia, conMotivo("imágenes no actualizadas", e));
             }
 
             String estadoTarget = Boolean.TRUE.equals(producto.getActivo()) ? "active" : "paused";
@@ -1955,7 +2002,7 @@ public class MercadoLibreService {
     }
 
     /** Actualiza una publicación existente en ML (título si sin ventas, descripción, precio, imágenes). Delega al core. */
-    public ResultadoAltaMl actualizarItemEnMl(ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto, String mla) {
+    public ResultadoAltaMl actualizarItemEnMl(ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto, String mla, int cuotas) {
         if (!isConfigured()) return ResultadoAltaMl.error("Mercado Libre no configurado");
         verificarTokens();
         ImagenService.FiltroImagenes filtro = imagenService.filtrarParaCanal(producto.getSku(), EXT_ML);
@@ -1973,7 +2020,7 @@ public class MercadoLibreService {
                 categoryIdActual = null;
                 precioFinal = null;
             } else {
-                precioFinal = calcularPrecioFinalParaPublicar(producto, categoryIdActual, 0); // 0 = contado (Fase 1)
+                precioFinal = calcularPrecioFinalParaPublicar(producto, categoryIdActual, cuotas);
             }
         } catch (Exception e) {
             log.warn("ML - no se pudo calcular precio para actualización de {}: {}", mla, e.getMessage());
@@ -1984,8 +2031,8 @@ public class MercadoLibreService {
                 ? mlCategoriaAtributoService.idsValidos(categoryIdActual)
                 : Set.of();
 
-        // El campo del "título" depende del modelo del ítem: en User Products (family_name != null)
-        // el title está bloqueado y se edita family_name; en el modelo clásico se edita title.
+        // Campo del título según el modelo del ítem: User Products (family_name != null) → `family_name`;
+        // clásico → `title`. (En UP el family_name es editable si el UP no tuvo ventas y el ítem está activo.)
         final String campoTitulo = campoTituloMl(familyNameActual);
         // El máximo (max_title_length) se toma de la categoría REAL del ítem publicado, no de la del
         // producto (que el usuario pudo cambiar): es la categoría donde rige el límite del título.
@@ -1999,16 +2046,20 @@ public class MercadoLibreService {
                 // El cálculo del máximo (GET a /categories) es lazy: el core invoca este callback
                 // únicamente cuando soldQty == 0.
                 (m, ignoradoTitle) -> {
+                    // El campo del título depende del modelo: `family_name` (User Products) o `title`
+                    // (clásico). ML permite editar el family_name por PUT /items cuando el UP no tuvo
+                    // ventas y el ítem está ACTIVO; si el ítem está inactivo/sin stock, ML lo rechaza y
+                    // el core deja el motivo como advertencia (best-effort, no aborta).
                     try {
                         String tituloUpd = construirFamilyName(producto.getTituloMl(), obtenerMaxTitleLength(categoriaItem));
                         retryHandler.putJson("/items/" + m, () -> tokens.accessToken,
                                 objectMapper.writeValueAsString(Map.of(campoTitulo, tituloUpd)));
-                    } catch (Exception e) { throw new RuntimeException(campoTitulo + ": " + e.getMessage(), e); }
+                    } catch (Exception e) { throw new RuntimeException(e.getMessage(), e); }
                 },
                 (m, plainText) -> {
                     try { retryHandler.putJson("/items/" + m + "/description", () -> tokens.accessToken,
                             objectMapper.writeValueAsString(Map.of("plain_text", plainText))); }
-                    catch (Exception e) { throw new RuntimeException("descripción: " + e.getMessage(), e); }
+                    catch (Exception e) { throw new RuntimeException(e.getMessage(), e); }
                 },
                 this::actualizarPrecioItemConDeteccionVariaciones,
                 sku -> {
@@ -2025,14 +2076,14 @@ public class MercadoLibreService {
                         for (String id : pictureIds) pics.add(Map.of("id", id));
                         retryHandler.putJson("/items/" + m, () -> tokens.accessToken,
                                 objectMapper.writeValueAsString(Map.of("pictures", pics)));
-                    } catch (Exception e) { throw new RuntimeException("imágenes: " + e.getMessage(), e); }
+                    } catch (Exception e) { throw new RuntimeException(e.getMessage(), e); }
                 },
                 this::updateItemStatus,
                 (m, attrs) -> {
                     try {
                         retryHandler.putJson("/items/" + m, () -> tokens.accessToken,
                                 objectMapper.writeValueAsString(Map.of("attributes", attrs)));
-                    } catch (Exception e) { throw new RuntimeException("atributos: " + e.getMessage(), e); }
+                    } catch (Exception e) { throw new RuntimeException(e.getMessage(), e); }
                 },
                 precioFinal,
                 idsValidos);
@@ -2063,7 +2114,10 @@ public class MercadoLibreService {
      */
     static List<String> faltantesRequeridos(ar.com.leo.super_master_backend.dominio.producto.entity.Producto p,
                                              List<MlAtributoDefDTO> defs) {
+        // Un atributo marcado "No aplica" no se envía a ML (ver MlItemPayloadBuilder), así que
+        // no cuenta como presente para la validación de requeridos.
         Set<String> presentes = p.getMlAtributos().stream()
+                .filter(a -> !a.isNoAplica())
                 .map(ProductoMlAtributo::getAttributeId).collect(Collectors.toSet());
         return defs.stream()
                 .filter(MlAtributoDefDTO::required)
@@ -2138,7 +2192,7 @@ public class MercadoLibreService {
             try {
                 posterDescripcion.apply(itemId, MlDescripcionBuilder.construir(producto));
             } catch (Exception e) {
-                advertencia = "ítem creado pero falló la descripción";
+                advertencia = conMotivo("ítem creado pero falló la descripción", e);
             }
 
             ResultadoAltaMl r = ResultadoAltaMl.creado(itemId, mlau.isBlank() ? null : mlau);
@@ -2172,7 +2226,7 @@ public class MercadoLibreService {
      * llega aquí tras confirmar que buscarMlaPorSku devolvió null), por lo que se pasa yaExiste = false
      * para evitar repetir la búsqueda costosa.
      */
-    public ResultadoAltaMl crearItemEnMl(ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto) {
+    public ResultadoAltaMl crearItemEnMl(ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto, int cuotas) {
         if (!isConfigured()) return ResultadoAltaMl.error("Mercado Libre no configurado");
         verificarTokens();
         ImagenService.FiltroImagenes filtro = imagenService.filtrarParaCanal(producto.getSku(), EXT_ML);
@@ -2189,11 +2243,15 @@ public class MercadoLibreService {
         // Calcular precio final (PVP real); si falla, abortar sin postear.
         BigDecimal precioFinal;
         try {
-            precioFinal = calcularPrecioFinalParaPublicar(producto, categoryId, 0); // 0 = contado (Fase 1)
+            precioFinal = calcularPrecioFinalParaPublicar(producto, categoryId, cuotas);
         } catch (Exception e) {
             return ResultadoAltaMl.error("no se pudo calcular el precio del canal ML: " + e.getMessage());
         }
         // Validar atributos obligatorios de la categoría antes de postear.
+        // Fuente: /attributes (obtenerAtributos), que EXCLUYE los auto-gestionados (BRAND, GTIN/EAN,
+        // condición, dimensiones de paquete, IVA…). Es intencional y distinta de la ficha (technical_specs)
+        // que alimenta el formulario: esos atributos los provee MlItemPayloadBuilder (BRAND desde la marca,
+        // etc.), no el set guardado, así que NO deben exigirse como "faltantes" aunque el form los muestre.
         List<MlAtributoDefDTO> defs = mlCategoriaAtributoService.obtenerAtributos(categoryId);
         List<String> faltan = faltantesRequeridos(producto, defs);
         if (!faltan.isEmpty()) {

@@ -77,6 +77,10 @@ const etiquetaCuota = (cuotas: number, descripcion?: string) =>
     descripcion?.trim() || (cuotas < 0 ? "Transferencia" : cuotas === 0 ? "Contado" : `${cuotas} cuotas`);
 
 type CuotaOpcion = { cuotas: number; descripcion: string };
+// Opciones del select de cuotas: las reales del canal, asegurando que la cuota seleccionada
+// aparezca aunque las opciones aún no hayan cargado (refleja la selección, sin inventar planes).
+const opcionesConSeleccion = (opts: CuotaOpcion[], seleccion: number): CuotaOpcion[] =>
+    opts.some(c => c.cuotas === seleccion) ? opts : [{ cuotas: seleccion, descripcion: etiquetaCuota(seleccion) }, ...opts];
 
 // Etiqueta corta de cada sección de la ficha ML (evita repetir "Características de la…").
 const SECCION_LABEL_ML: Record<string, string> = {
@@ -246,9 +250,9 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const [tag, setTag] = useState<"" | "MAQUINA" | "REPUESTO" | "MENAJE" | "INSUMO">("");
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-    // Carga las cuotas reales de cada canal de Tienda Nube (KT HOGAR / KT GASTRO) para
-    // poblar los selectores. Si un canal no se encuentra o no tiene cuotas, queda con
-    // las opciones por defecto del JSX (Transferencia / 6 cuotas) como red de seguridad.
+    // Carga las cuotas reales de cada canal (KT HOGAR / KT GASTRO / ML) para poblar los
+    // selectores. Si un canal no se encuentra o no tiene cuotas, su select queda solo con la
+    // cuota seleccionada (no se inventan planes).
     useEffect(() => {
         let cancelado = false;
         const cargarCuotasCanal = async (nombre: string): Promise<CuotaOpcion[]> => {
@@ -1386,7 +1390,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                         <span className="text-xs font-normal text-slate-500 dark:text-slate-400">Cuota del precio</span>
                                         <Tooltip content="Plan de cuotas del canal con el que se publica el precio en Tienda Nube (cada plan aplica su recargo/descuento de financiación)." className="flex-1">
                                             <select className={`${selectBaseClassName} w-full`} value={cuotaHogar} onChange={e => setCuotaHogar(Number(e.target.value))}>
-                                                {cuotasHogarOpts.map(c => (
+                                                {opcionesConSeleccion(cuotasHogarOpts, cuotaHogar).map(c => (
                                                     <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>
                                                 ))}
                                             </select>
@@ -1408,7 +1412,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                         <span className="text-xs font-normal text-slate-500 dark:text-slate-400">Cuota del precio</span>
                                         <Tooltip content="Plan de cuotas del canal con el que se publica el precio en Tienda Nube (cada plan aplica su recargo/descuento de financiación)." className="flex-1">
                                             <select className={`${selectBaseClassName} w-full`} value={cuotaGastro} onChange={e => setCuotaGastro(Number(e.target.value))}>
-                                                {cuotasGastroOpts.map(c => (
+                                                {opcionesConSeleccion(cuotasGastroOpts, cuotaGastro).map(c => (
                                                     <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>
                                                 ))}
                                             </select>
@@ -1430,7 +1434,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                         <span className="text-xs font-normal text-slate-500 dark:text-slate-400">Cuota del precio</span>
                                         <Tooltip content="Plan de cuotas con el que se publica el precio en Mercado Libre (cada plan aplica su recargo de financiación)." className="flex-1">
                                             <select className={`${selectBaseClassName} w-full`} value={cuotaMl} onChange={e => setCuotaMl(Number(e.target.value))}>
-                                                {cuotasMlOpts.map(c => (
+                                                {opcionesConSeleccion(cuotasMlOpts, cuotaMl).map(c => (
                                                     <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>
                                                 ))}
                                             </select>

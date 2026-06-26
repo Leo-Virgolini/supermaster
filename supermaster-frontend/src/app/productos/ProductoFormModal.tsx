@@ -957,14 +957,19 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [mlFicha, fichaAttrIds]);
 
-    // Pre-carga el atributo BRAND (Marca) con el nombre de la marca del producto, si está vacío.
+    // El atributo BRAND (Marca) de la ficha ML espeja SIEMPRE la Marca maestra (la Marca manda):
+    // al elegir/cambiar/limpiar la Marca, el BRAND se completa o se vacía en consecuencia.
     useEffect(() => {
         if (!mlFicha || !fichaAttrIds.has("BRAND")) return;
         const marcaLeaf = marcaDisplay.split(">").pop()?.trim() ?? "";
-        if (!marcaLeaf) return;
         setMlAtributosVal(prev => {
             const cur = prev["BRAND"];
-            if (cur?.valueName || cur?.noAplica) return prev;
+            if (cur?.noAplica) return prev;                         // respeta "No aplica"
+            if ((cur?.valueName ?? "") === marcaLeaf) return prev;   // ya está sincronizado (evita re-render)
+            if (!marcaLeaf) {                                        // Marca vacía → BRAND vacío
+                if (!cur) return prev;
+                const next = { ...prev }; delete next["BRAND"]; return next;
+            }
             return { ...prev, BRAND: { attributeId: "BRAND", valueId: null, valueName: marcaLeaf, noAplica: false } };
         });
     }, [mlFicha, fichaAttrIds, marcaDisplay]);

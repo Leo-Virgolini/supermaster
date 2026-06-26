@@ -19,7 +19,7 @@ En el modal de alta/edición de producto, el canal **Mercado Libre** gana un sel
 1. **Default:** CONTADO (`cuotas = 0`).
 2. **Alcance:** solo el modal de producto (alta y edición). `exportarProductosAMlAPI` se usa únicamente ahí. Cualquier otro caller del endpoint de export ML mantiene el comportamiento actual.
 3. **No se persiste** la cuota en el producto: se elige al subir, como las de Nube.
-4. **La cuota la manda siempre el modal.** El select arranca en CONTADO (`0`), así que el front incluye `cuotas` en el body en todos los casos; el backend la usa directamente. El único caller de todo el flujo (`MlExportController → MlExportService → crearItemEnMl/actualizarItemEnMl`) es ese modal — no hay export masivo ni otros clientes. Única salvaguarda: si `cuotas` llegara ausente/null (p. ej. un front viejo durante el deploy), se interpreta como `0` (contado). No es "opcional para otros callers" — es un fallback de deploy.
+4. **La cuota es requerida.** El select arranca en CONTADO (`0`), así que el modal incluye `cuotas` en el body en todos los casos; el backend la usa directamente (validación `@NotNull` → un request sin cuota es 400). El único caller de todo el flujo (`MlExportController → MlExportService → crearItemEnMl/actualizarItemEnMl`) es ese modal — no hay export masivo ni otros clientes, así que no se necesita default ni fallback.
 5. No se modifica el motor de cálculo de precios ni otros canales.
 
 ## Arquitectura
@@ -35,19 +35,19 @@ El cambio es plomería de UI → endpoint → flujo, reemplazando el `0` fijo po
 
 ### Backend (`MercadoLibreController`, `MercadoLibreService`)
 
-- El endpoint que hoy dispara el export de ML recibe la cuota en el body (el modal siempre la manda; un `cuotas` ausente/null se trata como `0` — fallback de deploy).
+- El endpoint que hoy dispara el export de ML recibe la cuota en el body (requerida, `@NotNull`; el modal siempre la manda).
 - La cuota se propaga por el flujo de export hasta `crearItemEnMl` / `actualizarItemEnMl`, reemplazando los dos `calcularPrecioFinalParaPublicar(producto, categoryId, 0)` por `(producto, categoryId, cuotas)`.
 - No cambia `calcularPrecioFinalParaPublicar` (su firma ya acepta `int cuotas`).
 
 ## Flujo de datos
 
-Modal (`cuotaMl`, default 0) → `exportarProductosAMlAPI([sku], cuotaMl)` → endpoint export ML (cuota opcional, default 0) → `crearItemEnMl` / `actualizarItemEnMl` (reciben la cuota) → `calcularPrecioFinalParaPublicar(producto, categoryId, cuota)` → `calcularPrecioCanalConEnvio(productoId, canalMlId, cuota, …)` → PVP con el recargo del plan (`canal_concepto_cuota`).
+Modal (`cuotaMl`, default 0) → `exportarProductosAMlAPI([sku], cuotaMl)` → endpoint export ML (cuota requerida en el body) → `crearItemEnMl` / `actualizarItemEnMl` (reciben la cuota) → `calcularPrecioFinalParaPublicar(producto, categoryId, cuota)` → `calcularPrecioCanalConEnvio(productoId, canalMlId, cuota, …)` → PVP con el recargo del plan (`canal_concepto_cuota`).
 
 ## Manejo de errores / edge cases
 
 - **Plan inexistente para la cuota elegida:** `obtenerPorcentajeCuota` ya devuelve `0%` (sin recargo) si no encuentra el registro — comportamiento seguro, igual que hoy.
 - **Canal "ML" no encontrado al cargar opciones (front):** el select cae a una opción por defecto (CONTADO) y el export sigue funcionando con `cuotaMl = 0`.
-- **Request sin cuota (front viejo durante un deploy):** se trata como `0` (contado) → idéntico al comportamiento actual.
+- **Request sin cuota:** validación `@NotNull` → 400 con mensaje claro (no debería ocurrir; el modal siempre la manda).
 
 ## Testing (offline, sin llamar a la API real de ML)
 

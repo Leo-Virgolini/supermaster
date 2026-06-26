@@ -858,6 +858,12 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         CAPACITY: { fisico: "capacidad", unidad: "" }, // capacidad: string libre con unidad
         THICKNESS: { fisico: "espesor", unidad: "mm" },
     };
+    // Unidades ofrecidas en "Dimensiones Físicas" (la primera es el default).
+    const FISICO_UNITS: Record<FisicoKey, string[]> = {
+        largo: ["cm", "mm", "m"], ancho: ["cm", "mm", "m"], alto: ["cm", "mm", "m"],
+        diamboca: ["cm", "mm", "m"], diambase: ["cm", "mm", "m"],
+        espesor: ["mm", "cm"], capacidad: ["ml", "L", "cc"],
+    };
     const fisicoSetters: Record<FisicoKey, (v: string) => void> = {
         alto: setAlto, ancho: setAncho, largo: setLargo,
         diamboca: setDiamboca, diambase: setDiambase, capacidad: setCapacidad, espesor: setEspesor,
@@ -887,7 +893,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const setAtributo = (id: string, valueName: string, valueId: string | null = null) => {
         setAtributoCore(id, valueName, valueId);
         const map = ML_DIM_MAP[id];
-        if (map) fisicoSetters[map.fisico](map.fisico === "capacidad" ? valueName : parseNumero(valueName));
+        if (map) fisicoSetters[map.fisico](valueName);
     };
 
     // Marca/desmarca "No aplica" para un atributo (conserva o limpia el valor según corresponda).
@@ -908,10 +914,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         fisicoSetters[fisico](raw);
         for (const [attrId, m] of Object.entries(ML_DIM_MAP)) {
             if (m.fisico !== fisico || !fichaAttrIds.has(attrId) || mlAtributosVal[attrId]?.noAplica) continue;
-            // Conserva la unidad que el usuario ya eligió en el atributo ML; si no hay, usa la del mapeo.
-            const unidadActual = (mlAtributosVal[attrId]?.valueName ?? "").split(" ").slice(1).join(" ") || m.unidad;
-            const valueName = m.fisico === "capacidad" ? raw : formatNumberUnit(parseNumero(raw), unidadActual);
-            setAtributoCore(attrId, valueName, mlAtributosVal[attrId]?.valueId ?? null);
+            // El valor físico ya incluye la unidad: se espeja tal cual al atributo ML mapeado.
+            setAtributoCore(attrId, raw, mlAtributosVal[attrId]?.valueId ?? null);
         }
     };
 
@@ -1260,6 +1264,28 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             )];
         }
         return c.atributos.map(a => renderMlCelda(a, c, a.name, true));
+    };
+
+    // Render de un campo de "Dimensiones Físicas": número + selector de unidad. Persiste "<num> <unidad>".
+    const renderFisico = (key: FisicoKey, label: string) => {
+        const value = fisicoValues[key];
+        const num = parseNumero(value);
+        const unidades = FISICO_UNITS[key];
+        const unidadActual = value.replace(/^\s*-?\d+(?:[.,]\d+)?\s*/, "").trim() || unidades[0];
+        const setFis = (n: string, u: string) => { onFisicoChange(key, n ? `${n} ${u}` : ""); if (formErrors[key]) setFormErrors(p => ({ ...p, [key]: "" })); };
+        return (
+            <label className="block">
+                <span className={fieldLabelClassName}>{label}</span>
+                <div className="mt-1 flex gap-2">
+                    <input type="number" min={0} className={`${inputBaseClassName} ${formErrors[key] ? inputErrorClassName : ""}`}
+                        value={num} onChange={e => setFis(e.target.value, unidadActual)} />
+                    <select className={selectBaseClassName} value={unidadActual} onChange={e => setFis(num, e.target.value)}>
+                        {unidades.map(u => <option key={u} value={u}>{u}</option>)}
+                    </select>
+                </div>
+                {formErrors[key] && <p className="mt-1 text-xs text-red-500">{formErrors[key]}</p>}
+            </label>
+        );
     };
 
     return (
@@ -1817,37 +1843,13 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         <legend className={sectionTitleClassName}><CubeIcon /> Dimensiones Físicas</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Medidas y atributos técnicos para logística y catálogo.</p>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                            <label className="block">
-                                <span className={fieldLabelClassName}>Capacidad</span>
-                                <input type="text" className={inputBaseClassName} value={capacidad} onChange={e => onFisicoChange("capacidad", e.target.value)} placeholder="Ej: 500 ml" />
-                            </label>
-                            <label className="block">
-                                <span className={fieldLabelClassName}>Largo (cm)</span>
-                                <input type="text" maxLength={45} className={`${inputBaseClassName} ${formErrors.largo ? inputErrorClassName : ""}`} value={largo} onChange={e => { onFisicoChange("largo", e.target.value); if (formErrors.largo) setFormErrors(p => ({ ...p, largo: "" })); }} />
-                                {formErrors.largo && <p className="mt-1 text-xs text-red-500">{formErrors.largo}</p>}
-                            </label>
-                            <label className="block">
-                                <span className={fieldLabelClassName}>Ancho (cm)</span>
-                                <input type="text" maxLength={45} className={`${inputBaseClassName} ${formErrors.ancho ? inputErrorClassName : ""}`} value={ancho} onChange={e => { onFisicoChange("ancho", e.target.value); if (formErrors.ancho) setFormErrors(p => ({ ...p, ancho: "" })); }} />
-                                {formErrors.ancho && <p className="mt-1 text-xs text-red-500">{formErrors.ancho}</p>}
-                            </label>
-                            <label className="block">
-                                <span className={fieldLabelClassName}>Alto (cm)</span>
-                                <input type="text" maxLength={45} className={`${inputBaseClassName} ${formErrors.alto ? inputErrorClassName : ""}`} value={alto} onChange={e => { onFisicoChange("alto", e.target.value); if (formErrors.alto) setFormErrors(p => ({ ...p, alto: "" })); }} />
-                                {formErrors.alto && <p className="mt-1 text-xs text-red-500">{formErrors.alto}</p>}
-                            </label>
-                            <label className="block">
-                                <span className={fieldLabelClassName}>Diám. Boca</span>
-                                <input type="text" className={inputBaseClassName} value={diamboca} onChange={e => onFisicoChange("diamboca", e.target.value)} placeholder="Ej: 7 cm" />
-                            </label>
-                            <label className="block">
-                                <span className={fieldLabelClassName}>Diám. Base</span>
-                                <input type="text" className={inputBaseClassName} value={diambase} onChange={e => onFisicoChange("diambase", e.target.value)} placeholder="Ej: 5 cm" />
-                            </label>
-                            <label className="block">
-                                <span className={fieldLabelClassName}>Espesor (mm)</span>
-                                <input type="text" className={inputBaseClassName} value={espesor} onChange={e => onFisicoChange("espesor", e.target.value)} placeholder="Ej: 1.2" />
-                            </label>
+                            {renderFisico("capacidad", "Capacidad")}
+                            {renderFisico("largo", "Largo")}
+                            {renderFisico("ancho", "Ancho")}
+                            {renderFisico("alto", "Alto")}
+                            {renderFisico("diamboca", "Diám. Boca")}
+                            {renderFisico("diambase", "Diám. Base")}
+                            {renderFisico("espesor", "Espesor")}
                             <div className="md:col-span-2 xl:col-span-4">
                                 <MultiAsyncSelect label="Aptos" loadOptions={(q) => searchAptos(q)} value={aptosSel} onChange={setAptosSel} placeholder="Buscar apto" inputClassName={inputBaseClassName} chipClassName="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300" />
                             </div>

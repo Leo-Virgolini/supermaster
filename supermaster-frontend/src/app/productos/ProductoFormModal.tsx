@@ -937,6 +937,22 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         }
     };
 
+    // Al cambiar de categoría, descarta los atributos guardados que la categoría actual NO declara
+    // (quedaron "stale" de una categoría anterior): así no se mandan a ML atributos que no pide.
+    // Solo poda con la ficha ya cargada; si fichaAttrIds estuviera vacío (cargando) borraría todo.
+    useEffect(() => {
+        if (!mlFicha) return;
+        setMlAtributosVal(prev => {
+            const next: typeof prev = {};
+            let changed = false;
+            for (const [id, attr] of Object.entries(prev)) {
+                if (fichaAttrIds.has(id)) next[id] = attr;
+                else changed = true;
+            }
+            return changed ? next : prev;
+        });
+    }, [mlFicha, fichaAttrIds]);
+
     // Al cargar la ficha, pre-llena los atributos de dimensión vacíos desde las dimensiones físicas.
     useEffect(() => {
         if (!mlFicha) return;

@@ -308,11 +308,11 @@ export const recalcularProductoAPI = async (productoId: number): Promise<void> =
 	if (!res.ok) throw new Error(await extraerMensajeError(res, "No se pudo recalcular el precio del producto"));
 };
 
-export const exportarProductosAMlAPI = async (skus: string[]): Promise<ExportCanalResultDTO> => {
+export const exportarProductosAMlAPI = async (skus: string[], cuotas: number): Promise<ExportCanalResultDTO> => {
 	const res = await fetchAPI(`${API_BASE_URL}/api/ml/exportar-productos`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ skus }),
+		body: JSON.stringify({ skus, cuotas }),
 	});
 	if (!res.ok) throw new Error(await extraerMensajeError(res, "No se pudo subir el producto a Mercado Libre"));
 	return await res.json();

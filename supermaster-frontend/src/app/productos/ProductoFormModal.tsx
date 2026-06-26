@@ -145,8 +145,10 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const [imagenesDetectadas, setImagenesDetectadas] = useState<ImagenDetalle[]>([]);
     const [cuotaHogar, setCuotaHogar] = useState<number>(-1);
     const [cuotaGastro, setCuotaGastro] = useState<number>(6);
+    const [cuotasMlOpts, setCuotasMlOpts] = useState<CuotaOpcion[]>([]);
     const [cuotasHogarOpts, setCuotasHogarOpts] = useState<CuotaOpcion[]>([]);
     const [cuotasGastroOpts, setCuotasGastroOpts] = useState<CuotaOpcion[]>([]);
+    const [cuotaMl, setCuotaMl] = useState<number>(0);
     // SEO de Tienda Nube por canal (NO se persiste: arranca vacío siempre, en alta y edición).
     // Si el usuario genera/edita estos campos, se usan al exportar; si quedan vacíos, se autogeneran.
     const [seoHogar, setSeoHogar] = useState<{ title: string; description: string; tags: string }>({ title: "", description: "", tags: "" });
@@ -258,16 +260,20 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             }
         };
         void (async () => {
-            const [hogar, gastro] = await Promise.all([
+            const [hogar, gastro, ml] = await Promise.all([
                 cargarCuotasCanal("KT HOGAR"),
                 cargarCuotasCanal("KT GASTRO"),
+                cargarCuotasCanal("ML"),
             ]);
             if (cancelado) return;
             setCuotasHogarOpts(hogar);
             setCuotasGastroOpts(gastro);
+            setCuotasMlOpts(ml);
             // Respeta el default (Transferencia / 6 cuotas) si existe en el canal; si no, la primera.
             if (hogar.length && !hogar.some(c => c.cuotas === -1)) setCuotaHogar(hogar[0].cuotas);
             if (gastro.length && !gastro.some(c => c.cuotas === 6)) setCuotaGastro(gastro[0].cuotas);
+            // Default ML: CONTADO (0). El canal ML trae la cuota 0; si no, cae a la primera opción.
+            if (ml.length && !ml.some(c => c.cuotas === 0)) setCuotaMl(ml[0].cuotas);
         })();
         return () => { cancelado = true; };
     }, []);
@@ -422,7 +428,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         if (canales.includes("Mercado Libre")) {
             tareas.push((async (): Promise<ResultadoCanal> => {
                 try {
-                    const r = await exportarProductosAMlAPI([skuExport]);
+                    const r = await exportarProductosAMlAPI([skuExport], cuotaMl);
                     return clasificarExport("Mercado Libre", r, skuExport);
                 } catch (e) {
                     return { canal: "Mercado Libre", estado: "error", detalle: e instanceof Error ? e.message : "error al subir" };
@@ -1404,6 +1410,18 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                         <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
                                     </Tooltip>
                                 </div>
+                                {subirMl && (
+                                    <div className="flex items-center gap-2 border-t border-slate-200/70 pt-2 dark:border-slate-700/60">
+                                        <span className="text-xs font-normal text-slate-500 dark:text-slate-400">Cuota del precio</span>
+                                        <Tooltip content="Plan de cuotas con el que se publica el precio en Mercado Libre (cada plan aplica su recargo de financiación)." className="flex-1">
+                                            <select className={`${selectBaseClassName} w-full`} value={cuotaMl} onChange={e => setCuotaMl(Number(e.target.value))}>
+                                                {(cuotasMlOpts.length ? cuotasMlOpts : [{cuotas:0,descripcion:"Contado"}]).map(c => (
+                                                    <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>
+                                                ))}
+                                            </select>
+                                        </Tooltip>
+                                    </div>
+                                )}
                             </div>
                         </div>
                         {(() => {

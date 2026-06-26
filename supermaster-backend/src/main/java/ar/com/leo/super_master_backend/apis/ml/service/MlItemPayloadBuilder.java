@@ -72,11 +72,10 @@ public final class MlItemPayloadBuilder {
         // Dimensiones del paquete de envío (ML exige enteros, cm y g). Solo si están las 4.
         if (p.getMlPaqAlto() != null && p.getMlPaqAncho() != null
                 && p.getMlPaqLargo() != null && p.getMlPaqPeso() != null) {
-            // El nombre de cada medida en la BD NO coincide con el de ML:
-            // ML Alto (HEIGHT) = BD Ancho; ML Profundidad (LENGTH) = BD Alto; ML Ancho (WIDTH) = BD Largo.
-            attributes.add(Map.of("id", "SELLER_PACKAGE_HEIGHT", "value_name", cm(p.getMlPaqAncho())));
-            attributes.add(Map.of("id", "SELLER_PACKAGE_LENGTH", "value_name", cm(p.getMlPaqAlto())));
-            attributes.add(Map.of("id", "SELLER_PACKAGE_WIDTH",  "value_name", cm(p.getMlPaqLargo())));
+            // Mapeo natural 1:1 entre el campo del producto y el atributo de ML.
+            attributes.add(Map.of("id", "SELLER_PACKAGE_HEIGHT", "value_name", cm(p.getMlPaqAlto())));
+            attributes.add(Map.of("id", "SELLER_PACKAGE_WIDTH",  "value_name", cm(p.getMlPaqAncho())));
+            attributes.add(Map.of("id", "SELLER_PACKAGE_LENGTH", "value_name", cm(p.getMlPaqLargo())));
             attributes.add(Map.of("id", "SELLER_PACKAGE_WEIGHT", "value_name", gramos(p.getMlPaqPeso())));
         }
         // IVA: lista cerrada de ML; se mapea el iva del producto. Se omite si no es 0/10.5/21/27.

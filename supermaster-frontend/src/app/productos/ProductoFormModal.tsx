@@ -928,9 +928,10 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             for (const [attrId, m] of Object.entries(ML_DIM_MAP)) {
                 if (!fichaAttrIds.has(attrId) || next[attrId]?.valueName || next[attrId]?.noAplica) continue;
                 const fisico = fisicoValues[m.fisico];
+                const unidadFisica = fisico.replace(/^\s*-?\d+(?:[.,]\d+)?\s*/, "").trim() || m.unidad;
                 const valueName = m.fisico === "capacidad"
                     ? fisico
-                    : (parseNumero(fisico) ? formatNumberUnit(parseNumero(fisico), m.unidad) : "");
+                    : (parseNumero(fisico) ? formatNumberUnit(parseNumero(fisico), unidadFisica) : "");
                 if (valueName) { next[attrId] = { attributeId: attrId, valueId: null, valueName, noAplica: false }; changed = true; }
             }
             return changed ? next : prev;

@@ -978,6 +978,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     useEffect(() => {
         if (!mlFicha || !fichaAttrIds.has("BRAND")) return;
         const marcaLeaf = marcaDisplay.split(">").pop()?.trim() ?? "";
+        // Si hay Marca elegida pero su nombre aún no cargó, esperamos: no borrar el BRAND guardado.
+        if (marcaId && !marcaLeaf) return;
         setMlAtributosVal(prev => {
             const cur = prev["BRAND"];
             if (cur?.noAplica) return prev;                         // respeta "No aplica"
@@ -988,12 +990,15 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             }
             return { ...prev, BRAND: { attributeId: "BRAND", valueId: null, valueName: marcaLeaf, noAplica: false } };
         });
-    }, [mlFicha, fichaAttrIds, marcaDisplay]);
+    }, [mlFicha, fichaAttrIds, marcaDisplay, marcaId]);
 
     // El atributo MATERIAL de la ficha ML espeja SIEMPRE el Material maestro (mismo criterio que BRAND).
     useEffect(() => {
         if (!mlFicha || !fichaAttrIds.has("MATERIAL")) return;
         const material = materialDisplay.trim();
+        // El nombre del material puede llegar async (getNombreById): si hay Material elegido pero el
+        // nombre aún no cargó, esperamos en vez de borrar el MATERIAL guardado.
+        if (materialId && !material) return;
         setMlAtributosVal(prev => {
             const cur = prev["MATERIAL"];
             if (cur?.noAplica) return prev;                          // respeta "No aplica"
@@ -1004,7 +1009,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             }
             return { ...prev, MATERIAL: { attributeId: "MATERIAL", valueId: null, valueName: material, noAplica: false } };
         });
-    }, [mlFicha, fichaAttrIds, materialDisplay]);
+    }, [mlFicha, fichaAttrIds, materialDisplay, materialId]);
 
     const aplicarMlaEnForm = (mla: { id: number; mla: string; mlau: string | null; precioEnvio: number | null; comisionPorcentaje: number | null; topePromocion: number | null }) => {
         setMlaCodigo(mla.mla);

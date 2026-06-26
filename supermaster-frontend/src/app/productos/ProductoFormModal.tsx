@@ -77,9 +77,6 @@ const etiquetaCuota = (cuotas: number, descripcion?: string) =>
     descripcion?.trim() || (cuotas < 0 ? "Transferencia" : cuotas === 0 ? "Contado" : `${cuotas} cuotas`);
 
 type CuotaOpcion = { cuotas: number; descripcion: string };
-// Opciones de respaldo si falla la carga de cuotas del canal (la red o el canal inexistente).
-const FALLBACK_CUOTAS_NUBE: CuotaOpcion[] = [{ cuotas: -1, descripcion: "Transferencia" }, { cuotas: 6, descripcion: "6 cuotas" }];
-const FALLBACK_CUOTAS_ML: CuotaOpcion[] = [{ cuotas: 0, descripcion: "Contado" }];
 
 // Etiqueta corta de cada sección de la ficha ML (evita repetir "Características de la…").
 const SECCION_LABEL_ML: Record<string, string> = {
@@ -1386,7 +1383,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                         <span className="text-xs font-normal text-slate-500 dark:text-slate-400">Cuota del precio</span>
                                         <Tooltip content="Plan de cuotas del canal con el que se publica el precio en Tienda Nube (cada plan aplica su recargo/descuento de financiación)." className="flex-1">
                                             <select className={`${selectBaseClassName} w-full`} value={cuotaHogar} onChange={e => setCuotaHogar(Number(e.target.value))}>
-                                                {(cuotasHogarOpts.length ? cuotasHogarOpts : FALLBACK_CUOTAS_NUBE).map(c => (
+                                                {cuotasHogarOpts.map(c => (
                                                     <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>
                                                 ))}
                                             </select>
@@ -1408,7 +1405,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                         <span className="text-xs font-normal text-slate-500 dark:text-slate-400">Cuota del precio</span>
                                         <Tooltip content="Plan de cuotas del canal con el que se publica el precio en Tienda Nube (cada plan aplica su recargo/descuento de financiación)." className="flex-1">
                                             <select className={`${selectBaseClassName} w-full`} value={cuotaGastro} onChange={e => setCuotaGastro(Number(e.target.value))}>
-                                                {(cuotasGastroOpts.length ? cuotasGastroOpts : FALLBACK_CUOTAS_NUBE).map(c => (
+                                                {cuotasGastroOpts.map(c => (
                                                     <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>
                                                 ))}
                                             </select>
@@ -1430,7 +1427,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                         <span className="text-xs font-normal text-slate-500 dark:text-slate-400">Cuota del precio</span>
                                         <Tooltip content="Plan de cuotas con el que se publica el precio en Mercado Libre (cada plan aplica su recargo de financiación)." className="flex-1">
                                             <select className={`${selectBaseClassName} w-full`} value={cuotaMl} onChange={e => setCuotaMl(Number(e.target.value))}>
-                                                {(cuotasMlOpts.length ? cuotasMlOpts : FALLBACK_CUOTAS_ML).map(c => (
+                                                {cuotasMlOpts.map(c => (
                                                     <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>
                                                 ))}
                                             </select>

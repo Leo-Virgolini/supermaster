@@ -50,5 +50,6 @@ class MlExportServiceCuotaTest {
         service.procesarConProductoCargado(1, 3);
 
         verify(mercadoLibreService).actualizarItemEnMl(p, "MLA123", 3);
+        verify(mercadoLibreService, never()).actualizarItemEnMl(any(), any(), eq(0));
     }
 }

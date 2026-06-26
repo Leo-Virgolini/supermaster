@@ -105,7 +105,7 @@ class NubeProductoPayloadBuilderTest {
                 .isEqualTo("Olla de acero inoxidable 24cm");
         assertThat(((Map<String, Object>) payload.get("seo_description")).get("es"))
                 .isEqualTo("La mejor olla de acero inoxidable para tu cocina.");
-        assertThat((List<String>) payload.get("tags"))
-                .containsExactly("olla", "acero", "cocina");
+        // Tienda Nube espera `tags` como String separado por comas (no como array JSON).
+        assertThat(payload.get("tags")).isEqualTo("olla,acero,cocina");
     }
 }

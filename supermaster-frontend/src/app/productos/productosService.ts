@@ -213,6 +213,14 @@ export const getMlaPorSkuAPI = async (sku: string): Promise<MlaResumenDTO> => {
 	return await res.json();
 };
 
+// Trae el MLA desde MercadoLibre por su código (activa o pausada), crea/asegura el MLA y
+// le calcula envío + comisión. Devuelve el MLA y si la publicación es de catálogo (para avisar).
+export const getMlaPorCodigoAPI = async (mla: string): Promise<{ mla: MlaResumenDTO; esCatalogo: boolean }> => {
+	const res = await fetchAPI(`${API_BASE_URL}/api/mlas/por-mla-ml?mla=${encodeURIComponent(mla)}`);
+	if (!res.ok) throw new Error(await extraerMensajeError(res, "No se pudo obtener el MLA desde MercadoLibre"));
+	return await res.json();
+};
+
 // Crea un MLA manualmente con los datos cargados en el alta de producto.
 export const createMlaAPI = async (data: { mla: string; mlau?: string | null; precioEnvio?: number | null; comisionPorcentaje?: number | null; topePromocion?: number | null }): Promise<MlaResumenDTO> => {
 	const res = await fetchAPI(`${API_BASE_URL}/api/mlas`, {
@@ -310,17 +318,28 @@ export const exportarProductosAMlAPI = async (skus: string[]): Promise<ExportCan
 	return await res.json();
 };
 
-export type MlAtributoValor = { id: string; name: string };
+export type MlAtributoValor = { id: string; name: string; rgb: string | null };
 export type MlAtributoDef = {
 	id: string; name: string; valueType: "string" | "number" | "number_unit" | "boolean" | "list";
 	values: MlAtributoValor[]; allowedUnits: string[]; defaultUnit: string | null;
-	required: boolean; conditional: boolean; multivalued: boolean; grupo: "PRINCIPALES" | "SECUNDARIAS";
+	required: boolean; conditional: boolean; multivalued: boolean;
+	relevance: number; valueMaxLength: number | null; example: string | null; hint: string | null;
 };
-export type ProductoMlAtributo = { attributeId: string; valueId: string | null; valueName: string };
+export type ProductoMlAtributo = { attributeId: string; valueId: string | null; valueName: string; noAplica: boolean };
 
-export const getMlCategoriaAtributosAPI = async (categoryId: string): Promise<MlAtributoDef[]> => {
-	const res = await fetchAPI(`${API_BASE_URL}/api/ml/categorias/${encodeURIComponent(categoryId)}/atributos`);
-	if (!res.ok) throw new Error("No se pudieron obtener los atributos de la categoría");
+// Ficha técnica estructurada (technical_specs/input): secciones → componentes → atributos.
+export type MlComponente = {
+	tipo: string; label: string;
+	hint: string | null; tooltip: string | null; example: string | null;
+	allowCustomValue: boolean; allowFiltering: boolean;
+	atributos: MlAtributoDef[];
+};
+export type MlSeccion = { id: "VARIANTE" | "PRINCIPALES" | "SECUNDARIAS"; label: string; componentes: MlComponente[] };
+export type MlFicha = { secciones: MlSeccion[] };
+
+export const getMlCategoriaFichaAPI = async (categoryId: string): Promise<MlFicha> => {
+	const res = await fetchAPI(`${API_BASE_URL}/api/ml/categorias/${encodeURIComponent(categoryId)}/ficha`);
+	if (!res.ok) throw new Error("No se pudo obtener la ficha técnica de la categoría");
 	return await res.json();
 };
 

@@ -28,7 +28,9 @@ final class NubeSeoPayload {
                 if (!t.isEmpty()) tags.add(t);
             }
             if (!tags.isEmpty()) {
-                body.put("tags", tags);
+                // La API de Tienda Nube espera `tags` como String separado por comas, NO como
+                // array (si se manda un array JSON, Nube lo colapsa a un único tag "Array").
+                body.put("tags", String.join(",", tags));
             }
         }
     }

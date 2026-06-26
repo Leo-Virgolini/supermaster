@@ -5,10 +5,12 @@ import ar.com.leo.super_master_backend.apis.ml.dto.CostoEnvioMasivoResponseDTO;
 import ar.com.leo.super_master_backend.apis.ml.dto.CostoEnvioResponseDTO;
 import ar.com.leo.super_master_backend.apis.ml.dto.CostoVentaMasivoResponseDTO;
 import ar.com.leo.super_master_backend.apis.ml.dto.MlAtributoDefDTO;
+import ar.com.leo.super_master_backend.apis.ml.dto.MlFichaDTO;
 import ar.com.leo.super_master_backend.apis.ml.dto.PrediccionCategoriaMlDTO;
 import ar.com.leo.super_master_backend.apis.ml.service.ConfiguracionMlService;
 import ar.com.leo.super_master_backend.apis.ml.service.MercadoLibreService;
 import ar.com.leo.super_master_backend.apis.ml.service.MlCategoriaAtributoService;
+import ar.com.leo.super_master_backend.apis.ml.service.MlFichaService;
 import ar.com.leo.super_master_backend.config.Permisos;
 import ar.com.leo.super_master_backend.dominio.common.dto.ProcesoMasivoEstadoDTO;
 import jakarta.validation.Valid;
@@ -28,6 +30,7 @@ public class MercadoLibreController {
     private final MercadoLibreService mercadoLibreService;
     private final ConfiguracionMlService configuracionMlService;
     private final MlCategoriaAtributoService mlCategoriaAtributoService;
+    private final MlFichaService mlFichaService;
 
     /**
      * Calcula y guarda el costo de envío para productos de ML.
@@ -266,6 +269,19 @@ public class MercadoLibreController {
     @PreAuthorize(Permisos.MLAS_VER)
     public ResponseEntity<List<MlAtributoDefDTO>> atributosCategoria(@PathVariable String categoryId) {
         return ResponseEntity.ok(mlCategoriaAtributoService.obtenerAtributos(categoryId));
+    }
+
+    /**
+     * Devuelve la ficha técnica de una categoría de ML (secciones Variante / Principales /
+     * Secundarias → componentes → atributos), tal como la arma el flujo de publicación de ML.
+     *
+     * @param categoryId ID de la categoría ML (ej: MLA413476)
+     * @return {@link MlFichaDTO} lista para el formulario
+     */
+    @GetMapping("/categorias/{categoryId}/ficha")
+    @PreAuthorize(Permisos.MLAS_VER)
+    public ResponseEntity<MlFichaDTO> fichaCategoria(@PathVariable String categoryId) {
+        return ResponseEntity.ok(mlFichaService.obtenerFicha(categoryId));
     }
 
     /**

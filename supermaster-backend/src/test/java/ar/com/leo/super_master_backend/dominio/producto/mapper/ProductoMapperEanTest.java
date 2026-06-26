@@ -20,6 +20,7 @@ class ProductoMapperEanTest {
                 "Titulo test", // tituloDux
                 null,        // tituloMl
                 null,        // tituloNube
+                null,        // descripcion
                 false,       // esCombo
                 null,        // uxb
                 null,        // moq

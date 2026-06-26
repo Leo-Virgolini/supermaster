@@ -61,7 +61,11 @@ public final class MlItemPayloadBuilder {
     public static List<Map<String, Object>> construirAtributos(Producto p, Set<String> categoriaAttrIds) {
         List<Map<String, Object>> attributes = new ArrayList<>();
         attributes.add(Map.of("id", "ITEM_CONDITION", "value_id", "2230284"));
-        if (p.getMarca() != null && p.getMarca().getNombre() != null) {
+        // BRAND: si el usuario lo cargó en la ficha (atributo guardado, no "No aplica"), ese prevalece
+        // y se agrega en el loop de guardados; si no, se autocompleta desde la marca del producto.
+        boolean brandGuardado = p.getMlAtributos().stream()
+                .anyMatch(a -> "BRAND".equals(a.getAttributeId()) && !a.isNoAplica());
+        if (!brandGuardado && p.getMarca() != null && p.getMarca().getNombre() != null) {
             attributes.add(Map.of("id", "BRAND", "value_name", p.getMarca().getNombre()));
         }
         attributes.add(Map.of("id", "SELLER_SKU", "value_name", p.getSku()));
@@ -83,7 +87,9 @@ public final class MlItemPayloadBuilder {
         // Impuesto de importación: siempre 0 %.
         attributes.add(Map.of("id", "IMPORT_DUTY", "value_id", "49553239", "value_name", "0 %"));
         // Código universal: GTIN si la categoría lo declara, si no EAN. Solo uno; opcional.
-        if (p.getEan() != null && !p.getEan().isBlank()) {
+        // Solo se envía si es un GTIN/EAN VÁLIDO (longitud 8/12/13/14 + dígito verificador): un
+        // identificador inválido hace que ML rechace TODO el array de atributos (las características).
+        if (esGtinValido(p.getEan())) {
             String idIdentificador = categoriaAttrIds.contains("GTIN") ? "GTIN"
                                    : categoriaAttrIds.contains("EAN") ? "EAN" : null;
             if (idIdentificador != null) {
@@ -92,6 +98,9 @@ public final class MlItemPayloadBuilder {
         }
         // Atributos guardados (formato de venta + características)
         for (ProductoMlAtributo a : p.getMlAtributos()) {
+            if (a.isNoAplica()) {
+                continue; // el usuario marcó "No aplica": no se envía a ML
+            }
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("id", a.getAttributeId());
             if (a.getValueId() != null && !a.getValueId().isBlank()) m.put("value_id", a.getValueId());
@@ -99,6 +108,27 @@ public final class MlItemPayloadBuilder {
             attributes.add(m);
         }
         return attributes;
+    }
+
+    /**
+     * Valida un código GTIN/EAN: longitud 8, 12, 13 o 14 dígitos y dígito verificador correcto
+     * (algoritmo módulo 10 estándar de GS1). ML rechaza identificadores con formato inválido.
+     */
+    static boolean esGtinValido(String codigo) {
+        if (codigo == null) return false;
+        String s = codigo.trim();
+        int len = s.length();
+        if (!(len == 8 || len == 12 || len == 13 || len == 14)) return false;
+        for (int i = 0; i < len; i++) {
+            if (!Character.isDigit(s.charAt(i))) return false;
+        }
+        int sum = 0;
+        for (int i = 0; i < len - 1; i++) {
+            int d = s.charAt(len - 2 - i) - '0'; // desde el dígito de datos más a la derecha
+            sum += (i % 2 == 0) ? d * 3 : d;
+        }
+        int check = (10 - (sum % 10)) % 10;
+        return check == (s.charAt(len - 1) - '0');
     }
 
     private static String cm(BigDecimal valor) {

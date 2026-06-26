@@ -72,7 +72,7 @@ public class ImagenService {
             return List.of();
         }
         String skuLower = sku.trim().toLowerCase(Locale.ROOT);
-        // slot 1 = principal; slot N (>=2) = sufijo _N. TreeMap ordena 1,2,3... (principal primero).
+        // slot 0 = principal; slot N (>=1) = sufijo _N. TreeMap ordena 0,1,2,3... (principal primero).
         TreeMap<Integer, String> porSlot = new TreeMap<>();
         for (String nombre : obtenerIndice()) {
             int dot = nombre.lastIndexOf('.');
@@ -167,17 +167,17 @@ public class ImagenService {
         }
     }
 
-    /** Slot del archivo respecto del SKU: 1 si es la principal ({sku}), N si es {sku}_N (N>=2), null si no matchea. */
+    /** Slot del archivo respecto del SKU: 0 si es la principal ({sku}), N si es {sku}_N (N>=1), null si no matchea. */
     private static Integer slotDe(String base, String skuLower) {
         if (base.equals(skuLower)) {
-            return 1;
+            return 0;
         }
         String prefijo = skuLower + "_";
         if (base.startsWith(prefijo)) {
             String resto = base.substring(prefijo.length());
             if (!resto.isEmpty() && resto.chars().allMatch(Character::isDigit)) {
                 int n = Integer.parseInt(resto);
-                if (n >= 2) {
+                if (n >= 1) {
                     return n;
                 }
             }

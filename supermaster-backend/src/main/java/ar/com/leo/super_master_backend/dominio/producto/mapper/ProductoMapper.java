@@ -60,6 +60,7 @@ public interface ProductoMapper {
                 entity.getTituloDux(),
                 entity.getTituloMl(),
                 entity.getTituloNube(),
+                entity.getDescripcion(),
                 entity.getEsCombo(),
                 entity.getUxb(),
                 entity.getMoq(),
@@ -139,7 +140,7 @@ public interface ProductoMapper {
     private List<ProductoMlAtributoDTO> toMlAtributosDTO(Producto entity) {
         if (entity.getMlAtributos() == null) return List.of();
         return entity.getMlAtributos().stream()
-                .map(a -> new ProductoMlAtributoDTO(a.getAttributeId(), a.getValueId(), a.getValueName()))
+                .map(a -> new ProductoMlAtributoDTO(a.getAttributeId(), a.getValueId(), a.getValueName(), a.isNoAplica()))
                 .toList();
     }
 

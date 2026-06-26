@@ -58,6 +58,11 @@ public class Producto {
     @Column(name = "titulo_nube", length = 100)
     private String tituloNube;
 
+    /** Descripción manual del producto (texto plano); se combina con la autogenerada al publicar. */
+    @Size(max = 20000)
+    @Column(name = "descripcion", columnDefinition = "TEXT")
+    private String descripcion;
+
     @Size(max = 20)
     @Column(name = "ml_category_id", length = 20)
     private String mlCategoryId;

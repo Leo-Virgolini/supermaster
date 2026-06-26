@@ -13,7 +13,7 @@ class MlValidacionRequeridosTest {
 
     /** Helper: crea un MlAtributoDefDTO mínimo con id y required. */
     private static MlAtributoDefDTO def(String id, boolean required) {
-        return new MlAtributoDefDTO(id, id, "STRING", List.of(), List.of(), null, required, false, false, "PRINCIPALES");
+        return new MlAtributoDefDTO(id, id, "STRING", List.of(), List.of(), null, required, false, false, "PRINCIPALES", 1, null, null, null);
     }
 
     /** Producto base sin atributos guardados. */
@@ -55,6 +55,19 @@ class MlValidacionRequeridosTest {
         List<MlAtributoDefDTO> defs = List.of(def("COLOR", false), def("BICYCLE_TYPE", false));
         // Nada es required -> lista vacía aunque nada esté presente
         assertThat(MercadoLibreService.faltantesRequeridos(p, defs)).isEmpty();
+    }
+
+    @Test
+    void faltantesRequeridos_atributoNoAplicaCuentaComoAusente() {
+        Producto p = productoBase();
+        ProductoMlAtributo na = new ProductoMlAtributo();
+        na.setAttributeId("BICYCLE_TYPE");
+        na.setValueName("");
+        na.setNoAplica(true); // marcado "No aplica" -> no se envía a ML
+        p.getMlAtributos().add(na);
+        List<MlAtributoDefDTO> defs = List.of(def("BICYCLE_TYPE", true));
+        // Aunque esté guardado, al ser "No aplica" no cuenta como presente -> falta
+        assertThat(MercadoLibreService.faltantesRequeridos(p, defs)).containsExactly("BICYCLE_TYPE");
     }
 
     @Test

@@ -47,6 +47,16 @@ public class MlaController {
         return ResponseEntity.ok(mlaService.obtenerOcrearPorSkuDesdeML(sku));
     }
 
+    /**
+     * Trae el MLA desde MercadoLibre por su código (no por SKU), crea/asegura el MLA y le
+     * calcula envío y comisión. Sirve para publicaciones activas o pausadas; avisa si es de catálogo.
+     */
+    @GetMapping("/por-mla-ml")
+    @PreAuthorize(Permisos.MLAS_EDITAR)
+    public ResponseEntity<MlaDesdeMlDTO> obtenerPorMlaDesdeML(@RequestParam String mla) {
+        return ResponseEntity.ok(mlaService.obtenerOcrearPorMlaDesdeML(mla));
+    }
+
     @PostMapping
     @PreAuthorize(Permisos.MLAS_EDITAR)
     public ResponseEntity<MlaDTO> crear(@Valid @RequestBody MlaCreateDTO dto) {

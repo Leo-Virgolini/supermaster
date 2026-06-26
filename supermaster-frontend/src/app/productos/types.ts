@@ -8,6 +8,7 @@ export interface ProductoDTO {
 	tituloDux: string;
 	tituloMl: string | null;
 	tituloNube: string | null;
+	descripcion: string | null;
 	mlCategoryId: string | null;
 	mlCategoryNombre: string | null;
 	esCombo: boolean;
@@ -80,7 +81,7 @@ export interface ProductoDTO {
 
 	// Mercado Libre
 	ean?: string | null;
-	mlAtributos?: { attributeId: string; valueId: string | null; valueName: string }[];
+	mlAtributos?: { attributeId: string; valueId: string | null; valueName: string; noAplica: boolean }[];
 }
 
 export interface ProductoCreateDTO {
@@ -89,6 +90,7 @@ export interface ProductoCreateDTO {
 	tituloDux: string;
 	tituloMl: string | null;
 	tituloNube: string | null;
+	descripcion: string | null;
 	mlCategoryId: string | null;
 	mlCategoryNombre: string | null;
 	esCombo: boolean;
@@ -121,7 +123,7 @@ export interface ProductoCreateDTO {
 	mlPaqLargo?: number | null;
 	mlPaqPeso?: number | null;
 	ean?: string | null;
-	mlAtributos?: { attributeId: string; valueId: string | null; valueName: string }[];
+	mlAtributos?: { attributeId: string; valueId: string | null; valueName: string; noAplica: boolean }[];
 }
 
 export type ProductoPatchDTO = Partial<ProductoCreateDTO>;

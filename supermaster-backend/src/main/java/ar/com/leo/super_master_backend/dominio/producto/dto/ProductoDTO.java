@@ -14,6 +14,7 @@ public record ProductoDTO(
         String tituloDux,
         String tituloMl,
         String tituloNube,
+        String descripcion,
         Boolean esCombo,
         Integer uxb,
         Integer moq,

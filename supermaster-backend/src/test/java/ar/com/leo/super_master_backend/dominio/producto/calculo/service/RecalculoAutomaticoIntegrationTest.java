@@ -396,6 +396,7 @@ class RecalculoAutomaticoIntegrationTest {
             Integer marcaIdOverride, Integer tipoIdOverride, Integer clasifGralIdOverride, Integer proveedorIdOverride) {
         return new ProductoUpdateDTO(
                 producto.getSku(), producto.getCodExt(), producto.getTituloDux(), producto.getTituloMl(), producto.getTituloNube(),
+                producto.getDescripcion(),
                 producto.getEsCombo(), producto.getUxb(), producto.getMoq(),
                 producto.getStock(), producto.getActivo(),
                 marcaIdOverride != null ? marcaIdOverride : (producto.getMarca() != null ? producto.getMarca().getId() : null),

@@ -76,6 +76,25 @@ class ActualizarItemEnMlTest {
     }
 
     @Test
+    void fallaTitulo_sigueActualizadoConAdvertencia() {
+        // Si ML rechaza el campo de título (p.ej. family_name no editable en User Products),
+        // no debe abortar el resto del update: queda como advertencia.
+        AtomicReference<String> status = new AtomicReference<>();
+        ResultadoAltaMl r = MercadoLibreService.actualizarItemEnMlCore(
+                productoActivo(true), "MLA1515",
+                mla -> 0,
+                (mla, t) -> { throw new RuntimeException("family_name: The field family name is invalid"); },
+                (mla, d) -> {}, (mla, p) -> true,
+                sku -> java.util.List.of(), (mla, pics) -> {},
+                (mla, s) -> { status.set(s); return true; }, (mla, attrs) -> {},
+                new BigDecimal("5000"), Set.of());
+
+        assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);
+        assertThat(r.advertencia()).contains("título");
+        assertThat(status.get()).isEqualTo("active"); // el resto del update continúa
+    }
+
+    @Test
     void faltaTitulo_error() {
         Producto p = producto();
         p.setTituloMl(null);
@@ -233,6 +252,36 @@ class ActualizarItemEnMlTest {
         assertThat(r.advertencia()).contains("atributos");
     }
 
+    @Test
+    void fallaAtributos_laAdvertenciaIncluyeElMotivoDeMl() {
+        ResultadoAltaMl r = MercadoLibreService.actualizarItemEnMlCore(
+                producto(), "MLA1414B",
+                mla -> 0, (mla, t) -> {}, (mla, d) -> {}, (mla, p) -> true,
+                sku -> java.util.List.of(), (mla, pics) -> {},
+                (mla, status) -> true,
+                (mla, a) -> { throw new RuntimeException("BODY_INVALID_FIELDS: GTIN inválido"); },
+                new BigDecimal("5000"), Set.of());
+        // La advertencia debe traer el detalle del error para poder corregirlo.
+        assertThat(r.advertencia()).contains("atributos no actualizados").contains("GTIN inválido");
+    }
+
+    @Test
+    void fallaDescripcion_sigueActualizadoConAdvertenciaYMotivo() {
+        AtomicReference<String> status = new AtomicReference<>();
+        ResultadoAltaMl r = MercadoLibreService.actualizarItemEnMlCore(
+                productoActivo(true), "MLA1616",
+                mla -> 0, (mla, t) -> {},
+                (mla, d) -> { throw new RuntimeException("The description must be in plain text"); },
+                (mla, p) -> true,
+                sku -> java.util.List.of(), (mla, pics) -> {},
+                (mla, s) -> { status.set(s); return true; }, (mla, attrs) -> {},
+                new BigDecimal("5000"), Set.of());
+        // Un error de descripción NO debe abortar el resto del update; queda como advertencia con motivo.
+        assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);
+        assertThat(r.advertencia()).contains("descripción").contains("plain text");
+        assertThat(status.get()).isEqualTo("active");
+    }
+
     // ==================== Nuevos tests: precio calculado (Task 8) ====================
 
     @Test
@@ -272,6 +321,16 @@ class ActualizarItemEnMlTest {
     }
 
     @Test
+    void campoTituloMl_UPusaFamilyName_clasicoUsaTitle() {
+        // Ítem User Products (trae family_name) -> se edita family_name (el title está bloqueado).
+        assertThat(MercadoLibreService.campoTituloMl("Olla acero 24cm")).isEqualTo("family_name");
+        // Ítem del modelo clásico (sin family_name) -> se edita title.
+        assertThat(MercadoLibreService.campoTituloMl(null)).isEqualTo("title");
+        assertThat(MercadoLibreService.campoTituloMl("")).isEqualTo("title");
+        assertThat(MercadoLibreService.campoTituloMl("   ")).isEqualTo("title");
+    }
+
+    @Test
     void precioFinalNull_restoDelUpdateContinua() {
         AtomicReference<String> titulo = new AtomicReference<>();
         AtomicReference<String> desc = new AtomicReference<>();
@@ -294,13 +353,4 @@ class ActualizarItemEnMlTest {
         assertThat(r.advertencia()).contains("precio no actualizado");
     }
 
-    @Test
-    void campoTituloMl_UPusaFamilyName_clasicoUsaTitle() {
-        // Ítem User Products (trae family_name) -> se edita family_name (el title está bloqueado).
-        assertThat(MercadoLibreService.campoTituloMl("Olla acero 24cm")).isEqualTo("family_name");
-        // Ítem del modelo clásico (sin family_name) -> se edita title.
-        assertThat(MercadoLibreService.campoTituloMl(null)).isEqualTo("title");
-        assertThat(MercadoLibreService.campoTituloMl("")).isEqualTo("title");
-        assertThat(MercadoLibreService.campoTituloMl("   ")).isEqualTo("title");
-    }
 }

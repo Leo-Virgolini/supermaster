@@ -28,4 +28,8 @@ public class ProductoMlAtributo {
 
     @Column(name = "value_name", nullable = false, length = 255)
     private String valueName;
+
+    /** El usuario marcó este atributo como "No aplica": no se envía a ML. */
+    @Column(name = "no_aplica", nullable = false)
+    private boolean noAplica;
 }

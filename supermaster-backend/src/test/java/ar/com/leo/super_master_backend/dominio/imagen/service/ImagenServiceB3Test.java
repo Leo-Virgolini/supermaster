@@ -23,23 +23,24 @@ class ImagenServiceB3Test {
     @Test
     void resolverArchivos_principalYAdicionalesEnOrden(@TempDir Path dir) throws Exception {
         Files.writeString(dir.resolve("ABC123.jpg"), "x");
-        Files.writeString(dir.resolve("ABC123_2.png"), "x");
+        Files.writeString(dir.resolve("ABC123_1.png"), "x");
+        Files.writeString(dir.resolve("ABC123_2.jpg"), "x");
         Files.writeString(dir.resolve("ABC123_3.jpg"), "x");
         Files.writeString(dir.resolve("OTRO.jpg"), "x"); // otro SKU, no debe aparecer
 
         List<String> archivos = servicioSobre(dir).resolverArchivosPorSku("ABC123");
 
-        assertThat(archivos).containsExactly("ABC123.jpg", "ABC123_2.png", "ABC123_3.jpg");
+        assertThat(archivos).containsExactly("ABC123.jpg", "ABC123_1.png", "ABC123_2.jpg", "ABC123_3.jpg");
     }
 
     @Test
     void resolverArchivos_caseInsensitive(@TempDir Path dir) throws Exception {
         Files.writeString(dir.resolve("abc123.JPG"), "x");
-        Files.writeString(dir.resolve("abc123_2.jpg"), "x");
+        Files.writeString(dir.resolve("abc123_1.jpg"), "x");
 
         List<String> archivos = servicioSobre(dir).resolverArchivosPorSku("ABC123");
 
-        assertThat(archivos).containsExactly("abc123.JPG", "abc123_2.jpg");
+        assertThat(archivos).containsExactly("abc123.JPG", "abc123_1.jpg");
     }
 
     @Test
@@ -65,15 +66,15 @@ class ImagenServiceB3Test {
     }
 
     @Test
-    void resolverArchivos_descartaSlot0YSlot1(@TempDir Path dir) throws Exception {
+    void resolverArchivos_incluyeSlot1YDescartaSlot0(@TempDir Path dir) throws Exception {
         Files.writeString(dir.resolve("ABC123.jpg"), "x");
         Files.writeString(dir.resolve("ABC123_1.jpg"), "x");
-        Files.writeString(dir.resolve("ABC123_0.jpg"), "x");
+        Files.writeString(dir.resolve("ABC123_0.jpg"), "x"); // _0 no es convención: se descarta
         Files.writeString(dir.resolve("ABC123_2.jpg"), "x");
 
         List<String> archivos = servicioSobre(dir).resolverArchivosPorSku("ABC123");
 
-        assertThat(archivos).containsExactly("ABC123.jpg", "ABC123_2.jpg");
+        assertThat(archivos).containsExactly("ABC123.jpg", "ABC123_1.jpg", "ABC123_2.jpg");
     }
 
     @Test

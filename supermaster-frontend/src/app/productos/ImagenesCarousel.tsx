@@ -42,7 +42,13 @@ export default function ImagenesCarousel({ sku, onClose }: { sku: string; onClos
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
                 {cargando ? (
-                    <div className="text-sm text-white/80">Cargando…</div>
+                    <div className="flex flex-col items-center gap-3 rounded-lg bg-white px-10 py-12 dark:bg-slate-800">
+                        <svg className="h-8 w-8 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        <span className="text-sm text-slate-500 dark:text-slate-400">Cargando imágenes…</span>
+                    </div>
                 ) : nombres.length === 0 ? (
                     <div className="rounded-lg bg-white px-6 py-10 text-sm text-slate-500 dark:bg-slate-800 dark:text-slate-400">Sin imágenes para este SKU</div>
                 ) : (

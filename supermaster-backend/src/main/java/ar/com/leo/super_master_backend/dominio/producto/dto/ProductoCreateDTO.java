@@ -20,6 +20,8 @@ public record ProductoCreateDTO(
         String tituloMl,
         @Size(max = 100, message = "El título Nube no puede exceder 100 caracteres")
         String tituloNube,
+        @Size(max = 20000, message = "La descripción no puede exceder 20000 caracteres")
+        String descripcion,
         Boolean esCombo,
         @Positive(message = "UXB debe ser mayor a 0")
         Integer uxb,

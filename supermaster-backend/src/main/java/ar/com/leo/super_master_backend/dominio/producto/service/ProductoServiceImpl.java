@@ -1128,6 +1128,7 @@ public class ProductoServiceImpl implements ProductoService {
                 && !presente(patchDto.getTituloDux())
                 && !presente(patchDto.getTituloMl())
                 && !presente(patchDto.getTituloNube())
+                && !presente(patchDto.getDescripcion())
                 && !presente(patchDto.getEsCombo())
                 && !presente(patchDto.getUxb())
                 && !presente(patchDto.getMoq())
@@ -1210,6 +1211,9 @@ public class ProductoServiceImpl implements ProductoService {
         }
         if (presente(patchDto.getTituloNube())) {
             entity.setTituloNube(leerStringOpcional(patchDto.getTituloNube(), "tituloNube", 100));
+        }
+        if (presente(patchDto.getDescripcion())) {
+            entity.setDescripcion(leerStringOpcional(patchDto.getDescripcion(), "descripcion", 20000));
         }
         if (presente(patchDto.getEsCombo())) {
             entity.setEsCombo(leerBooleanOpcional(patchDto.getEsCombo(), "esCombo"));
@@ -1337,6 +1341,7 @@ public class ProductoServiceImpl implements ProductoService {
                 e.setAttributeId(a.attributeId());
                 e.setValueId((a.valueId() == null || a.valueId().isBlank()) ? null : a.valueId());
                 e.setValueName(a.valueName());
+                e.setNoAplica(a.noAplica());
                 entity.getMlAtributos().add(e);
             }
         }

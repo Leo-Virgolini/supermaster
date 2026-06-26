@@ -132,6 +132,31 @@ public class MlaServiceImpl implements MlaService {
     }
 
     @Override
+    public MlaDesdeMlDTO obtenerOcrearPorMlaDesdeML(String mlaCode) {
+        MercadoLibreService.MlaPorCodigo resultado = mercadoLibreService.buscarMlaPorCodigo(mlaCode);
+        if (resultado == null || resultado.mla() == null || resultado.mla().isBlank()) {
+            throw new NotFoundException("No se encontró el ítem " + mlaCode + " en MercadoLibre");
+        }
+        final String codigo = resultado.mla();
+
+        // Mismo patrón que por-SKU: asegurar el MLA en una tx corta, y luego comisión + envío
+        // FUERA de esa tx (cada uno en la suya; un fallo de ML no revierte el MLA recién creado).
+        Integer mlaId = self.asegurarMla(codigo, resultado.mlau());
+        try {
+            mercadoLibreService.obtenerCostoVenta(codigo);
+        } catch (Exception e) {
+            log.warn("ML - No se pudo obtener el costo de venta para {}: {}", codigo, e.getMessage());
+        }
+        try {
+            mercadoLibreService.calcularCostoEnvioGratis(codigo);
+        } catch (Exception e) {
+            log.warn("ML - No se pudo calcular el costo de envío para {}: {}", codigo, e.getMessage());
+        }
+
+        return new MlaDesdeMlDTO(self.obtener(mlaId), resultado.esCatalogo());
+    }
+
+    @Override
     @Transactional
     public void asegurarYAsociar(Integer productoId, String mlaCode, String mlau) {
         Integer mlaId = self.asegurarMla(mlaCode, mlau);

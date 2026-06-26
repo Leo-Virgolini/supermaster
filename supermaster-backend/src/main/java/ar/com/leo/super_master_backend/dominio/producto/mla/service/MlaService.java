@@ -23,6 +23,13 @@ public interface MlaService {
      */
     MlaDTO obtenerOcrearPorSkuDesdeML(String sku);
 
+    /**
+     * Trae un MLA desde MercadoLibre por su código (no por SKU), asegura el registro MLA y
+     * calcula/persiste envío y comisión. No filtra por status (sirve para activas o pausadas).
+     * @throws ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException si el ítem no existe en ML.
+     */
+    MlaDesdeMlDTO obtenerOcrearPorMlaDesdeML(String mlaCode);
+
     MlaDTO actualizar(Integer id, MlaUpdateDTO dto);
 
     MlaDTO patch(Integer id, MlaPatchDTO patch);

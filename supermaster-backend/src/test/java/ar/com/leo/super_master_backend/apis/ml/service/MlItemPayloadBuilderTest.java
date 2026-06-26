@@ -132,17 +132,17 @@ class MlItemPayloadBuilderTest {
 
     @Test
     void atributos_eanComoGtin_siCategoriaDeclaraGtin() {
-        Producto p = productoBase(); p.setEan("7791234567890");
+        Producto p = productoBase(); p.setEan("1234567890128");
         var attrs = MlItemPayloadBuilder.construirAtributos(p, Set.of("GTIN"));
         assertThat(attrs).anySatisfy(a -> {
             assertThat(a.get("id")).isEqualTo("GTIN");
-            assertThat(a.get("value_name")).isEqualTo("7791234567890");
+            assertThat(a.get("value_name")).isEqualTo("1234567890128");
         });
     }
 
     @Test
     void atributos_eanComoEan_siNoHayGtin() {
-        Producto p = productoBase(); p.setEan("7791234567890");
+        Producto p = productoBase(); p.setEan("1234567890128");
         var attrs = MlItemPayloadBuilder.construirAtributos(p, Set.of("EAN"));
         assertThat(attrs).anySatisfy(a -> assertThat(a.get("id")).isEqualTo("EAN"));
     }
@@ -151,6 +151,43 @@ class MlItemPayloadBuilderTest {
     void atributos_sinEan_noAgregaIdentificador() {
         var attrs = MlItemPayloadBuilder.construirAtributos(productoBase(), Set.of("GTIN"));
         assertThat(attrs).noneSatisfy(a -> assertThat(a.get("id")).isIn("GTIN", "EAN"));
+    }
+
+    @Test
+    void esGtinValido_validaLongitudYDigitoVerificador() {
+        assertThat(MlItemPayloadBuilder.esGtinValido("96385074")).isTrue();        // GTIN-8 válido
+        assertThat(MlItemPayloadBuilder.esGtinValido("1234567890128")).isTrue();   // EAN-13 válido
+        assertThat(MlItemPayloadBuilder.esGtinValido("12334578")).isFalse();       // dígito verificador inválido
+        assertThat(MlItemPayloadBuilder.esGtinValido("1178911569")).isFalse();     // 10 dígitos: longitud inválida
+        assertThat(MlItemPayloadBuilder.esGtinValido("abc")).isFalse();
+        assertThat(MlItemPayloadBuilder.esGtinValido(null)).isFalse();
+        assertThat(MlItemPayloadBuilder.esGtinValido("")).isFalse();
+    }
+
+    @Test
+    void atributos_eanInvalido_noSeEnvia_yNoBloqueaElResto() {
+        Producto p = productoBase();
+        p.setEan("1178911569"); // inválido (10 dígitos)
+        ProductoMlAtributo a = new ProductoMlAtributo();
+        a.setAttributeId("SHAPE"); a.setValueName("Cuadrada");
+        p.getMlAtributos().add(a);
+
+        var attrs = MlItemPayloadBuilder.construirAtributos(p, Set.of("GTIN"));
+
+        // El identificador inválido se omite, pero las características siguen.
+        assertThat(attrs).noneSatisfy(x -> assertThat(x.get("id")).isIn("GTIN", "EAN"));
+        assertThat(attrs).anySatisfy(x -> assertThat(x.get("id")).isEqualTo("SHAPE"));
+    }
+
+    @Test
+    void atributos_eanValido_seEnviaComoGtin() {
+        Producto p = productoBase();
+        p.setEan("1234567890128"); // EAN-13 válido
+        var attrs = MlItemPayloadBuilder.construirAtributos(p, Set.of("GTIN"));
+        assertThat(attrs).anySatisfy(x -> {
+            assertThat(x.get("id")).isEqualTo("GTIN");
+            assertThat(x.get("value_name")).isEqualTo("1234567890128");
+        });
     }
 
     @Test
@@ -172,5 +209,43 @@ class MlItemPayloadBuilderTest {
             assertThat(a).doesNotContainKey("value_id");
             assertThat(a.get("value_name")).isEqualTo("X100");
         });
+    }
+
+    @Test
+    void atributos_brandGuardadoPrevaleceSobreLaMarcaDelProducto() {
+        Producto p = productoBase(); // marca = "Tramontina"
+        ProductoMlAtributo brand = new ProductoMlAtributo();
+        brand.setAttributeId("BRAND"); brand.setValueName("ARCOS");
+        p.getMlAtributos().add(brand);
+
+        var attrs = MlItemPayloadBuilder.construirAtributos(p, Set.of());
+
+        var brands = attrs.stream().filter(a -> "BRAND".equals(a.get("id"))).toList();
+        assertThat(brands).hasSize(1);
+        assertThat(brands.get(0).get("value_name")).isEqualTo("ARCOS");
+    }
+
+    @Test
+    void atributos_marcaAutoSiNoHayBrandGuardado() {
+        Producto p = productoBase(); // marca = "Tramontina", sin BRAND guardado
+        var attrs = MlItemPayloadBuilder.construirAtributos(p, Set.of());
+        var brands = attrs.stream().filter(a -> "BRAND".equals(a.get("id"))).toList();
+        assertThat(brands).hasSize(1);
+        assertThat(brands.get(0).get("value_name")).isEqualTo("Tramontina");
+    }
+
+    @Test
+    void atributos_noAplicaSeOmiteDelPayload() {
+        Producto p = productoBase();
+        ProductoMlAtributo na = new ProductoMlAtributo();
+        na.setAttributeId("SHAPE"); na.setValueName(""); na.setNoAplica(true);
+        ProductoMlAtributo ok = new ProductoMlAtributo();
+        ok.setAttributeId("MODEL"); ok.setValueName("X100");
+        p.getMlAtributos().addAll(List.of(na, ok));
+
+        var attrs = MlItemPayloadBuilder.construirAtributos(p, Set.of());
+
+        assertThat(attrs).noneSatisfy(a -> assertThat(a.get("id")).isEqualTo("SHAPE"));
+        assertThat(attrs).anySatisfy(a -> assertThat(a.get("id")).isEqualTo("MODEL"));
     }
 }

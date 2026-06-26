@@ -16,6 +16,10 @@ public record MlAtributoDefDTO(
         boolean required,
         boolean conditional,
         boolean multivalued,
-        String grupo
+        String grupo,
+        int relevance,
+        Integer valueMaxLength,
+        String example,
+        String hint
 ) {
 }

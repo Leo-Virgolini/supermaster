@@ -22,16 +22,16 @@ import static org.mockito.Mockito.when;
 class MlCategoriaAtributosEndpointTest {
 
     private final MlCategoriaAtributoService service = mock(MlCategoriaAtributoService.class);
-    private final MercadoLibreController controller = new MercadoLibreController(null, null, service);
+    private final MercadoLibreController controller = new MercadoLibreController(null, null, service, null);
 
     @Test
     void atributosCategoria_devuelve200ConListaDelServicio() {
         String categoryId = "MLA1055";
         MlAtributoDefDTO atributo = new MlAtributoDefDTO(
                 "BICYCLE_TYPE", "Tipo de bicicleta", "string",
-                List.of(new MlAtributoValorDTO("1", "MTB")),
+                List.of(new MlAtributoValorDTO("1", "MTB", null)),
                 List.of(), null,
-                true, false, false, "PRINCIPALES"
+                true, false, false, "PRINCIPALES", 1, null, null, null
         );
         when(service.obtenerAtributos(categoryId)).thenReturn(List.of(atributo));
 

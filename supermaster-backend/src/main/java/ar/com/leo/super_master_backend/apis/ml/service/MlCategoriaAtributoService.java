@@ -171,7 +171,7 @@ public class MlCategoriaAtributoService {
                 for (JsonNode v : valuesNode) {
                     String vid   = v.path("id").asString(null);
                     String vname = v.path("name").asString(null);
-                    values.add(new MlAtributoValorDTO(vid, vname));
+                    values.add(new MlAtributoValorDTO(vid, vname, null));
                 }
             }
 
@@ -189,16 +189,35 @@ public class MlCategoriaAtributoService {
 
             String defaultUnit = node.path("default_unit").asString(null);
 
-            // Grupo
-            String groupId = node.path("attribute_group_id").asString("");
-            String grupo = "MAIN".equals(groupId) ? "PRINCIPALES" : "SECUNDARIAS";
+            // Grupo: ML ya no devuelve attribute_group_id="MAIN" (todos vienen como "OTHERS"),
+            // así que el grupo se deriva de relevance. relevance=1 (o un required) → principal.
+            int relevance = node.path("relevance").asInt(0);
+            String grupo = (relevance == 1 || required) ? "PRINCIPALES" : "SECUNDARIAS";
+
+            // Metadata de ayuda/validación para el formulario
+            Integer valueMaxLength = node.hasNonNull("value_max_length")
+                    ? node.path("value_max_length").asInt() : null;
+            String example = blankToNull(node.path("example").asString(null));
+            // hint suele venir vacío; usar tooltip como fallback
+            String hint = blankToNull(node.path("hint").asString(null));
+            if (hint == null) {
+                hint = blankToNull(node.path("tooltip").asString(null));
+            }
 
             result.add(new MlAtributoDefDTO(
                     id, name, valueType, values, allowedUnits, defaultUnit,
-                    required, conditional, multivalued, grupo
+                    required, conditional, multivalued, grupo,
+                    relevance, valueMaxLength, example, hint
             ));
         }
+        // Ordenar por relevance ascendente (1 = más importante primero); estable conserva el orden de ML.
+        result.sort(java.util.Comparator.comparingInt(MlAtributoDefDTO::relevance));
         return result;
+    }
+
+    /** Devuelve null si el string es null/blanco, si no el mismo string. */
+    private static String blankToNull(String s) {
+        return (s == null || s.isBlank()) ? null : s;
     }
 
     // =====================================================================

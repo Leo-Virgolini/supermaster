@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { notificar } from "../utils/notificar";
 import { BuildingStorefrontIcon, CheckIcon, CheckCircleIcon, CloudArrowDownIcon, CubeIcon, FireIcon, HomeIcon, XMarkIcon, IdentificationIcon, CurrencyDollarIcon, ArchiveBoxIcon, ReceiptPercentIcon, Squares2X2Icon, UserGroupIcon, ShoppingBagIcon, BanknotesIcon, InformationCircleIcon, SparklesIcon } from "@heroicons/react/24/outline";
@@ -9,7 +9,7 @@ import Button from "../components/Button/Button";
 import Modal from "../components/Modal/Modal";
 import AsyncSelect from "../components/AsyncSelect/AsyncSelect";
 import {
-    getSiguienteSkuAPI, existeSkuAPI, getMlaPorSkuAPI, createMlaAPI, getMlaPorIdAPI, patchMlaAPI, type MlaDetalleDTO,
+    getSiguienteSkuAPI, existeSkuAPI, getMlaPorCodigoAPI, createMlaAPI, getMlaPorIdAPI, patchMlaAPI, type MlaDetalleDTO,
     searchMarcas, searchClasifGral, searchClasifGastro, searchTipos, searchProveedores, searchOrigenes, searchMateriales, searchMlas,
     searchCatalogos, searchAptos, searchClientes, searchCanales, addProductoCatalogoAPI, addProductoAptoAPI, addProductoClienteAPI,
     removeProductoCatalogoAPI, removeProductoAptoAPI, removeProductoClienteAPI, updateProductoAPI, getNombreById,
@@ -17,7 +17,8 @@ import {
     generarSeoAPI, type DestinoNube, type SeoNube,
     searchSectoresDeposito, predecirCategoriasMlAPI, type PrediccionCategoriaMl,
     getImagenDetalleAPI, type ImagenDetalle,
-    getMlCategoriaAtributosAPI, type MlAtributoDef, type ProductoMlAtributo,
+    getMlCategoriaFichaAPI, type MlAtributoDef, type ProductoMlAtributo,
+    type MlFicha, type MlComponente,
     getMlCategoriaMaxTitleAPI,
 } from "./productosService";
 import { updateProductoMargenAPI } from "./productoMargenService";
@@ -76,6 +77,26 @@ const etiquetaCuota = (cuotas: number, descripcion?: string) =>
 
 type CuotaOpcion = { cuotas: number; descripcion: string };
 
+// Etiqueta corta de cada sección de la ficha ML (evita repetir "Características de la…").
+const SECCION_LABEL_ML: Record<string, string> = {
+    VARIANTE: "Variante",
+    PRINCIPALES: "Principales",
+    SECUNDARIAS: "Secundarias",
+};
+
+// Valida un GTIN/EAN: longitud 8/12/13/14 + dígito verificador (módulo 10 de GS1). Igual que el
+// backend: ML rechaza identificadores con formato inválido y, peor, eso bloquea todos los atributos.
+const gtinValido = (codigo: string): boolean => {
+    const s = codigo.trim();
+    if (![8, 12, 13, 14].includes(s.length) || !/^\d+$/.test(s)) return false;
+    let sum = 0;
+    for (let i = 0; i < s.length - 1; i++) {
+        const d = s.charCodeAt(s.length - 2 - i) - 48;
+        sum += i % 2 === 0 ? d * 3 : d;
+    }
+    return (10 - (sum % 10)) % 10 === s.charCodeAt(s.length - 1) - 48;
+};
+
 const EXT_ML = new Set(["jpg", "jpeg", "png"]);
 const EXT_NUBE = new Set(["gif", "jpg", "jpeg", "png", "webp"]);
 const MAX_BYTES_IMG = 10 * 1024 * 1024; // 10 MB
@@ -114,6 +135,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const [prediccionesMl, setPrediccionesMl] = useState<PrediccionCategoriaMl[]>([]);
     const [cargandoPrediccionesMl, setCargandoPrediccionesMl] = useState(false);
     const [tituloNube, setTituloNube] = useState("");
+    const [descripcion, setDescripcion] = useState("");
     const [esCombo, setEsCombo] = useState(false);
     const [subirADux, setSubirADux] = useState(true);
     const [subirKtHogar, setSubirKtHogar] = useState(true);
@@ -184,8 +206,14 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const [mlPaqLargo, setMlPaqLargo] = useState<number | "">("");
     const [mlPaqPeso, setMlPaqPeso] = useState<number | "">("");
     const [ean, setEan] = useState("");
-    // Atributos de la categoría ML
-    const [mlAtributosDef, setMlAtributosDef] = useState<MlAtributoDef[]>([]);
+    // Ficha técnica de la categoría ML (secciones → componentes → atributos).
+    const [mlFicha, setMlFicha] = useState<MlFicha | null>(null);
+    // Lista plana de definiciones de atributos (derivada de la ficha) para validar required.
+    const mlAtributosDef = useMemo<MlAtributoDef[]>(
+        () => mlFicha?.secciones.flatMap(s => s.componentes.flatMap(c => c.atributos)) ?? [],
+        [mlFicha]);
+    // Ids de atributos presentes en la ficha (para la sincronización con dimensiones físicas).
+    const fichaAttrIds = useMemo(() => new Set(mlAtributosDef.map(d => d.id)), [mlAtributosDef]);
     const [mlAtributosVal, setMlAtributosVal] = useState<Record<string, ProductoMlAtributo>>({});
     // Límite de caracteres del Título ML según la categoría seleccionada (null = sin categoría).
     const [maxTitleLengthMl, setMaxTitleLengthMl] = useState<number | null>(null);
@@ -421,7 +449,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 return;
             }
             const payload: ProductoCreateDTO = {
-                sku: sku.trim(), codExt, tituloDux: tituloDux.trim(), tituloMl: tituloMl.trim() || null, tituloNube: tituloNube.trim() || null, esCombo, uxb, activo,
+                sku: sku.trim(), codExt, tituloDux: tituloDux.trim(), tituloMl: tituloMl.trim() || null, tituloNube: tituloNube.trim() || null, descripcion: descripcion.trim() || null, esCombo, uxb, activo,
                 capacidad, largo: largo || null, ancho: ancho || null, alto: alto || null,
                 diamboca: diamboca || null, diambase: diambase || null, espesor: espesor || null,
                 costo: costoNum, iva,
@@ -500,6 +528,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             setMlCategoryNombre(producto.mlCategoryNombre ?? null);
             setPrediccionesMl([]);
             setTituloNube(producto.tituloNube ?? "");
+            setDescripcion(producto.descripcion ?? "");
             setEsCombo(!!producto.esCombo);
             setUxb(producto.uxb ?? 1);
             setActivo(!!producto.activo);
@@ -579,6 +608,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             setSeoHogar({ title: "", description: "", tags: "" });
             setSeoGastro({ title: "", description: "", tags: "" });
             setEan("");
+            setDescripcion("");
             setMlAtributosVal({});
             void cargarSkuSugerido(false);
         }
@@ -606,7 +636,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 return;
             }
             const patch = {
-                codExt, tituloDux: tituloDux.trim(), tituloMl: tituloMl.trim() || null, tituloNube: tituloNube.trim() || null, esCombo, uxb, activo,
+                codExt, tituloDux: tituloDux.trim(), tituloMl: tituloMl.trim() || null, tituloNube: tituloNube.trim() || null, descripcion: descripcion.trim() || null, esCombo, uxb, activo,
                 capacidad, largo: largo || null, ancho: ancho || null, alto: alto || null,
                 diamboca: diamboca || null, diambase: diambase || null, espesor: espesor || null,
                 costo: costoNum, iva, stock: stock !== "" ? stock : null, moq: moq !== "" ? moq : null,
@@ -794,13 +824,13 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         return () => clearTimeout(t);
     }, [mlaCodigo]);
 
-    // Carga las definiciones de atributos de la categoría ML cada vez que cambia mlCategoryId.
+    // Carga la ficha técnica de la categoría ML cada vez que cambia mlCategoryId.
     useEffect(() => {
-        if (!mlCategoryId) { setMlAtributosDef([]); return; }
+        if (!mlCategoryId) { setMlFicha(null); return; }
         let cancel = false;
-        getMlCategoriaAtributosAPI(mlCategoryId)
-            .then(defs => { if (!cancel) setMlAtributosDef(defs); })
-            .catch(() => { if (!cancel) setMlAtributosDef([]); });
+        getMlCategoriaFichaAPI(mlCategoryId)
+            .then(ficha => { if (!cancel) setMlFicha(ficha); })
+            .catch(() => { if (!cancel) setMlFicha(null); });
         return () => { cancel = true; };
     }, [mlCategoryId]);
 
@@ -814,15 +844,107 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         return () => { cancel = true; };
     }, [mlCategoryId]);
 
-    // Helper para actualizar un atributo ML en el estado.
-    const setAtributo = (id: string, valueName: string, valueId: string | null = null) => {
+    // ===== Sincronización Dimensiones Físicas ↔ atributos de dimensión de ML =====
+    type FisicoKey = "alto" | "ancho" | "largo" | "diamboca" | "diambase" | "capacidad" | "espesor";
+    // Mapeo atributo ML → campo físico + unidad. Se indexa por id de atributo porque algunas
+    // categorías separan el diámetro en boca/base (MOUTH_DIAMETER / BASE_DIAMETER).
+    const ML_DIM_MAP: Record<string, { fisico: FisicoKey; unidad: string }> = {
+        HEIGHT: { fisico: "alto", unidad: "cm" },
+        WIDTH: { fisico: "ancho", unidad: "cm" },
+        LENGTH: { fisico: "largo", unidad: "cm" },
+        DIAMETER: { fisico: "diamboca", unidad: "cm" },
+        MOUTH_DIAMETER: { fisico: "diamboca", unidad: "cm" },
+        BASE_DIAMETER: { fisico: "diambase", unidad: "cm" },
+        CAPACITY: { fisico: "capacidad", unidad: "" }, // capacidad: string libre con unidad
+        THICKNESS: { fisico: "espesor", unidad: "mm" },
+    };
+    const fisicoSetters: Record<FisicoKey, (v: string) => void> = {
+        alto: setAlto, ancho: setAncho, largo: setLargo,
+        diamboca: setDiamboca, diambase: setDiambase, capacidad: setCapacidad, espesor: setEspesor,
+    };
+    const fisicoValues: Record<FisicoKey, string> = { alto, ancho, largo, diamboca, diambase, capacidad, espesor };
+    // Extrae el primer número (acepta coma o punto) de un texto libre.
+    const parseNumero = (s: string): string => {
+        const m = (s ?? "").match(/-?\d+(?:[.,]\d+)?/);
+        return m ? m[0].replace(",", ".") : "";
+    };
+    const formatNumberUnit = (num: string, unidad: string): string =>
+        num ? (unidad ? `${num} ${unidad}` : num) : "";
+
+    // Actualiza solo el estado del atributo ML (sin tocar las dimensiones físicas).
+    const setAtributoCore = (id: string, valueName: string, valueId: string | null = null) => {
         setMlAtributosVal(prev => {
             const next = { ...prev };
-            if (!valueName) delete next[id]; else next[id] = { attributeId: id, valueId, valueName };
+            const cur = next[id];
+            if (!valueName && !cur?.noAplica) delete next[id];
+            else next[id] = { attributeId: id, valueId, valueName, noAplica: cur?.noAplica ?? false };
             return next;
         });
         setFormErrors(p => p.mlAtributos ? { ...p, mlAtributos: "" } : p);
     };
+
+    // Setter usado por los inputs de la ficha ML: además espeja a la dimensión física mapeada.
+    const setAtributo = (id: string, valueName: string, valueId: string | null = null) => {
+        setAtributoCore(id, valueName, valueId);
+        const map = ML_DIM_MAP[id];
+        if (map) fisicoSetters[map.fisico](map.fisico === "capacidad" ? valueName : parseNumero(valueName));
+    };
+
+    // Marca/desmarca "No aplica" para un atributo (conserva o limpia el valor según corresponda).
+    const setNoAplica = (id: string, checked: boolean) => {
+        setMlAtributosVal(prev => {
+            const next = { ...prev };
+            const cur = next[id];
+            if (checked) next[id] = { attributeId: id, valueId: null, valueName: "", noAplica: true };
+            else if (cur?.valueName) next[id] = { ...cur, noAplica: false };
+            else delete next[id];
+            return next;
+        });
+        setFormErrors(p => p.mlAtributos ? { ...p, mlAtributos: "" } : p);
+    };
+
+    // Setter usado por los inputs de "Dimensiones Físicas": espeja a los atributos ML presentes.
+    const onFisicoChange = (fisico: FisicoKey, raw: string) => {
+        fisicoSetters[fisico](raw);
+        for (const [attrId, m] of Object.entries(ML_DIM_MAP)) {
+            if (m.fisico !== fisico || !fichaAttrIds.has(attrId) || mlAtributosVal[attrId]?.noAplica) continue;
+            // Conserva la unidad que el usuario ya eligió en el atributo ML; si no hay, usa la del mapeo.
+            const unidadActual = (mlAtributosVal[attrId]?.valueName ?? "").split(" ").slice(1).join(" ") || m.unidad;
+            const valueName = m.fisico === "capacidad" ? raw : formatNumberUnit(parseNumero(raw), unidadActual);
+            setAtributoCore(attrId, valueName, mlAtributosVal[attrId]?.valueId ?? null);
+        }
+    };
+
+    // Al cargar la ficha, pre-llena los atributos de dimensión vacíos desde las dimensiones físicas.
+    useEffect(() => {
+        if (!mlFicha) return;
+        setMlAtributosVal(prev => {
+            const next = { ...prev };
+            let changed = false;
+            for (const [attrId, m] of Object.entries(ML_DIM_MAP)) {
+                if (!fichaAttrIds.has(attrId) || next[attrId]?.valueName || next[attrId]?.noAplica) continue;
+                const fisico = fisicoValues[m.fisico];
+                const valueName = m.fisico === "capacidad"
+                    ? fisico
+                    : (parseNumero(fisico) ? formatNumberUnit(parseNumero(fisico), m.unidad) : "");
+                if (valueName) { next[attrId] = { attributeId: attrId, valueId: null, valueName, noAplica: false }; changed = true; }
+            }
+            return changed ? next : prev;
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mlFicha, fichaAttrIds]);
+
+    // Pre-carga el atributo BRAND (Marca) con el nombre de la marca del producto, si está vacío.
+    useEffect(() => {
+        if (!mlFicha || !fichaAttrIds.has("BRAND")) return;
+        const marcaLeaf = marcaDisplay.split(">").pop()?.trim() ?? "";
+        if (!marcaLeaf) return;
+        setMlAtributosVal(prev => {
+            const cur = prev["BRAND"];
+            if (cur?.valueName || cur?.noAplica) return prev;
+            return { ...prev, BRAND: { attributeId: "BRAND", valueId: null, valueName: marcaLeaf, noAplica: false } };
+        });
+    }, [mlFicha, fichaAttrIds, marcaDisplay]);
 
     const aplicarMlaEnForm = (mla: { id: number; mla: string; mlau: string | null; precioEnvio: number | null; comisionPorcentaje: number | null; topePromocion: number | null }) => {
         setMlaCodigo(mla.mla);
@@ -887,18 +1009,21 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         return { mlaId: creado.id, fueCreado: true };
     };
 
-    // Busca la publicación en ML por el SKU del form: crea/asegura el MLA, calcula
-    // envío + comisión y lo deja seleccionado.
+    // Trae la publicación de ML por el CÓDIGO MLA cargado en el form (activa o pausada):
+    // crea/asegura el MLA, calcula envío + comisión y lo deja seleccionado. Avisa si es de catálogo.
     const handleObtenerMlaDeML = async () => {
-        if (!sku.trim()) {
-            toast.error("Cargá primero el SKU para buscar en MercadoLibre");
+        if (!mlaCodigo.trim()) {
+            toast.error("Cargá primero el código MLA para traerlo de MercadoLibre");
             return;
         }
         setObteniendoMla(true);
         try {
-            const mla = await getMlaPorSkuAPI(sku.trim());
-            aplicarMlaEnForm(mla);
-            notificar.success(`MLA ${mla.mla} obtenido de MercadoLibre`);
+            const r = await getMlaPorCodigoAPI(mlaCodigo.trim());
+            aplicarMlaEnForm(r.mla);
+            if (r.esCatalogo) {
+                notificar.warning(`El MLA ${r.mla.mla} es una publicación de catálogo; el flujo de publicación puede diferir.`);
+            }
+            notificar.success(`MLA ${r.mla.mla} traído de MercadoLibre`);
         } catch (e) {
             notificar.error(e instanceof Error ? e.message : "Error al obtener el MLA");
         } finally {
@@ -983,7 +1108,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const sectionTitleClassName = "flex items-center gap-2 text-base font-semibold text-slate-900 dark:text-slate-100 [&_svg]:h-5 [&_svg]:w-5 [&_svg]:text-blue-500 dark:[&_svg]:text-blue-400";
     const sectionDescriptionClassName = "mt-1 text-xs text-slate-500 dark:text-slate-400";
     const fieldLabelClassName = "block text-sm font-semibold text-slate-700 dark:text-slate-200";
-    const inputBaseClassName = "mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:ring-blue-500/20";
+    const inputBaseClassName = "mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:opacity-70 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:ring-blue-500/20 dark:disabled:bg-slate-900/40 dark:disabled:text-slate-500";
     const inputErrorClassName = "border-red-300 bg-red-50 focus:border-red-400 focus:ring-red-100 dark:border-red-700 dark:bg-red-950/20 dark:focus:ring-red-500/20";
     const checkboxCardClassName = "flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200";
     // Card de canal (sección Canales de venta): layout en columna y altura uniforme para que el
@@ -991,38 +1116,82 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const canalCardClassName = "flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200";
     const selectBaseClassName = `${inputBaseClassName} appearance-none`;
 
-    // Renderiza el input correcto según el tipo de atributo ML (definida aquí para acceder a las clases).
-    const renderMlAtributoInput = (d: MlAtributoDef) => {
+    // Renderiza el input de un atributo según el tipo de componente de ML.
+    const renderMlAtributoInput = (d: MlAtributoDef, c: MlComponente) => {
         const v = mlAtributosVal[d.id];
-        if (d.valueType === "list" || d.valueType === "boolean") {
+        const disabled = v?.noAplica ?? false;
+        const hasRgb = d.values.some(o => o.rgb);
+        // "No aplica" → input claramente gris (con !important para pisar el bg-white de la clase base).
+        const grisOff = disabled ? " !bg-slate-200 !border-slate-200 !text-slate-400 !shadow-none cursor-not-allowed dark:!bg-slate-900/50 dark:!border-slate-700 dark:!text-slate-500" : "";
+        const inputCls = `${inputBaseClassName}${grisOff}`;
+        const selectCls = `${selectBaseClassName}${grisOff}`;
+
+        // COLOR_INPUT con paleta: swatch del color seleccionado + select de valores.
+        if (c.tipo === "COLOR_INPUT" && hasRgb) {
+            const sel = d.values.find(o => o.id === v?.valueId);
             return (
-                <select className={selectBaseClassName} value={v?.valueId ?? ""}
+                <div className="mt-1 flex items-center gap-2">
+                    <span className="h-6 w-6 shrink-0 rounded-full border border-slate-300 dark:border-slate-600"
+                        style={{ background: sel?.rgb ? `#${sel.rgb}` : "transparent" }} />
+                    <select className={selectCls} value={v?.valueId ?? ""} disabled={disabled}
+                        onChange={e => { const opt = d.values.find(o => o.id === e.target.value); setAtributo(d.id, opt?.name ?? "", opt?.id ?? null); }}>
+                        <option value="">—</option>
+                        {d.values.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+                    </select>
+                </div>
+            );
+        }
+        // BOOLEAN_INPUT → toggle Sí/No (values trae las dos opciones).
+        if ((c.tipo === "BOOLEAN_INPUT" || d.valueType === "boolean") && d.values.length > 0) {
+            return (
+                <div className="mt-1 inline-flex overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
+                    {d.values.map(o => (
+                        <button key={o.id} type="button" disabled={disabled}
+                            onClick={() => setAtributo(d.id, o.name, o.id)}
+                            className={`px-4 py-2 text-sm font-medium transition disabled:opacity-50 ${v?.valueId === o.id ? "bg-blue-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-300"}`}>
+                            {o.name}
+                        </button>
+                    ))}
+                </div>
+            );
+        }
+        // list o COMBO sin valor libre → select.
+        if (d.valueType === "list" || (c.tipo === "COMBO" && !c.allowCustomValue && d.values.length > 0)) {
+            return (
+                <select className={`${selectCls} mt-1`} value={v?.valueId ?? ""} disabled={disabled}
                     onChange={e => { const opt = d.values.find(o => o.id === e.target.value); setAtributo(d.id, opt?.name ?? "", opt?.id ?? null); }}>
                     <option value="">—</option>
                     {d.values.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
                 </select>
             );
         }
+        // number_unit → número + unidad.
         if (d.valueType === "number_unit") {
             const parts = (v?.valueName ?? "").split(" ");
             const num = parts[0] ?? "";
             const unit = parts.slice(1).join(" ");
+            // Algunas dimensiones de ML no declaran allowed_units; usamos la unidad del mapeo físico como fallback.
+            const unidades = d.allowedUnits.length ? d.allowedUnits : (ML_DIM_MAP[d.id] ? [ML_DIM_MAP[d.id].unidad] : []);
+            const unidadActual = unit || d.defaultUnit || unidades[0] || "";
             const setNU = (n: string, u: string) => setAtributo(d.id, n ? `${n} ${u}` : "");
             return (
-                <div className="flex gap-2">
-                    <input type="number" className={inputBaseClassName} value={num}
-                        onChange={e => setNU(e.target.value, unit || d.defaultUnit || d.allowedUnits[0] || "")} />
-                    <select className={selectBaseClassName} value={unit || d.defaultUnit || ""}
+                <div className="mt-1 flex gap-2">
+                    <input type="number" className={inputCls} value={num} disabled={disabled} placeholder={c.example ?? undefined}
+                        onChange={e => setNU(e.target.value, unidadActual)} />
+                    <select className={selectCls} value={unidadActual} disabled={disabled}
                         onChange={e => setNU(num, e.target.value)}>
-                        {d.allowedUnits.map(u => <option key={u} value={u}>{u}</option>)}
+                        {unidades.map(u => <option key={u} value={u}>{u}</option>)}
                     </select>
                 </div>
             );
         }
-        // string / number: texto o numérico, con datalist de sugeridos si hay values
+        // string / number / COMBO con valor libre → texto, con datalist de sugeridos si hay values.
         return (
             <>
-                <input type={d.valueType === "number" ? "number" : "text"} className={inputBaseClassName}
+                <input type={d.valueType === "number" ? "number" : "text"} className={inputCls}
+                    disabled={disabled}
+                    maxLength={d.valueType === "number" ? undefined : (d.valueMaxLength ?? undefined)}
+                    placeholder={c.example ?? undefined}
                     list={d.values.length ? `dl-${d.id}` : undefined} value={v?.valueName ?? ""}
                     onChange={e => setAtributo(d.id, e.target.value)} />
                 {d.values.length > 0 && (
@@ -1034,11 +1203,70 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         );
     };
 
+    // Renderiza una celda (label + input + ayuda + "No aplica") para un atributo dentro de un componente.
+    const renderMlCelda = (d: MlAtributoDef, c: MlComponente, label: string, mostrarAyuda: boolean) => {
+        const v = mlAtributosVal[d.id];
+        const faltante = d.required && formErrors.mlAtributos && !v?.valueName?.trim();
+        return (
+            <div key={d.id}>
+                <span className="flex items-center gap-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    <span className={faltante ? "text-red-600 dark:text-red-400" : ""}>
+                        {label}{d.required && <span className="text-red-500"> *</span>}
+                    </span>
+                    {mostrarAyuda && c.tooltip && (
+                        <Tooltip content={c.tooltip} className="flex items-center">
+                            <InformationCircleIcon className="h-3.5 w-3.5 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
+                        </Tooltip>
+                    )}
+                </span>
+                {renderMlAtributoInput(d, c)}
+                {mostrarAyuda && c.hint && <span className="mt-0.5 block text-[11px] leading-tight text-slate-400 dark:text-slate-500">{c.hint}</span>}
+                {!d.required && (
+                    <label className="mt-1 flex w-fit items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                        <input type="checkbox" className="h-3.5 w-3.5 rounded border-slate-300"
+                            checked={v?.noAplica ?? false} onChange={e => setNoAplica(d.id, e.target.checked)} />
+                        No aplica
+                    </label>
+                )}
+            </div>
+        );
+    };
+
+    // Devuelve las celdas de un componente para la grilla de la sección.
+    // - COLOR_INPUT: una sola celda (la del swatch).
+    // - Multi-atributo (LINKED_BY_CONNECTOR_INPUT, p.ej. "Medidas"): un bloque agrupado con borde,
+    //   título del componente y los sub-campos (Altura/Ancho/Largo) en una sub-grilla.
+    // - Un solo atributo: una celda normal con su ayuda (hint/tooltip).
+    const renderMlComponenteCeldas = (c: MlComponente) => {
+        if (c.tipo === "COLOR_INPUT") {
+            const d = c.atributos.find(a => a.values.some(v => v.rgb)) ?? c.atributos[0];
+            return d ? [renderMlCelda(d, c, c.label, true)] : [];
+        }
+        if (c.atributos.length > 1) {
+            return [(
+                <div key={c.label} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 dark:border-slate-700 dark:bg-slate-800/30 md:col-span-2 xl:col-span-3">
+                    <span className="flex items-center gap-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                        {c.label}
+                        {c.tooltip && (
+                            <Tooltip content={c.tooltip} className="flex items-center">
+                                <InformationCircleIcon className="h-3.5 w-3.5 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
+                            </Tooltip>
+                        )}
+                    </span>
+                    <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        {c.atributos.map(a => renderMlCelda(a, c, a.name, false))}
+                    </div>
+                </div>
+            )];
+        }
+        return c.atributos.map(a => renderMlCelda(a, c, a.name, true));
+    };
+
     return (
         <>
             {/* MODAL CREAR / EDITAR PRODUCTO */}
-            <Modal isOpen={true} onClose={onClose} title={editandoProductoId ? `Editar Producto${sku ? ` · ${sku}` : ""}` : "Nuevo Producto"} size="3xl" closeOnEscape={false} busy={isSaving}
-                footer={<><Button variant="light" onClick={onClose}><XMarkIcon className="w-4 h-4" /> Cancelar</Button><Button variant="dark" onClick={editandoProductoId ? handleGuardarEdicion : handleCreate} disabled={isSaving || (!editandoProductoId && skuYaExiste)}>{isSaving ? <SpinnerIcon /> : <CheckIcon className="w-4 h-4" />} {isSaving ? (editandoProductoId ? "Guardando..." : "Creando Producto...") : (editandoProductoId ? "Guardar Cambios" : "Crear Producto")}</Button></>}>
+            <Modal isOpen={true} onClose={() => { if (!isSaving) onClose(); }} title={editandoProductoId ? `Editar Producto${sku ? ` · ${sku}` : ""}` : "Nuevo Producto"} size="3xl" closeOnEscape={false} busy={isSaving}
+                footer={<><Button variant="light" onClick={onClose} disabled={isSaving}><XMarkIcon className="w-4 h-4" /> Cancelar</Button><Button variant="dark" onClick={editandoProductoId ? handleGuardarEdicion : handleCreate} disabled={isSaving || (!editandoProductoId && skuYaExiste)}>{isSaving ? <SpinnerIcon /> : <CheckIcon className="w-4 h-4" />} {isSaving ? (editandoProductoId ? "Guardando..." : "Creando Producto...") : (editandoProductoId ? "Guardar Cambios" : "Crear Producto")}</Button></>}>
                 <div className="text-sm">
                     {/* Tabs solo en modo edición: Datos (form) e Historial */}
                     {editandoProductoId && (
@@ -1206,10 +1434,15 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 {formErrors.tituloDux && <p className="mt-1 text-xs text-red-500">{formErrors.tituloDux}</p>}
                             </label>
                             <label className="block md:col-span-2">
-                                <span className={`${fieldLabelClassName} flex items-baseline gap-2`}>
-                                    Título ML
+                                <span className="flex items-center justify-between gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                    <span>Título ML</span>
                                     {maxTitleLengthMl != null && (
-                                        <span className={`text-xs font-normal ${tituloMl.length >= maxTitleLengthMl ? "text-red-500 dark:text-red-400" : tituloMl.length >= maxTitleLengthMl * 0.9 ? "text-amber-500 dark:text-amber-400" : "text-slate-500 dark:text-slate-400"}`}>
+                                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ${
+                                            tituloMl.length >= maxTitleLengthMl
+                                                ? "bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-400"
+                                                : tituloMl.length >= maxTitleLengthMl * 0.9
+                                                    ? "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
+                                                    : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"}`}>
                                             {tituloMl.length}/{maxTitleLengthMl}
                                         </span>
                                     )}
@@ -1448,8 +1681,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                             <button
                                 type="button"
                                 onClick={handleObtenerMlaDeML}
-                                disabled={obteniendoMla || !sku.trim()}
-                                title={!sku.trim() ? "Cargá primero el SKU" : "Trae el MLA y sus datos desde tu publicación de MercadoLibre"}
+                                disabled={obteniendoMla || !mlaCodigo.trim()}
+                                title={!mlaCodigo.trim() ? "Cargá primero el código MLA" : "Trae el MLA y sus datos (MLAU, envío, comisión) desde tu publicación de MercadoLibre"}
                                 className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-400 px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:from-amber-300 hover:to-yellow-300 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 <CloudArrowDownIcon className={`h-4 w-4 ${obteniendoMla ? "animate-pulse" : ""}`} />
@@ -1496,38 +1729,36 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                             </label>
                         </div>
 
-                        {/* Atributos de categoría ML */}
-                        {mlCategoryId && mlAtributosDef.length > 0 && (
+                        {/* Descripción del producto (texto manual; se combina con las características autogeneradas) */}
+                        <div className="mt-6 border-t border-slate-200/70 pt-4 dark:border-slate-700/70">
+                            <label className="block">
+                                <span className={fieldLabelClassName}>Descripción</span>
+                                <textarea className={inputBaseClassName} value={descripcion} onChange={e => setDescripcion(e.target.value)} rows={4} maxLength={20000}
+                                    placeholder="Descripción del producto (texto plano). Se combina con las características automáticas al publicar en ML y Nube." />
+                                <span className="mt-0.5 block text-[11px] text-slate-400 dark:text-slate-500">Va arriba de las CARACTERÍSTICAS autogeneradas. Para ML se envía como texto plano (sin HTML).</span>
+                            </label>
+                        </div>
+
+                        {/* Ficha técnica de la categoría ML (Variante / Principales / Secundarias) */}
+                        {mlCategoryId && mlFicha && mlFicha.secciones.length > 0 && (
                             <div className="mt-6 border-t border-slate-200/70 pt-4 dark:border-slate-700/70">
-                                <div className="mb-3 flex items-center gap-1.5">
-                                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Características</span>
+                                <div className="mb-1 flex items-center gap-1.5">
+                                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Características de Mercado Libre</span>
                                 </div>
+                                <p className={`${sectionDescriptionClassName} mb-4`}>Ficha técnica de la categoría: completá lo que aplique para una mejor publicación.</p>
                                 {formErrors.mlAtributos && (
                                     <p className="mb-3 text-sm font-medium text-red-600 dark:text-red-400">{formErrors.mlAtributos}</p>
                                 )}
-                                {(["PRINCIPALES", "SECUNDARIAS"] as const).map(grupo => {
-                                    const defs = mlAtributosDef.filter(d => (grupo === "PRINCIPALES" ? d.grupo === "PRINCIPALES" : d.grupo !== "PRINCIPALES"));
-                                    if (defs.length === 0) return null;
-                                    return (
-                                        <div key={grupo} className="mb-4">
-                                            <h4 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                                                {grupo === "PRINCIPALES" ? "Principales" : "Secundarias"}
-                                            </h4>
-                                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                                                {defs.map(d => (
-                                                    <div key={d.id}>
-                                                        <span className={`${fieldLabelClassName}${d.required && formErrors.mlAtributos && !mlAtributosVal[d.id]?.valueName?.trim() ? " text-red-600 dark:text-red-400" : ""}`}>
-                                                            {d.name}{d.required && <span className="text-red-500"> *</span>}
-                                                        </span>
-                                                        <div className="mt-1">
-                                                            {renderMlAtributoInput(d)}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
+                                {mlFicha.secciones.map(seccion => (
+                                    <div key={seccion.id} className="mb-5">
+                                        <h4 className="mb-3 border-b border-slate-200/70 pb-1 text-xs font-bold uppercase tracking-wider text-slate-500 dark:border-slate-700/60 dark:text-slate-400">
+                                            {SECCION_LABEL_ML[seccion.id] ?? seccion.label}
+                                        </h4>
+                                        <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
+                                            {seccion.componentes.flatMap(c => renderMlComponenteCeldas(c))}
                                         </div>
-                                    );
-                                })}
+                                    </div>
+                                ))}
                             </div>
                         )}
 
@@ -1574,8 +1805,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                     <span className={fieldLabelClassName}>EAN / Código universal</span>
                                     <input type="text" inputMode="numeric" className={inputBaseClassName} value={ean}
                                         onChange={e => setEan(e.target.value)} placeholder="Código de barras (8–14 dígitos)" />
-                                    {ean.trim() && !/^\d{8,14}$/.test(ean.trim()) && (
-                                        <span className="mt-0.5 block text-[11px] text-amber-600">Debería tener 8–14 dígitos</span>
+                                    {ean.trim() && !gtinValido(ean) && (
+                                        <span className="mt-0.5 block text-[11px] text-amber-600">Código de barras inválido (8/12/13/14 dígitos + dígito verificador). No se enviará a ML.</span>
                                     )}
                                 </label>
                             </div>
@@ -1588,34 +1819,34 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                             <label className="block">
                                 <span className={fieldLabelClassName}>Capacidad</span>
-                                <input type="text" className={inputBaseClassName} value={capacidad} onChange={e => setCapacidad(e.target.value)} placeholder="Ej: 500 ml" />
+                                <input type="text" className={inputBaseClassName} value={capacidad} onChange={e => onFisicoChange("capacidad", e.target.value)} placeholder="Ej: 500 ml" />
                             </label>
                             <label className="block">
                                 <span className={fieldLabelClassName}>Largo (cm)</span>
-                                <input type="text" maxLength={45} className={`${inputBaseClassName} ${formErrors.largo ? inputErrorClassName : ""}`} value={largo} onChange={e => { setLargo(e.target.value); if (formErrors.largo) setFormErrors(p => ({ ...p, largo: "" })); }} />
+                                <input type="text" maxLength={45} className={`${inputBaseClassName} ${formErrors.largo ? inputErrorClassName : ""}`} value={largo} onChange={e => { onFisicoChange("largo", e.target.value); if (formErrors.largo) setFormErrors(p => ({ ...p, largo: "" })); }} />
                                 {formErrors.largo && <p className="mt-1 text-xs text-red-500">{formErrors.largo}</p>}
                             </label>
                             <label className="block">
                                 <span className={fieldLabelClassName}>Ancho (cm)</span>
-                                <input type="text" maxLength={45} className={`${inputBaseClassName} ${formErrors.ancho ? inputErrorClassName : ""}`} value={ancho} onChange={e => { setAncho(e.target.value); if (formErrors.ancho) setFormErrors(p => ({ ...p, ancho: "" })); }} />
+                                <input type="text" maxLength={45} className={`${inputBaseClassName} ${formErrors.ancho ? inputErrorClassName : ""}`} value={ancho} onChange={e => { onFisicoChange("ancho", e.target.value); if (formErrors.ancho) setFormErrors(p => ({ ...p, ancho: "" })); }} />
                                 {formErrors.ancho && <p className="mt-1 text-xs text-red-500">{formErrors.ancho}</p>}
                             </label>
                             <label className="block">
                                 <span className={fieldLabelClassName}>Alto (cm)</span>
-                                <input type="text" maxLength={45} className={`${inputBaseClassName} ${formErrors.alto ? inputErrorClassName : ""}`} value={alto} onChange={e => { setAlto(e.target.value); if (formErrors.alto) setFormErrors(p => ({ ...p, alto: "" })); }} />
+                                <input type="text" maxLength={45} className={`${inputBaseClassName} ${formErrors.alto ? inputErrorClassName : ""}`} value={alto} onChange={e => { onFisicoChange("alto", e.target.value); if (formErrors.alto) setFormErrors(p => ({ ...p, alto: "" })); }} />
                                 {formErrors.alto && <p className="mt-1 text-xs text-red-500">{formErrors.alto}</p>}
                             </label>
                             <label className="block">
                                 <span className={fieldLabelClassName}>Diám. Boca</span>
-                                <input type="text" className={inputBaseClassName} value={diamboca} onChange={e => setDiamboca(e.target.value)} placeholder="Ej: 7 cm" />
+                                <input type="text" className={inputBaseClassName} value={diamboca} onChange={e => onFisicoChange("diamboca", e.target.value)} placeholder="Ej: 7 cm" />
                             </label>
                             <label className="block">
                                 <span className={fieldLabelClassName}>Diám. Base</span>
-                                <input type="text" className={inputBaseClassName} value={diambase} onChange={e => setDiambase(e.target.value)} placeholder="Ej: 5 cm" />
+                                <input type="text" className={inputBaseClassName} value={diambase} onChange={e => onFisicoChange("diambase", e.target.value)} placeholder="Ej: 5 cm" />
                             </label>
                             <label className="block">
                                 <span className={fieldLabelClassName}>Espesor (mm)</span>
-                                <input type="text" className={inputBaseClassName} value={espesor} onChange={e => setEspesor(e.target.value)} placeholder="Ej: 1.2" />
+                                <input type="text" className={inputBaseClassName} value={espesor} onChange={e => onFisicoChange("espesor", e.target.value)} placeholder="Ej: 1.2" />
                             </label>
                             <div className="md:col-span-2 xl:col-span-4">
                                 <MultiAsyncSelect label="Aptos" loadOptions={(q) => searchAptos(q)} value={aptosSel} onChange={setAptosSel} placeholder="Buscar apto" inputClassName={inputBaseClassName} chipClassName="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300" />

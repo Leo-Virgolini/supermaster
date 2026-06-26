@@ -131,6 +131,7 @@ class ProductoMlAtributosPersistTest {
                 e.setAttributeId(a.attributeId());
                 e.setValueId((a.valueId() == null || a.valueId().isBlank()) ? null : a.valueId());
                 e.setValueName(a.valueName());
+                e.setNoAplica(a.noAplica());
                 p.getMlAtributos().add(e);
             }
         }
@@ -142,8 +143,8 @@ class ProductoMlAtributosPersistTest {
     @Test
     void crear_con2Atributos_persiste2Filas() {
         reemplazarAtributos(producto, List.of(
-                new ProductoMlAtributoDTO("SALE_FORMAT", "242073", "Unidad"),
-                new ProductoMlAtributoDTO("BRAND", null, "Tramontina")
+                new ProductoMlAtributoDTO("SALE_FORMAT", "242073", "Unidad", false),
+                new ProductoMlAtributoDTO("BRAND", null, "Tramontina", false)
         ));
 
         Producto guardado = productoRepository.findById(producto.getId()).orElseThrow();
@@ -158,8 +159,8 @@ class ProductoMlAtributosPersistTest {
     void actualizarCon1Atributo_reemplazaSet_queda1Fila() {
         // Primero guardamos 2 atributos
         reemplazarAtributos(producto, List.of(
-                new ProductoMlAtributoDTO("SALE_FORMAT", "242073", "Unidad"),
-                new ProductoMlAtributoDTO("BRAND", null, "Tramontina")
+                new ProductoMlAtributoDTO("SALE_FORMAT", "242073", "Unidad", false),
+                new ProductoMlAtributoDTO("BRAND", null, "Tramontina", false)
         ));
 
         // Recargamos el producto tras el entityManager.clear()
@@ -168,7 +169,7 @@ class ProductoMlAtributosPersistTest {
 
         // Ahora reemplazamos con solo 1 atributo
         reemplazarAtributos(p2, List.of(
-                new ProductoMlAtributoDTO("SALE_FORMAT", null, "Unidad")
+                new ProductoMlAtributoDTO("SALE_FORMAT", null, "Unidad", false)
         ));
 
         Producto guardado = productoRepository.findById(producto.getId()).orElseThrow();
@@ -179,7 +180,7 @@ class ProductoMlAtributosPersistTest {
     @Test
     void valueIdVacio_seGuardaComoNull() {
         reemplazarAtributos(producto, List.of(
-                new ProductoMlAtributoDTO("BRAND", "", "Tramontina")
+                new ProductoMlAtributoDTO("BRAND", "", "Tramontina", false)
         ));
 
         Producto guardado = productoRepository.findById(producto.getId()).orElseThrow();
@@ -187,5 +188,22 @@ class ProductoMlAtributosPersistTest {
 
         assertThat(attr.getValueId()).isNull();
         assertThat(attr.getValueName()).isEqualTo("Tramontina");
+    }
+
+    @Test
+    void noAplica_sePersisteYRecupera() {
+        reemplazarAtributos(producto, List.of(
+                new ProductoMlAtributoDTO("SHAPE", null, "", true),
+                new ProductoMlAtributoDTO("BRAND", null, "Tramontina", false)
+        ));
+
+        Producto guardado = productoRepository.findById(producto.getId()).orElseThrow();
+        ProductoMlAtributo shape = guardado.getMlAtributos().stream()
+                .filter(a -> a.getAttributeId().equals("SHAPE")).findFirst().orElseThrow();
+        ProductoMlAtributo brand = guardado.getMlAtributos().stream()
+                .filter(a -> a.getAttributeId().equals("BRAND")).findFirst().orElseThrow();
+
+        assertThat(shape.isNoAplica()).isTrue();
+        assertThat(brand.isNoAplica()).isFalse();
     }
 }

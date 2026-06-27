@@ -25,6 +25,8 @@ export default function SeoIaPage() {
     const [imgIn, setImgIn] = useState("");
     const [imgOut, setImgOut] = useState("");
 
+    const precioInvalido = (v: string) => v.trim() === "" || !(Number(v) > 0);
+
     useEffect(() => {
         if (seoConfig) {
             setPromptHogar(seoConfig.promptHogar);
@@ -107,7 +109,7 @@ export default function SeoIaPage() {
                     <div><label className="text-xs text-slate-500">US$ output / 1M</label><input type="number" step="0.0001" className={inputCls} value={seoOut} onChange={e => setSeoOut(e.target.value)} disabled={isLoading} /></div>
                 </div>
                 <div className="flex justify-end">
-                    <Button variant="dark" onClick={guardarSeo} disabled={isSavingSeo || isLoading || !promptHogar.trim() || !promptGastro.trim() || !seoModel.trim()}>
+                    <Button variant="dark" onClick={guardarSeo} disabled={isSavingSeo || isLoading || !promptHogar.trim() || !promptGastro.trim() || !seoModel.trim() || precioInvalido(seoIn) || precioInvalido(seoOut)}>
                         {isSavingSeo ? "Guardando…" : "Guardar"}
                     </Button>
                 </div>
@@ -141,7 +143,7 @@ export default function SeoIaPage() {
                     <div><label className="text-xs text-slate-500">US$ output / 1M</label><input type="number" step="0.0001" className={inputCls} value={imgOut} onChange={e => setImgOut(e.target.value)} disabled={isLoading} /></div>
                 </div>
                 <div className="flex justify-end">
-                    <Button variant="dark" onClick={guardarImagen} disabled={isSavingImagen || isLoading || !imgPrompt.trim() || !imgModel.trim()}>
+                    <Button variant="dark" onClick={guardarImagen} disabled={isSavingImagen || isLoading || !imgPrompt.trim() || !imgModel.trim() || precioInvalido(imgIn) || precioInvalido(imgOut)}>
                         {isSavingImagen ? "Guardando…" : "Guardar"}
                     </Button>
                 </div>

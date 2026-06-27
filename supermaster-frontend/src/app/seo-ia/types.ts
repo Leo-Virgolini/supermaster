@@ -1,5 +1,3 @@
-export type SeoCanal = "HOGAR" | "GASTRO";
-
 export type SeoConfig = {
     promptHogar: string;
     promptGastro: string;
@@ -31,11 +29,6 @@ export type SeoUso = {
 };
 
 export type ImagenUso = SeoUso;
-
-export const CANAL_LABEL: Record<SeoCanal, string> = {
-    HOGAR: "KT Hogar",
-    GASTRO: "KT Gastro",
-};
 
 export const SIZE_OPCIONES = ["1024x1024", "1024x1536", "1536x1024", "auto"] as const;
 export const QUALITY_OPCIONES = ["low", "medium", "high", "auto"] as const;

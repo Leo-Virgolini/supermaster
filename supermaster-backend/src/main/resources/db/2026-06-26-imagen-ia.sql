@@ -1,4 +1,7 @@
 -- Carátula IA: prompt único editable + consumo acumulado de OpenAI (imágenes).
+-- IMPORTANTE: cargar forzando UTF-8 para no romper los acentos del prompt (mojibake á->├í).
+--   mysql --default-character-set=utf8mb4 -u root -p supermaster < 2026-06-26-imagen-ia.sql
+-- (o dentro de mysql: SET NAMES utf8mb4; antes de SOURCE ...).
 CREATE TABLE supermaster.imagen_prompt (
   id BIGINT NOT NULL,
   contenido TEXT NOT NULL,

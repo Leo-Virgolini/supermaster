@@ -11,22 +11,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class ImagenUsoService {
 
-    private static final BigDecimal MILLON = new BigDecimal("1000000");
-
     private final ImagenUsoRepository repository;
     private final OpenAiImageProperties properties;
 
     public static BigDecimal calcularCosto(long tokensEntrada, long tokensSalida, BigDecimal precioIn1m, BigDecimal precioOut1m) {
-        BigDecimal costoIn = BigDecimal.valueOf(tokensEntrada).multiply(precioIn1m).divide(MILLON, 6, RoundingMode.HALF_UP);
-        BigDecimal costoOut = BigDecimal.valueOf(tokensSalida).multiply(precioOut1m).divide(MILLON, 6, RoundingMode.HALF_UP);
-        return costoIn.add(costoOut);
+        return OpenAiCostoUtil.calcular(tokensEntrada, tokensSalida, precioIn1m, precioOut1m);
     }
 
     @Transactional

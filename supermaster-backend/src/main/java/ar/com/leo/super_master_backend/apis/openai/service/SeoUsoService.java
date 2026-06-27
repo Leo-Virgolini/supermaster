@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 
 /** Registra y lee el consumo acumulado de OpenAI (singleton id=1). */
 @Slf4j
@@ -19,16 +18,12 @@ import java.math.RoundingMode;
 @RequiredArgsConstructor
 public class SeoUsoService {
 
-    private static final BigDecimal MILLON = new BigDecimal("1000000");
-
     private final SeoUsoRepository repository;
     private final OpenAiProperties properties;
 
     /** Costo USD = in/1e6·precioIn + out/1e6·precioOut, redondeado a 6 decimales. Puro/testeable. */
     public static BigDecimal calcularCosto(long tokensEntrada, long tokensSalida, BigDecimal precioIn1m, BigDecimal precioOut1m) {
-        BigDecimal costoIn = BigDecimal.valueOf(tokensEntrada).multiply(precioIn1m).divide(MILLON, 6, RoundingMode.HALF_UP);
-        BigDecimal costoOut = BigDecimal.valueOf(tokensSalida).multiply(precioOut1m).divide(MILLON, 6, RoundingMode.HALF_UP);
-        return costoIn.add(costoOut);
+        return OpenAiCostoUtil.calcular(tokensEntrada, tokensSalida, precioIn1m, precioOut1m);
     }
 
     @Transactional

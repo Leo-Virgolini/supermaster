@@ -1,9 +1,8 @@
 import { API_BASE_URL } from "../config/runtime";
 import { fetchAPI } from "../utils/fetchAPI";
-import type { SeoCanal, SeoPrompt, SeoUso } from "./types";
+import type { SeoCanal, SeoPrompt, SeoUso, ImagenPrompt, ImagenUso } from "./types";
 
-export type ImagenPrompt = { contenido: string; fechaModificacion: string | null };
-export type ImagenUso = { consultas: number; tokensEntrada: number; tokensSalida: number; costoUsd: number; modelo: string; precioInput1m: number; precioOutput1m: number };
+export type { ImagenPrompt, ImagenUso };
 
 const API_URL = `${API_BASE_URL}/api/seo`;
 const IMAGEN_URL = `${API_BASE_URL}/api/imagen-ia`;

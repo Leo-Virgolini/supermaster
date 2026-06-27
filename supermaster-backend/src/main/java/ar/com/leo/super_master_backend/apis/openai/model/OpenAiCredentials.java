@@ -12,6 +12,8 @@ import lombok.Setter;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class OpenAiCredentials {
 
+    public static final String ARCHIVO = "openai_tokens.json";
+
     @JsonProperty("seo_api_key")
     private String seoApiKey;
 

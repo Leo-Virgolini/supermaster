@@ -14,6 +14,7 @@ import java.net.http.HttpClient;
 public class OpenAiConfig {
 
     private HttpClient httpClient;
+    private HttpClient imageHttpClient;
 
     @Bean
     public RestClient openaiRestClient(OpenAiProperties properties) {
@@ -33,8 +34,8 @@ public class OpenAiConfig {
 
     @Bean
     public RestClient openaiImageRestClient(OpenAiImageProperties properties) {
-        HttpClient client = HttpClient.newBuilder().connectTimeout(properties.connectTimeout()).build();
-        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(client);
+        this.imageHttpClient = HttpClient.newBuilder().connectTimeout(properties.connectTimeout()).build();
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(this.imageHttpClient);
         factory.setReadTimeout(properties.readTimeout());
         return RestClient.builder()
                 .baseUrl(properties.baseUrl())
@@ -47,6 +48,13 @@ public class OpenAiConfig {
         if (httpClient != null) {
             try {
                 httpClient.close();
+            } catch (Exception ignore) {
+                // close() puede tirar si hay tareas en vuelo; no es crítico al shutdown.
+            }
+        }
+        if (imageHttpClient != null) {
+            try {
+                imageHttpClient.close();
             } catch (Exception ignore) {
                 // close() puede tirar si hay tareas en vuelo; no es crítico al shutdown.
             }

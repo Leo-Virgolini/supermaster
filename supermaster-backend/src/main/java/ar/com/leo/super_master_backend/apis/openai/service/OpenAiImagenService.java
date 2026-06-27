@@ -50,7 +50,7 @@ public class OpenAiImagenService {
     @PostConstruct
     void init() {
         try {
-            File file = Paths.get(secretsDir).resolve("openai_tokens.json").toFile();
+            File file = Paths.get(secretsDir).resolve(OpenAiCredentials.ARCHIVO).toFile();
             if (file.exists()) {
                 credentials = objectMapper.readValue(file, OpenAiCredentials.class);
                 log.info("OpenAI imágenes - credenciales cargadas desde {}", file.getAbsolutePath());
@@ -81,9 +81,9 @@ public class OpenAiImagenService {
         MultiValueMap<String, Object> parts = new LinkedMultiValueMap<>();
         parts.add("model", properties.model());
         parts.add("prompt", configService.prompt());
-        parts.add("size", "1024x1024");
-        parts.add("output_format", "jpeg");
-        parts.add("quality", "high");
+        parts.add("size", properties.size());
+        parts.add("output_format", properties.outputFormat());
+        parts.add("quality", properties.quality());
         parts.add("image", new ByteArrayResource(cruda) {
             @Override
             public String getFilename() { return filename; }

@@ -130,7 +130,7 @@ public class OpenAiSeoService {
 
     private void cargarCredenciales() {
         try {
-            File file = Paths.get(secretsDir).resolve("openai_tokens.json").toFile();
+            File file = Paths.get(secretsDir).resolve(OpenAiCredentials.ARCHIVO).toFile();
             if (file.exists()) {
                 credentials = objectMapper.readValue(file, OpenAiCredentials.class);
                 log.info("OpenAI - Credenciales cargadas desde {}", file.getAbsolutePath());

@@ -20,3 +20,15 @@ export const CANAL_LABEL: Record<SeoCanal, string> = {
     HOGAR: "KT Hogar",
     GASTRO: "KT Gastro",
 };
+
+export type ImagenPrompt = { contenido: string; fechaModificacion: string | null };
+
+export type ImagenUso = {
+    consultas: number;
+    tokensEntrada: number;
+    tokensSalida: number;
+    costoUsd: number;
+    modelo: string;
+    precioInput1m: number;
+    precioOutput1m: number;
+};

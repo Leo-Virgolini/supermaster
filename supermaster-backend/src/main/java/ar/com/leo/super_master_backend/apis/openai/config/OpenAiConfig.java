@@ -10,7 +10,7 @@ import org.springframework.web.client.RestClient;
 import java.net.http.HttpClient;
 
 @Configuration
-@EnableConfigurationProperties(OpenAiProperties.class)
+@EnableConfigurationProperties({OpenAiProperties.class, OpenAiImageProperties.class})
 public class OpenAiConfig {
 
     private HttpClient httpClient;
@@ -28,6 +28,17 @@ public class OpenAiConfig {
                 .baseUrl(properties.baseUrl())
                 .requestFactory(factory)
                 .defaultHeader("Content-Type", "application/json")
+                .build();
+    }
+
+    @Bean
+    public RestClient openaiImageRestClient(OpenAiImageProperties properties) {
+        HttpClient client = HttpClient.newBuilder().connectTimeout(properties.connectTimeout()).build();
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(client);
+        factory.setReadTimeout(properties.readTimeout());
+        return RestClient.builder()
+                .baseUrl(properties.baseUrl())
+                .requestFactory(factory)
                 .build();
     }
 

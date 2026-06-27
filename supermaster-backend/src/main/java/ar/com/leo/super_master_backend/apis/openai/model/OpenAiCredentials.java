@@ -14,4 +14,7 @@ public class OpenAiCredentials {
 
     @JsonProperty("api_key")
     private String apiKey;
+
+    @JsonProperty("image_api_key")
+    private String imageApiKey;
 }

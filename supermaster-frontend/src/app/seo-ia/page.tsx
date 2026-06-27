@@ -3,25 +3,79 @@
 import { useEffect, useState } from "react";
 import Button from "../components/Button/Button";
 import { useSeoIa } from "./useSeoIa";
-import type { SeoCanal } from "./types";
-import { CANAL_LABEL } from "./types";
+import { FORMATO_OPCIONES, QUALITY_OPCIONES, SIZE_OPCIONES } from "./types";
 import { SparklesIcon } from "@heroicons/react/24/outline";
 
-const CANALES: SeoCanal[] = ["HOGAR", "GASTRO"];
-
 export default function SeoIaPage() {
-    const { prompts, uso, imagenPrompt, imagenUso, imagenBorrador, setImagenBorrador, isLoading, isSaving, isSavingImagen, savePrompt, saveImagenPrompt } = useSeoIa();
-    const [borradores, setBorradores] = useState<Record<string, string>>({});
+    const { seoConfig, imagenConfig, uso, imagenUso, isLoading, isSavingSeo, isSavingImagen, saveSeoConfig, saveImagenConfig } = useSeoIa();
+
+    // Borradores SEO
+    const [promptHogar, setPromptHogar] = useState("");
+    const [promptGastro, setPromptGastro] = useState("");
+    const [seoModel, setSeoModel] = useState("");
+    const [seoIn, setSeoIn] = useState("");
+    const [seoOut, setSeoOut] = useState("");
+
+    // Borradores Imagen
+    const [imgPrompt, setImgPrompt] = useState("");
+    const [imgModel, setImgModel] = useState("");
+    const [imgSize, setImgSize] = useState("1024x1024");
+    const [imgQuality, setImgQuality] = useState("high");
+    const [imgFormato, setImgFormato] = useState("jpeg");
+    const [imgIn, setImgIn] = useState("");
+    const [imgOut, setImgOut] = useState("");
 
     useEffect(() => {
-        setBorradores(prev => {
-            const next = { ...prev };
-            prompts.forEach(p => { if (next[p.canal] === undefined) next[p.canal] = p.contenido; });
-            return next;
-        });
-    }, [prompts]);
+        if (seoConfig) {
+            setPromptHogar(seoConfig.promptHogar);
+            setPromptGastro(seoConfig.promptGastro);
+            setSeoModel(seoConfig.model);
+            setSeoIn(String(seoConfig.precioInput1m));
+            setSeoOut(String(seoConfig.precioOutput1m));
+        }
+    }, [seoConfig]);
+
+    useEffect(() => {
+        if (imagenConfig) {
+            setImgPrompt(imagenConfig.contenido);
+            setImgModel(imagenConfig.model);
+            setImgSize(imagenConfig.size);
+            setImgQuality(imagenConfig.quality);
+            setImgFormato(imagenConfig.outputFormat);
+            setImgIn(String(imagenConfig.precioInput1m));
+            setImgOut(String(imagenConfig.precioOutput1m));
+        }
+    }, [imagenConfig]);
 
     const fmt = (n: number) => new Intl.NumberFormat("es-AR").format(n);
+    const inputCls = "w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-800 focus:border-primary focus:ring-primary dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100";
+    const textareaCls = "h-64 w-full rounded-lg border border-slate-300 bg-white p-3 font-mono text-xs text-slate-800 focus:border-primary focus:ring-primary dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100";
+
+    const guardarSeo = () => saveSeoConfig({
+        promptHogar, promptGastro, model: seoModel,
+        precioInput1m: Number(seoIn), precioOutput1m: Number(seoOut),
+    });
+    const guardarImagen = () => saveImagenConfig({
+        contenido: imgPrompt, model: imgModel, size: imgSize, quality: imgQuality, outputFormat: imgFormato,
+        precioInput1m: Number(imgIn), precioOutput1m: Number(imgOut),
+    });
+
+    const usoBox = (titulo: string, u: typeof uso) => (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/60">
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{titulo}</h2>
+            {u ? (
+                <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm text-slate-700 dark:text-slate-200">
+                    <span><b>Consultas:</b> {fmt(u.consultas)}</span>
+                    <span><b>Tokens entrada:</b> {fmt(u.tokensEntrada)}</span>
+                    <span><b>Tokens salida:</b> {fmt(u.tokensSalida)}</span>
+                    <span><b>Costo:</b> US$ {u.costoUsd.toFixed(4)}</span>
+                    <span className="text-slate-500 dark:text-slate-400">Modelo: {u.modelo} · in US${u.precioInput1m.toFixed(2)}/1M · out US${u.precioOutput1m.toFixed(2)}/1M</span>
+                </div>
+            ) : (
+                <p className="text-sm text-slate-400">{isLoading ? "Cargando…" : "Sin datos de uso"}</p>
+            )}
+        </div>
+    );
 
     return (
         <main className="p-4 md:p-5 bg-gray-50 dark:bg-slate-900 flex flex-col gap-4">
@@ -30,107 +84,66 @@ export default function SeoIaPage() {
                     <SparklesIcon className="w-8 h-8 text-purple-600 dark:text-purple-400" />
                     SEO IA
                 </h1>
-                <p className="text-gray-500 dark:text-slate-400 text-sm mt-1">
-                    Prompts de SEO de Tienda Nube y consumo de OpenAI
-                </p>
+                <p className="text-gray-500 dark:text-slate-400 text-sm mt-1">Configuración de OpenAI (prompts + parámetros) y consumo</p>
             </div>
 
-            {/* Panel de uso SEO */}
-            <div className="mb-2 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/60">
-                <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Uso de IA — SEO (acumulado)</h2>
-                {uso ? (
-                    <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm text-slate-700 dark:text-slate-200">
-                        <span><b>Consultas:</b> {fmt(uso.consultas)}</span>
-                        <span><b>Tokens entrada:</b> {fmt(uso.tokensEntrada)}</span>
-                        <span><b>Tokens salida:</b> {fmt(uso.tokensSalida)}</span>
-                        <span><b>Costo:</b> US$ {uso.costoUsd.toFixed(4)}</span>
-                        <span className="text-slate-500 dark:text-slate-400">
-                            Modelo: {uso.modelo} · in US${uso.precioInput1m.toFixed(2)}/1M · out US${uso.precioOutput1m.toFixed(2)}/1M
-                        </span>
-                    </div>
-                ) : (
-                    <p className="text-sm text-slate-400">{isLoading ? "Cargando…" : "Sin datos de uso"}</p>
-                )}
+            {usoBox("Uso de IA — SEO (acumulado)", uso)}
+            {usoBox("Uso de IA — Carátula (acumulado)", imagenUso)}
+
+            {/* Config SEO */}
+            <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-700 space-y-3">
+                <h3 className="font-semibold text-slate-700 dark:text-slate-200">Configuración SEO</h3>
+                <div>
+                    <label className="text-xs text-slate-500">Prompt — KT Hogar</label>
+                    <textarea className={textareaCls} value={promptHogar} onChange={e => setPromptHogar(e.target.value)} disabled={isLoading} />
+                </div>
+                <div>
+                    <label className="text-xs text-slate-500">Prompt — KT Gastro</label>
+                    <textarea className={textareaCls} value={promptGastro} onChange={e => setPromptGastro(e.target.value)} disabled={isLoading} />
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div><label className="text-xs text-slate-500">Modelo</label><input className={inputCls} value={seoModel} onChange={e => setSeoModel(e.target.value)} disabled={isLoading} /></div>
+                    <div><label className="text-xs text-slate-500">US$ input / 1M</label><input type="number" step="0.0001" className={inputCls} value={seoIn} onChange={e => setSeoIn(e.target.value)} disabled={isLoading} /></div>
+                    <div><label className="text-xs text-slate-500">US$ output / 1M</label><input type="number" step="0.0001" className={inputCls} value={seoOut} onChange={e => setSeoOut(e.target.value)} disabled={isLoading} /></div>
+                </div>
+                <div className="flex justify-end">
+                    <Button variant="dark" onClick={guardarSeo} disabled={isSavingSeo || isLoading || !promptHogar.trim() || !promptGastro.trim() || !seoModel.trim()}>
+                        {isSavingSeo ? "Guardando…" : "Guardar"}
+                    </Button>
+                </div>
             </div>
 
-            {/* Panel de uso carátula */}
-            <div className="mb-8 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/60">
-                <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Uso de IA — Carátula (acumulado)</h2>
-                {imagenUso ? (
-                    <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm text-slate-700 dark:text-slate-200">
-                        <span><b>Consultas:</b> {fmt(imagenUso.consultas)}</span>
-                        <span><b>Tokens entrada:</b> {fmt(imagenUso.tokensEntrada)}</span>
-                        <span><b>Tokens salida:</b> {fmt(imagenUso.tokensSalida)}</span>
-                        <span><b>Costo:</b> US$ {imagenUso.costoUsd.toFixed(4)}</span>
-                        <span className="text-slate-500 dark:text-slate-400">
-                            Modelo: {imagenUso.modelo} · in US${imagenUso.precioInput1m.toFixed(2)}/1M · out US${imagenUso.precioOutput1m.toFixed(2)}/1M
-                        </span>
+            {/* Config Imagen */}
+            <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-700 space-y-3">
+                <h3 className="font-semibold text-slate-700 dark:text-slate-200">Configuración Carátula</h3>
+                <div>
+                    <label className="text-xs text-slate-500">Prompt</label>
+                    <textarea className={textareaCls} value={imgPrompt} onChange={e => setImgPrompt(e.target.value)} disabled={isLoading} />
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div><label className="text-xs text-slate-500">Modelo</label><input className={inputCls} value={imgModel} onChange={e => setImgModel(e.target.value)} disabled={isLoading} /></div>
+                    <div><label className="text-xs text-slate-500">Tamaño</label>
+                        <select className={inputCls} value={imgSize} onChange={e => setImgSize(e.target.value)} disabled={isLoading}>
+                            {SIZE_OPCIONES.map(o => <option key={o} value={o}>{o}</option>)}
+                        </select>
                     </div>
-                ) : (
-                    <p className="text-sm text-slate-400">{isLoading ? "Cargando…" : "Sin datos de uso"}</p>
-                )}
-            </div>
-
-            {/* Editores de prompt por canal */}
-            <div className="space-y-6">
-                {CANALES.map((canal) => {
-                    const titulo = CANAL_LABEL[canal];
-                    const p = prompts.find(x => x.canal === canal);
-                    const valor = borradores[canal] ?? "";
-                    return (
-                        <div key={canal} className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
-                            <div className="mb-2 flex items-center justify-between">
-                                <h3 className="font-semibold text-slate-700 dark:text-slate-200">Prompt — {titulo}</h3>
-                                {p?.fechaModificacion && (
-                                    <span className="text-xs text-slate-400">
-                                        Modificado: {new Date(p.fechaModificacion).toLocaleString("es-AR")}
-                                    </span>
-                                )}
-                            </div>
-                            <textarea
-                                className="h-64 w-full rounded-lg border border-slate-300 bg-white p-3 font-mono text-xs text-slate-800 focus:border-primary focus:ring-primary dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-                                value={valor}
-                                onChange={e => setBorradores(prev => ({ ...prev, [canal]: e.target.value }))}
-                                disabled={isLoading}
-                            />
-                            <div className="mt-2 flex justify-end">
-                                <Button
-                                    variant="dark"
-                                    onClick={() => savePrompt(canal, valor)}
-                                    disabled={isSaving !== null || isLoading || !valor.trim()}
-                                >
-                                    {isSaving === canal ? "Guardando…" : "Guardar"}
-                                </Button>
-                            </div>
-                        </div>
-                    );
-                })}
-
-                {/* Tarjeta prompt de carátula */}
-                <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
-                    <div className="mb-2 flex items-center justify-between">
-                        <h3 className="font-semibold text-slate-700 dark:text-slate-200">Prompt — Carátula</h3>
-                        {imagenPrompt?.fechaModificacion && (
-                            <span className="text-xs text-slate-400">
-                                Modificado: {new Date(imagenPrompt.fechaModificacion).toLocaleString("es-AR")}
-                            </span>
-                        )}
+                    <div><label className="text-xs text-slate-500">Calidad</label>
+                        <select className={inputCls} value={imgQuality} onChange={e => setImgQuality(e.target.value)} disabled={isLoading}>
+                            {QUALITY_OPCIONES.map(o => <option key={o} value={o}>{o}</option>)}
+                        </select>
                     </div>
-                    <textarea
-                        className="h-64 w-full rounded-lg border border-slate-300 bg-white p-3 font-mono text-xs text-slate-800 focus:border-primary focus:ring-primary dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-                        value={imagenBorrador}
-                        onChange={e => setImagenBorrador(e.target.value)}
-                        disabled={isLoading}
-                    />
-                    <div className="mt-2 flex justify-end">
-                        <Button
-                            variant="dark"
-                            onClick={() => saveImagenPrompt(imagenBorrador)}
-                            disabled={isSavingImagen || isLoading || !imagenBorrador.trim()}
-                        >
-                            {isSavingImagen ? "Guardando…" : "Guardar"}
-                        </Button>
+                    <div><label className="text-xs text-slate-500">Formato</label>
+                        <select className={inputCls} value={imgFormato} onChange={e => setImgFormato(e.target.value)} disabled={isLoading}>
+                            {FORMATO_OPCIONES.map(o => <option key={o} value={o}>{o}</option>)}
+                        </select>
                     </div>
+                    <div><label className="text-xs text-slate-500">US$ input / 1M</label><input type="number" step="0.0001" className={inputCls} value={imgIn} onChange={e => setImgIn(e.target.value)} disabled={isLoading} /></div>
+                    <div><label className="text-xs text-slate-500">US$ output / 1M</label><input type="number" step="0.0001" className={inputCls} value={imgOut} onChange={e => setImgOut(e.target.value)} disabled={isLoading} /></div>
+                </div>
+                <div className="flex justify-end">
+                    <Button variant="dark" onClick={guardarImagen} disabled={isSavingImagen || isLoading || !imgPrompt.trim() || !imgModel.trim()}>
+                        {isSavingImagen ? "Guardando…" : "Guardar"}
+                    </Button>
                 </div>
             </div>
         </main>

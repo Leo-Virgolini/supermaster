@@ -3,43 +3,39 @@ import { getErrorMessage } from "@/lib/errors";
 import { useCallback, useEffect, useState } from "react";
 import { notificar } from "../utils/notificar";
 import {
-    getImagenPromptAPI,
+    getImagenConfigAPI,
     getImagenUsoAPI,
-    getSeoPromptsAPI,
+    getSeoConfigAPI,
     getSeoUsoAPI,
-    updateImagenPromptAPI,
-    updateSeoPromptAPI,
-    type ImagenPrompt,
-    type ImagenUso,
+    updateImagenConfigAPI,
+    updateSeoConfigAPI,
 } from "./seoService";
-import { CANAL_LABEL, type SeoCanal, type SeoPrompt, type SeoUso } from "./types";
+import type { ImagenConfig, ImagenUso, SeoConfig, SeoUso } from "./types";
 
 export function useSeoIa() {
-    const [prompts, setPrompts] = useState<SeoPrompt[]>([]);
+    const [seoConfig, setSeoConfig] = useState<SeoConfig | null>(null);
+    const [imagenConfig, setImagenConfig] = useState<ImagenConfig | null>(null);
     const [uso, setUso] = useState<SeoUso | null>(null);
-    const [imagenPrompt, setImagenPrompt] = useState<ImagenPrompt | null>(null);
     const [imagenUso, setImagenUso] = useState<ImagenUso | null>(null);
-    const [imagenBorrador, setImagenBorrador] = useState<string>("");
     const [isLoading, setIsLoading] = useState(true);
-    const [isSaving, setIsSaving] = useState<SeoCanal | null>(null);
+    const [isSavingSeo, setIsSavingSeo] = useState(false);
     const [isSavingImagen, setIsSavingImagen] = useState(false);
 
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
-            const [p, u, ip, iu] = await Promise.all([
-                getSeoPromptsAPI(),
+            const [sc, ic, u, iu] = await Promise.all([
+                getSeoConfigAPI(),
+                getImagenConfigAPI(),
                 getSeoUsoAPI(),
-                getImagenPromptAPI(),
                 getImagenUsoAPI(),
             ]);
-            setPrompts(p);
+            setSeoConfig(sc);
+            setImagenConfig(ic);
             setUso(u);
-            setImagenPrompt(ip);
             setImagenUso(iu);
-            setImagenBorrador(ip.contenido);
         } catch (e: unknown) {
-            notificar.error(getErrorMessage(e, "No se pudo cargar la configuración de SEO"));
+            notificar.error(getErrorMessage(e, "No se pudo cargar la configuración de SEO IA"));
         } finally {
             setIsLoading(false);
         }
@@ -47,32 +43,31 @@ export function useSeoIa() {
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
-    const savePrompt = async (canal: SeoCanal, contenido: string) => {
-        setIsSaving(canal);
+    const saveSeoConfig = async (config: Omit<SeoConfig, "fechaModificacion">) => {
+        setIsSavingSeo(true);
         try {
-            const actualizado = await updateSeoPromptAPI(canal, contenido);
-            setPrompts(prev => prev.map(p => p.canal === canal ? actualizado : p));
-            notificar.success(`Prompt de ${CANAL_LABEL[canal]} guardado`);
+            const actualizado = await updateSeoConfigAPI(config);
+            setSeoConfig(actualizado);
+            notificar.success("Configuración de SEO guardada");
         } catch (e: unknown) {
-            notificar.error(getErrorMessage(e, "Error al guardar el prompt"));
+            notificar.error(getErrorMessage(e, "Error al guardar la configuración de SEO"));
         } finally {
-            setIsSaving(null);
+            setIsSavingSeo(false);
         }
     };
 
-    const saveImagenPrompt = async (contenido: string) => {
+    const saveImagenConfig = async (config: Omit<ImagenConfig, "fechaModificacion">) => {
         setIsSavingImagen(true);
         try {
-            const actualizado = await updateImagenPromptAPI(contenido);
-            setImagenPrompt(actualizado);
-            setImagenBorrador(actualizado.contenido);
-            notificar.success("Prompt de carátula guardado");
+            const actualizado = await updateImagenConfigAPI(config);
+            setImagenConfig(actualizado);
+            notificar.success("Configuración de carátula guardada");
         } catch (e: unknown) {
-            notificar.error(getErrorMessage(e, "Error al guardar el prompt de carátula"));
+            notificar.error(getErrorMessage(e, "Error al guardar la configuración de carátula"));
         } finally {
             setIsSavingImagen(false);
         }
     };
 
-    return { prompts, uso, imagenPrompt, imagenUso, imagenBorrador, setImagenBorrador, isLoading, isSaving, isSavingImagen, savePrompt, saveImagenPrompt };
+    return { seoConfig, imagenConfig, uso, imagenUso, isLoading, isSavingSeo, isSavingImagen, saveSeoConfig, saveImagenConfig };
 }

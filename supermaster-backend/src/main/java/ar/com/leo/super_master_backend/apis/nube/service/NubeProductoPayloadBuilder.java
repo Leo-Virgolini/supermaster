@@ -1,5 +1,6 @@
 package ar.com.leo.super_master_backend.apis.nube.service;
 
+import ar.com.leo.super_master_backend.apis.ml.service.MlItemPayloadBuilder;
 import ar.com.leo.super_master_backend.apis.openai.dto.SeoGeneradoDTO;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
 
@@ -27,6 +28,8 @@ public final class NubeProductoPayloadBuilder {
 
         Map<String, Object> variant = new LinkedHashMap<>();
         variant.put("sku", p.getSku());
+        // Código de barras: el EAN del producto, solo si es un GTIN/EAN válido (mismo criterio que ML).
+        if (MlItemPayloadBuilder.esGtinValido(p.getEan())) variant.put("barcode", p.getEan().trim());
         // Precio de lista (tachado) y promocional según haya inflado.
         if (pvpInflado != null && pvp != null && pvpInflado.compareTo(pvp) > 0) {
             variant.put("price", pvpInflado.toPlainString());

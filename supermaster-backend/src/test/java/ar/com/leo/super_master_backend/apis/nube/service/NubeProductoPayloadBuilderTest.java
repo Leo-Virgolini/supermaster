@@ -93,6 +93,31 @@ class NubeProductoPayloadBuilderTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void conEanValido_incluyeBarcodeEnElVariant() {
+        Producto p = base();
+        p.setEan("1234567890128"); // EAN-13 válido
+        Map<String, Object> payload = NubeProductoPayloadBuilder.construir(p, new BigDecimal("1500.00"), null, null, null);
+        Map<String, Object> v = ((List<Map<String, Object>>) payload.get("variants")).get(0);
+        assertThat(v.get("barcode")).isEqualTo("1234567890128");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void conEanInvalidoOVacio_noIncluyeBarcode() {
+        Producto p = base();
+        p.setEan("1178911569"); // 10 dígitos: inválido
+        Map<String, Object> v1 = ((List<Map<String, Object>>) NubeProductoPayloadBuilder
+                .construir(p, new BigDecimal("1500.00"), null, null, null).get("variants")).get(0);
+        assertThat(v1).doesNotContainKey("barcode");
+
+        Producto sinEan = base(); // ean null
+        Map<String, Object> v2 = ((List<Map<String, Object>>) NubeProductoPayloadBuilder
+                .construir(sinEan, new BigDecimal("1500.00"), null, null, null).get("variants")).get(0);
+        assertThat(v2).doesNotContainKey("barcode");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void conSeo_incluyeSeoTitleDescriptionYTags() {
         SeoGeneradoDTO seo = new SeoGeneradoDTO(
                 "Olla de acero inoxidable 24cm",

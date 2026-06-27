@@ -135,7 +135,7 @@ public final class MlItemPayloadBuilder {
      * Valida un código GTIN/EAN: longitud 8, 12, 13 o 14 dígitos y dígito verificador correcto
      * (algoritmo módulo 10 estándar de GS1). ML rechaza identificadores con formato inválido.
      */
-    static boolean esGtinValido(String codigo) {
+    public static boolean esGtinValido(String codigo) {
         if (codigo == null) return false;
         String s = codigo.trim();
         int len = s.length();

@@ -738,8 +738,17 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 if (estadoCanales.hogar.publicado && estadoCanales.hogar.estado !== estadoOriginal.hogar.estado) upd.hogar = estadoCanales.hogar.estado === "visible";
                 if (estadoCanales.gastro.publicado && estadoCanales.gastro.estado !== estadoOriginal.gastro.estado) upd.gastro = estadoCanales.gastro.estado === "visible";
                 if (upd.ml !== undefined || upd.hogar !== undefined || upd.gastro !== undefined) {
-                    try { await putEstadoPublicacionAPI(editandoProductoId, upd); }
-                    catch (e) { if (!esSesionExpirada(e)) notificar.error("No se pudo aplicar el cambio de estado de publicación"); }
+                    try {
+                        const res = await putEstadoPublicacionAPI(editandoProductoId, upd);
+                        const lineas = ([["Mercado Libre", res.ml], ["KT HOGAR", res.hogar], ["KT GASTRO", res.gastro]] as const)
+                            .filter(([, r]) => r)
+                            .map(([label, r]) => `${label}: ${r!.detalle}`);
+                        const huboError = [res.ml, res.hogar, res.gastro].some(r => r && !r.ok);
+                        if (lineas.length) {
+                            if (huboError) notificar.error(`Estado de publicación:\n${lineas.join("\n")}`);
+                            else notificar.success(`Estado de publicación — ${lineas.join(" · ")}`);
+                        }
+                    } catch (e) { if (!esSesionExpirada(e)) notificar.error("No se pudo aplicar el cambio de estado de publicación"); }
                 }
             }
 

@@ -529,6 +529,10 @@ export async function getEstadoPublicacionAPI(id: number): Promise<EstadoPublica
 	const r = await fetchAPI(`${API_BASE_URL}/api/productos/${id}/estado-publicacion`);
 	return r.json();
 }
-export async function putEstadoPublicacionAPI(id: number, body: EstadoPublicacionUpdate): Promise<void> {
-	await fetchAPI(`${API_BASE_URL}/api/productos/${id}/estado-publicacion`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+export type CanalAplicado = { ok: boolean; detalle: string } | null;
+export type EstadoAplicar = { ml: CanalAplicado; hogar: CanalAplicado; gastro: CanalAplicado };
+
+export async function putEstadoPublicacionAPI(id: number, body: EstadoPublicacionUpdate): Promise<EstadoAplicar> {
+	const r = await fetchAPI(`${API_BASE_URL}/api/productos/${id}/estado-publicacion`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+	return r.json() as Promise<EstadoAplicar>;
 }

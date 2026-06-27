@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ImagenControllerDetalleTest {
 
     private ImagenController controllerSobre(Path dir) {
-        return new ImagenController(new ImagenService(dir.toString(), 0L, dir.toString()));
+        return new ImagenController(new ImagenService(dir.toString(), 0L, dir.toString()), null);
     }
 
     @Test

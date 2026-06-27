@@ -530,5 +530,5 @@ export async function getEstadoPublicacionAPI(id: number): Promise<EstadoPublica
 	return r.json();
 }
 export async function putEstadoPublicacionAPI(id: number, body: EstadoPublicacionUpdate): Promise<void> {
-	await fetchAPI(`${API_BASE_URL}/api/productos/${id}/estado-publicacion`, { method: "PUT", body: JSON.stringify(body) });
+	await fetchAPI(`${API_BASE_URL}/api/productos/${id}/estado-publicacion`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 }

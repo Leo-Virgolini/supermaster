@@ -36,6 +36,10 @@ public final class MlItemPayloadBuilder {
         payload.put("listing_type_id", "gold_special");
         payload.put("condition", "new");
 
+        // Garantía fija: "Sin garantía" (ML la espera en sale_terms).
+        payload.put("sale_terms", List.of(Map.of(
+                "id", "WARRANTY_TYPE", "value_id", "6150835", "value_name", "Sin garantía")));
+
         payload.put("attributes", construirAtributos(p, categoriaAttrIds));
 
         Map<String, Object> shipping = new LinkedHashMap<>();

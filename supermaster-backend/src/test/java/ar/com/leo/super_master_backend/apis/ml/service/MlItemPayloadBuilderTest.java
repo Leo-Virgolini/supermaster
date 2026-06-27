@@ -315,6 +315,18 @@ class MlItemPayloadBuilderTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void construir_incluyeGarantiaSinGarantia() {
+        var payload = MlItemPayloadBuilder.construir(base(), "MLA1", new BigDecimal("100"), 0, List.of(), "Fam");
+        List<Map<String, Object>> saleTerms = (List<Map<String, Object>>) payload.get("sale_terms");
+        assertThat(saleTerms).anySatisfy(t -> {
+            assertThat(t.get("id")).isEqualTo("WARRANTY_TYPE");
+            assertThat(t.get("value_id")).isEqualTo("6150835");
+            assertThat(t.get("value_name")).isEqualTo("Sin garantía");
+        });
+    }
+
+    @Test
     void atributos_brandNoAplicaNoSeDuplicaConLaMarca() {
         Producto p = productoBase(); // marca = "Tramontina"
         ProductoMlAtributo brand = new ProductoMlAtributo();

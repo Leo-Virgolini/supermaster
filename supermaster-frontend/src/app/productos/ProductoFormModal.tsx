@@ -256,6 +256,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const [estadoOriginal, setEstadoOriginal] = useState<EstadoPublicacion | null>(null);
     const [cargandoEstado, setCargandoEstado] = useState(false);
     const [caratulaPreview, setCaratulaPreview] = useState<string | null>(null);
+    const [caratulaFormato, setCaratulaFormato] = useState<string>("jpeg");
     const [generandoCaratula, setGenerandoCaratula] = useState(false);
     const [guardandoCaratula, setGuardandoCaratula] = useState(false);
     const [caratulaCacheBust, setCaratulaCacheBust] = useState(0);
@@ -1189,6 +1190,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         try {
             const r = await generarCaratulaAPI(sku.trim());
             setCaratulaPreview(r.imagenBase64);
+            setCaratulaFormato(r.formato);
         } catch (e) {
             if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "No se pudo generar la carátula");
         } finally { setGenerandoCaratula(false); }
@@ -1721,7 +1723,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                         </Button>
                                         {caratulaPreview && (
                                             <div className="mt-3 rounded-2xl border border-slate-200 p-3 dark:border-slate-700">
-                                                <img src={`data:image/jpeg;base64,${caratulaPreview}`} alt="Preview carátula" className="mx-auto max-h-64" />
+                                                <img src={`data:image/${caratulaFormato};base64,${caratulaPreview}`} alt="Preview carátula" className="mx-auto max-h-64" />
                                                 <div className="mt-2 flex justify-end gap-2">
                                                     <Button variant="light" onClick={() => setCaratulaPreview(null)} disabled={guardandoCaratula}>Descartar</Button>
                                                     <Button variant="dark" onClick={guardarCaratula} disabled={guardandoCaratula}>{guardandoCaratula ? <SpinnerIcon /> : <CheckIcon className="h-4 w-4" />} {guardandoCaratula ? "Guardando..." : "Guardar carátula"}</Button>

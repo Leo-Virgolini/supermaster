@@ -537,7 +537,7 @@ export async function putEstadoPublicacionAPI(id: number, body: EstadoPublicacio
 	return r.json() as Promise<EstadoAplicar>;
 }
 
-export async function generarCaratulaAPI(sku: string): Promise<{ imagenBase64: string }> {
+export async function generarCaratulaAPI(sku: string): Promise<{ imagenBase64: string; formato: string }> {
 	const r = await fetchAPI(`${API_BASE_URL}/api/imagenes/caratula/generar/${encodeURIComponent(sku)}`, { method: "POST" });
 	return r.json();
 }

@@ -1540,24 +1540,6 @@ public class MercadoLibreService {
         }
     }
 
-    /** Activa o pausa la publicación. status debe ser "active" o "paused". */
-    public boolean actualizarStatusItem(String mlaCode, String status) {
-        if (mlaCode == null || mlaCode.isBlank()) return false;
-        if (!"active".equals(status) && !"paused".equals(status)) {
-            log.warn("ML - status inválido para item {}: {}", mlaCode, status);
-            return false;
-        }
-        verificarTokens();
-        try {
-            String body = "{\"status\":\"" + status + "\"}";
-            retryHandler.putJson("/items/" + mlaCode, () -> tokens.accessToken, body);
-            return true;
-        } catch (Exception e) {
-            log.warn("ML - Error actualizando status de item {}: {}", mlaCode, e.getMessage());
-            return false;
-        }
-    }
-
     /**
      * Actualiza el precio de todas las variaciones de un item en un solo PUT.
      * ML requiere que todas las variaciones vengan con el mismo precio en el request.

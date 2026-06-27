@@ -1,6 +1,9 @@
 package ar.com.leo.super_master_backend.apis.openai.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -11,7 +14,7 @@ import java.math.BigDecimal;
 @Entity
 @Table(name = "seo_uso", schema = "supermaster")
 public class SeoUso {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
     @Column(name = "id")
     private Long id;
 

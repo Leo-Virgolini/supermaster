@@ -13,5 +13,5 @@ public record ImagenConfigUpdateDTO(
         @NotBlank(message = "El tamaño es obligatorio") @Pattern(regexp = "1024x1024|1024x1536|1536x1024|auto", message = "Tamaño inválido") String size,
         @NotBlank(message = "El formato es obligatorio") @Pattern(regexp = "png|jpeg|webp", message = "Formato inválido") String outputFormat,
         @NotBlank(message = "La calidad es obligatoria") @Pattern(regexp = "low|medium|high|auto", message = "Calidad inválida") String quality,
-        @NotNull(message = "El precio de input es obligatorio") @DecimalMin(value = "0.0", message = "El precio de input no puede ser negativo") BigDecimal precioInput1m,
-        @NotNull(message = "El precio de output es obligatorio") @DecimalMin(value = "0.0", message = "El precio de output no puede ser negativo") BigDecimal precioOutput1m) {}
+        @NotNull(message = "El precio de input es obligatorio") @DecimalMin(value = "0.0", inclusive = false, message = "El precio de input debe ser mayor a 0") BigDecimal precioInput1m,
+        @NotNull(message = "El precio de output es obligatorio") @DecimalMin(value = "0.0", inclusive = false, message = "El precio de output debe ser mayor a 0") BigDecimal precioOutput1m) {}

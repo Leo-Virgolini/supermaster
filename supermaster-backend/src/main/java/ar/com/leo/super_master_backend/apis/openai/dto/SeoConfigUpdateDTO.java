@@ -10,5 +10,5 @@ public record SeoConfigUpdateDTO(
         @NotBlank(message = "El prompt de KT Hogar es obligatorio") String promptHogar,
         @NotBlank(message = "El prompt de KT Gastro es obligatorio") String promptGastro,
         @NotBlank(message = "El modelo es obligatorio") String model,
-        @NotNull(message = "El precio de input es obligatorio") @DecimalMin(value = "0.0", message = "El precio de input no puede ser negativo") BigDecimal precioInput1m,
-        @NotNull(message = "El precio de output es obligatorio") @DecimalMin(value = "0.0", message = "El precio de output no puede ser negativo") BigDecimal precioOutput1m) {}
+        @NotNull(message = "El precio de input es obligatorio") @DecimalMin(value = "0.0", inclusive = false, message = "El precio de input debe ser mayor a 0") BigDecimal precioInput1m,
+        @NotNull(message = "El precio de output es obligatorio") @DecimalMin(value = "0.0", inclusive = false, message = "El precio de output debe ser mayor a 0") BigDecimal precioOutput1m) {}

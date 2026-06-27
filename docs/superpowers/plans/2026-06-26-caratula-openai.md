@@ -2,163 +2,36 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Desde el modal de edición, generar con OpenAI (gpt-image-1) una carátula con fondo blanco a partir de la foto cruda del SKU, previsualizarla y, al confirmar, guardarla como `{SKU}.jpg` (1200×1200) en la carpeta de imágenes.
+**Goal:** Desde el modal de edición, generar con OpenAI (gpt-image-2) una carátula con fondo blanco a partir de la foto cruda del SKU, previsualizarla y, al confirmar, guardarla como `{SKU}.jpg` (1024×1024) en la carpeta de imágenes.
 
-**Architecture:** Réplica del patrón OpenAI del SEO con credencial y cliente aparte (apis/openai): properties + bean RestClient de imágenes, `OpenAiImagenService` (multipart a `/images/edits`), prompt y uso en BD (`imagen_prompt`/`imagen_uso`) editables en la pantalla "SEO IA". Procesamiento de imagen puro (PNG→JPG 1200×1200, `javax.imageio`). `ImagenService` gana leer la cruda desde una carpeta nueva y escribir la carátula. Un `CaratulaService` orquesta; endpoints generar/guardar. Frontend: botón + preview en el modal.
+**Architecture:** Réplica del patrón OpenAI del SEO con credencial y cliente aparte (apis/openai): properties + bean RestClient de imágenes, `OpenAiImagenService` (multipart a `/images/edits`, devuelve el JPG final directo de gpt-image-2 — sin post-proceso), prompt y uso en BD (`imagen_prompt`/`imagen_uso`) editables en la pantalla "SEO IA". `ImagenService` gana leer la cruda desde una carpeta nueva y escribir la carátula. Un `CaratulaService` orquesta; endpoints generar/guardar. Frontend: botón + preview en el modal.
 
-**Tech Stack:** Java 25 / Spring Boot 4 / Maven / JUnit 5 / AssertJ / Jackson 3 / `javax.imageio`+`java.awt` (built-in); Next.js / React / TypeScript.
+**Tech Stack:** Java 25 / Spring Boot 4 / Maven / JUnit 5 / AssertJ / Jackson 3; Next.js / React / TypeScript.
 
 ## Global Constraints
 
 - Backend: tests con `mvn -o test` (offline) desde `supermaster-backend`; `mvn` del PATH (NO `mvnw`).
-- API key de imágenes **separada** del SEO: archivo `secrets/openai_image_tokens.json` (formato `{"api_key": "..."}`), cargado en `app.secrets-dir`. NO va en properties.
-- Modelo `gpt-image-1`, endpoint `/images/edits`, `size=1024x1024`; salida reescalada a **1200×1200 JPG**.
+- API key de imágenes **separada** del SEO: `secrets/openai_image_tokens.json` (formato `{"api_key": "..."}`) en `app.secrets-dir`. NO en properties.
+- Modelo `gpt-image-2` (configurable vía `openai.image.model`), endpoint `/images/edits`, params `size=1024x1024`, `output_format=jpeg`, `quality=high`. gpt devuelve el **JPG final 1024×1024**: se guarda tal cual, **sin reescalar ni reconvertir**. Una sola imagen para ML y Nube.
 - Carpeta cruda de entrada: propiedad nueva `app.imagenes-raw-dir` (configurable, separada de `app.imagenes-dir`); archivo crudo `{SKU}.{ext}`. Salida: `{SKU}.jpg` en `app.imagenes-dir`.
 - Generar NO guarda (devuelve base64 para preview); guardar escribe el archivo tras confirmación.
 - Jackson 3: `tools.jackson.databind` (idiom `.asString(null)`/`.asLong(0)`).
-- Permisos: `Permisos.INTEGRACIONES_VER` (lecturas) / `Permisos.INTEGRACIONES_EDITAR` (acciones), import `ar.com.leo.super_master_backend.config.Permisos`.
+- Permisos: `Permisos.INTEGRACIONES_VER` / `Permisos.INTEGRACIONES_EDITAR`, import `ar.com.leo.super_master_backend.config.Permisos`.
 - Commits en español, estilo `tipo(scope): ...`, cerrando con:
   `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`
 - Frontend: `npm run lint` + `npx tsc --noEmit -p tsconfig.json`; sin errores nuevos.
 
 ## Estructura de archivos
 
-- Crear `apis/openai/service/ImagenProcesador.java` — puro: PNG→JPG cuadrado.
-- Crear `apis/openai/entity/ImagenPrompt.java`, `ImagenUso.java`.
-- Crear `apis/openai/repository/ImagenPromptRepository.java`, `ImagenUsoRepository.java`.
-- Crear `apis/openai/service/ImagenIaConfigService.java`, `ImagenUsoService.java`.
-- Crear `apis/openai/config/OpenAiImageProperties.java`; modificar `OpenAiConfig.java` (bean nuevo).
-- Crear `apis/openai/service/OpenAiImagenService.java` + `OpenAiImagenParser.java` (puro).
-- Crear DTOs en `apis/openai/dto/`: `ImagenPromptDTO`, `ImagenPromptUpdateDTO`, `ImagenUsoDTO`, `CaratulaGeneradaDTO`, `CaratulaGuardarDTO`.
-- Modificar `dominio/imagen/service/ImagenService.java` (leer cruda + escribir + invalidar) y `ImagenController.java` (endpoints) ; crear `dominio/imagen/service/CaratulaService.java`.
-- Crear migración `src/main/resources/db/2026-06-26-imagen-ia.sql`; modificar `application.properties` (openai.image.*) y `application-dev.properties` (app.imagenes-raw-dir).
-- Frontend: `productos/productosService.ts` (+2 llamadas), `productos/ProductoFormModal.tsx` (botón+preview), `seo-ia/*` (prompt de carátula + uso).
+- Crear `apis/openai/entity/ImagenPrompt.java`, `ImagenUso.java`; `repository/ImagenPromptRepository.java`, `ImagenUsoRepository.java`; `service/ImagenIaConfigService.java`, `ImagenUsoService.java`; `config/OpenAiImageProperties.java`; DTOs.
+- Crear `apis/openai/service/OpenAiImagenService.java` + `OpenAiImagenParser.java` (puro); modificar `OpenAiConfig.java`.
+- Modificar `dominio/imagen/service/ImagenService.java` (leer cruda + escribir + invalidar); crear `dominio/imagen/service/CaratulaService.java`; modificar `ImagenController.java`; crear `apis/openai/controller/ImagenIaController.java`.
+- Crear `src/main/resources/db/2026-06-26-imagen-ia.sql`; modificar `application.properties` y `application-dev.properties`.
+- Frontend: `productos/productosService.ts`, `productos/ProductoFormModal.tsx`, `seo-ia/*`.
 
 ---
 
-### Task 1: Procesamiento de imagen (PNG → JPG 1200×1200, puro)
-
-**Files:**
-- Create: `supermaster-backend/src/main/java/ar/com/leo/super_master_backend/apis/openai/service/ImagenProcesador.java`
-- Test: `supermaster-backend/src/test/java/ar/com/leo/super_master_backend/apis/openai/service/ImagenProcesadorTest.java`
-
-**Interfaces:**
-- Produces: `static byte[] ImagenProcesador.aJpgCuadrada(byte[] imagenBytes, int lado)` — decodifica, aplana sobre blanco, reescala a `lado×lado`, devuelve JPG.
-
-- [ ] **Step 1: Escribir el test que falla**
-
-```java
-package ar.com.leo.super_master_backend.apis.openai.service;
-
-import org.junit.jupiter.api.Test;
-
-import javax.imageio.ImageIO;
-import java.awt.Color;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
-class ImagenProcesadorTest {
-
-    private static byte[] pngDe(int w, int h, int tipo) throws Exception {
-        BufferedImage img = new BufferedImage(w, h, tipo);
-        java.awt.Graphics2D g = img.createGraphics();
-        g.setColor(Color.RED); g.fillRect(0, 0, w, h); g.dispose();
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        ImageIO.write(img, "png", out);
-        return out.toByteArray();
-    }
-
-    @Test
-    void aJpgCuadrada_devuelveJpgDelLadoPedido() throws Exception {
-        byte[] png = pngDe(1024, 1024, BufferedImage.TYPE_INT_RGB);
-
-        byte[] jpg = ImagenProcesador.aJpgCuadrada(png, 1200);
-
-        BufferedImage res = ImageIO.read(new ByteArrayInputStream(jpg));
-        assertThat(res).isNotNull();
-        assertThat(res.getWidth()).isEqualTo(1200);
-        assertThat(res.getHeight()).isEqualTo(1200);
-    }
-
-    @Test
-    void aJpgCuadrada_aplanaTransparenciaSobreBlanco() throws Exception {
-        // PNG con alfa (transparente) → el JPG no debe tener canal alfa y el fondo queda blanco.
-        byte[] pngAlfa = pngDe(64, 64, BufferedImage.TYPE_INT_ARGB);
-
-        byte[] jpg = ImagenProcesador.aJpgCuadrada(pngAlfa, 100);
-
-        BufferedImage res = ImageIO.read(new ByteArrayInputStream(jpg));
-        assertThat(res.getColorModel().hasAlpha()).isFalse();
-        assertThat(res.getWidth()).isEqualTo(100);
-    }
-}
-```
-
-- [ ] **Step 2: Correr y ver fallar**
-
-Run: `cd supermaster-backend && mvn -o test -Dtest=ImagenProcesadorTest`
-Expected: FAIL — `ImagenProcesador` no existe.
-
-- [ ] **Step 3: Implementar**
-
-```java
-package ar.com.leo.super_master_backend.apis.openai.service;
-
-import javax.imageio.ImageIO;
-import java.awt.Color;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-
-/** Procesa la imagen devuelta por OpenAI: aplana sobre blanco, reescala a cuadrada y exporta JPG. Puro. */
-public final class ImagenProcesador {
-
-    private ImagenProcesador() {}
-
-    public static byte[] aJpgCuadrada(byte[] imagenBytes, int lado) {
-        try {
-            BufferedImage src = ImageIO.read(new ByteArrayInputStream(imagenBytes));
-            if (src == null) throw new IllegalArgumentException("No se pudo decodificar la imagen");
-            BufferedImage canvas = new BufferedImage(lado, lado, BufferedImage.TYPE_INT_RGB);
-            Graphics2D g = canvas.createGraphics();
-            g.setColor(Color.WHITE);
-            g.fillRect(0, 0, lado, lado);
-            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-            g.drawImage(src, 0, 0, lado, lado, null);
-            g.dispose();
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            ImageIO.write(canvas, "jpg", out);
-            return out.toByteArray();
-        } catch (IOException e) {
-            throw new UncheckedIOException("Error procesando la imagen", e);
-        }
-    }
-}
-```
-
-- [ ] **Step 4: Correr y ver pasar**
-
-Run: `cd supermaster-backend && mvn -o test -Dtest=ImagenProcesadorTest`
-Expected: PASS (2 tests).
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add supermaster-backend/src/main/java/ar/com/leo/super_master_backend/apis/openai/service/ImagenProcesador.java \
-        supermaster-backend/src/test/java/ar/com/leo/super_master_backend/apis/openai/service/ImagenProcesadorTest.java
-git commit -m "feat(imagen-ia): procesador puro PNG→JPG cuadrado (fondo blanco)"
-```
-
----
-
-### Task 2: Prompt y uso en BD (imagen_prompt, imagen_uso)
+### Task 1: Prompt y uso en BD (imagen_prompt, imagen_uso)
 
 **Files:**
 - Create: `apis/openai/entity/ImagenPrompt.java`, `apis/openai/entity/ImagenUso.java`
@@ -171,13 +44,13 @@ git commit -m "feat(imagen-ia): procesador puro PNG→JPG cuadrado (fondo blanco
 - Test: `apis/openai/service/ImagenUsoServiceTest.java`
 
 **Interfaces:**
-- Produces: `OpenAiImageProperties` (prefix `openai.image`, campos `baseUrl`/`model`/`connectTimeout`/`readTimeout`/`precioInput1m`/`precioOutput1m`).
-- Produces: `ImagenIaConfigService.prompt()` → String; `.actualizar(String)` → ImagenPromptDTO.
-- Produces: `ImagenUsoService.registrar(long in, long out)`; `.obtener()` → ImagenUsoDTO; `static calcularCosto(...)`.
+- Produces: `OpenAiImageProperties` (prefix `openai.image`: `baseUrl`/`model`/`connectTimeout`/`readTimeout`/`precioInput1m`/`precioOutput1m`).
+- Produces: `ImagenIaConfigService.prompt()` → String; `.obtener()` → ImagenPromptDTO; `.actualizar(String)` → ImagenPromptDTO.
+- Produces: `ImagenUsoService.registrar(long in, long out)`; `.obtener()` → ImagenUsoDTO; `static calcularCosto(long,long,BigDecimal,BigDecimal)`.
 
-- [ ] **Step 1: Crear properties, entities, repos, DTOs**
+- [ ] **Step 1: Properties, entities, repos, DTOs**
 
-`OpenAiImageProperties.java` (defaults para gpt-image-1; precios placeholder ajustables):
+`OpenAiImageProperties.java`:
 ```java
 package ar.com.leo.super_master_backend.apis.openai.config;
 
@@ -194,7 +67,7 @@ public record OpenAiImageProperties(
 ) {
     public OpenAiImageProperties {
         if (baseUrl == null) baseUrl = "https://api.openai.com/v1";
-        if (model == null) model = "gpt-image-1";
+        if (model == null) model = "gpt-image-2";
         if (connectTimeout == null) connectTimeout = Duration.ofSeconds(10);
         if (readTimeout == null) readTimeout = Duration.ofSeconds(120);
         if (precioInput1m == null) precioInput1m = new BigDecimal("5.00");
@@ -203,7 +76,7 @@ public record OpenAiImageProperties(
 }
 ```
 
-`ImagenPrompt.java` (una sola fila; clave `id` singleton):
+`ImagenPrompt.java` (fila singleton id=1):
 ```java
 package ar.com.leo.super_master_backend.apis.openai.entity;
 
@@ -229,7 +102,7 @@ public class ImagenPrompt {
 }
 ```
 
-`ImagenUso.java` (espejo de SeoUso):
+`ImagenUso.java`:
 ```java
 package ar.com.leo.super_master_backend.apis.openai.entity;
 
@@ -273,7 +146,7 @@ import org.springframework.stereotype.Repository;
 public interface ImagenPromptRepository extends JpaRepository<ImagenPrompt, Long> {}
 ```
 
-`ImagenUsoRepository.java` (UPDATE atómico singleton id=1):
+`ImagenUsoRepository.java`:
 ```java
 package ar.com.leo.super_master_backend.apis.openai.repository;
 
@@ -334,7 +207,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
-/** Lee/actualiza el prompt único de generación de carátula (fila id=1). */
 @Service
 @RequiredArgsConstructor
 public class ImagenIaConfigService {
@@ -343,15 +215,13 @@ public class ImagenIaConfigService {
 
     @Transactional(readOnly = true)
     public String prompt() {
-        return repository.findById(1L)
-                .map(ImagenPrompt::getContenido)
-                .orElseThrow(() -> new NotFoundException("No hay prompt de carátula configurado (revisar el seed de imagen_prompt)"));
+        return repository.findById(1L).map(ImagenPrompt::getContenido)
+                .orElseThrow(() -> new NotFoundException("No hay prompt de carátula configurado (revisar seed de imagen_prompt)"));
     }
 
     @Transactional(readOnly = true)
     public ImagenPromptDTO obtener() {
-        return repository.findById(1L)
-                .map(p -> new ImagenPromptDTO(p.getContenido(), p.getFechaModificacion()))
+        return repository.findById(1L).map(p -> new ImagenPromptDTO(p.getContenido(), p.getFechaModificacion()))
                 .orElseThrow(() -> new NotFoundException("No hay prompt de carátula configurado"));
     }
 
@@ -367,7 +237,7 @@ public class ImagenIaConfigService {
 }
 ```
 
-`ImagenUsoService.java` (espejo de SeoUsoService, usa OpenAiImageProperties):
+`ImagenUsoService.java`:
 ```java
 package ar.com.leo.super_master_backend.apis.openai.service;
 
@@ -419,7 +289,7 @@ public class ImagenUsoService {
 
 - [ ] **Step 3: Migración SQL + properties**
 
-Crear `src/main/resources/db/2026-06-26-imagen-ia.sql`:
+`src/main/resources/db/2026-06-26-imagen-ia.sql`:
 ```sql
 -- Carátula IA: prompt único editable + consumo acumulado de OpenAI (imágenes).
 CREATE TABLE supermaster.imagen_prompt (
@@ -444,16 +314,16 @@ INSERT INTO supermaster.imagen_prompt (id, contenido) VALUES (1,
 INSERT INTO supermaster.imagen_uso (id, consultas, tokens_entrada, tokens_salida, costo_usd) VALUES (1, 0, 0, 0, 0);
 ```
 
-En `application.properties`, agregar tras la sección `openai.*`:
+En `application.properties`, tras la sección `openai.*`:
 ```properties
 # OpenAI imágenes (carátula): key en openai_image_tokens.json (app.secrets-dir), NO acá.
 openai.image.base-url=https://api.openai.com/v1
-openai.image.model=gpt-image-1
+openai.image.model=gpt-image-2
 openai.image.precio-input-1m=5.00
 openai.image.precio-output-1m=40.00
 ```
 
-- [ ] **Step 4: Test de uso (TDD del cálculo)**
+- [ ] **Step 4: Test de uso (TDD)**
 
 `ImagenUsoServiceTest.java`:
 ```java
@@ -466,7 +336,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ImagenUsoServiceTest {
     @Test
     void calcularCosto_sumaInputYOutputPorMillon() {
-        // 1.000.000 in a 5 USD/M = 5; 500.000 out a 40 USD/M = 20; total 25.
         BigDecimal costo = ImagenUsoService.calcularCosto(1_000_000L, 500_000L, new BigDecimal("5.00"), new BigDecimal("40.00"));
         assertThat(costo).isEqualByComparingTo(new BigDecimal("25.000000"));
     }
@@ -476,10 +345,9 @@ class ImagenUsoServiceTest {
 - [ ] **Step 5: Correr tests**
 
 Run: `cd supermaster-backend && mvn -o test -Dtest=ImagenUsoServiceTest && mvn -o test-compile`
-Expected: test PASS; BUILD SUCCESS (entities/repos/services compilan). El registro de `OpenAiImageProperties` se completa al agregar el bean en la Task 3 (`@EnableConfigurationProperties`).
+Expected: test PASS; BUILD SUCCESS. (El registro de `OpenAiImageProperties` se completa en Task 2 con `@EnableConfigurationProperties`.)
 
 - [ ] **Step 6: Commit**
-
 ```bash
 git add supermaster-backend/src/main/java/ar/com/leo/super_master_backend/apis/openai/ \
         supermaster-backend/src/main/resources/db/2026-06-26-imagen-ia.sql \
@@ -490,7 +358,7 @@ git commit -m "feat(imagen-ia): prompt y uso de carátula en BD (imagen_prompt/i
 
 ---
 
-### Task 3: Cliente OpenAI de imágenes + OpenAiImagenService
+### Task 2: Cliente OpenAI de imágenes + OpenAiImagenService
 
 **Files:**
 - Modify: `apis/openai/config/OpenAiConfig.java` (registrar properties + bean `openaiImageRestClient`)
@@ -499,13 +367,13 @@ git commit -m "feat(imagen-ia): prompt y uso de carátula en BD (imagen_prompt/i
 - Test: `apis/openai/service/OpenAiImagenParserTest.java`
 
 **Interfaces:**
-- Consumes: `OpenAiImageProperties` (Task 2); `ImagenIaConfigService.prompt()` (Task 2); `ImagenUsoService.registrar(in,out)` (Task 2); `ImagenProcesador.aJpgCuadrada(bytes,1200)` (Task 1).
-- Produces: `OpenAiImagenService.generarCaratula(byte[] cruda, String filename)` → `byte[]` (JPG 1200×1200).
+- Consumes: `OpenAiImageProperties`, `ImagenIaConfigService.prompt()`, `ImagenUsoService.registrar(in,out)` (Task 1).
+- Produces: `OpenAiImagenService.generarCaratula(byte[] cruda, String filename)` → `byte[]` (JPG 1024×1024, tal cual de gpt).
 - Produces: `OpenAiImagenParser.b64(JsonNode)` → String; `.tokensEntrada(JsonNode)`/`.tokensSalida(JsonNode)` → long.
 
 - [ ] **Step 1: Registrar properties + bean en OpenAiConfig**
 
-En `OpenAiConfig.java`: agregar `OpenAiImageProperties` a `@EnableConfigurationProperties({OpenAiProperties.class, OpenAiImageProperties.class})` y agregar el bean:
+En `OpenAiConfig.java`: `@EnableConfigurationProperties({OpenAiProperties.class, OpenAiImageProperties.class})` y agregar el bean:
 ```java
     @Bean
     public RestClient openaiImageRestClient(OpenAiImageProperties properties) {
@@ -518,7 +386,7 @@ En `OpenAiConfig.java`: agregar `OpenAiImageProperties` a `@EnableConfigurationP
                 .build();
     }
 ```
-(No se setea `Content-Type` por defecto: las llamadas son multipart y lo fijan ellas.)
+(Sin `Content-Type` por defecto: las llamadas son multipart y lo fijan ellas.)
 
 - [ ] **Step 2: Parser puro + test (TDD)**
 
@@ -573,7 +441,7 @@ public final class OpenAiImagenParser {
 
 Run: `cd supermaster-backend && mvn -o test -Dtest=OpenAiImagenParserTest` → PASS.
 
-- [ ] **Step 3: OpenAiImagenService (llamada multipart)**
+- [ ] **Step 3: OpenAiImagenService**
 
 ```java
 package ar.com.leo.super_master_backend.apis.openai.service;
@@ -598,7 +466,7 @@ import java.io.File;
 import java.nio.file.Paths;
 import java.util.Base64;
 
-/** Genera la carátula llamando a gpt-image-1 (/images/edits) con credencial propia. */
+/** Genera la carátula llamando a gpt-image-2 (/images/edits) con credencial propia. Devuelve el JPG tal cual. */
 @Slf4j
 @Service
 public class OpenAiImagenService {
@@ -640,7 +508,7 @@ public class OpenAiImagenService {
         }
     }
 
-    /** Toma la imagen cruda, la edita con fondo blanco vía OpenAI y devuelve la carátula JPG 1200×1200. */
+    /** Edita la imagen cruda con fondo blanco vía OpenAI y devuelve la carátula JPG 1024×1024 (tal cual de gpt). */
     public byte[] generarCaratula(byte[] cruda, String filename) {
         if (credentials == null || credentials.getApiKey() == null)
             throw new ServiceNotConfiguredException("Falta la credencial de OpenAI de imágenes (openai_image_tokens.json)");
@@ -649,6 +517,8 @@ public class OpenAiImagenService {
         parts.add("model", properties.model());
         parts.add("prompt", configService.prompt());
         parts.add("size", "1024x1024");
+        parts.add("output_format", "jpeg");
+        parts.add("quality", "high");
         parts.add("image", new ByteArrayResource(cruda) {
             @Override public String getFilename() { return filename; }
         });
@@ -665,42 +535,40 @@ public class OpenAiImagenService {
         String b64 = OpenAiImagenParser.b64(root);
         if (b64 == null) throw new IllegalStateException("OpenAI no devolvió la imagen");
         usoService.registrar(OpenAiImagenParser.tokensEntrada(root), OpenAiImagenParser.tokensSalida(root));
-        byte[] png = Base64.getDecoder().decode(b64);
-        return ImagenProcesador.aJpgCuadrada(png, 1200);
+        return Base64.getDecoder().decode(b64); // ya es JPG (output_format=jpeg)
     }
 }
 ```
 
-> Nota: verificar el FQN/existencia de `ServiceNotConfiguredException` (el SEO usa una excepción así; si el nombre difiere, usar la real del proyecto). `OpenAiCredentials` ya existe y mapea `api_key`.
+> Verificar el nombre real de la excepción de "no configurado" del SEO (`ServiceNotConfiguredException` u otra) y usar la del proyecto. `OpenAiCredentials` ya existe y mapea `api_key`. El multipart sigue el patrón que ya usa `MlRetryHandler.postMultipart` (ByteArrayResource + MULTIPART_FORM_DATA).
 
 - [ ] **Step 4: Compilar**
 
 Run: `cd supermaster-backend && mvn -o test-compile`
-Expected: BUILD SUCCESS. (La llamada HTTP real se valida manualmente; no hay test unitario del POST, igual que el SEO.)
+Expected: BUILD SUCCESS. (La llamada HTTP real se valida manualmente, como el SEO.)
 
 - [ ] **Step 5: Commit**
-
 ```bash
 git add supermaster-backend/src/main/java/ar/com/leo/super_master_backend/apis/openai/config/OpenAiConfig.java \
         supermaster-backend/src/main/java/ar/com/leo/super_master_backend/apis/openai/service/OpenAiImagenParser.java \
         supermaster-backend/src/main/java/ar/com/leo/super_master_backend/apis/openai/service/OpenAiImagenService.java \
         supermaster-backend/src/test/java/ar/com/leo/super_master_backend/apis/openai/service/OpenAiImagenParserTest.java
-git commit -m "feat(imagen-ia): cliente y servicio OpenAI gpt-image-1 (/images/edits)"
+git commit -m "feat(imagen-ia): cliente y servicio OpenAI gpt-image-2 (/images/edits, JPG directo)"
 ```
 
 ---
 
-### Task 4: ImagenService — leer cruda + escribir carátula
+### Task 3: ImagenService — leer cruda + escribir carátula
 
 **Files:**
-- Modify: `dominio/imagen/service/ImagenService.java` (inyectar `app.imagenes-raw-dir`; `leerCrudaPorSku`, `guardarCaratula`, `invalidarIndice`)
+- Modify: `dominio/imagen/service/ImagenService.java` (inyectar `app.imagenes-raw-dir`; `resolverCrudaPorSku`, `leerCrudaBytes`, `guardarCaratula`, `invalidarIndice`)
 - Modify: `src/main/resources/application-dev.properties` (`app.imagenes-raw-dir`)
 - Test: `dominio/imagen/service/ImagenServiceCaratulaTest.java`
 
 **Interfaces:**
-- Produces: `ImagenService.leerCrudaPorSku(String sku)` → `byte[]` (null si no hay cruda); `ImagenService.guardarCaratula(String sku, byte[] jpg)` (escribe `{SKU}.jpg` en imagenes-dir e invalida el índice).
+- Produces: `ImagenService.resolverCrudaPorSku(String sku)` → filename `{SKU}.{ext}` en la carpeta cruda (null si no hay); `leerCrudaBytes(String filename)` → bytes desde la carpeta cruda; `guardarCaratula(String sku, byte[] jpg)` (escribe `{SKU}.jpg` en imagenes-dir + invalida índice).
 
-- [ ] **Step 1: Escribir el test (TDD, @TempDir)**
+- [ ] **Step 1: Test (TDD, @TempDir)**
 
 `ImagenServiceCaratulaTest.java`:
 ```java
@@ -721,14 +589,16 @@ class ImagenServiceCaratulaTest {
     }
 
     @Test
-    void leerCrudaPorSku_leeDeLaCarpetaDeEntrada(@TempDir Path imagenes, @TempDir Path crudas) throws Exception {
+    void resolverYLeerCruda_desdeLaCarpetaDeEntrada(@TempDir Path imagenes, @TempDir Path crudas) throws Exception {
         Files.write(crudas.resolve("ABC.png"), new byte[]{1, 2, 3});
-        assertThat(servicio(imagenes, crudas).leerCrudaPorSku("ABC")).containsExactly(1, 2, 3);
+        ImagenService s = servicio(imagenes, crudas);
+        assertThat(s.resolverCrudaPorSku("ABC")).isEqualTo("ABC.png");
+        assertThat(s.leerCrudaBytes("ABC.png")).containsExactly(1, 2, 3);
     }
 
     @Test
-    void leerCrudaPorSku_sinArchivo_devuelveNull(@TempDir Path imagenes, @TempDir Path crudas) {
-        assertThat(servicio(imagenes, crudas).leerCrudaPorSku("NOPE")).isNull();
+    void resolverCruda_sinArchivo_devuelveNull(@TempDir Path imagenes, @TempDir Path crudas) {
+        assertThat(servicio(imagenes, crudas).resolverCrudaPorSku("NOPE")).isNull();
     }
 
     @Test
@@ -744,11 +614,11 @@ class ImagenServiceCaratulaTest {
 - [ ] **Step 2: Correr y ver fallar**
 
 Run: `cd supermaster-backend && mvn -o test -Dtest=ImagenServiceCaratulaTest`
-Expected: FAIL — el constructor de 3 args y los métodos no existen.
+Expected: FAIL — constructor de 3 args y métodos no existen.
 
 - [ ] **Step 3: Implementar en ImagenService**
 
-Agregar el 3er parámetro al constructor y guardar el `rawDir`:
+Agregar el 3er parámetro y guardar `rawDir`:
 ```java
     private final Path rawDir;
 
@@ -762,19 +632,25 @@ Agregar el 3er parámetro al constructor y guardar el `rawDir`:
     }
 ```
 
-Agregar los métodos (usar `EXTENSIONES` ya existente para resolver la cruda; reusar `invalidar` del índice):
+Agregar los métodos (reusar el array `EXTENSIONES` existente):
 ```java
-    /** Lee los bytes de la imagen cruda {SKU}.{ext} desde la carpeta de entrada; null si no existe. */
-    public byte[] leerCrudaPorSku(String sku) {
+    /** Nombre del archivo crudo {SKU}.{ext} en la carpeta de entrada, o null si no existe. */
+    public String resolverCrudaPorSku(String sku) {
         if (sku == null || sku.isBlank()) return null;
         for (String ext : EXTENSIONES) {
-            Path p = rawDir.resolve(sku.trim() + "." + ext);
-            if (Files.isRegularFile(p)) {
-                try { return Files.readAllBytes(p); }
-                catch (IOException e) { throw new UncheckedIOException("No se pudo leer la cruda " + p, e); }
-            }
+            String nombre = sku.trim() + "." + ext;
+            if (Files.isRegularFile(rawDir.resolve(nombre))) return nombre;
         }
         return null;
+    }
+
+    /** Bytes de un archivo de la carpeta cruda. */
+    public byte[] leerCrudaBytes(String filename) {
+        try {
+            return Files.readAllBytes(rawDir.resolve(filename));
+        } catch (IOException e) {
+            throw new UncheckedIOException("No se pudo leer la cruda " + filename, e);
+        }
     }
 
     /** Escribe la carátula {SKU}.jpg en la carpeta de imágenes (reemplaza si existía) e invalida el índice. */
@@ -794,11 +670,9 @@ Agregar los métodos (usar `EXTENSIONES` ya existente para resolver la cruda; re
     }
 ```
 
-> Nota: el case-insensitive del nombre crudo (ej. SKU en otra capitalización) no se cubre; se asume `{SKU}.{ext}` con el SKU tal cual. Si hace falta, ajustar a un escaneo case-insensitive como `obtenerIndice`.
+- [ ] **Step 4: Propiedad en dev**
 
-- [ ] **Step 4: Agregar la propiedad en dev**
-
-En `application-dev.properties`, agregar (ruta a definir por el usuario; placeholder en dev):
+En `application-dev.properties` (ruta placeholder; el usuario la define):
 ```properties
 app.imagenes-raw-dir=C:/ProgramData/SuperMaster/imagenes-crudas/
 ```
@@ -806,10 +680,9 @@ app.imagenes-raw-dir=C:/ProgramData/SuperMaster/imagenes-crudas/
 - [ ] **Step 5: Correr tests**
 
 Run: `cd supermaster-backend && mvn -o test -Dtest=ImagenServiceCaratulaTest && mvn -o test-compile`
-Expected: 3 tests PASS; BUILD SUCCESS. (Si otros tests construyen `ImagenService` con 2 args, actualizarlos al nuevo constructor de 3 args — buscar `new ImagenService(` en tests y agregar un tercer arg de carpeta cruda; los tests existentes pueden pasar el mismo `@TempDir` o un dummy.)
+Expected: 3 PASS; BUILD SUCCESS. Si algún test existente hace `new ImagenService(dir, ttl)` (2 args), actualizarlo al constructor de 3 args (pasar un tercer `@TempDir`/carpeta dummy) — buscar `new ImagenService(` en `src/test`.
 
 - [ ] **Step 6: Commit**
-
 ```bash
 git add supermaster-backend/src/main/java/ar/com/leo/super_master_backend/dominio/imagen/service/ImagenService.java \
         supermaster-backend/src/main/resources/application-dev.properties \
@@ -819,16 +692,17 @@ git commit -m "feat(imagen): lee imagen cruda por SKU y guarda la carátula {SKU
 
 ---
 
-### Task 5: Orquestador + endpoints (generar/guardar)
+### Task 4: Orquestador + endpoints (generar/guardar + prompt/uso)
 
 **Files:**
 - Create: `dominio/imagen/service/CaratulaService.java`
 - Create: `apis/openai/dto/CaratulaGeneradaDTO.java`, `apis/openai/dto/CaratulaGuardarDTO.java`
-- Modify: `dominio/imagen/controller/ImagenController.java` (2 endpoints) + `apis/openai/controller/SeoController.java` o nuevo `ImagenIaController` (prompt/uso de carátula)
+- Modify: `dominio/imagen/controller/ImagenController.java` (2 endpoints)
+- Create: `apis/openai/controller/ImagenIaController.java` (prompt/uso)
 
 **Interfaces:**
-- Consumes: `ImagenService.leerCrudaPorSku/guardarCaratula` (Task 4); `OpenAiImagenService.generarCaratula` (Task 3); `ImagenIaConfigService`/`ImagenUsoService` (Task 2).
-- Produces: `CaratulaService.generar(sku)` → `byte[]` JPG; `CaratulaService.guardar(sku, byte[] jpg)`.
+- Consumes: `ImagenService.resolverCrudaPorSku/leerCrudaBytes/guardarCaratula` (Task 3); `OpenAiImagenService.generarCaratula` (Task 2); `ImagenIaConfigService`/`ImagenUsoService` (Task 1).
+- Produces: `CaratulaService.generar(sku)` → `byte[]` JPG; `CaratulaService.guardar(sku, byte[])`.
 
 - [ ] **Step 1: DTOs**
 ```java
@@ -852,7 +726,7 @@ import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundExceptio
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-/** Orquesta la generación/guardado de la carátula: cruda → OpenAI → JPG → disco. */
+/** Orquesta la carátula: cruda → OpenAI → JPG → disco. */
 @Service
 @RequiredArgsConstructor
 public class CaratulaService {
@@ -862,9 +736,10 @@ public class CaratulaService {
 
     /** Genera (sin guardar) la carátula JPG a partir de la cruda del SKU. */
     public byte[] generar(String sku) {
-        byte[] cruda = imagenService.leerCrudaPorSku(sku);
-        if (cruda == null) throw new NotFoundException("No hay imagen cruda para el SKU " + sku);
-        return openAiImagenService.generarCaratula(cruda, sku + ".png");
+        String crudaNombre = imagenService.resolverCrudaPorSku(sku);
+        if (crudaNombre == null) throw new NotFoundException("No hay imagen cruda para el SKU " + sku);
+        byte[] cruda = imagenService.leerCrudaBytes(crudaNombre);
+        return openAiImagenService.generarCaratula(cruda, crudaNombre);
     }
 
     public void guardar(String sku, byte[] jpg) {
@@ -875,7 +750,7 @@ public class CaratulaService {
 
 - [ ] **Step 3: Endpoints de carátula en ImagenController**
 
-Agregar (inyectar `CaratulaService` por constructor; importar `Base64`, los DTOs, `Permisos`, `@PreAuthorize`, `@Valid`):
+Inyectar `CaratulaService` por constructor (el controller actual usa constructor explícito). Importar `Base64`, los DTOs, `Permisos`, `@PreAuthorize`, `@Valid`, `@PostMapping`, `@RequestBody`. Agregar:
 ```java
     @PostMapping("/caratula/generar/{sku}")
     @PreAuthorize(Permisos.INTEGRACIONES_EDITAR)
@@ -892,9 +767,7 @@ Agregar (inyectar `CaratulaService` por constructor; importar `Base64`, los DTOs
     }
 ```
 
-- [ ] **Step 4: Endpoints de prompt/uso de carátula**
-
-Agregar en `SeoController` (o un `ImagenIaController` nuevo bajo `apis/openai/controller`; preferir el controller nuevo para no mezclar): `GET /api/imagen-ia/prompt`, `PUT /api/imagen-ia/prompt`, `GET /api/imagen-ia/uso`, delegando en `ImagenIaConfigService`/`ImagenUsoService`. Patrón idéntico a `SeoController` (permisos `INTEGRACIONES_VER`/`INTEGRACIONES_EDITAR`, `@Valid` con `ImagenPromptUpdateDTO`):
+- [ ] **Step 4: ImagenIaController (prompt/uso)**
 ```java
 package ar.com.leo.super_master_backend.apis.openai.controller;
 
@@ -934,7 +807,7 @@ public class ImagenIaController {
 }
 ```
 
-- [ ] **Step 5: Compilar + suite del paquete**
+- [ ] **Step 5: Compilar + suite de imagen**
 
 Run: `cd supermaster-backend && mvn -o test-compile && mvn -o test -Dtest='*Imagen*'`
 Expected: BUILD SUCCESS; tests de imagen verdes.
@@ -948,7 +821,7 @@ git commit -m "feat(imagen-ia): orquestador + endpoints generar/guardar carátul
 
 ---
 
-### Task 6: Frontend — botón "Mejorar carátula con IA" + preview
+### Task 5: Frontend — botón "Mejorar carátula con IA" + preview
 
 **Files:**
 - Modify: `supermaster-frontend/src/app/productos/productosService.ts` (2 llamadas)
@@ -968,9 +841,9 @@ export async function guardarCaratulaAPI(sku: string, imagenBase64: string): Pro
         { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imagenBase64 }) });
 }
 ```
-(Replicar el patrón exacto de `fetchAPI` del archivo; verificar `API_BASE_URL`/import.)
+(Replicar el patrón exacto de `fetchAPI`/`API_BASE_URL` del archivo.)
 
-- [ ] **Step 2: Estado + handlers en el modal (modo edición)**
+- [ ] **Step 2: Estado + handlers en el modal**
 ```tsx
     const [caratulaPreview, setCaratulaPreview] = useState<string | null>(null);
     const [generandoCaratula, setGenerandoCaratula] = useState(false);
@@ -992,18 +865,17 @@ export async function guardarCaratulaAPI(sku: string, imagenBase64: string): Pro
             await guardarCaratulaAPI(sku.trim(), caratulaPreview);
             setCaratulaPreview(null);
             notificar.success("Carátula guardada");
-            // refrescar el detalle/carrusel de imágenes
             getImagenDetalleAPI(sku.trim()).then(setImagenesDetectadas).catch(() => {});
         } catch (e) {
             if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "No se pudo guardar la carátula");
         }
     };
 ```
-(Reusar el nombre real del estado de imágenes detectadas y de la función de carga — `imagenesDetectadas`/`getImagenDetalleAPI` ya existen en el archivo.)
+(Reusar los nombres reales del estado/carga de imágenes — `imagenesDetectadas`/`getImagenDetalleAPI` ya existen.)
 
 - [ ] **Step 3: UI (botón + preview)**
 
-En la zona de imágenes/carátula del modal (solo `editandoProductoId`), agregar el botón y, si hay preview, el bloque de confirmación:
+En la zona de imágenes del modal (solo `editandoProductoId`):
 ```tsx
     <Button variant="dark" onClick={generarCaratula} disabled={generandoCaratula}>
         {generandoCaratula ? <SpinnerIcon /> : <SparklesIcon className="h-4 w-4" />}
@@ -1019,13 +891,13 @@ En la zona de imágenes/carátula del modal (solo `editandoProductoId`), agregar
         </div>
     )}
 ```
-(Usar íconos ya importados — `SparklesIcon`, `CheckIcon`, `SpinnerIcon` — y `Button`/`notificar`/`esSesionExpirada` existentes.)
+(Usar íconos ya importados — `SparklesIcon`, `CheckIcon`, `SpinnerIcon`, `Button`, `notificar`, `esSesionExpirada`.)
 
 - [ ] **Step 4: Lint + tsc + manual**
 
 Run: `cd supermaster-frontend && npm run lint && npx tsc --noEmit -p tsconfig.json`
 Expected: tsc 0; sin errores de lint nuevos.
-Manual: con un producto que tenga cruda → generar (preview), guardar (aparece en el carrusel), descartar (no cambia nada); sin cruda → error claro.
+Manual: con un SKU que tenga cruda → generar (preview), guardar (aparece en el carrusel), descartar (no cambia nada); sin cruda → error.
 
 - [ ] **Step 5: Commit**
 ```bash
@@ -1035,18 +907,16 @@ git commit -m "feat(modal): botón Mejorar carátula con IA con preview y guarda
 
 ---
 
-### Task 7: Frontend — pantalla "SEO IA": prompt y uso de carátula
+### Task 6: Frontend — pantalla "SEO IA": prompt y uso de carátula
 
 **Files:**
-- Modify: `supermaster-frontend/src/app/seo-ia/seoService.ts` (o crear `imagenIaService.ts`) — 3 llamadas
-- Modify: `supermaster-frontend/src/app/seo-ia/page.tsx` y `useSeoIa.ts` — tarjeta "Prompt de carátula" + panel de uso
+- Modify: `supermaster-frontend/src/app/seo-ia/seoService.ts` (3 llamadas)
+- Modify: `supermaster-frontend/src/app/seo-ia/page.tsx` y `useSeoIa.ts` (tarjeta + panel)
 
 **Interfaces:**
 - Produces: `getImagenPromptAPI()`/`updateImagenPromptAPI(contenido)`/`getImagenUsoAPI()` (GET/PUT `/api/imagen-ia/prompt`, GET `/api/imagen-ia/uso`).
 
 - [ ] **Step 1: Llamadas API**
-
-Agregar (mismo patrón que `getSeoPromptsAPI`/`updateSeoPromptAPI`/`getSeoUsoAPI`):
 ```ts
 export type ImagenPrompt = { contenido: string; fechaModificacion: string | null };
 export type ImagenUso = { consultas: number; tokensEntrada: number; tokensSalida: number; costoUsd: number; modelo: string; precioInput1m: number; precioOutput1m: number };
@@ -1065,15 +935,13 @@ export async function getImagenUsoAPI(): Promise<ImagenUso> {
 
 - [ ] **Step 2: UI en la pantalla SEO IA**
 
-En `page.tsx` (con su hook), agregar una tarjeta "Prompt de carátula" (textarea + botón Guardar que llama `updateImagenPromptAPI`) y un panel con el uso de carátula (`getImagenUsoAPI`: consultas, tokens, costo, modelo), siguiendo el mismo layout que el de SEO. Cargar ambos en el `useEffect` de carga junto a los de SEO.
-
-> Implementar reusando los componentes/estilos ya presentes en `page.tsx` (textarea, botón "Guardar", panel de uso). No introducir librerías nuevas.
+En `page.tsx`/`useSeoIa.ts`, agregar una tarjeta "Prompt de carátula" (textarea + botón Guardar → `updateImagenPromptAPI`) y un panel con el uso de carátula (`getImagenUsoAPI`: consultas, tokens, costo, modelo), con el mismo layout que el de SEO. Cargar ambos en el `useEffect` de carga junto a los de SEO. Reusar los componentes/estilos ya presentes; sin librerías nuevas.
 
 - [ ] **Step 3: Lint + tsc + manual**
 
 Run: `cd supermaster-frontend && npm run lint && npx tsc --noEmit -p tsconfig.json`
 Expected: tsc 0; sin errores nuevos.
-Manual: editar y guardar el prompt de carátula; ver el uso actualizarse tras generar una carátula.
+Manual: editar/guardar el prompt de carátula; ver el uso actualizarse tras generar una carátula.
 
 - [ ] **Step 4: Commit**
 ```bash
@@ -1086,5 +954,5 @@ git commit -m "feat(seo-ia): edición del prompt de carátula y panel de uso de 
 ## Notas de cierre
 
 - Tras todas las tareas: `cd supermaster-backend && mvn -o test` (suite completa verde) y `npm run lint && npx tsc --noEmit` en el frontend.
-- Verificación manual end-to-end con un SKU que tenga una foto cruda en `app.imagenes-raw-dir`: generar → preview → guardar → confirmar que aparece la `{SKU}.jpg` y que el uso/costo se registró.
-- Pendiente operativo (no de código): cargar `secrets/openai_image_tokens.json` con la API key de imágenes y setear `app.imagenes-raw-dir` a la carpeta real.
+- Verificación manual end-to-end con un SKU que tenga foto cruda en `app.imagenes-raw-dir`: generar → preview → guardar → confirmar `{SKU}.jpg` y que el uso/costo se registró.
+- Pendiente operativo (no de código): cargar `secrets/openai_image_tokens.json` con la API key y setear `app.imagenes-raw-dir` a la carpeta real.

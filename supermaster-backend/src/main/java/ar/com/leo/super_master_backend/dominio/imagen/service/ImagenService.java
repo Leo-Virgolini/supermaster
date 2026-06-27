@@ -36,6 +36,7 @@ public class ImagenService {
 
     private final Path baseDir;
     private final long ttlMillis;
+    private final Path rawDir;
 
     // Índice cacheado de nombres de archivo de imagen (ya ordenado, case-insensitive).
     private volatile List<String> indice = List.of();
@@ -45,9 +46,11 @@ public class ImagenService {
 
     public ImagenService(
             @Value("${app.imagenes-dir}") String imagenesDir,
-            @Value("${app.imagenes-index-ttl-ms:60000}") long ttlMillis) {
+            @Value("${app.imagenes-index-ttl-ms:60000}") long ttlMillis,
+            @Value("${app.imagenes-raw-dir}") String imagenesRawDir) {
         this.baseDir = Path.of(imagenesDir).normalize();
         this.ttlMillis = ttlMillis;
+        this.rawDir = Path.of(imagenesRawDir).normalize();
     }
 
     /**
@@ -165,6 +168,41 @@ public class ImagenService {
         } catch (IOException e) {
             throw new UncheckedIOException("No se pudo leer la imagen " + filename, e);
         }
+    }
+
+    /** Nombre del archivo crudo {SKU}.{ext} en la carpeta de entrada, o null si no existe. */
+    public String resolverCrudaPorSku(String sku) {
+        if (sku == null || sku.isBlank()) return null;
+        for (String ext : EXTENSIONES) {
+            String nombre = sku.trim() + "." + ext;
+            if (Files.isRegularFile(rawDir.resolve(nombre))) return nombre;
+        }
+        return null;
+    }
+
+    /** Bytes de un archivo de la carpeta cruda. */
+    public byte[] leerCrudaBytes(String filename) {
+        try {
+            return Files.readAllBytes(rawDir.resolve(filename));
+        } catch (IOException e) {
+            throw new UncheckedIOException("No se pudo leer la cruda " + filename, e);
+        }
+    }
+
+    /** Escribe la carátula {SKU}.jpg en la carpeta de imágenes (reemplaza si existía) e invalida el índice. */
+    public void guardarCaratula(String sku, byte[] jpg) {
+        try {
+            Files.createDirectories(baseDir);
+            Files.write(baseDir.resolve(sku.trim() + ".jpg"), jpg);
+            invalidarIndice();
+        } catch (IOException e) {
+            throw new UncheckedIOException("No se pudo guardar la carátula de " + sku, e);
+        }
+    }
+
+    /** Fuerza el re-escaneo del índice en la próxima consulta (tras escribir un archivo). */
+    public synchronized void invalidarIndice() {
+        indiceTimestamp = 0L;
     }
 
     /** Slot del archivo respecto del SKU: 0 si es la principal ({sku}), N si es {sku}_N (N>=1), null si no matchea. */

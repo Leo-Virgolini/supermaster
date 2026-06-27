@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class ImagenServiceBytesTest {
 
     private ImagenService servicioSobre(Path dir) {
-        return new ImagenService(dir.toString(), 0L);
+        return new ImagenService(dir.toString(), 0L, dir.toString());
     }
 
     @Test

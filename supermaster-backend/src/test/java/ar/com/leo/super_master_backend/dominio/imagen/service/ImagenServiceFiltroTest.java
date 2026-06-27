@@ -19,7 +19,7 @@ class ImagenServiceFiltroTest {
     private static final Set<String> EXT_ML = Set.of("jpg", "jpeg", "png");
 
     private ImagenService servicioSobre(Path dir) {
-        return new ImagenService(dir.toString(), 0L);
+        return new ImagenService(dir.toString(), 0L, dir.toString());
     }
 
     @Test

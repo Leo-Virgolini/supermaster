@@ -17,7 +17,7 @@ class ImagenServiceB3Test {
 
     // ttl 0 => el índice se re-escanea en cada acceso (sin caché entre llamadas en el test).
     private ImagenService servicioSobre(Path dir) {
-        return new ImagenService(dir.toString(), 0L);
+        return new ImagenService(dir.toString(), 0L, dir.toString());
     }
 
     @Test

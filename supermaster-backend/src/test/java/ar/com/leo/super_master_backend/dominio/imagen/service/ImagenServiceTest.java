@@ -21,7 +21,7 @@ class ImagenServiceTest {
     Path dir;
 
     private ImagenService servicio() {
-        return new ImagenService(dir.toString(), 0L);
+        return new ImagenService(dir.toString(), 0L, dir.toString());
     }
 
     private void crear(String nombre) throws IOException {

@@ -30,8 +30,16 @@ class ImagenServiceCaratulaTest {
     @Test
     void guardarCaratula_escribeJpgEnImagenesYSeResuelve(@TempDir Path imagenes, @TempDir Path crudas) {
         ImagenService s = servicio(imagenes, crudas);
-        s.guardarCaratula("ABC", new byte[]{9, 9, 9});
+        s.guardarCaratula("ABC", new byte[]{9, 9, 9}, "jpg");
         assertThat(imagenes.resolve("ABC.jpg")).exists();
         assertThat(s.resolverArchivoPorSku("ABC")).isEqualTo("ABC.jpg");
+    }
+
+    @Test
+    void guardarCaratula_conExtPng_escribeArchivoPng(@TempDir Path imagenes, @TempDir Path crudas) {
+        ImagenService s = servicio(imagenes, crudas);
+        s.guardarCaratula("XYZ", new byte[]{1, 2, 3}, "png");
+        assertThat(imagenes.resolve("XYZ.png")).exists();
+        assertThat(s.resolverArchivoPorSku("XYZ")).isEqualTo("XYZ.png");
     }
 }

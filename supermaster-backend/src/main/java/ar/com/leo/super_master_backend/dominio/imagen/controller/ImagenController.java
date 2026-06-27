@@ -65,7 +65,8 @@ public class ImagenController {
     @PreAuthorize(Permisos.INTEGRACIONES_EDITAR)
     public ResponseEntity<CaratulaGeneradaDTO> generarCaratula(@PathVariable String sku) {
         byte[] jpg = caratulaService.generar(sku);
-        return ResponseEntity.ok(new CaratulaGeneradaDTO(Base64.getEncoder().encodeToString(jpg)));
+        String b64 = Base64.getEncoder().encodeToString(jpg);
+        return ResponseEntity.ok(new CaratulaGeneradaDTO(b64, caratulaService.formato()));
     }
 
     @PostMapping("/caratula/guardar/{sku}")

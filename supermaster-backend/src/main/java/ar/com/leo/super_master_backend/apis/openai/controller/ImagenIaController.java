@@ -1,7 +1,7 @@
 package ar.com.leo.super_master_backend.apis.openai.controller;
 
-import ar.com.leo.super_master_backend.apis.openai.dto.ImagenPromptDTO;
-import ar.com.leo.super_master_backend.apis.openai.dto.ImagenPromptUpdateDTO;
+import ar.com.leo.super_master_backend.apis.openai.dto.ImagenConfigDTO;
+import ar.com.leo.super_master_backend.apis.openai.dto.ImagenConfigUpdateDTO;
 import ar.com.leo.super_master_backend.apis.openai.dto.ImagenUsoDTO;
 import ar.com.leo.super_master_backend.apis.openai.service.ImagenIaConfigService;
 import ar.com.leo.super_master_backend.apis.openai.service.ImagenUsoService;
@@ -20,14 +20,14 @@ public class ImagenIaController {
     private final ImagenIaConfigService configService;
     private final ImagenUsoService usoService;
 
-    @GetMapping("/prompt")
+    @GetMapping("/config")
     @PreAuthorize(Permisos.INTEGRACIONES_VER)
-    public ResponseEntity<ImagenPromptDTO> prompt() { return ResponseEntity.ok(configService.obtener()); }
+    public ResponseEntity<ImagenConfigDTO> config() { return ResponseEntity.ok(configService.obtener()); }
 
-    @PutMapping("/prompt")
+    @PutMapping("/config")
     @PreAuthorize(Permisos.INTEGRACIONES_EDITAR)
-    public ResponseEntity<ImagenPromptDTO> actualizar(@Valid @RequestBody ImagenPromptUpdateDTO body) {
-        return ResponseEntity.ok(configService.actualizar(body.contenido()));
+    public ResponseEntity<ImagenConfigDTO> actualizar(@Valid @RequestBody ImagenConfigUpdateDTO body) {
+        return ResponseEntity.ok(configService.actualizar(body));
     }
 
     @GetMapping("/uso")

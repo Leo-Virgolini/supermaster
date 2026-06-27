@@ -190,15 +190,15 @@ public class ImagenService {
         }
     }
 
-    /** Escribe la carátula {SKU}.jpg en la carpeta de imágenes (reemplaza si existía) e invalida el índice. */
-    public void guardarCaratula(String sku, byte[] jpg) {
+    /** Guarda la carátula como {sku}.{ext} en baseDir e invalida el índice. */
+    public void guardarCaratula(String sku, byte[] datos, String ext) {
         validarNombreSeguro(sku);
         try {
             Files.createDirectories(baseDir);
-            Files.write(baseDir.resolve(sku.trim() + ".jpg"), jpg);
+            Files.write(baseDir.resolve(sku.trim() + "." + ext), datos);
             invalidarIndice();
         } catch (IOException e) {
-            throw new UncheckedIOException("No se pudo guardar la carátula de " + sku, e);
+            throw new RuntimeException("No se pudo guardar la carátula de " + sku, e);
         }
     }
 

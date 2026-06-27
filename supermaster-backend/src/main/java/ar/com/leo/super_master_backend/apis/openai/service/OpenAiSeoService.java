@@ -1,7 +1,6 @@
 package ar.com.leo.super_master_backend.apis.openai.service;
 
 import ar.com.leo.super_master_backend.apis.openai.SeoCanal;
-import ar.com.leo.super_master_backend.apis.openai.config.OpenAiProperties;
 import ar.com.leo.super_master_backend.apis.openai.dto.SeoContexto;
 import ar.com.leo.super_master_backend.apis.openai.dto.SeoGeneradoDTO;
 import ar.com.leo.super_master_backend.apis.openai.model.OpenAiCredentials;
@@ -25,7 +24,6 @@ import java.nio.file.Paths;
 public class OpenAiSeoService {
 
     private final RestClient restClient;
-    private final OpenAiProperties properties;
     private final ObjectMapper objectMapper;
     private final SeoConfigService seoConfigService;
     private final SeoUsoService seoUsoService;
@@ -35,10 +33,9 @@ public class OpenAiSeoService {
 
     private OpenAiCredentials credentials;
 
-    public OpenAiSeoService(RestClient openaiRestClient, OpenAiProperties properties, ObjectMapper objectMapper,
+    public OpenAiSeoService(RestClient openaiRestClient, ObjectMapper objectMapper,
                             SeoConfigService seoConfigService, SeoUsoService seoUsoService) {
         this.restClient = openaiRestClient;
-        this.properties = properties;
         this.objectMapper = objectMapper;
         this.seoConfigService = seoConfigService;
         this.seoUsoService = seoUsoService;
@@ -85,12 +82,13 @@ public class OpenAiSeoService {
 
     private String construirBody(SeoCanal canal, SeoContexto contexto) {
         ObjectNode body = objectMapper.createObjectNode();
-        body.put("model", properties.model());
+        var config = seoConfigService.cargar();
+        body.put("model", config.getModel());
 
         ArrayNode messages = body.putArray("messages");
         ObjectNode system = messages.addObject();
         system.put("role", "system");
-        system.put("content", seoConfigService.promptDe(canal));
+        system.put("content", canal == SeoCanal.GASTRO ? config.getPromptGastro() : config.getPromptHogar());
         ObjectNode user = messages.addObject();
         user.put("role", "user");
         user.put("content", OpenAiSeoPrompts.userMessage(contexto));

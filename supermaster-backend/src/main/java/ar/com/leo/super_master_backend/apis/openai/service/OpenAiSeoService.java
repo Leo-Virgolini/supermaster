@@ -51,7 +51,7 @@ public class OpenAiSeoService {
 
     /** Genera SEO (title/description/tags) para el canal indicado a partir del contexto del producto. */
     public SeoGeneradoDTO generar(SeoCanal canal, SeoContexto contexto) {
-        String apiKey = credentials == null ? null : credentials.getApiKey();
+        String apiKey = credentials == null ? null : credentials.getSeoApiKey();
         if (apiKey == null || apiKey.isBlank()) {
             throw new ServiceNotConfiguredException("OPENAI", "OpenAI no configurado");
         }

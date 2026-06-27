@@ -62,11 +62,10 @@ public class OpenAiImagenService {
         }
     }
 
-    /** Key de imágenes: image_api_key si está, si no el api_key del SEO (fallback). */
+    /** Key de imágenes: image_api_key (sin fallback al SEO). */
     private String apiKey() {
         if (credentials == null) return null;
-        return credentials.getImageApiKey() != null && !credentials.getImageApiKey().isBlank()
-                ? credentials.getImageApiKey() : credentials.getApiKey();
+        return credentials.getImageApiKey();
     }
 
     /** Edita la imagen cruda con fondo blanco vía OpenAI y devuelve la carátula JPG 1024×1024 (tal cual de gpt). */
@@ -74,7 +73,7 @@ public class OpenAiImagenService {
         String apiKey = apiKey();
         if (apiKey == null || apiKey.isBlank())
             throw new ServiceNotConfiguredException("OPENAI_IMAGE",
-                    "Falta la credencial de OpenAI (openai_tokens.json: api_key o image_api_key)");
+                    "Falta image_api_key en openai_tokens.json");
 
         MultiValueMap<String, Object> parts = new LinkedMultiValueMap<>();
         parts.add("model", properties.model());

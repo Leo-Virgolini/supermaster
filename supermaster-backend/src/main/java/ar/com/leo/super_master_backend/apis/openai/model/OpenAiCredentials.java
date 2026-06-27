@@ -12,8 +12,8 @@ import lombok.Setter;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class OpenAiCredentials {
 
-    @JsonProperty("api_key")
-    private String apiKey;
+    @JsonProperty("seo_api_key")
+    private String seoApiKey;
 
     @JsonProperty("image_api_key")
     private String imageApiKey;

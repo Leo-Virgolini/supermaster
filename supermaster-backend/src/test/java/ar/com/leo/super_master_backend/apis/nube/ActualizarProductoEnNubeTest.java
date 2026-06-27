@@ -160,4 +160,22 @@ class ActualizarProductoEnNubeTest {
                 .contains("\"seo_description\"").contains("Descripcion SEO")
                 .contains("\"tags\"").contains("uno").contains("dos");
     }
+
+    @Test
+    void actualiza_conEanValido_mandaBarcodeAlaVariante() {
+        JsonNode existente = existente("{\"id\":500,\"variants\":[{\"id\":900,\"sku\":\"1234567\"}]}");
+        Producto p = producto();
+        p.setEan("1234567890128"); // EAN-13 válido
+        java.util.Map<String, String> puts = new java.util.HashMap<>();
+
+        TiendaNubeService.actualizarProductoEnNubeCore(
+                p, new BigDecimal("150"), null, om, "9",
+                java.util.List.of(), null,
+                sku -> existente,
+                (uri, body) -> puts.put(uri, body),
+                (productId, variantId, price, promo) -> true);
+
+        assertThat(puts).containsKey("/9/products/500/variants/900");
+        assertThat(puts.get("/9/products/500/variants/900")).contains("\"barcode\"").contains("1234567890128");
+    }
 }

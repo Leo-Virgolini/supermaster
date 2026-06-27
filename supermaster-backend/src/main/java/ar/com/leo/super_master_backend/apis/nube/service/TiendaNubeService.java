@@ -982,6 +982,12 @@ public class TiendaNubeService {
             }
             if (price != null) precioFn.actualizar(productId, variantId, price, promo);
 
+            // Código de barras: se sincroniza en la variante si el EAN es válido (mismo criterio que el alta).
+            if (ar.com.leo.super_master_backend.apis.ml.service.MlItemPayloadBuilder.esGtinValido(producto.getEan())) {
+                patcher.accept("/" + storeId + "/products/" + productId + "/variants/" + variantId,
+                        om.writeValueAsString(Map.of("barcode", producto.getEan().trim())));
+            }
+
             return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.actualizado(productId);
         } catch (Exception e) {
             return ar.com.leo.super_master_backend.apis.nube.dto.ResultadoAltaNube.error(e.getMessage());

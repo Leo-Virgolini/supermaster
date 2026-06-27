@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { notificar } from "../utils/notificar";
 import { esSesionExpirada } from "../utils/fetchAPI";
@@ -21,6 +21,8 @@ import {
     getMlCategoriaFichaAPI, type MlAtributoDef, type ProductoMlAtributo,
     type MlFicha, type MlComponente,
     getMlCategoriaMaxTitleAPI,
+    getEstadoPublicacionAPI, putEstadoPublicacionAPI,
+    type EstadoCanal, type EstadoPublicacion,
 } from "./productosService";
 import { updateProductoMargenAPI } from "./productoMargenService";
 import { getCuotasPorCanalAPI } from "../canal-concepto-cuotas/canalConceptoCuotaService";
@@ -249,6 +251,9 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const [tagReposicion, setTagReposicion] = useState<"" | "PRIO" | "LIQ">("");
     const [tag, setTag] = useState<"" | "MAQUINA" | "REPUESTO" | "MENAJE" | "INSUMO">("");
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+    const [estadoCanales, setEstadoCanales] = useState<EstadoPublicacion | null>(null);
+    const [estadoOriginal, setEstadoOriginal] = useState<EstadoPublicacion | null>(null);
+    const [cargandoEstado, setCargandoEstado] = useState(false);
 
     // Carga las cuotas reales de cada canal (KT HOGAR / KT GASTRO / ML) para poblar los
     // selectores. Si un canal no se encuentra o no tiene cuotas, su select queda solo con la
@@ -620,6 +625,12 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                     if (!esSesionExpirada(e)) notificar.error("No se pudieron cargar catálogos/aptos/clientes del producto");
                 }
             })();
+
+            setCargandoEstado(true);
+            getEstadoPublicacionAPI(producto.id)
+                .then(e => { setEstadoCanales(e); setEstadoOriginal(e); })
+                .catch(err => { if (!esSesionExpirada(err)) notificar.error("No se pudo leer el estado de publicación"); })
+                .finally(() => setCargandoEstado(false));
         } else {
             setEditandoProductoId(null);
             setPanelTab("datos");
@@ -1358,6 +1369,28 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         );
     };
 
+    const renderEstadoCanal = (
+        label: string,
+        canal: EstadoCanal | undefined,
+        control: React.ReactNode,
+    ) => (
+        <div className="rounded-2xl border border-slate-200 bg-white/70 p-4 dark:border-slate-700 dark:bg-slate-800/60">
+            <div className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</div>
+            {cargandoEstado ? <span className="text-xs text-slate-400">Leyendo estado…</span>
+              : !canal || canal.error ? <span className="text-xs text-amber-600">No se pudo leer el estado</span>
+              : !canal.publicado ? <span className="text-xs text-slate-400">No publicado</span>
+              : (<>
+                  {control}
+                  <div className="mt-2 space-y-0.5 text-xs text-slate-500 dark:text-slate-400">
+                      {canal.precio != null && <div>Precio: {canal.precio}</div>}
+                      {canal.stock != null && <div>Stock: {canal.stock}</div>}
+                      {canal.peso && <div>Peso: {canal.peso}</div>}
+                      {canal.dimensiones && <div>Dimensiones: {canal.dimensiones}</div>}
+                  </div>
+              </>)}
+        </div>
+    );
+
     return (
         <>
             {/* MODAL CREAR / EDITAR PRODUCTO */}
@@ -1985,6 +2018,33 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                             ? <PreciosInfladosSection productoId={editandoProductoId} />
                             : <PreciosInfladosSection value={preciosInfladosSel} onChange={setPreciosInfladosSel} />}
                     </fieldset>
+
+                    {editandoProductoId && (
+                    <fieldset className={`${sectionClassName} ${SECTION_TINT.canales}`}>
+                        <legend className={sectionTitleClassName}><BuildingStorefrontIcon className="h-5 w-5" /> Estado de publicación</legend>
+                        <p className={`${sectionDescriptionClassName} mb-4`}>Estado real de cada publicación (se aplica al guardar).</p>
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                            {renderEstadoCanal("Mercado Libre", estadoCanales?.ml,
+                                <select className={`${selectBaseClassName} w-full`} value={estadoCanales?.ml.estado ?? "active"}
+                                    onChange={e => setEstadoCanales(p => p && ({ ...p, ml: { ...p.ml, estado: e.target.value } }))}>
+                                    <option value="active">Activa</option>
+                                    <option value="paused">Pausada</option>
+                                </select>)}
+                            {renderEstadoCanal("Nube · KT HOGAR", estadoCanales?.hogar,
+                                <select className={`${selectBaseClassName} w-full`} value={estadoCanales?.hogar.estado ?? "visible"}
+                                    onChange={e => setEstadoCanales(p => p && ({ ...p, hogar: { ...p.hogar, estado: e.target.value } }))}>
+                                    <option value="visible">Visible</option>
+                                    <option value="oculta">Oculta</option>
+                                </select>)}
+                            {renderEstadoCanal("Nube · KT GASTRO", estadoCanales?.gastro,
+                                <select className={`${selectBaseClassName} w-full`} value={estadoCanales?.gastro.estado ?? "visible"}
+                                    onChange={e => setEstadoCanales(p => p && ({ ...p, gastro: { ...p.gastro, estado: e.target.value } }))}>
+                                    <option value="visible">Visible</option>
+                                    <option value="oculta">Oculta</option>
+                                </select>)}
+                        </div>
+                    </fieldset>
+                    )}
 
                     {/* Estado de las subidas a canales: solo aparece si alguna falló. El producto ya se guardó. */}
                     {resultadosCanal.some(r => r.estado === "error") && (

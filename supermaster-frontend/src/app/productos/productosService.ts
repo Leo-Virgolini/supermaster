@@ -512,3 +512,23 @@ export async function getImagenDetalleAPI(sku: string): Promise<ImagenDetalle[]>
 	const res = await fetchAPI(`${API_BASE_URL}/api/imagenes/detalle/${encodeURIComponent(sku)}`);
 	return res.json();
 }
+
+export type EstadoCanal = {
+	publicado: boolean;
+	estado: string | null;
+	precio: number | null;
+	stock: number | null;
+	peso: string | null;
+	dimensiones: string | null;
+	error: boolean;
+};
+export type EstadoPublicacion = { ml: EstadoCanal; hogar: EstadoCanal; gastro: EstadoCanal };
+export type EstadoPublicacionUpdate = { ml?: string | null; hogar?: boolean | null; gastro?: boolean | null };
+
+export async function getEstadoPublicacionAPI(id: number): Promise<EstadoPublicacion> {
+	const r = await fetchAPI(`${API_BASE_URL}/api/productos/${id}/estado-publicacion`);
+	return r.json();
+}
+export async function putEstadoPublicacionAPI(id: number, body: EstadoPublicacionUpdate): Promise<void> {
+	await fetchAPI(`${API_BASE_URL}/api/productos/${id}/estado-publicacion`, { method: "PUT", body: JSON.stringify(body) });
+}

@@ -76,5 +76,5 @@ VALUES (1,
 'Recortá el producto de la foto y ponelo centrado sobre un fondo blanco puro, con márgenes chicos, como carátula de producto para venta online (Mercado Libre y Tienda Nube). Conservá el producto sin alterarlo (forma, color y detalles reales); no agregues texto, logos ni sombras marcadas.',
 'gpt-image-2', '1024x1024', 'jpeg', 'high', 8.00, 30.00);
 
-DROP TABLE supermaster.seo_prompt;
-DROP TABLE supermaster.imagen_prompt;
+DROP TABLE IF EXISTS supermaster.seo_prompt;
+DROP TABLE IF EXISTS supermaster.imagen_prompt;

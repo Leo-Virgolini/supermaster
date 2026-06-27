@@ -198,7 +198,7 @@ public class ImagenService {
             Files.write(baseDir.resolve(sku.trim() + "." + ext), datos);
             invalidarIndice();
         } catch (IOException e) {
-            throw new RuntimeException("No se pudo guardar la carátula de " + sku, e);
+            throw new UncheckedIOException("No se pudo guardar la carátula de " + sku, e);
         }
     }
 

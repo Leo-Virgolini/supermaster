@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - Backend: tests con `mvn -o test` (offline) desde `supermaster-backend`; `mvn` del PATH (NO `mvnw`).
-- API key de imágenes **separada** del SEO: `secrets/openai_image_tokens.json` (formato `{"api_key": "..."}`) en `app.secrets-dir`. NO en properties.
+- API key de imágenes en el **mismo** `secrets/openai_tokens.json` que el SEO, con un campo nuevo `image_api_key`; si está vacío, se usa el `api_key` como fallback. NO en properties.
 - Modelo `gpt-image-2` (configurable vía `openai.image.model`), endpoint `/images/edits`, params `size=1024x1024`, `output_format=jpeg`, `quality=high`. gpt devuelve el **JPG final 1024×1024**: se guarda tal cual, **sin reescalar ni reconvertir**. Una sola imagen para ML y Nube.
 - Carpeta cruda de entrada: propiedad nueva `app.imagenes-raw-dir` (configurable, separada de `app.imagenes-dir`); archivo crudo `{SKU}.{ext}`. Salida: `{SKU}.jpg` en `app.imagenes-dir`.
 - Generar NO guarda (devuelve base64 para preview); guardar escribe el archivo tras confirmación.
@@ -362,6 +362,7 @@ git commit -m "feat(imagen-ia): prompt y uso de carátula en BD (imagen_prompt/i
 
 **Files:**
 - Modify: `apis/openai/config/OpenAiConfig.java` (registrar properties + bean `openaiImageRestClient`)
+- Modify: `apis/openai/model/OpenAiCredentials.java` (agregar campo `image_api_key`)
 - Create: `apis/openai/service/OpenAiImagenParser.java` (puro)
 - Create: `apis/openai/service/OpenAiImagenService.java`
 - Test: `apis/openai/service/OpenAiImagenParserTest.java`
@@ -496,7 +497,7 @@ public class OpenAiImagenService {
     @PostConstruct
     void init() {
         try {
-            File file = Paths.get(secretsDir).resolve("openai_image_tokens.json").toFile();
+            File file = Paths.get(secretsDir).resolve("openai_tokens.json").toFile();
             if (file.exists()) {
                 credentials = objectMapper.readValue(file, OpenAiCredentials.class);
                 log.info("OpenAI imágenes - credenciales cargadas desde {}", file.getAbsolutePath());
@@ -508,10 +509,18 @@ public class OpenAiImagenService {
         }
     }
 
+    /** Key de imágenes: image_api_key si está, si no el api_key del SEO (fallback). */
+    private String apiKey() {
+        if (credentials == null) return null;
+        return credentials.getImageApiKey() != null && !credentials.getImageApiKey().isBlank()
+                ? credentials.getImageApiKey() : credentials.getApiKey();
+    }
+
     /** Edita la imagen cruda con fondo blanco vía OpenAI y devuelve la carátula JPG 1024×1024 (tal cual de gpt). */
     public byte[] generarCaratula(byte[] cruda, String filename) {
-        if (credentials == null || credentials.getApiKey() == null)
-            throw new ServiceNotConfiguredException("Falta la credencial de OpenAI de imágenes (openai_image_tokens.json)");
+        String apiKey = apiKey();
+        if (apiKey == null)
+            throw new ServiceNotConfiguredException("Falta la credencial de OpenAI (openai_tokens.json: api_key o image_api_key)");
 
         MultiValueMap<String, Object> parts = new LinkedMultiValueMap<>();
         parts.add("model", properties.model());
@@ -525,7 +534,7 @@ public class OpenAiImagenService {
 
         String resp = restClient.post()
                 .uri("/images/edits")
-                .header("Authorization", "Bearer " + credentials.getApiKey())
+                .header("Authorization", "Bearer " + apiKey)
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .body(parts)
                 .retrieve()
@@ -540,7 +549,14 @@ public class OpenAiImagenService {
 }
 ```
 
-> Verificar el nombre real de la excepción de "no configurado" del SEO (`ServiceNotConfiguredException` u otra) y usar la del proyecto. `OpenAiCredentials` ya existe y mapea `api_key`. El multipart sigue el patrón que ya usa `MlRetryHandler.postMultipart` (ByteArrayResource + MULTIPART_FORM_DATA).
+> Verificar el nombre real de la excepción de "no configurado" del SEO (`ServiceNotConfiguredException` u otra) y usar la del proyecto. El multipart sigue el patrón de `MlRetryHandler.postMultipart` (ByteArrayResource + MULTIPART_FORM_DATA).
+>
+> **Antes del Step 3**, agregar a `apis/openai/model/OpenAiCredentials.java` el campo nuevo (el SEO lo ignora; sigue usando `api_key`):
+> ```java
+>     @JsonProperty("image_api_key")
+>     private String imageApiKey;
+> ```
+> Mantener el `@JsonProperty("api_key") private String apiKey;` existente. La clase ya tiene `@JsonIgnoreProperties(ignoreUnknown = true)` y getters Lombok, así que `getImageApiKey()` queda disponible.
 
 - [ ] **Step 4: Compilar**
 

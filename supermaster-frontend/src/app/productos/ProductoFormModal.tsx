@@ -257,6 +257,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const [cargandoEstado, setCargandoEstado] = useState(false);
     const [caratulaPreview, setCaratulaPreview] = useState<string | null>(null);
     const [generandoCaratula, setGenerandoCaratula] = useState(false);
+    const [guardandoCaratula, setGuardandoCaratula] = useState(false);
+    const [caratulaCacheBust, setCaratulaCacheBust] = useState(0);
 
     // Carga las cuotas reales de cada canal (KT HOGAR / KT GASTRO / ML) para poblar los
     // selectores. Si un canal no se encuentra o no tiene cuotas, su select queda solo con la
@@ -1193,14 +1195,18 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     };
 
     const guardarCaratula = async () => {
-        if (!caratulaPreview) return;
+        if (!caratulaPreview || guardandoCaratula) return;
+        setGuardandoCaratula(true);
         try {
             await guardarCaratulaAPI(sku.trim(), caratulaPreview);
             setCaratulaPreview(null);
             notificar.success("Carátula guardada");
             getImagenDetalleAPI(sku.trim()).then(setImagenesDetectadas).catch(() => {});
+            setCaratulaCacheBust(c => c + 1);
         } catch (e) {
             if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "No se pudo guardar la carátula");
+        } finally {
+            setGuardandoCaratula(false);
         }
     };
 
@@ -1701,7 +1707,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                             {imagenesDetectadas.map((img) => (
                                                 <button key={img.nombre} type="button" onClick={() => setCarouselSku(sku.trim())}
                                                     className="h-16 w-16 overflow-hidden rounded-xl border border-slate-200 hover:border-blue-400 dark:border-slate-700" title={img.nombre}>
-                                                    <img src={`${API_BASE_URL}/api/imagenes/${img.nombre}`} alt={img.nombre} loading="lazy" className="h-full w-full bg-white object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                                    <img src={`${API_BASE_URL}/api/imagenes/${img.nombre}?v=${caratulaCacheBust}`} alt={img.nombre} loading="lazy" className="h-full w-full bg-white object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                                                 </button>
                                             ))}
                                         </div>
@@ -1717,8 +1723,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                             <div className="mt-3 rounded-2xl border border-slate-200 p-3 dark:border-slate-700">
                                                 <img src={`data:image/jpeg;base64,${caratulaPreview}`} alt="Preview carátula" className="mx-auto max-h-64" />
                                                 <div className="mt-2 flex justify-end gap-2">
-                                                    <Button variant="light" onClick={() => setCaratulaPreview(null)}>Descartar</Button>
-                                                    <Button variant="dark" onClick={guardarCaratula}><CheckIcon className="h-4 w-4" /> Guardar carátula</Button>
+                                                    <Button variant="light" onClick={() => setCaratulaPreview(null)} disabled={guardandoCaratula}>Descartar</Button>
+                                                    <Button variant="dark" onClick={guardarCaratula} disabled={guardandoCaratula}>{guardandoCaratula ? <SpinnerIcon /> : <CheckIcon className="h-4 w-4" />} {guardandoCaratula ? "Guardando..." : "Guardar carátula"}</Button>
                                                 </div>
                                             </div>
                                         )}

@@ -1527,6 +1527,37 @@ public class MercadoLibreService {
         }
     }
 
+    /** GET /items/{id} crudo (JsonNode) para leer estado/precio/stock/dimensiones. Null si falla. */
+    public JsonNode leerItemRaw(String mlaCode) {
+        if (mlaCode == null || mlaCode.isBlank()) return null;
+        verificarTokens();
+        try {
+            String response = retryHandler.get("/items/" + mlaCode, () -> tokens.accessToken);
+            return response == null ? null : objectMapper.readTree(response);
+        } catch (Exception e) {
+            log.warn("ML - No se pudo leer item {}: {}", mlaCode, e.getMessage());
+            return null;
+        }
+    }
+
+    /** Activa o pausa la publicación. status debe ser "active" o "paused". */
+    public boolean actualizarStatusItem(String mlaCode, String status) {
+        if (mlaCode == null || mlaCode.isBlank()) return false;
+        if (!"active".equals(status) && !"paused".equals(status)) {
+            log.warn("ML - status inválido para item {}: {}", mlaCode, status);
+            return false;
+        }
+        verificarTokens();
+        try {
+            String body = "{\"status\":\"" + status + "\"}";
+            retryHandler.putJson("/items/" + mlaCode, () -> tokens.accessToken, body);
+            return true;
+        } catch (Exception e) {
+            log.warn("ML - Error actualizando status de item {}: {}", mlaCode, e.getMessage());
+            return false;
+        }
+    }
+
     /**
      * Actualiza el precio de todas las variaciones de un item en un solo PUT.
      * ML requiere que todas las variaciones vengan con el mismo precio en el request.

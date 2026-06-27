@@ -71,7 +71,10 @@ public class ImagenController {
     @PostMapping("/caratula/guardar/{sku}")
     @PreAuthorize(Permisos.INTEGRACIONES_EDITAR)
     public ResponseEntity<Void> guardarCaratula(@PathVariable String sku, @Valid @RequestBody CaratulaGuardarDTO body) {
-        caratulaService.guardar(sku, Base64.getDecoder().decode(body.imagenBase64()));
+        byte[] jpg;
+        try { jpg = Base64.getDecoder().decode(body.imagenBase64()); }
+        catch (IllegalArgumentException e) { throw new IllegalArgumentException("La imagen en base64 es inválida"); }
+        caratulaService.guardar(sku, jpg);
         return ResponseEntity.noContent().build();
     }
 }

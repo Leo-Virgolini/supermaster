@@ -134,6 +134,9 @@ public class OpenAiSeoService {
             if (file.exists()) {
                 credentials = objectMapper.readValue(file, OpenAiCredentials.class);
                 log.info("OpenAI - Credenciales cargadas desde {}", file.getAbsolutePath());
+                if (credentials != null && (credentials.getSeoApiKey() == null || credentials.getSeoApiKey().isBlank())) {
+                    log.warn("OpenAI SEO - seo_api_key vacío o ausente en openai_tokens.json; el SEO fallará al usarse");
+                }
             } else {
                 log.warn("OpenAI - Archivo de credenciales no encontrado: {}", file.getAbsolutePath());
             }

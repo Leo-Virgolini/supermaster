@@ -54,6 +54,9 @@ public class OpenAiImagenService {
             if (file.exists()) {
                 credentials = objectMapper.readValue(file, OpenAiCredentials.class);
                 log.info("OpenAI imágenes - credenciales cargadas desde {}", file.getAbsolutePath());
+                if (credentials != null && (credentials.getImageApiKey() == null || credentials.getImageApiKey().isBlank())) {
+                    log.warn("OpenAI imágenes - image_api_key vacío o ausente en openai_tokens.json; la carátula fallará al usarse");
+                }
             } else {
                 log.warn("OpenAI imágenes - credenciales no encontradas: {}", file.getAbsolutePath());
             }

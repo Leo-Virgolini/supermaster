@@ -172,7 +172,7 @@ public class ImagenService {
 
     /** Nombre del archivo crudo {SKU}.{ext} en la carpeta de entrada, o null si no existe. */
     public String resolverCrudaPorSku(String sku) {
-        if (sku == null || sku.isBlank()) return null;
+        validarNombreSeguro(sku);
         for (String ext : EXTENSIONES) {
             String nombre = sku.trim() + "." + ext;
             if (Files.isRegularFile(rawDir.resolve(nombre))) return nombre;
@@ -182,6 +182,7 @@ public class ImagenService {
 
     /** Bytes de un archivo de la carpeta cruda. */
     public byte[] leerCrudaBytes(String filename) {
+        validarNombreSeguro(filename);
         try {
             return Files.readAllBytes(rawDir.resolve(filename));
         } catch (IOException e) {
@@ -191,12 +192,23 @@ public class ImagenService {
 
     /** Escribe la carátula {SKU}.jpg en la carpeta de imágenes (reemplaza si existía) e invalida el índice. */
     public void guardarCaratula(String sku, byte[] jpg) {
+        validarNombreSeguro(sku);
         try {
             Files.createDirectories(baseDir);
             Files.write(baseDir.resolve(sku.trim() + ".jpg"), jpg);
             invalidarIndice();
         } catch (IOException e) {
             throw new UncheckedIOException("No se pudo guardar la carátula de " + sku, e);
+        }
+    }
+
+    /**
+     * Valida que el nombre/SKU no contenga separadores de path ni secuencias de traversal.
+     * Protege contra path traversal en los métodos que resuelven archivos por SKU o filename.
+     */
+    private static void validarNombreSeguro(String s) {
+        if (s == null || s.isBlank() || s.contains("/") || s.contains("\\") || s.contains("..")) {
+            throw new IllegalArgumentException("Nombre/SKU inválido");
         }
     }
 

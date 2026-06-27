@@ -14,7 +14,7 @@ Reutiliza el patrón de la integración OpenAI existente (SEO): cliente `RestCli
 - **Preview y confirmación:** generar NO guarda; el modal muestra el preview y el usuario confirma **Guardar** o **Descartar**.
 - **Salida:** una sola imagen **cuadrada 1024×1024 JPG**, fondo blanco, para ML y Nube por igual. Es el único tamaño **cuadrado** que ofrece el modelo (los mayores —2K/4K— son 16:9, no sirven para carátula). gpt-image-2 devuelve el **JPG final directo** (`output_format=jpeg`, `quality=high`): **sin reescalado ni post-proceso**; se guardan los bytes tal cual.
 - **Modelo:** `gpt-image-2` (configurable vía `openai.image.model`), endpoint `/images/edits`, `size=1024x1024`, `output_format=jpeg`, `quality=high` (toma la imagen + prompt y devuelve la editada con fondo blanco).
-- **API key distinta:** segundo credential y segundo `RestClient`, separados del SEO.
+- **API key:** en el **mismo** `secrets/openai_tokens.json` que el SEO, con un campo nuevo `image_api_key`; si está vacío, se usa el `api_key` del SEO como fallback. Cliente (`RestClient`) sí separado (otra base/timeouts).
 - **Prompt y uso:** prompt único en BD (editable) y tabla de uso/costo, ambos mostrados/editables en la pantalla "SEO IA".
 
 ## Arquitectura
@@ -23,7 +23,7 @@ Reutiliza el patrón de la integración OpenAI existente (SEO): cliente `RestCli
 
 **Cliente y credencial (apis/openai/config):**
 - Reusar el patrón de `OpenAiConfig`/`OpenAiProperties`. Agregar `OpenAiImageProperties` (prefix `openai.image`: `model=gpt-image-1`, base-url, timeouts, precios por token) y un bean `openaiImageRestClient`.
-- Credencial: archivo `secrets/openai_image_tokens.json` (mismo formato que `openai_tokens.json`), cargado en el servicio nuevo (no mezclar con la key de SEO).
+- Credencial: el mismo `secrets/openai_tokens.json`, con un campo opcional `image_api_key` (fallback al `api_key` si no está). Se agrega ese campo a `OpenAiCredentials`.
 
 **`OpenAiImagenService` (apis/openai/service):**
 - `byte[] generarCaratula(byte[] imagenCruda, String filename)`: arma el multipart a `/images/edits` con `model=<de properties>`, `image=<cruda>`, `prompt=<de BD>`, `size=1024x1024`, `output_format=jpeg`, `quality=high`; recibe el **JPG** (b64), lo decodifica y devuelve los bytes **tal cual** (sin reescalar ni reconvertir). Registra el uso (tokens/costo) al estilo `SeoUsoService`.
@@ -54,7 +54,7 @@ Reutiliza el patrón de la integración OpenAI existente (SEO): cliente `RestCli
 
 - `app.imagenes-raw-dir`: carpeta de fotos crudas de entrada (nueva propiedad; en dev apuntará a la carpeta real).
 - `app.imagenes-dir`: ya existe (salida = carátula).
-- `secrets/openai_image_tokens.json`: API key de imágenes.
+- `secrets/openai_tokens.json`: agregar el campo `image_api_key` (fallback a `api_key`).
 - `openai.image.*`: modelo (`gpt-image-1`), base-url, timeouts, precios.
 
 ## Manejo de errores

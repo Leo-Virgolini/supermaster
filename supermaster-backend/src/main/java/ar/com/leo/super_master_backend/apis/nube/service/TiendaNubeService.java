@@ -464,6 +464,25 @@ public class TiendaNubeService {
         }
     }
 
+    /** Cambia la visibilidad (published) de un producto en una tienda Nube. */
+    public boolean actualizarPublished(String storeName, long productId, boolean published) {
+        verificarCredenciales();
+        StoreCredentials store = getStore(storeName);
+        if (store == null) {
+            log.warn("NUBE - Store '{}' no encontrada en credenciales", storeName);
+            return false;
+        }
+        String uri = String.format("/%s/products/%d", store.getStoreId(), productId);
+        String body = "{\"published\":" + published + "}";
+        try {
+            retryHandler.putJson(uri, store.getAccessToken(), body);
+            return true;
+        } catch (Exception e) {
+            log.warn("NUBE - Error actualizando published de producto {} en {}: {}", productId, storeName, e.getMessage());
+            return false;
+        }
+    }
+
     /**
      * Actualiza price y promotional_price de todas las variantes de un producto por SKU.
      *

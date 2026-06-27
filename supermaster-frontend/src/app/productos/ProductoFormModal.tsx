@@ -23,6 +23,7 @@ import {
     getMlCategoriaMaxTitleAPI,
     getEstadoPublicacionAPI, putEstadoPublicacionAPI,
     type EstadoCanal, type EstadoPublicacion, type EstadoPublicacionUpdate,
+    generarCaratulaAPI, guardarCaratulaAPI,
 } from "./productosService";
 import { updateProductoMargenAPI } from "./productoMargenService";
 import { getCuotasPorCanalAPI } from "../canal-concepto-cuotas/canalConceptoCuotaService";
@@ -254,6 +255,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const [estadoCanales, setEstadoCanales] = useState<EstadoPublicacion | null>(null);
     const [estadoOriginal, setEstadoOriginal] = useState<EstadoPublicacion | null>(null);
     const [cargandoEstado, setCargandoEstado] = useState(false);
+    const [caratulaPreview, setCaratulaPreview] = useState<string | null>(null);
+    const [generandoCaratula, setGenerandoCaratula] = useState(false);
 
     // Carga las cuotas reales de cada canal (KT HOGAR / KT GASTRO / ML) para poblar los
     // selectores. Si un canal no se encuentra o no tiene cuotas, su select queda solo con la
@@ -1178,6 +1181,29 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         }
     };
 
+    const generarCaratula = async () => {
+        if (!sku.trim()) return;
+        setGenerandoCaratula(true);
+        try {
+            const r = await generarCaratulaAPI(sku.trim());
+            setCaratulaPreview(r.imagenBase64);
+        } catch (e) {
+            if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "No se pudo generar la carátula");
+        } finally { setGenerandoCaratula(false); }
+    };
+
+    const guardarCaratula = async () => {
+        if (!caratulaPreview) return;
+        try {
+            await guardarCaratulaAPI(sku.trim(), caratulaPreview);
+            setCaratulaPreview(null);
+            notificar.success("Carátula guardada");
+            getImagenDetalleAPI(sku.trim()).then(setImagenesDetectadas).catch(() => {});
+        } catch (e) {
+            if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "No se pudo guardar la carátula");
+        }
+    };
+
     // Convierte un bloque de estado SEO a payload de export SOLO si tiene algún campo cargado; si no, undefined.
     const seoBloqueAPayload = (seo: { title: string; description: string; tags: string }): SeoNube | undefined =>
         (seo.title.trim() || seo.description.trim() || seo.tags.trim())
@@ -1681,6 +1707,23 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                         </div>
                                     )}
                                 </div>
+                                {editandoProductoId && (
+                                    <div className="mt-2">
+                                        <Button variant="dark" onClick={generarCaratula} disabled={generandoCaratula}>
+                                            {generandoCaratula ? <SpinnerIcon /> : <SparklesIcon className="h-4 w-4" />}
+                                            {generandoCaratula ? "Generando..." : "Mejorar carátula con IA"}
+                                        </Button>
+                                        {caratulaPreview && (
+                                            <div className="mt-3 rounded-2xl border border-slate-200 p-3 dark:border-slate-700">
+                                                <img src={`data:image/jpeg;base64,${caratulaPreview}`} alt="Preview carátula" className="mx-auto max-h-64" />
+                                                <div className="mt-2 flex justify-end gap-2">
+                                                    <Button variant="light" onClick={() => setCaratulaPreview(null)}>Descartar</Button>
+                                                    <Button variant="dark" onClick={guardarCaratula}><CheckIcon className="h-4 w-4" /> Guardar carátula</Button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </fieldset>

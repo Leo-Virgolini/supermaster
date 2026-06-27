@@ -536,3 +536,13 @@ export async function putEstadoPublicacionAPI(id: number, body: EstadoPublicacio
 	const r = await fetchAPI(`${API_BASE_URL}/api/productos/${id}/estado-publicacion`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 	return r.json() as Promise<EstadoAplicar>;
 }
+
+export async function generarCaratulaAPI(sku: string): Promise<{ imagenBase64: string }> {
+	const r = await fetchAPI(`${API_BASE_URL}/api/imagenes/caratula/generar/${encodeURIComponent(sku)}`, { method: "POST" });
+	return r.json();
+}
+
+export async function guardarCaratulaAPI(sku: string, imagenBase64: string): Promise<void> {
+	await fetchAPI(`${API_BASE_URL}/api/imagenes/caratula/guardar/${encodeURIComponent(sku)}`,
+		{ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imagenBase64 }) });
+}

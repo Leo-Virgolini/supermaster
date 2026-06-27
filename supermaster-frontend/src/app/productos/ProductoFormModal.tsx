@@ -22,7 +22,7 @@ import {
     type MlFicha, type MlComponente,
     getMlCategoriaMaxTitleAPI,
     getEstadoPublicacionAPI, putEstadoPublicacionAPI,
-    type EstadoCanal, type EstadoPublicacion,
+    type EstadoCanal, type EstadoPublicacion, type EstadoPublicacionUpdate,
 } from "./productosService";
 import { updateProductoMargenAPI } from "./productoMargenService";
 import { getCuotasPorCanalAPI } from "../canal-concepto-cuotas/canalConceptoCuotaService";
@@ -730,6 +730,19 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             setSkuSubida(sk);
             const resultados = await ejecutarExportsCanales(sk, canalesMarcados());
             setResultadosCanal(resultados);
+
+            // Estado de publicación: aplicar solo lo que cambió respecto de lo leído al abrir.
+            if (estadoCanales && estadoOriginal) {
+                const upd: EstadoPublicacionUpdate = {};
+                if (estadoCanales.ml.publicado && estadoCanales.ml.estado !== estadoOriginal.ml.estado) upd.ml = estadoCanales.ml.estado;
+                if (estadoCanales.hogar.publicado && estadoCanales.hogar.estado !== estadoOriginal.hogar.estado) upd.hogar = estadoCanales.hogar.estado === "visible";
+                if (estadoCanales.gastro.publicado && estadoCanales.gastro.estado !== estadoOriginal.gastro.estado) upd.gastro = estadoCanales.gastro.estado === "visible";
+                if (upd.ml !== undefined || upd.hogar !== undefined || upd.gastro !== undefined) {
+                    try { await putEstadoPublicacionAPI(editandoProductoId, upd); }
+                    catch (e) { if (!esSesionExpirada(e)) notificar.error("No se pudo aplicar el cambio de estado de publicación"); }
+                }
+            }
+
             await onSuccess();
             if (resultados.every(r => r.estado === "ok")) {
                 notificar.success(`Producto ${sku} actualizado`);
@@ -1500,7 +1513,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                     <ShoppingBagIcon className="h-5 w-5 shrink-0 text-yellow-500" />
                                     <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirMl} onChange={e => setSubirMl(e.target.checked)} id="subirMl" disabled={!canExportarDux} />
                                     <label htmlFor="subirMl" className="flex-1 cursor-pointer select-none">Sincronizar con Mercado Libre</label>
-                                    <Tooltip content="Sube o actualiza en Mercado Libre: título (si no tiene ventas), descripción, precio (costo × 5), imágenes, y activa o pausa según el flag 'Activo'. La categoría (la elegida o la que predice ML) se aplica solo al crear; no se modifica en publicaciones existentes." className="flex items-center">
+                                    <Tooltip content="Sube o actualiza en Mercado Libre: título (si no tiene ventas), descripción, precio (costo × 5), imágenes. El estado de la publicación (activa/pausada) se controla desde la sección &quot;Estado de publicación&quot; al editar. La categoría (la elegida o la que predice ML) se aplica solo al crear; no se modifica en publicaciones existentes." className="flex items-center">
                                         <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
                                     </Tooltip>
                                 </div>

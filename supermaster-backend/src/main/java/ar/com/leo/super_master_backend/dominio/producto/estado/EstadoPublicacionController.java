@@ -1,6 +1,7 @@
 package ar.com.leo.super_master_backend.dominio.producto.estado;
 
 import ar.com.leo.super_master_backend.config.Permisos;
+import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoAplicarDTO;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoPublicacionDTO;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoPublicacionUpdateDTO;
 import jakarta.validation.constraints.Positive;
@@ -24,9 +25,8 @@ public class EstadoPublicacionController {
 
     @PutMapping
     @PreAuthorize(Permisos.INTEGRACIONES_EDITAR)
-    public ResponseEntity<Void> aplicar(@PathVariable @Positive Integer id,
-                                        @RequestBody EstadoPublicacionUpdateDTO cambios) {
-        estadoPublicacionService.aplicar(id, cambios);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<EstadoAplicarDTO> aplicar(@PathVariable @Positive Integer id,
+                                                    @RequestBody EstadoPublicacionUpdateDTO cambios) {
+        return ResponseEntity.ok(estadoPublicacionService.aplicar(id, cambios));
     }
 }

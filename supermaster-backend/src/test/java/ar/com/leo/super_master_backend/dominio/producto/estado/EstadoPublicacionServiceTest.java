@@ -75,11 +75,16 @@ class EstadoPublicacionServiceTest {
         when(repo.findById(1)).thenReturn(Optional.of(p));
         when(nube.buscarProductoPorSku("ABC", TiendaNubeService.STORE_HOGAR)).thenReturn(json("""
             {"id":5,"published":false,"variants":[{"id":9}]}"""));
+        when(ml.updateItemStatus("MLA123", "paused")).thenReturn(true);
+        when(nube.actualizarPublished(TiendaNubeService.STORE_HOGAR, 5L, true)).thenReturn(true);
 
-        service.aplicar(1, new EstadoPublicacionUpdateDTO("paused", Boolean.TRUE, null));
+        var res = service.aplicar(1, new EstadoPublicacionUpdateDTO("paused", Boolean.TRUE, null));
 
         verify(ml).updateItemStatus("MLA123", "paused");
         verify(nube).actualizarPublished(TiendaNubeService.STORE_HOGAR, 5L, true);
         verify(nube, never()).actualizarPublished(eq(TiendaNubeService.STORE_GASTRO), anyLong(), anyBoolean());
+        assertThat(res.ml().ok()).isTrue();
+        assertThat(res.hogar().ok()).isTrue();
+        assertThat(res.gastro()).isNull();
     }
 }

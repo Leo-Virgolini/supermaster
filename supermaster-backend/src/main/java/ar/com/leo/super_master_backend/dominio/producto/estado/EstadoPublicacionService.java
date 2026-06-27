@@ -4,6 +4,8 @@ import ar.com.leo.super_master_backend.apis.ml.service.MercadoLibreService;
 import ar.com.leo.super_master_backend.apis.nube.service.TiendaNubeService;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
+import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoAplicarDTO;
+import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoAplicarDTO.CanalAplicado;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoCanalDTO;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoPublicacionDTO;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoPublicacionUpdateDTO;
@@ -57,23 +59,34 @@ public class EstadoPublicacionService {
     }
 
     @Transactional(readOnly = true)
-    public void aplicar(Integer productoId, EstadoPublicacionUpdateDTO cambios) {
+    public EstadoAplicarDTO aplicar(Integer productoId, EstadoPublicacionUpdateDTO cambios) {
         Producto p = productoRepository.findById(productoId)
                 .orElseThrow(() -> new NotFoundException("Producto no encontrado"));
-        if (cambios.ml() != null
-                && ("active".equals(cambios.ml()) || "paused".equals(cambios.ml()))
-                && p.getMla() != null
-                && p.getMla().getMla() != null) {
-            mercadoLibreService.updateItemStatus(p.getMla().getMla(), cambios.ml());
-        }
-        if (cambios.hogar() != null) aplicarNube(p.getSku(), TiendaNubeService.STORE_HOGAR, cambios.hogar());
-        if (cambios.gastro() != null) aplicarNube(p.getSku(), TiendaNubeService.STORE_GASTRO, cambios.gastro());
+        CanalAplicado ml = cambios.ml() != null ? aplicarMl(p, cambios.ml()) : null;
+        CanalAplicado hogar = cambios.hogar() != null ? aplicarNube(p.getSku(), TiendaNubeService.STORE_HOGAR, cambios.hogar()) : null;
+        CanalAplicado gastro = cambios.gastro() != null ? aplicarNube(p.getSku(), TiendaNubeService.STORE_GASTRO, cambios.gastro()) : null;
+        return new EstadoAplicarDTO(ml, hogar, gastro);
     }
 
-    private void aplicarNube(String sku, String store, boolean visible) {
-        JsonNode product = tiendaNubeService.buscarProductoPorSku(sku, store);
-        if (product == null) return; // no publicado en esa tienda: nada que cambiar
+    private CanalAplicado aplicarMl(Producto p, String estado) {
+        if (!"active".equals(estado) && !"paused".equals(estado))
+            return new CanalAplicado(false, "Estado inválido");
+        String mla = p.getMla() != null ? p.getMla().getMla() : null;
+        if (mla == null || mla.isBlank())
+            return new CanalAplicado(false, "Sin publicación en Mercado Libre");
+        boolean ok = mercadoLibreService.updateItemStatus(mla, estado);
+        if (!ok) return new CanalAplicado(false, "Mercado Libre rechazó el cambio");
+        return new CanalAplicado(true, "active".equals(estado) ? "Activada" : "Pausada");
+    }
+
+    private CanalAplicado aplicarNube(String sku, String store, boolean visible) {
+        JsonNode product;
+        try { product = tiendaNubeService.buscarProductoPorSku(sku, store); }
+        catch (Exception e) { return new CanalAplicado(false, "Error consultando Nube"); }
+        if (product == null) return new CanalAplicado(false, "No publicado en " + store);
         long productId = product.path("id").asLong();
-        tiendaNubeService.actualizarPublished(store, productId, visible);
+        boolean ok = tiendaNubeService.actualizarPublished(store, productId, visible);
+        if (!ok) return new CanalAplicado(false, "Nube rechazó el cambio");
+        return new CanalAplicado(true, visible ? "Visible" : "Oculta");
     }
 }

@@ -12,8 +12,8 @@ Reutiliza el patrón de la integración OpenAI existente (SEO): cliente `RestCli
 
 - **Entrada/salida:** la foto cruda vive en una **carpeta de entrada separada** (config nueva `app.imagenes-raw-dir`), archivo `{SKU}.{ext}`. La procesada se guarda como **`{SKU}.jpg`** en `app.imagenes-dir`. La cruda queda intacta; en la carpeta de imágenes se reemplaza la carátula `{SKU}` si ya existía (es la intención).
 - **Preview y confirmación:** generar NO guarda; el modal muestra el preview y el usuario confirma **Guardar** o **Descartar**.
-- **Salida:** una sola imagen **cuadrada 1200×1200 JPG**, fondo blanco, para ML y Nube por igual (ML recomienda 1200×1200; Nube la acepta y la sirve hasta 1024). gpt-image-1 genera **1024×1024 nativo** (su cuadrado máximo), así que se **reescala 1024→1200** y se convierte PNG→JPG.
-- **Modelo:** `gpt-image-1`, endpoint `/images/edits` (toma la imagen + prompt y devuelve la editada).
+- **Salida:** una sola imagen **cuadrada 1024×1024 JPG**, fondo blanco, para ML y Nube por igual. Es el único tamaño **cuadrado** que ofrece el modelo (los mayores —2K/4K— son 16:9, no sirven para carátula). gpt-image-2 devuelve el **JPG final directo** (`output_format=jpeg`, `quality=high`): **sin reescalado ni post-proceso**; se guardan los bytes tal cual.
+- **Modelo:** `gpt-image-2` (configurable vía `openai.image.model`), endpoint `/images/edits`, `size=1024x1024`, `output_format=jpeg`, `quality=high` (toma la imagen + prompt y devuelve la editada con fondo blanco).
 - **API key distinta:** segundo credential y segundo `RestClient`, separados del SEO.
 - **Prompt y uso:** prompt único en BD (editable) y tabla de uso/costo, ambos mostrados/editables en la pantalla "SEO IA".
 
@@ -26,7 +26,7 @@ Reutiliza el patrón de la integración OpenAI existente (SEO): cliente `RestCli
 - Credencial: archivo `secrets/openai_image_tokens.json` (mismo formato que `openai_tokens.json`), cargado en el servicio nuevo (no mezclar con la key de SEO).
 
 **`OpenAiImagenService` (apis/openai/service):**
-- `byte[] generarCaratula(byte[] imagenCruda, String filename)`: arma el multipart a `/images/edits` con `model=gpt-image-1`, `image=<cruda>`, `prompt=<de BD>`, `size=1024x1024`; recibe el PNG (b64), lo decodifica, lo convierte a **JPG** (con `javax.imageio`: `BufferedImage` → JPG, aplanando sobre blanco si hubiera alfa), y devuelve los bytes JPG. Registra el uso (tokens/costo) al estilo `SeoUsoService`.
+- `byte[] generarCaratula(byte[] imagenCruda, String filename)`: arma el multipart a `/images/edits` con `model=<de properties>`, `image=<cruda>`, `prompt=<de BD>`, `size=1024x1024`, `output_format=jpeg`, `quality=high`; recibe el **JPG** (b64), lo decodifica y devuelve los bytes **tal cual** (sin reescalar ni reconvertir). Registra el uso (tokens/costo) al estilo `SeoUsoService`.
 - Lanza excepción clara si falta credencial / falla OpenAI.
 
 **Prompt en BD (apis/openai):**
@@ -67,12 +67,13 @@ Reutiliza el patrón de la integración OpenAI existente (SEO): cliente `RestCli
 
 - Generar más de una imagen o variantes por canal (una sola cuadrada para ambos).
 - Procesar imágenes adicionales (`{SKU}_N`); solo la carátula.
-- Recorte o cambio de relación de aspecto (se mantiene cuadrada). Sí se reescala 1024→1200 y se convierte PNG→JPG.
+- Reescalado, recorte o conversión de formato: gpt-image-2 devuelve el JPG cuadrado final (1024×1024); se guarda tal cual.
+- Tamaños mayores a 1024 cuadrados (no existen nativos; 2K/4K son 16:9).
 - Edición/selección manual de la foto cruda (se toma `{SKU}` de la carpeta de entrada).
 
 ## Testing
 
-- **Backend:** tests puros del procesamiento de imagen (PNG→JPG, aplanado sobre blanco, reescalado a 1200×1200 → verificar dimensiones y formato del resultado) y del cálculo/registro de uso (espejo de `SeoUsoService`). Test del parseo de la respuesta de OpenAI (b64 → bytes). Lectura cruda / escritura `{SKU}.jpg` con un dir temporal. Los servicios HTTP (llamada real a OpenAI) se aíslan con lambdas/mocks como en el resto del proyecto. `mvn -o test`.
+- **Backend:** tests puros del cálculo/registro de uso (espejo de `SeoUsoService`) y del parseo de la respuesta de OpenAI (b64 + tokens). Lectura cruda / escritura `{SKU}.jpg` con un dir temporal. La llamada real a OpenAI se valida manualmente (sin test unitario del POST, como el SEO). `mvn -o test`.
 - **Frontend:** verificación manual — generar (preview), guardar (aparece en el carrusel), descartar (no cambia nada), errores.
 
 ## A confirmar en la revisión del spec

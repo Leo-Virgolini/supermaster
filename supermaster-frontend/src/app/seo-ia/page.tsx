@@ -10,7 +10,7 @@ import { SparklesIcon } from "@heroicons/react/24/outline";
 const CANALES: SeoCanal[] = ["HOGAR", "GASTRO"];
 
 export default function SeoIaPage() {
-    const { prompts, uso, isLoading, isSaving, savePrompt } = useSeoIa();
+    const { prompts, uso, imagenPrompt, imagenUso, imagenBorrador, setImagenBorrador, isLoading, isSaving, isSavingImagen, savePrompt, saveImagenPrompt } = useSeoIa();
     const [borradores, setBorradores] = useState<Record<string, string>>({});
 
     useEffect(() => {
@@ -35,9 +35,9 @@ export default function SeoIaPage() {
                 </p>
             </div>
 
-            {/* Panel de uso */}
-            <div className="mb-8 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/60">
-                <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Uso de IA (acumulado)</h2>
+            {/* Panel de uso SEO */}
+            <div className="mb-2 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/60">
+                <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Uso de IA — SEO (acumulado)</h2>
                 {uso ? (
                     <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm text-slate-700 dark:text-slate-200">
                         <span><b>Consultas:</b> {fmt(uso.consultas)}</span>
@@ -46,6 +46,24 @@ export default function SeoIaPage() {
                         <span><b>Costo:</b> US$ {uso.costoUsd.toFixed(4)}</span>
                         <span className="text-slate-500 dark:text-slate-400">
                             Modelo: {uso.modelo} · in US${uso.precioInput1m.toFixed(2)}/1M · out US${uso.precioOutput1m.toFixed(2)}/1M
+                        </span>
+                    </div>
+                ) : (
+                    <p className="text-sm text-slate-400">{isLoading ? "Cargando…" : "Sin datos de uso"}</p>
+                )}
+            </div>
+
+            {/* Panel de uso carátula */}
+            <div className="mb-8 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/60">
+                <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Uso de IA — Carátula (acumulado)</h2>
+                {imagenUso ? (
+                    <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm text-slate-700 dark:text-slate-200">
+                        <span><b>Consultas:</b> {fmt(imagenUso.consultas)}</span>
+                        <span><b>Tokens entrada:</b> {fmt(imagenUso.tokensEntrada)}</span>
+                        <span><b>Tokens salida:</b> {fmt(imagenUso.tokensSalida)}</span>
+                        <span><b>Costo:</b> US$ {imagenUso.costoUsd.toFixed(4)}</span>
+                        <span className="text-slate-500 dark:text-slate-400">
+                            Modelo: {imagenUso.modelo} · in US${imagenUso.precioInput1m.toFixed(2)}/1M · out US${imagenUso.precioOutput1m.toFixed(2)}/1M
                         </span>
                     </div>
                 ) : (
@@ -87,6 +105,33 @@ export default function SeoIaPage() {
                         </div>
                     );
                 })}
+
+                {/* Tarjeta prompt de carátula */}
+                <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+                    <div className="mb-2 flex items-center justify-between">
+                        <h3 className="font-semibold text-slate-700 dark:text-slate-200">Prompt — Carátula</h3>
+                        {imagenPrompt?.fechaModificacion && (
+                            <span className="text-xs text-slate-400">
+                                Modificado: {new Date(imagenPrompt.fechaModificacion).toLocaleString("es-AR")}
+                            </span>
+                        )}
+                    </div>
+                    <textarea
+                        className="h-64 w-full rounded-lg border border-slate-300 bg-white p-3 font-mono text-xs text-slate-800 focus:border-primary focus:ring-primary dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                        value={imagenBorrador}
+                        onChange={e => setImagenBorrador(e.target.value)}
+                        disabled={isLoading}
+                    />
+                    <div className="mt-2 flex justify-end">
+                        <Button
+                            variant="dark"
+                            onClick={() => saveImagenPrompt(imagenBorrador)}
+                            disabled={isSavingImagen || isLoading || !imagenBorrador.trim()}
+                        >
+                            {isSavingImagen ? "Guardando…" : "Guardar"}
+                        </Button>
+                    </div>
+                </div>
             </div>
         </main>
     );

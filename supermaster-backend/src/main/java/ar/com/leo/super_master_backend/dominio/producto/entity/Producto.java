@@ -70,6 +70,9 @@ public class Producto {
     private java.util.List<ar.com.leo.super_master_backend.apis.ml.dto.MlAtributoDTO> mlAtributos = new java.util.ArrayList<>();
     @Transient
     private boolean equipamientoGastro;
+    /** Estado de Dux a enviar en el export (no persistido). "S"/"N"; null = usar `activo`. */
+    @Transient
+    private String duxHabilitado;
 
     @Size(max = 20)
     @Column(name = "ean", length = 20)

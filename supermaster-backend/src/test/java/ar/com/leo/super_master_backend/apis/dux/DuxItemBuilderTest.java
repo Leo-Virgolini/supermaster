@@ -134,4 +134,23 @@ class DuxItemBuilderTest {
         assertThat(m).doesNotContainKey("id_unidad_medida");
         assertThat(m).doesNotContainKey("descripcion");
     }
+
+    @Test
+    void construir_habilitadoUsaDuxHabilitadoSiEstaSeteado() {
+        Producto p = productoCompleto();   // activo = true
+        p.setActivo(false);                // activo en false...
+        p.setDuxHabilitado("S");           // ...pero duxHabilitado fuerza "S"
+        assertThat(builder().construir(p)).containsEntry("habilitado", "S");
+
+        p.setDuxHabilitado("N");
+        assertThat(builder().construir(p)).containsEntry("habilitado", "N");
+    }
+
+    @Test
+    void construir_habilitadoCaeAActivoSiDuxHabilitadoNull() {
+        Producto p = productoCompleto();   // activo = true, sin duxHabilitado
+        assertThat(builder().construir(p)).containsEntry("habilitado", "S");
+        p.setActivo(false);
+        assertThat(builder().construir(p)).containsEntry("habilitado", "N");
+    }
 }

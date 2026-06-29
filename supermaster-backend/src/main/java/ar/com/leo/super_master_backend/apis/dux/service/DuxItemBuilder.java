@@ -26,7 +26,12 @@ public class DuxItemBuilder {
         item.put("item", p.getTituloDux() != null ? p.getTituloDux() : "");
         item.put("tipo_producto", esCombo ? "COMBO" : "SIMPLE");
         item.put("id_moneda", 1);
-        item.put("habilitado", Boolean.TRUE.equals(p.getActivo()) ? "S" : "N");
+        // El habilitado viene del panel (transient duxHabilitado); si no se setea (export masivo),
+        // cae al flag `activo` (comportamiento previo).
+        String habilitado = (p.getDuxHabilitado() != null && !p.getDuxHabilitado().isBlank())
+                ? p.getDuxHabilitado().trim()
+                : (Boolean.TRUE.equals(p.getActivo()) ? "S" : "N");
+        item.put("habilitado", habilitado);
         item.put("stockeable", "S");
         item.put("acepta_stock_negativo", "S");
         // Dux rechaza un ítem trazable que además sea compuesto (combo): los combos van NO trazables.

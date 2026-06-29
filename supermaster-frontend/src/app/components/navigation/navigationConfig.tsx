@@ -449,8 +449,8 @@ export const navigationSections: NavSectionConfig[] = [
             },
             {
                 href: "/seo-ia",
-                label: "SEO IA",
-                description: "Prompts de SEO de Tienda Nube y consumo de OpenAI",
+                label: "Configuración IA",
+                description: "Configuración de IA (SEO y carátula) y consumo de OpenAI",
                 icon: SparklesIcon,
                 color: "orange",
                 requiredPermission: "INTEGRACIONES_VER",

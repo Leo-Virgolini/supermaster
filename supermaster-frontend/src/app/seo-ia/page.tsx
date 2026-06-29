@@ -25,6 +25,8 @@ export default function SeoIaPage() {
     const [imgIn, setImgIn] = useState("");
     const [imgOut, setImgOut] = useState("");
 
+    const [tab, setTab] = useState<"seo" | "caratula">("seo");
+
     const precioInvalido = (v: string) => v.trim() === "" || !(Number(v) > 0);
 
     useEffect(() => {
@@ -79,18 +81,25 @@ export default function SeoIaPage() {
         </div>
     );
 
+    const tabCls = (active: boolean) => `rounded-lg px-4 py-2 text-sm font-medium transition ${active ? "bg-primary text-white shadow-sm" : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"}`;
+
     return (
         <main className="p-4 md:p-5 bg-gray-50 dark:bg-slate-900 flex flex-col gap-4">
             <div>
                 <h1 className="text-3xl font-bold text-gray-800 dark:text-slate-100 flex items-center gap-3">
                     <SparklesIcon className="w-8 h-8 text-purple-600 dark:text-purple-400" />
-                    SEO IA
+                    Configuración IA
                 </h1>
-                <p className="text-gray-500 dark:text-slate-400 text-sm mt-1">Configuración de OpenAI (prompts + parámetros) y consumo</p>
+                <p className="text-gray-500 dark:text-slate-400 text-sm mt-1">Configuración de OpenAI (prompts + parámetros) y consumo, por función</p>
             </div>
 
+            <div className="flex gap-2">
+                <button type="button" className={tabCls(tab === "seo")} onClick={() => setTab("seo")}>SEO</button>
+                <button type="button" className={tabCls(tab === "caratula")} onClick={() => setTab("caratula")}>Carátula</button>
+            </div>
+
+            {tab === "seo" && (<>
             {usoBox("Uso de IA — SEO (acumulado)", uso)}
-            {usoBox("Uso de IA — Carátula (acumulado)", imagenUso)}
 
             {/* Config SEO */}
             <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-700 space-y-3">
@@ -114,6 +123,10 @@ export default function SeoIaPage() {
                     </Button>
                 </div>
             </div>
+            </>)}
+
+            {tab === "caratula" && (<>
+            {usoBox("Uso de IA — Carátula (acumulado)", imagenUso)}
 
             {/* Config Imagen */}
             <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-700 space-y-3">
@@ -148,6 +161,7 @@ export default function SeoIaPage() {
                     </Button>
                 </div>
             </div>
+            </>)}
         </main>
     );
 }

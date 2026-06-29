@@ -1140,6 +1140,21 @@ public class MercadoLibreService {
      * Devuelve null si no hay coincidencias.
      */
     public MlaPorSku buscarMlaPorSku(String sku) {
+        // status=active: para el upsert ignoramos publicaciones pausadas/cerradas que reusen el SKU.
+        return buscarMlaTradicionalPorSku(sku, "active");
+    }
+
+    /**
+     * Como {@link #buscarMlaPorSku} pero SIN filtrar por estado: trae la publicación tradicional
+     * (no de catálogo) en cualquier estado vigente (active/paused). Las cerradas/borradas no las
+     * devuelve la búsqueda → null. Se usa para mostrar el estado real en el panel del modal.
+     */
+    public MlaPorSku buscarMlaPorSkuCualquierEstado(String sku) {
+        return buscarMlaTradicionalPorSku(sku, null);
+    }
+
+    /** Búsqueda por seller_sku de la primera publicación tradicional; {@code status} null = sin filtro de estado. */
+    private MlaPorSku buscarMlaTradicionalPorSku(String sku, String status) {
         if (sku == null || sku.isBlank()) {
             return null;
         }
@@ -1150,8 +1165,8 @@ public class MercadoLibreService {
         } catch (IOException e) {
             throw new BadRequestException("No se pudo obtener el usuario de MercadoLibre: " + e.getMessage());
         }
-        // status=active: ignoramos publicaciones pausadas/cerradas que reusen el SKU.
-        String path = "/users/" + userId + "/items/search?status=active&seller_sku="
+        String filtroStatus = (status != null) ? "status=" + status + "&" : "";
+        String path = "/users/" + userId + "/items/search?" + filtroStatus + "seller_sku="
                 + URLEncoder.encode(sku.trim(), StandardCharsets.UTF_8);
         String body = retryHandler.get(path, () -> tokens.accessToken);
         if (body == null) {

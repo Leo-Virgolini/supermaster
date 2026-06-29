@@ -88,9 +88,10 @@ public class EstadoPublicacionService {
         return new EstadoPublicacionDTO(ml, hogar, gastro, dux, datos);
     }
 
-    /** Resuelve el código MLA real por SKU contra la API de ML (filtra status=active). Null si no hay publicación activa. */
+    /** Resuelve el código MLA real por SKU contra la API de ML, en cualquier estado vigente (active/paused).
+     *  Null si no hay publicación tradicional (las cerradas/borradas no las devuelve la búsqueda). */
     private String resolverMlaPorSku(String sku) {
-        var hallado = mercadoLibreService.buscarMlaPorSku(sku);
+        var hallado = mercadoLibreService.buscarMlaPorSkuCualquierEstado(sku);
         return hallado != null ? hallado.mla() : null;
     }
 

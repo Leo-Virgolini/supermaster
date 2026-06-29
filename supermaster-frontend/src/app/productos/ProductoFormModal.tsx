@@ -149,6 +149,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const [descripcionGastro, setDescripcionGastro] = useState("");
     const [sugiriendoDesc, setSugiriendoDesc] = useState(false);
     const [esCombo, setEsCombo] = useState(false);
+    const [esComboOriginal, setEsComboOriginal] = useState(false);
     const [subirADux, setSubirADux] = useState(true);
     const [subirKtHogar, setSubirKtHogar] = useState(true);
     const [subirKtGastro, setSubirKtGastro] = useState(true);
@@ -325,7 +326,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         if (!esCombo) {
             if (!marcaId) errors.marcaId = "La marca es obligatoria";
             if (!origenId) errors.origenId = "El origen es obligatorio";
-            if (!proveedorId) errors.proveedorId = "El proveedor es obligatorio";
+            // PRUEBA: proveedor no obligatorio temporalmente (descartar fallo en Dux)
+            // if (!proveedorId) errors.proveedorId = "El proveedor es obligatorio";
             if (!materialId) errors.materialId = "El material es obligatorio";
             if (!tag) errors.tag = "El tag es obligatorio";
             const tieneMargen = (margenMinorista !== "" && Number(margenMinorista) > 0) || (margenMayorista !== "" && Number(margenMayorista) > 0);
@@ -561,6 +563,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             setPrediccionesMl([]);
             setTituloNube(producto.tituloNube ?? "");
             setEsCombo(!!producto.esCombo);
+            setEsComboOriginal(!!producto.esCombo);
             setUxb(producto.uxb ?? 1);
             setActivo(!!producto.activo);
             setSubirADux(true);
@@ -657,6 +660,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             setEan("");
             setDescripcionMl(""); setDescripcionHogar(""); setDescripcionGastro("");
             setMlAtributosVal({});
+            setEsComboOriginal(false);
             void cargarSkuSugerido(false);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1687,11 +1691,16 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 <Squares2X2Icon className="h-5 w-5 shrink-0 text-violet-500" />
                                 <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={esCombo} onChange={e => handleToggleCombo(e.target.checked)} id="esCombo" />
                                 <label htmlFor="esCombo" className="cursor-pointer select-none">Es Combo</label>
+                            {editandoProductoId && esCombo !== esComboOriginal && (
+                                <p className="mt-1 w-full text-xs font-medium text-amber-600 dark:text-amber-400">
+                                    ⚠ Cambiar "Es combo" no modifica el SKU: se mantiene el actual y no se reasigna al rango de SKUs de simple/combo.
+                                </p>
+                            )}
                             </div>
                             {/* Identificadores */}
                             <label className="block">
-                                <span className={fieldLabelClassName}>SKU <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span></span>
-                                <input type="text" disabled={!!editandoProductoId} className={`${inputBaseClassName} ${editandoProductoId ? "cursor-not-allowed border-slate-300 bg-slate-100 font-semibold text-slate-800 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100" : ""} ${formErrors.sku ? inputErrorClassName : (skuYaExiste ? "border-amber-400 bg-amber-50 dark:bg-amber-900/20" : "")}`} value={sku} onChange={e => { setSku(e.target.value); if (formErrors.sku) setFormErrors(p => ({ ...p, sku: "" })); }} placeholder="Ej: CUT-001" autoFocus required />
+                                <span className="mb-1 block text-sm font-bold tracking-wide text-indigo-600 dark:text-indigo-400">SKU <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span></span>
+                                <input type="text" disabled={!!editandoProductoId} className={`${inputBaseClassName} border-l-4 border-l-indigo-500 font-mono font-bold tracking-wide ${editandoProductoId ? "cursor-not-allowed border-slate-300 bg-slate-100 font-semibold text-slate-800 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100" : ""} ${formErrors.sku ? inputErrorClassName : (skuYaExiste ? "border-amber-400 bg-amber-50 dark:bg-amber-900/20" : "")}`} value={sku} onChange={e => { setSku(e.target.value); if (formErrors.sku) setFormErrors(p => ({ ...p, sku: "" })); }} placeholder="Ej: CUT-001" autoFocus required />
                                 {formErrors.sku
                                     ? <p className="mt-1 text-xs text-red-500">{formErrors.sku}</p>
                                     : skuYaExiste && <p className="mt-1 text-xs font-medium text-amber-600 dark:text-amber-400">⚠ Ya existe un producto con este SKU</p>}

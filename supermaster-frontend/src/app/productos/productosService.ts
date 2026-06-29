@@ -545,6 +545,7 @@ export async function getEstadoPublicacionAPI(id: number): Promise<EstadoPublica
 
 export async function getDescripcionSugeridaAPI(id: number, canal: "ml" | "nube"): Promise<string> {
 	const r = await fetchAPI(`${API_BASE_URL}/api/productos/${id}/descripcion-sugerida?canal=${canal}`);
+	if (!r.ok) throw new Error(await extraerMensajeError(r, "No se pudo obtener la descripción sugerida"));
 	const data = await r.json() as { texto: string };
 	return data.texto;
 }

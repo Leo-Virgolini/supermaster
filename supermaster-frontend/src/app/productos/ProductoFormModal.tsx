@@ -269,19 +269,20 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     // Código MLA real resuelto por SKU contra ML (de getEstadoPublicacionAPI). Para verificar el MLA guardado.
     const [mlaResuelto, setMlaResuelto] = useState<string | null>(null);
     // Verificación (solo informa, no cambia nada): compara el MLA guardado con la publicación vigente en ML.
-    const mlaVerif = useMemo<{ tone: "emerald" | "amber" | "slate"; text: string } | null>(() => {
+    // `alerta` = el MLA guardado está en problema (sin publicación vigente / no coincide) → además se marca el input en rojo.
+    const mlaVerif = useMemo<{ tone: "emerald" | "amber" | "slate"; text: string; alerta: boolean } | null>(() => {
         if (cargandoEstado || !estadoCanales) return null;        // todavía sin datos de ML
         const stored = mlaCodigo.trim();
         const resuelto = (mlaResuelto ?? "").trim();
         if (estadoCanales.ml.error)
-            return stored ? { tone: "slate", text: "No se pudo verificar contra Mercado Libre." } : null;
+            return stored ? { tone: "slate", text: "No se pudo verificar contra Mercado Libre.", alerta: false } : null;
         if (!stored)
-            return resuelto ? { tone: "amber", text: `⚠ Hay una publicación vigente en ML (${resuelto}) sin vincular en la base.` } : null;
+            return resuelto ? { tone: "amber", text: `⚠ Hay una publicación vigente en ML (${resuelto}) sin vincular en la base.`, alerta: false } : null;
         if (!resuelto)
-            return { tone: "amber", text: "⚠ No hay publicación vigente en ML para este SKU; el MLA guardado podría estar obsoleto." };
+            return { tone: "amber", text: "⚠ No hay publicación vigente en ML para este SKU; el MLA guardado podría estar obsoleto.", alerta: true };
         if (resuelto === stored)
-            return { tone: "emerald", text: "✓ Verificado en ML: coincide con la publicación vigente." };
-        return { tone: "amber", text: `⚠ El MLA guardado no coincide con la publicación vigente en ML (${resuelto}).` };
+            return { tone: "emerald", text: "✓ Verificado en ML: coincide con la publicación vigente.", alerta: false };
+        return { tone: "amber", text: `⚠ El MLA guardado no coincide con la publicación vigente en ML (${resuelto}).`, alerta: true };
     }, [cargandoEstado, estadoCanales, mlaResuelto, mlaCodigo]);
     const [caratulaPreview, setCaratulaPreview] = useState<string | null>(null);
     const [caratulaFormato, setCaratulaFormato] = useState<string>("jpeg");
@@ -2073,9 +2074,9 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                             <TagIcon className="w-4 h-4" /> {cargandoPrediccionesMl ? "Prediciendo..." : "Predecir categorías"}
                                         </Button>
                                         {mlCategoryId && (
-                                            <span title={mlCategoryNombre || String(mlCategoryId)} className="inline-block max-w-full rounded-lg border border-yellow-300 bg-yellow-50 px-2 py-1 text-xs font-medium leading-relaxed text-yellow-800 dark:border-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300">
+                                            <span title={mlCategoryNombre || String(mlCategoryId)} className="inline-block max-w-full rounded-lg border border-indigo-300 bg-white px-2 py-1 text-xs font-medium leading-relaxed text-indigo-800 dark:border-indigo-600 dark:bg-slate-800 dark:text-indigo-200">
                                                 {pathConHojaResaltada(mlCategoryNombre || String(mlCategoryId))}
-                                                <button type="button" onClick={() => { setMlCategoryId(null); setMlCategoryNombre(null); setPrediccionesMl([]); }} className="ml-1 align-middle font-bold leading-none text-yellow-600 hover:text-red-500 dark:text-yellow-400" aria-label="Quitar categoría">×</button>
+                                                <button type="button" onClick={() => { setMlCategoryId(null); setMlCategoryNombre(null); setPrediccionesMl([]); }} className="ml-1 align-middle font-bold leading-none text-indigo-500 hover:text-red-500 dark:text-indigo-300" aria-label="Quitar categoría">×</button>
                                             </span>
                                         )}
                                     </div>
@@ -2131,7 +2132,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 <span className={fieldLabelClassName}>Código MLA</span>
                                 <input
                                     type="text"
-                                    className={inputBaseClassName}
+                                    className={`${inputBaseClassName} ${mlaVerif?.alerta ? inputErrorClassName : ""}`}
                                     value={mlaCodigo}
                                     onChange={e => {
                                         const v = e.target.value;

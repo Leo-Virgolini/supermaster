@@ -527,6 +527,7 @@ export type EstadoCanal = {
 	dimensiones: string | null;
 	error: boolean;
 };
+export type SeoCanal = { title: string | null; description: string | null; tags: string | null };
 export type DatosCanal = {
 	mlCategoryId: string | null;
 	mlCategoryNombre: string | null;
@@ -534,6 +535,8 @@ export type DatosCanal = {
 	descripcionMl: string | null;
 	descripcionHogar: string | null;
 	descripcionGastro: string | null;
+	seoHogar: SeoCanal | null;
+	seoGastro: SeoCanal | null;
 };
 export type EstadoPublicacion = { ml: EstadoCanal; hogar: EstadoCanal; gastro: EstadoCanal; dux: EstadoCanal; datos: DatosCanal };
 export type EstadoPublicacionUpdate = { ml?: string | null; hogar?: boolean | null; gastro?: boolean | null };

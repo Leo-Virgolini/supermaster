@@ -2,6 +2,7 @@ package ar.com.leo.super_master_backend.dominio.producto.estado;
 
 import ar.com.leo.super_master_backend.apis.dux.model.Item;
 import ar.com.leo.super_master_backend.apis.dux.service.DuxService;
+import ar.com.leo.super_master_backend.apis.ml.dto.MlAtributoDTO;
 import ar.com.leo.super_master_backend.apis.ml.service.MercadoLibreService;
 import ar.com.leo.super_master_backend.apis.nube.service.TiendaNubeService;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
@@ -12,10 +13,17 @@ import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoAplicar
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoCanalDTO;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoPublicacionDTO;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoPublicacionUpdateDTO;
+import ar.com.leo.super_master_backend.dominio.producto.estado.dto.SeoCanalDTO;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoRepository;
+import jakarta.annotation.PreDestroy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
+
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Service
 public class EstadoPublicacionService {
@@ -24,6 +32,14 @@ public class EstadoPublicacionService {
     private final MercadoLibreService mercadoLibreService;
     private final TiendaNubeService tiendaNubeService;
     private final DuxService duxService;
+
+    // Pool para leer los canales en paralelo. Hilos daemon (no bloquean el shutdown de la JVM);
+    // cached porque las lecturas son I/O a APIs externas, ráfagas cortas al abrir el modal.
+    private final ExecutorService estadoPool = Executors.newCachedThreadPool(r -> {
+        Thread t = new Thread(r, "estado-publicacion");
+        t.setDaemon(true);
+        return t;
+    });
 
     public EstadoPublicacionService(ProductoRepository productoRepository,
                                     MercadoLibreService mercadoLibreService,
@@ -35,62 +51,73 @@ public class EstadoPublicacionService {
         this.duxService = duxService;
     }
 
+    @PreDestroy
+    void cerrarPool() {
+        estadoPool.shutdown();
+    }
+
+    /** Datos del panel + editables de ML resueltos en un solo paso (para leer en un hilo aparte). */
+    private record MlPanel(EstadoCanalDTO estado, String categoryId, String categoryNombre,
+                           List<MlAtributoDTO> atributos, String descripcion) {}
+
+    /** Estado + datos editables de una tienda Nube. */
+    private record NubePanel(EstadoCanalDTO estado, String descripcion, SeoCanalDTO seo) {}
+
     @Transactional(readOnly = true)
     public EstadoPublicacionDTO leer(Integer productoId) {
         Producto p = productoRepository.findById(productoId)
                 .orElseThrow(() -> new NotFoundException("Producto no encontrado"));
+        String sku = p.getSku();
 
-        // --- ML: el MLA se resuelve por SKU contra la API (no desde la BD), para reflejar la
-        // publicación REAL y vigente (status=active). Un id_mla guardado puede estar stale/mal
-        // vinculado y apuntar a un ítem que sigue activo aunque la publicación real se haya borrado.
-        String mlaCode = null;
-        boolean mlError = false;
-        try {
-            mlaCode = resolverMlaPorSku(p.getSku());
-        } catch (Exception e) {
-            mlError = true;
-        }
-        JsonNode mlItem = (mlaCode != null && !mlaCode.isBlank()) ? mercadoLibreService.leerItemRaw(mlaCode) : null;
-        EstadoCanalDTO ml = mlError ? EstadoCanalDTO.ofError() : estadoMl(mlaCode, mlItem);
-        String descMl = (mlaCode != null && !mlaCode.isBlank()) ? mercadoLibreService.leerDescripcionMl(mlaCode) : null;
+        // Los 4 canales se leen EN PARALELO: son solo llamadas I/O a APIs externas (ML/Nube/Dux) que
+        // usan el SKU ya extraído, no la sesión JPA. Cada tarea captura su propio error y nunca lanza,
+        // así un canal caído no rompe a los demás. El tiempo total ≈ el canal más lento (antes era la suma).
+        CompletableFuture<MlPanel> fMl = CompletableFuture.supplyAsync(() -> leerMlPanel(sku), estadoPool);
+        CompletableFuture<NubePanel> fHogar = CompletableFuture.supplyAsync(
+                () -> leerNubePanel(sku, TiendaNubeService.STORE_HOGAR), estadoPool);
+        CompletableFuture<NubePanel> fGastro = CompletableFuture.supplyAsync(
+                () -> leerNubePanel(sku, TiendaNubeService.STORE_GASTRO), estadoPool);
+        CompletableFuture<EstadoCanalDTO> fDux = CompletableFuture.supplyAsync(() -> estadoDux(sku), estadoPool);
 
-        // --- Nube: una sola GET por tienda, reutilizada para estado y descripción ---
-        JsonNode hogarProd;
-        EstadoCanalDTO hogar;
-        try {
-            hogarProd = tiendaNubeService.buscarProductoPorSku(p.getSku(), TiendaNubeService.STORE_HOGAR);
-            hogar = estadoNube(hogarProd);
-        } catch (Exception e) {
-            hogarProd = null;
-            hogar = EstadoCanalDTO.ofError();
-        }
-        JsonNode gastroProd;
-        EstadoCanalDTO gastro;
-        try {
-            gastroProd = tiendaNubeService.buscarProductoPorSku(p.getSku(), TiendaNubeService.STORE_GASTRO);
-            gastro = estadoNube(gastroProd);
-        } catch (Exception e) {
-            gastroProd = null;
-            gastro = EstadoCanalDTO.ofError();
-        }
-
-        // --- Dux ---
-        EstadoCanalDTO dux = estadoDux(p.getSku());
-
-        String mlCatId = MlDatosParser.categoryId(mlItem);
-        String mlCatNombre = (mlCatId != null && !mlCatId.isBlank()) ? mercadoLibreService.obtenerCategoriaPath(mlCatId) : null;
+        MlPanel ml = fMl.join();
+        NubePanel hogar = fHogar.join();
+        NubePanel gastro = fGastro.join();
+        EstadoCanalDTO dux = fDux.join();
 
         DatosCanalDTO datos = new DatosCanalDTO(
-                mlCatId,
-                mlCatNombre,
-                MlDatosParser.atributos(mlItem),
-                descMl,
-                descripcionNube(hogarProd),
-                descripcionNube(gastroProd),
-                NubeSeoParser.parse(hogarProd),
-                NubeSeoParser.parse(gastroProd));
+                ml.categoryId(),
+                ml.categoryNombre(),
+                ml.atributos(),
+                ml.descripcion(),
+                hogar.descripcion(),
+                gastro.descripcion(),
+                hogar.seo(),
+                gastro.seo());
 
-        return new EstadoPublicacionDTO(ml, hogar, gastro, dux, datos);
+        return new EstadoPublicacionDTO(ml.estado(), hogar.estado(), gastro.estado(), dux, datos);
+    }
+
+    /**
+     * Lee ML: el MLA se resuelve por SKU contra la API (no desde la BD), para reflejar la publicación
+     * REAL y vigente (status=active). Un id_mla guardado puede estar stale/mal vinculado y apuntar a un
+     * ítem aún activo aunque la publicación real se haya borrado. Nunca lanza (captura y devuelve ofError).
+     */
+    private MlPanel leerMlPanel(String sku) {
+        String mlaCode;
+        try {
+            mlaCode = resolverMlaPorSku(sku);
+        } catch (Exception e) {
+            return new MlPanel(EstadoCanalDTO.ofError(), null, null, List.of(), null);
+        }
+        if (mlaCode == null || mlaCode.isBlank()) {
+            return new MlPanel(EstadoCanalDTO.noPublicado(), null, null, List.of(), null);
+        }
+        JsonNode item = mercadoLibreService.leerItemRaw(mlaCode);
+        EstadoCanalDTO estado = (item == null) ? EstadoCanalDTO.ofError() : MlEstadoParser.parse(item);
+        String descMl = mercadoLibreService.leerDescripcionMl(mlaCode);
+        String catId = MlDatosParser.categoryId(item);
+        String catNombre = (catId != null && !catId.isBlank()) ? mercadoLibreService.obtenerCategoriaPath(catId) : null;
+        return new MlPanel(estado, catId, catNombre, MlDatosParser.atributos(item), descMl);
     }
 
     /** Resuelve el código MLA real por SKU contra la API de ML, en cualquier estado vigente (active/paused).
@@ -100,10 +127,15 @@ public class EstadoPublicacionService {
         return hallado != null ? hallado.mla() : null;
     }
 
-    private EstadoCanalDTO estadoMl(String mlaCode, JsonNode item) {
-        if (mlaCode == null || mlaCode.isBlank()) return EstadoCanalDTO.noPublicado();
-        if (item == null) return EstadoCanalDTO.ofError();
-        return MlEstadoParser.parse(item);
+    /** Lee una tienda Nube (una sola GET reutilizada para estado, descripción y SEO). Nunca lanza. */
+    private NubePanel leerNubePanel(String sku, String store) {
+        JsonNode product;
+        try {
+            product = tiendaNubeService.buscarProductoPorSku(sku, store);
+        } catch (Exception e) {
+            return new NubePanel(EstadoCanalDTO.ofError(), null, null);
+        }
+        return new NubePanel(estadoNube(product), descripcionNube(product), NubeSeoParser.parse(product));
     }
 
     private EstadoCanalDTO estadoNube(JsonNode product) {

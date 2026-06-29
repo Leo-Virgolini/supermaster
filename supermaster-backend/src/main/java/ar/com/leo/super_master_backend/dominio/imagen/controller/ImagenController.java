@@ -1,7 +1,7 @@
 package ar.com.leo.super_master_backend.dominio.imagen.controller;
 
 import ar.com.leo.super_master_backend.apis.openai.dto.CaratulaGuardarDTO;
-import ar.com.leo.super_master_backend.dominio.imagen.dto.CaratulaGeneradaDTO;
+import ar.com.leo.super_master_backend.apis.openai.dto.CaratulaGeneradaDTO;
 import ar.com.leo.super_master_backend.dominio.imagen.service.GeneracionCaratula;
 import ar.com.leo.super_master_backend.config.Permisos;
 import ar.com.leo.super_master_backend.dominio.imagen.service.CaratulaService;

@@ -963,8 +963,9 @@ public class TiendaNubeService {
             // No se manda "published": la visibilidad se decide manualmente en Nube
             // (el alta crea oculto) y el PUT parcial no la pisa al editar.
             Map<String, Object> body = new LinkedHashMap<>();
-            body.put("name", Map.of("es", producto.getTituloNube() != null ? producto.getTituloNube() : ""));
-            String descNube = NubeDescripcionBuilder.construir(producto);
+            String nombre = NubeEquipamiento.tituloConSufijo(producto.getTituloNube() != null ? producto.getTituloNube() : "", producto.isEquipamientoGastro());
+            body.put("name", Map.of("es", nombre));
+            String descNube = NubeEquipamiento.descripcionConBullet(NubeDescripcionBuilder.construir(producto), producto.isEquipamientoGastro());
             if (descNube != null && !descNube.isBlank()) body.put("description", Map.of("es", descNube));
             if (producto.getMarca() != null && producto.getMarca().getNombre() != null && !producto.getMarca().getNombre().isBlank())
                 body.put("brand", producto.getMarca().getNombre());

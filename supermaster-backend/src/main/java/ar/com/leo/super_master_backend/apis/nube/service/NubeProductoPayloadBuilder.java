@@ -18,8 +18,9 @@ public final class NubeProductoPayloadBuilder {
     public static Map<String, Object> construir(Producto p, BigDecimal pvp, BigDecimal pvpInflado,
                                                 List<Long> categoriaIds, SeoGeneradoDTO seo) {
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("name", Map.of("es", p.getTituloNube() != null ? p.getTituloNube() : ""));
-        String descNube = NubeDescripcionBuilder.construir(p);
+        String nombre = NubeEquipamiento.tituloConSufijo(p.getTituloNube() != null ? p.getTituloNube() : "", p.isEquipamientoGastro());
+        payload.put("name", Map.of("es", nombre));
+        String descNube = NubeEquipamiento.descripcionConBullet(NubeDescripcionBuilder.construir(p), p.isEquipamientoGastro());
         if (descNube != null && !descNube.isBlank()) payload.put("description", Map.of("es", descNube));
         // Se sube siempre oculto (no visible en la tienda); la publicación se decide manualmente en Nube.
         payload.put("published", false);

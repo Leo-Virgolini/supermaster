@@ -62,6 +62,8 @@ public class NubeExportService {
 
                 // Descripción transitoria de esta tienda (no persistida; en lote llega null y el publish la omite).
                 producto.setDescripcionNube(destino.descripcion());
+                producto.setEquipamientoGastro(
+                        TiendaNubeService.STORE_GASTRO.equals(tienda) && NubeEquipamiento.esEquipamiento(producto));
 
                 // Upsert: si ya existe en la tienda, actualizar; si no, crear.
                 ResultadoAltaNube r;

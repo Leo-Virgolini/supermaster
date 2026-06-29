@@ -68,6 +68,8 @@ public class Producto {
     private String mlCategoryId;
     @Transient
     private java.util.List<ar.com.leo.super_master_backend.apis.ml.dto.MlAtributoDTO> mlAtributos = new java.util.ArrayList<>();
+    @Transient
+    private boolean equipamientoGastro;
 
     @Size(max = 20)
     @Column(name = "ean", length = 20)

@@ -138,6 +138,44 @@ class NubeProductoPayloadBuilderTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void equipamientoGastro_agregaSufijoYBullet() {
+        Producto p = new Producto();
+        p.setSku("EQ-1");
+        p.setTituloNube("Horno industrial");
+        p.setDescripcionNube("<p>Detalle</p>");
+        p.setEquipamientoGastro(true);
+
+        Map<String, Object> body = NubeProductoPayloadBuilder.construir(p, new BigDecimal("100"), null, null, null);
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> name = (Map<String, Object>) body.get("name");
+        assertThat(name.get("es")).isEqualTo("Horno industrial*");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> desc = (Map<String, Object>) body.get("description");
+        assertThat((String) desc.get("es")).contains("ENVIO A COTIZAR");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void sinEquipamiento_noTocaTituloNiDescripcion() {
+        Producto p = new Producto();
+        p.setSku("EQ-2");
+        p.setTituloNube("Horno industrial");
+        p.setDescripcionNube("<p>Detalle</p>");
+        p.setEquipamientoGastro(false);
+
+        Map<String, Object> body = NubeProductoPayloadBuilder.construir(p, new BigDecimal("100"), null, null, null);
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> name = (Map<String, Object>) body.get("name");
+        assertThat(name.get("es")).isEqualTo("Horno industrial");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> desc = (Map<String, Object>) body.get("description");
+        assertThat((String) desc.get("es")).doesNotContain("ENVIO A COTIZAR");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void conSeo_incluyeSeoTitleDescriptionYTags() {
         SeoGeneradoDTO seo = new SeoGeneradoDTO(
                 "Olla de acero inoxidable 24cm",

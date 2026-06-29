@@ -43,11 +43,9 @@ public class DuxItemBuilder {
         if (p.getMarca() != null && p.getMarca().getCodigoDux() != null && !p.getMarca().getCodigoDux().isBlank()) {
             item.put("codigo_marca", p.getMarca().getCodigoDux());
         }
-        // PRUEBA (debug): id_unidad_medida deshabilitado temporalmente para descartar que sea la
-        // causa del fallo al crear/editar un producto en Dux. Revertir tras la prueba.
-        // if (p.getSectorDeposito() != null && p.getSectorDeposito().getIdDux() != null) {
-        //     item.put("id_unidad_medida", p.getSectorDeposito().getIdDux());
-        // }
+        if (p.getSectorDeposito() != null && p.getSectorDeposito().getIdDux() != null) {
+            item.put("id_unidad_medida", p.getSectorDeposito().getIdDux());
+        }
         if (p.getEan() != null && !p.getEan().isBlank()) {
             item.put("cod_barra", p.getEan().trim());
         }

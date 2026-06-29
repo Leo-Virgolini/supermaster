@@ -59,6 +59,13 @@ class EstadoPublicacionServiceTest {
         assertThat(dto.hogar().publicado()).isTrue();
         assertThat(dto.hogar().estado()).isEqualTo("visible");
         assertThat(dto.gastro().publicado()).isFalse(); // no encontrado
+        // dux lanza excepción → error
+        assertThat(dto.dux().error()).isTrue();
+        assertThat(dto.dux().publicado()).isFalse();
+        // datos: descripcionMl null (stub retorna null), descripcionHogar null (JSON sin campo description)
+        assertThat(dto.datos().descripcionMl()).isNull();
+        assertThat(dto.datos().descripcionHogar()).isNull();
+        assertThat(dto.datos().descripcionGastro()).isNull();
     }
 
     @Test

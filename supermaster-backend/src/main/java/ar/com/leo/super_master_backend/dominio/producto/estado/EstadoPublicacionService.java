@@ -47,10 +47,24 @@ public class EstadoPublicacionService {
         String descMl = (mlaCode != null && !mlaCode.isBlank()) ? mercadoLibreService.leerDescripcionMl(mlaCode) : null;
 
         // --- Nube: una sola GET por tienda, reutilizada para estado y descripción ---
-        JsonNode hojarProd = leerNubeProducto(p.getSku(), TiendaNubeService.STORE_HOGAR);
-        JsonNode gastroProd = leerNubeProducto(p.getSku(), TiendaNubeService.STORE_GASTRO);
-        EstadoCanalDTO hogar = estadoNube(hojarProd);
-        EstadoCanalDTO gastro = estadoNube(gastroProd);
+        JsonNode hogarProd;
+        EstadoCanalDTO hogar;
+        try {
+            hogarProd = tiendaNubeService.buscarProductoPorSku(p.getSku(), TiendaNubeService.STORE_HOGAR);
+            hogar = estadoNube(hogarProd);
+        } catch (Exception e) {
+            hogarProd = null;
+            hogar = EstadoCanalDTO.ofError();
+        }
+        JsonNode gastroProd;
+        EstadoCanalDTO gastro;
+        try {
+            gastroProd = tiendaNubeService.buscarProductoPorSku(p.getSku(), TiendaNubeService.STORE_GASTRO);
+            gastro = estadoNube(gastroProd);
+        } catch (Exception e) {
+            gastroProd = null;
+            gastro = EstadoCanalDTO.ofError();
+        }
 
         // --- Dux ---
         EstadoCanalDTO dux = estadoDux(p.getSku());
@@ -60,7 +74,7 @@ public class EstadoPublicacionService {
                 null, // nombre de categoría no viene en /items/{id}
                 MlDatosParser.atributos(mlItem),
                 descMl,
-                descripcionNube(hojarProd),
+                descripcionNube(hogarProd),
                 descripcionNube(gastroProd));
 
         return new EstadoPublicacionDTO(ml, hogar, gastro, dux, datos);
@@ -70,14 +84,6 @@ public class EstadoPublicacionService {
         if (mlaCode == null || mlaCode.isBlank()) return EstadoCanalDTO.noPublicado();
         if (item == null) return EstadoCanalDTO.ofError();
         return MlEstadoParser.parse(item);
-    }
-
-    private JsonNode leerNubeProducto(String sku, String store) {
-        try {
-            return tiendaNubeService.buscarProductoPorSku(sku, store);
-        } catch (Exception e) {
-            return null;
-        }
     }
 
     private EstadoCanalDTO estadoNube(JsonNode product) {

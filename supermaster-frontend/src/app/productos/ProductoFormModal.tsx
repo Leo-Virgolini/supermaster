@@ -162,8 +162,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const [cuotasHogarOpts, setCuotasHogarOpts] = useState<CuotaOpcion[]>([]);
     const [cuotasGastroOpts, setCuotasGastroOpts] = useState<CuotaOpcion[]>([]);
     const [cuotaMl, setCuotaMl] = useState<number>(0);
-    // SEO de Tienda Nube por canal (NO se persiste: arranca vacío siempre, en alta y edición).
-    // Si el usuario genera/edita estos campos, se usan al exportar; si quedan vacíos, se autogeneran.
+    // SEO de Tienda Nube por canal. En ALTA arranca vacío; en EDICIÓN se pre-carga desde el canal si existe.
+    // No se persiste en la BD del sistema: si el usuario genera/edita estos campos, se usan al exportar; si quedan vacíos, se autogeneran.
     const [seoHogar, setSeoHogar] = useState<{ title: string; description: string; tags: string }>({ title: "", description: "", tags: "" });
     const [seoGastro, setSeoGastro] = useState<{ title: string; description: string; tags: string }>({ title: "", description: "", tags: "" });
     // Canales cuyo SEO se está generando ahora. Es un Set para permitir generar HOGAR y GASTRO
@@ -603,7 +603,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             setFormErrors({});
             setCatalogosSel([]); setAptosSel([]); setClientesSel([]);
             setCatalogosOriginal([]); setAptosOriginal([]); setClientesOriginal([]);
-            // El SEO de Nube no se persiste: arranca vacío y se autogenera/edita por sesión.
+            // El SEO de Nube no se persiste en la BD del sistema: en edición se pre-carga desde el canal (ver .then de getEstadoPublicacionAPI); en alta arranca vacío.
             setSeoHogar({ title: "", description: "", tags: "" });
             setSeoGastro({ title: "", description: "", tags: "" });
 
@@ -1464,8 +1464,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             case "paused": return <PauseCircleIcon className="h-4 w-4 shrink-0 text-amber-500" />;
             case "visible": return <EyeIcon className="h-4 w-4 shrink-0 text-emerald-500" />;
             case "oculta": return <EyeSlashIcon className="h-4 w-4 shrink-0 text-slate-400" />;
-            case "habilitado": return <CheckCircleIcon className="h-5 w-5 shrink-0 text-emerald-500" />;
-            case "deshabilitado": return <MinusCircleIcon className="h-5 w-5 shrink-0 text-slate-400" />;
+            case "habilitado": return <CheckCircleIcon className="h-4 w-4 shrink-0 text-emerald-500" />;
+            case "deshabilitado": return <MinusCircleIcon className="h-4 w-4 shrink-0 text-slate-400" />;
             default: return null;
         }
     };
@@ -1525,17 +1525,17 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             <div className="grid grid-cols-1 gap-3">
                 <label className="block">
                     <span className={fieldLabelClassName}>SEO Title</span>
-                    <input type="text" maxLength={70} className={`${inputBaseClassName} disabled:cursor-not-allowed disabled:opacity-60`} value={seo.title} onChange={e => setSeo(p => ({ ...p, title: e.target.value }))} placeholder="Título SEO" />
+                    <input type="text" maxLength={70} className={inputBaseClassName} value={seo.title} onChange={e => setSeo(p => ({ ...p, title: e.target.value }))} placeholder="Título SEO" />
                     <span className="mt-1 block text-right text-xs text-slate-400">{seo.title.length}/70</span>
                 </label>
                 <label className="block">
                     <span className={fieldLabelClassName}>SEO Description</span>
-                    <textarea maxLength={320} rows={3} className={`${inputBaseClassName} disabled:cursor-not-allowed disabled:opacity-60`} value={seo.description} onChange={e => setSeo(p => ({ ...p, description: e.target.value }))} placeholder="Descripción SEO" />
+                    <textarea maxLength={320} rows={3} className={inputBaseClassName} value={seo.description} onChange={e => setSeo(p => ({ ...p, description: e.target.value }))} placeholder="Descripción SEO" />
                     <span className="mt-1 block text-right text-xs text-slate-400">{seo.description.length}/320</span>
                 </label>
                 <label className="block">
                     <span className={fieldLabelClassName}>Tags</span>
-                    <input type="text" className={`${inputBaseClassName} disabled:cursor-not-allowed disabled:opacity-60`} value={seo.tags} onChange={e => setSeo(p => ({ ...p, tags: e.target.value }))} placeholder="tag1, tag2, ..." />
+                    <input type="text" className={inputBaseClassName} value={seo.tags} onChange={e => setSeo(p => ({ ...p, tags: e.target.value }))} placeholder="tag1, tag2, ..." />
                 </label>
             </div>
         </div>
@@ -2113,6 +2113,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 <span className="flex items-center justify-between gap-2">
                                     <span className={fieldLabelClassName}>Descripción Mercado Libre</span>
                                     <button type="button" disabled={sugiriendoDesc || !editandoProductoId}
+                                        title="Guardá el producto primero para componer la descripción"
                                         className="text-xs font-medium text-blue-600 hover:underline disabled:opacity-50 dark:text-blue-400"
                                         onClick={async () => {
                                             if (!editandoProductoId) return;
@@ -2229,6 +2230,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 <span className="flex items-center justify-between gap-2">
                                     <span className={fieldLabelClassName}>Descripción · KT HOGAR</span>
                                     <button type="button" disabled={sugiriendoDesc || !editandoProductoId}
+                                        title="Guardá el producto primero para componer la descripción"
                                         className="text-xs font-medium text-blue-600 hover:underline disabled:opacity-50 dark:text-blue-400"
                                         onClick={async () => { if (!editandoProductoId) return; setSugiriendoDesc(true); try { setDescripcionHogar(await getDescripcionSugeridaAPI(editandoProductoId, "nube")); } catch (e) { if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "No se pudo componer la descripción"); } finally { setSugiriendoDesc(false); } }}>
                                         Componer descripción sugerida
@@ -2258,6 +2260,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 <span className="flex items-center justify-between gap-2">
                                     <span className={fieldLabelClassName}>Descripción · KT GASTRO</span>
                                     <button type="button" disabled={sugiriendoDesc || !editandoProductoId}
+                                        title="Guardá el producto primero para componer la descripción"
                                         className="text-xs font-medium text-blue-600 hover:underline disabled:opacity-50 dark:text-blue-400"
                                         onClick={async () => { if (!editandoProductoId) return; setSugiriendoDesc(true); try { setDescripcionGastro(await getDescripcionSugeridaAPI(editandoProductoId, "nube")); } catch (e) { if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "No se pudo componer la descripción"); } finally { setSugiriendoDesc(false); } }}>
                                         Componer descripción sugerida

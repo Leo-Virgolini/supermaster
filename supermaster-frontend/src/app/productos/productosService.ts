@@ -543,6 +543,7 @@ export type EstadoPublicacionUpdate = { ml?: string | null; hogar?: boolean | nu
 
 export async function getEstadoPublicacionAPI(id: number): Promise<EstadoPublicacion> {
 	const r = await fetchAPI(`${API_BASE_URL}/api/productos/${id}/estado-publicacion`);
+	if (!r.ok) throw new Error(await extraerMensajeError(r, "No se pudo leer el estado de publicación"));
 	return r.json();
 }
 
@@ -557,6 +558,7 @@ export type EstadoAplicar = { ml: CanalAplicado; hogar: CanalAplicado; gastro: C
 
 export async function putEstadoPublicacionAPI(id: number, body: EstadoPublicacionUpdate): Promise<EstadoAplicar> {
 	const r = await fetchAPI(`${API_BASE_URL}/api/productos/${id}/estado-publicacion`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+	if (!r.ok) throw new Error(await extraerMensajeError(r, "No se pudo aplicar el estado de publicación"));
 	return r.json() as Promise<EstadoAplicar>;
 }
 

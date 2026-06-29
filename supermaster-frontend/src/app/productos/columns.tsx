@@ -255,24 +255,6 @@ export function getColumns(onEditarProducto: (producto: ProductoDTO) => void, ca
         )
     },
     {
-        // Categoría de Mercado Libre: solo lectura (se elige con el predictor en el formulario).
-        accessorKey: "mlCategoryNombre", header: "Categoría ML", size: 170, enableColumnFilter: false, meta: { headerClassName: HEADER_ML },
-        cell: ({ getValue }) => {
-            const v = getValue() as string | null;
-            if (!v) return <span className="block truncate text-xs text-slate-600 dark:text-slate-300">—</span>;
-            // Resalta la hoja (último segmento del path "A > B > Hoja").
-            const partes = v.split(">").map(s => s.trim());
-            const hoja = partes.pop() ?? "";
-            const prefijo = partes.join(" > ");
-            return (
-                <span className="block truncate text-xs text-slate-600 dark:text-slate-300" title={v}>
-                    {prefijo && <>{prefijo} {">"} </>}
-                    <span className="font-semibold text-slate-800 dark:text-slate-100">{hoja}</span>
-                </span>
-            );
-        }
-    },
-    {
         id: "proveedor", accessorFn: (row) => row.proveedorId, header: "Proveedor", size: 180, meta: { editable: true },
         cell: ({ row, table }) => (
             <EditableRelationCell

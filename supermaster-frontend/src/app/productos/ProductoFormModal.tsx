@@ -485,7 +485,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 return;
             }
             const payload: ProductoCreateDTO = {
-                sku: sku.trim(), codExt, tituloDux: tituloDux.trim(), tituloMl: tituloMl.trim() || null, tituloNube: tituloNube.trim() || null, descripcion: null, esCombo, uxb, activo,
+                sku: sku.trim(), codExt, tituloDux: tituloDux.trim(), tituloMl: tituloMl.trim() || null, tituloNube: tituloNube.trim() || null, esCombo, uxb, activo,
                 capacidad, largo: largo || null, ancho: ancho || null, alto: alto || null,
                 diamboca: diamboca || null, diambase: diambase || null, espesor: espesor || null,
                 costo: costoNum, iva,
@@ -494,7 +494,6 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 tagReposicion: tagReposicion || null,
                 tag: tag || null,
                 marcaId, origenId, clasifGralId: clasifGralId!, clasifGastroId, tipoId: tipoId!, proveedorId, materialId, sectorDepositoId, mlaId: mlaIdFinal,
-                mlCategoryId: null, mlCategoryNombre: null,
                 mlPaqAlto: mlPaqAlto === "" ? null : Number(mlPaqAlto),
                 mlPaqAncho: mlPaqAncho === "" ? null : Number(mlPaqAncho),
                 mlPaqLargo: mlPaqLargo === "" ? null : Number(mlPaqLargo),

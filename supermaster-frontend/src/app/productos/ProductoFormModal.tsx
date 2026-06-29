@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { notificar } from "../utils/notificar";
 import { esSesionExpirada } from "../utils/fetchAPI";
-import { BuildingStorefrontIcon, CheckIcon, CheckCircleIcon, CloudArrowDownIcon, CubeIcon, FireIcon, HomeIcon, XMarkIcon, IdentificationIcon, CurrencyDollarIcon, ArchiveBoxIcon, ReceiptPercentIcon, Squares2X2Icon, UserGroupIcon, ShoppingBagIcon, BanknotesIcon, InformationCircleIcon, SparklesIcon } from "@heroicons/react/24/outline";
+import { BuildingStorefrontIcon, CheckIcon, CheckCircleIcon, CloudArrowDownIcon, CubeIcon, FireIcon, HomeIcon, XMarkIcon, IdentificationIcon, CurrencyDollarIcon, ArchiveBoxIcon, ReceiptPercentIcon, Squares2X2Icon, UserGroupIcon, ShoppingBagIcon, BanknotesIcon, InformationCircleIcon, SparklesIcon, TagIcon, PauseCircleIcon, EyeIcon, EyeSlashIcon, MinusCircleIcon } from "@heroicons/react/24/outline";
 import Tooltip from "../components/Tooltip/Tooltip";
 import { API_BASE_URL } from "../config/runtime";
 import Button from "../components/Button/Button";
@@ -24,6 +24,7 @@ import {
     getEstadoPublicacionAPI, putEstadoPublicacionAPI,
     type EstadoCanal, type EstadoPublicacion, type EstadoPublicacionUpdate,
     generarCaratulaAPI, guardarCaratulaAPI,
+    getDescripcionSugeridaAPI,
 } from "./productosService";
 import { updateProductoMargenAPI } from "./productoMargenService";
 import { getCuotasPorCanalAPI } from "../canal-concepto-cuotas/canalConceptoCuotaService";
@@ -143,7 +144,10 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const [prediccionesMl, setPrediccionesMl] = useState<PrediccionCategoriaMl[]>([]);
     const [cargandoPrediccionesMl, setCargandoPrediccionesMl] = useState(false);
     const [tituloNube, setTituloNube] = useState("");
-    const [descripcion, setDescripcion] = useState("");
+    const [descripcionMl, setDescripcionMl] = useState("");
+    const [descripcionHogar, setDescripcionHogar] = useState("");
+    const [descripcionGastro, setDescripcionGastro] = useState("");
+    const [sugiriendoDesc, setSugiriendoDesc] = useState(false);
     const [esCombo, setEsCombo] = useState(false);
     const [subirADux, setSubirADux] = useState(true);
     const [subirKtHogar, setSubirKtHogar] = useState(true);
@@ -437,8 +441,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                     subirKtGastro ? resolverSeo(seoGastro, "GASTRO") : Promise.resolve(undefined),
                 ]);
                 const tiendas: DestinoNube[] = [];
-                if (subirKtHogar) tiendas.push({ tienda: "KT HOGAR", cuotas: cuotaHogar, seo: seoH });
-                if (subirKtGastro) tiendas.push({ tienda: "KT GASTRO", cuotas: cuotaGastro, seo: seoG });
+                if (subirKtHogar) tiendas.push({ tienda: "KT HOGAR", cuotas: cuotaHogar, seo: seoH, descripcion: descripcionHogar.trim() || null });
+                if (subirKtGastro) tiendas.push({ tienda: "KT GASTRO", cuotas: cuotaGastro, seo: seoG, descripcion: descripcionGastro.trim() || null });
                 if (!tiendas.length) return { canal: "Tienda Nube", estado: "ok", detalle: "sin cambios" };
                 try {
                     const r = await exportarProductosANubeAPI([skuExport], tiendas);
@@ -479,7 +483,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 return;
             }
             const payload: ProductoCreateDTO = {
-                sku: sku.trim(), codExt, tituloDux: tituloDux.trim(), tituloMl: tituloMl.trim() || null, tituloNube: tituloNube.trim() || null, descripcion: descripcion.trim() || null, esCombo, uxb, activo,
+                sku: sku.trim(), codExt, tituloDux: tituloDux.trim(), tituloMl: tituloMl.trim() || null, tituloNube: tituloNube.trim() || null, descripcion: null, esCombo, uxb, activo,
                 capacidad, largo: largo || null, ancho: ancho || null, alto: alto || null,
                 diamboca: diamboca || null, diambase: diambase || null, espesor: espesor || null,
                 costo: costoNum, iva,
@@ -558,7 +562,6 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             setMlCategoryNombre(producto.mlCategoryNombre ?? null);
             setPrediccionesMl([]);
             setTituloNube(producto.tituloNube ?? "");
-            setDescripcion(producto.descripcion ?? "");
             setEsCombo(!!producto.esCombo);
             setUxb(producto.uxb ?? 1);
             setActivo(!!producto.activo);
@@ -636,7 +639,13 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
 
             setCargandoEstado(true);
             getEstadoPublicacionAPI(producto.id)
-                .then(e => { setEstadoCanales(e); setEstadoOriginal(e); })
+                .then(e => {
+                    setEstadoCanales(e); setEstadoOriginal(e);
+                    // Pre-carga editable desde el canal (no persistido).
+                    setDescripcionMl(e.datos.descripcionMl ?? "");
+                    setDescripcionHogar(e.datos.descripcionHogar ?? "");
+                    setDescripcionGastro(e.datos.descripcionGastro ?? "");
+                })
                 .catch(err => { if (!esSesionExpirada(err)) notificar.error("No se pudo leer el estado de publicación"); })
                 .finally(() => setCargandoEstado(false));
         } else {
@@ -645,7 +654,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             setSeoHogar({ title: "", description: "", tags: "" });
             setSeoGastro({ title: "", description: "", tags: "" });
             setEan("");
-            setDescripcion("");
+            setDescripcionMl(""); setDescripcionHogar(""); setDescripcionGastro("");
             setMlAtributosVal({});
             void cargarSkuSugerido(false);
         }
@@ -673,7 +682,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 return;
             }
             const patch = {
-                codExt, tituloDux: tituloDux.trim(), tituloMl: tituloMl.trim() || null, tituloNube: tituloNube.trim() || null, descripcion: descripcion.trim() || null, esCombo, uxb, activo,
+                codExt, tituloDux: tituloDux.trim(), tituloMl: tituloMl.trim() || null, tituloNube: tituloNube.trim() || null, esCombo, uxb, activo,
                 capacidad, largo: largo || null, ancho: ancho || null, alto: alto || null,
                 diamboca: diamboca || null, diambase: diambase || null, espesor: espesor || null,
                 costo: costoNum, iva, stock: stock !== "" ? stock : null, moq: moq !== "" ? moq : null,
@@ -1435,23 +1444,61 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         );
     };
 
+    const estadoIcon = (estado: string | undefined) => {
+        switch (estado) {
+            case "active": return <CheckCircleIcon className="h-4 w-4 shrink-0 text-emerald-500" />;
+            case "paused": return <PauseCircleIcon className="h-4 w-4 shrink-0 text-amber-500" />;
+            case "visible": return <EyeIcon className="h-4 w-4 shrink-0 text-emerald-500" />;
+            case "oculta": return <EyeSlashIcon className="h-4 w-4 shrink-0 text-slate-400" />;
+            default: return null;
+        }
+    };
+
     const renderEstadoCanal = (
         label: string,
         canal: EstadoCanal | undefined,
         control: React.ReactNode,
+        icon: React.ReactNode,
+        estadoSel?: string,
     ) => (
-        <div className="rounded-2xl border border-slate-200 bg-white/70 p-4 dark:border-slate-700 dark:bg-slate-800/60">
-            <div className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</div>
+        <div className="rounded-xl border border-slate-200 bg-white/70 p-2.5 dark:border-slate-700 dark:bg-slate-800/60">
+            <div className="mb-1.5 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                {icon}
+                <span className="truncate">{label}</span>
+            </div>
             {cargandoEstado ? <span className="text-xs text-slate-400">Leyendo estado…</span>
               : !canal || canal.error ? <span className="text-xs text-amber-600">No se pudo leer el estado</span>
-              : !canal.publicado ? <span className="text-xs text-slate-400">No publicado</span>
+              : !canal.publicado ? <span className="flex items-center gap-1 text-xs text-slate-400"><MinusCircleIcon className="h-4 w-4 shrink-0" /> No publicado</span>
               : (<>
-                  {control}
-                  <div className="mt-2 space-y-0.5 text-xs text-slate-500 dark:text-slate-400">
-                      {canal.precio != null && <div>Precio: {canal.precio}</div>}
-                      {canal.stock != null && <div>Stock: {canal.stock}</div>}
-                      {canal.peso && <div>Peso: {canal.peso}</div>}
-                      {canal.dimensiones && <div>Dimensiones: {canal.dimensiones}</div>}
+                  <div className="flex items-center gap-2">
+                      {estadoIcon(estadoSel)}
+                      <div className="flex-1">{control}</div>
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                      {canal.precio != null && (
+                          <div className="flex justify-between gap-1">
+                              <span className="text-slate-400">Precio</span>
+                              <span className="font-medium text-slate-600 dark:text-slate-300">{canal.precio.toLocaleString("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          </div>
+                      )}
+                      {canal.stock != null && (
+                          <div className="flex justify-between gap-1">
+                              <span className="text-slate-400">Stock</span>
+                              <span className="font-medium text-slate-600 dark:text-slate-300">{canal.stock}</span>
+                          </div>
+                      )}
+                      {canal.peso && (
+                          <div className="flex justify-between gap-1">
+                              <span className="text-slate-400">Peso</span>
+                              <span className="font-medium text-slate-600 dark:text-slate-300">{canal.peso}</span>
+                          </div>
+                      )}
+                      {canal.dimensiones && (
+                          <div className="col-span-2 flex justify-between gap-1">
+                              <span className="text-slate-400">Dim.</span>
+                              <span className="font-medium text-slate-600 dark:text-slate-300">{canal.dimensiones}</span>
+                          </div>
+                      )}
                   </div>
               </>)}
         </div>
@@ -1496,6 +1543,35 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                     )}
 
                     <div className={`flex-col gap-5 ${editandoProductoId && panelTab === "historial" ? "hidden" : "flex"}`}>
+                    {editandoProductoId && (
+                    <fieldset className={`${sectionClassName} ${SECTION_TINT.canales}`}>
+                        <legend className={sectionTitleClassName}><BuildingStorefrontIcon className="h-5 w-5" /> Estado de publicación</legend>
+                        <p className={`${sectionDescriptionClassName} mb-3`}>Estado real de cada publicación (se aplica al guardar).</p>
+                        <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
+                            {renderEstadoCanal("Mercado Libre", estadoCanales?.ml,
+                                <select className={`${selectBaseClassName} w-full`} value={estadoCanales?.ml.estado ?? "active"}
+                                    onChange={e => setEstadoCanales(p => p && ({ ...p, ml: { ...p.ml, estado: e.target.value } }))}>
+                                    <option value="active">Activa</option>
+                                    <option value="paused">Pausada</option>
+                                </select>,
+                                <ShoppingBagIcon className="h-5 w-5 shrink-0 text-yellow-500" />, estadoCanales?.ml.estado ?? "active")}
+                            {renderEstadoCanal("Nube · KT HOGAR", estadoCanales?.hogar,
+                                <select className={`${selectBaseClassName} w-full`} value={estadoCanales?.hogar.estado ?? "visible"}
+                                    onChange={e => setEstadoCanales(p => p && ({ ...p, hogar: { ...p.hogar, estado: e.target.value } }))}>
+                                    <option value="visible">Visible</option>
+                                    <option value="oculta">Oculta</option>
+                                </select>,
+                                <HomeIcon className="h-5 w-5 shrink-0 text-sky-500" />, estadoCanales?.hogar.estado ?? "visible")}
+                            {renderEstadoCanal("Nube · KT GASTRO", estadoCanales?.gastro,
+                                <select className={`${selectBaseClassName} w-full`} value={estadoCanales?.gastro.estado ?? "visible"}
+                                    onChange={e => setEstadoCanales(p => p && ({ ...p, gastro: { ...p.gastro, estado: e.target.value } }))}>
+                                    <option value="visible">Visible</option>
+                                    <option value="oculta">Oculta</option>
+                                </select>,
+                                <FireIcon className="h-5 w-5 shrink-0 text-emerald-500" />, estadoCanales?.gastro.estado ?? "visible")}
+                        </div>
+                    </fieldset>
+                    )}
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.canales}`}>
                         <legend className={sectionTitleClassName}><BuildingStorefrontIcon className="h-5 w-5" /> Canales de venta</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Dónde publicar/subir el producto.</p>
@@ -1659,7 +1735,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 <div className="mt-2 flex flex-col gap-2">
                                     <div className="flex items-center gap-2">
                                         <Button variant="dark" onClick={handlePredecirCategoriasMl} disabled={!tituloMl.trim() || cargandoPrediccionesMl}>
-                                            <SparklesIcon className="w-4 h-4" /> {cargandoPrediccionesMl ? "Prediciendo..." : "Predecir categorías"}
+                                            <TagIcon className="w-4 h-4" /> {cargandoPrediccionesMl ? "Prediciendo..." : "Predecir categorías"}
                                         </Button>
                                         {mlCategoryId && (
                                             <span title={mlCategoryNombre || String(mlCategoryId)} className="inline-block max-w-full rounded-lg border border-yellow-300 bg-yellow-50 px-2 py-1 text-xs font-medium leading-relaxed text-yellow-800 dark:border-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300">
@@ -1971,14 +2047,37 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                             </label>
                         </div>
 
-                        {/* Descripción del producto (texto manual; se combina con las características autogeneradas) */}
+                        {/* Descripciones por canal (no se guardan; se leen del canal al abrir y se envían al publicar) */}
                         <div className="mt-6 border-t border-slate-200/70 pt-4 dark:border-slate-700/70">
-                            <label className="block">
-                                <span className={fieldLabelClassName}>Descripción</span>
-                                <textarea className={inputBaseClassName} value={descripcion} onChange={e => setDescripcion(e.target.value)} rows={4} maxLength={20000}
-                                    placeholder="Descripción del producto (texto plano). Se combina con las características automáticas al publicar en ML y Nube." />
-                                <span className="mt-0.5 block text-[11px] text-slate-400 dark:text-slate-500">Va arriba de las CARACTERÍSTICAS autogeneradas. Para ML se envía como texto plano (sin HTML).</span>
-                            </label>
+                            {([
+                                { label: "Descripción Mercado Libre", canal: "ml" as const, value: descripcionMl, set: setDescripcionMl, hint: "Texto plano (sin HTML). Lo que ves es lo que se publica en ML." },
+                                { label: "Descripción Nube · KT HOGAR", canal: "nube" as const, value: descripcionHogar, set: setDescripcionHogar, hint: "Acepta HTML. Lo que ves es lo que se publica en KT HOGAR." },
+                                { label: "Descripción Nube · KT GASTRO", canal: "nube" as const, value: descripcionGastro, set: setDescripcionGastro, hint: "Acepta HTML. Lo que ves es lo que se publica en KT GASTRO." },
+                            ]).map(d => (
+                                <label key={d.label} className="mb-4 block">
+                                    <span className="flex items-center justify-between gap-2">
+                                        <span className={fieldLabelClassName}>{d.label}</span>
+                                        <button type="button" disabled={sugiriendoDesc || !editandoProductoId}
+                                            className="text-xs font-medium text-blue-600 hover:underline disabled:opacity-50 dark:text-blue-400"
+                                            onClick={async () => {
+                                                if (!editandoProductoId) return;
+                                                setSugiriendoDesc(true);
+                                                try {
+                                                    const txt = await getDescripcionSugeridaAPI(editandoProductoId, d.canal);
+                                                    d.set(txt);
+                                                } catch (e) {
+                                                    if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "No se pudo componer la descripción");
+                                                } finally {
+                                                    setSugiriendoDesc(false);
+                                                }
+                                            }}>
+                                            Componer descripción sugerida
+                                        </button>
+                                    </span>
+                                    <textarea className={inputBaseClassName} value={d.value} onChange={e => d.set(e.target.value)} rows={4} maxLength={20000} placeholder={d.hint} />
+                                    <span className="mt-0.5 block text-[11px] text-slate-400 dark:text-slate-500">{d.hint}</span>
+                                </label>
+                            ))}
                         </div>
 
                         {/* Ficha técnica de la categoría ML (Variante / Principales / Secundarias) */}
@@ -2119,33 +2218,6 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                             ? <PreciosInfladosSection productoId={editandoProductoId} />
                             : <PreciosInfladosSection value={preciosInfladosSel} onChange={setPreciosInfladosSel} />}
                     </fieldset>
-
-                    {editandoProductoId && (
-                    <fieldset className={`${sectionClassName} ${SECTION_TINT.canales}`}>
-                        <legend className={sectionTitleClassName}><BuildingStorefrontIcon className="h-5 w-5" /> Estado de publicación</legend>
-                        <p className={`${sectionDescriptionClassName} mb-4`}>Estado real de cada publicación (se aplica al guardar).</p>
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                            {renderEstadoCanal("Mercado Libre", estadoCanales?.ml,
-                                <select className={`${selectBaseClassName} w-full`} value={estadoCanales?.ml.estado ?? "active"}
-                                    onChange={e => setEstadoCanales(p => p && ({ ...p, ml: { ...p.ml, estado: e.target.value } }))}>
-                                    <option value="active">Activa</option>
-                                    <option value="paused">Pausada</option>
-                                </select>)}
-                            {renderEstadoCanal("Nube · KT HOGAR", estadoCanales?.hogar,
-                                <select className={`${selectBaseClassName} w-full`} value={estadoCanales?.hogar.estado ?? "visible"}
-                                    onChange={e => setEstadoCanales(p => p && ({ ...p, hogar: { ...p.hogar, estado: e.target.value } }))}>
-                                    <option value="visible">Visible</option>
-                                    <option value="oculta">Oculta</option>
-                                </select>)}
-                            {renderEstadoCanal("Nube · KT GASTRO", estadoCanales?.gastro,
-                                <select className={`${selectBaseClassName} w-full`} value={estadoCanales?.gastro.estado ?? "visible"}
-                                    onChange={e => setEstadoCanales(p => p && ({ ...p, gastro: { ...p.gastro, estado: e.target.value } }))}>
-                                    <option value="visible">Visible</option>
-                                    <option value="oculta">Oculta</option>
-                                </select>)}
-                        </div>
-                    </fieldset>
-                    )}
 
                     {/* Estado de las subidas a canales: solo aparece si alguna falló. El producto ya se guardó. */}
                     {resultadosCanal.some(r => r.estado === "error") && (

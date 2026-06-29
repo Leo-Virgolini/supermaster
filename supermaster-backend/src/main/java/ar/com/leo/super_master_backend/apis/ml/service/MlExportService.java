@@ -89,7 +89,7 @@ public class MlExportService {
         // Datos de canal transitorios (no persistidos): los usa el publish. En lote llegan null.
         if (mlCategoryId != null && !mlCategoryId.isBlank()) p.setMlCategoryId(mlCategoryId);
         if (mlAtributos != null) p.setMlAtributos(mlAtributos);
-        p.setDescripcionMl(descripcionMl);
+        if (descripcionMl != null) p.setDescripcionMl(descripcionMl);
 
         String mla = (p.getMla() != null) ? p.getMla().getMla() : null;
         String mlauHallado = null;

@@ -15,7 +15,4 @@ public record DatosCanalDTO(
         SeoCanalDTO seoHogar,
         SeoCanalDTO seoGastro
 ) {
-    public static DatosCanalDTO vacio() {
-        return new DatosCanalDTO(null, null, List.of(), null, null, null, null, null);
-    }
 }

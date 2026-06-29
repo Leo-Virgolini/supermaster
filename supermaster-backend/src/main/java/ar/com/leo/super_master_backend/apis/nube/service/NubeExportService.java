@@ -60,6 +60,9 @@ public class NubeExportService {
                 if (precio.isEmpty()) { acc.error(etiqueta + ": sin precio calculado para esa cuota"); continue; }
                 if (precio.get().isObsoleto()) { acc.error(etiqueta + ": precio desactualizado (recalcular antes de subir)"); continue; }
 
+                // Descripción transitoria de esta tienda (no persistida; en lote llega null y el publish la omite).
+                producto.setDescripcionNube(destino.descripcion());
+
                 // Upsert: si ya existe en la tienda, actualizar; si no, crear.
                 ResultadoAltaNube r;
                 JsonNode existenteEnNube = tiendaNubeService.buscarProductoPorSku(producto.getSku(), tienda);

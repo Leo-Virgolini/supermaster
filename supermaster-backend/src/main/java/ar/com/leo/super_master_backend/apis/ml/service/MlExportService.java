@@ -45,7 +45,8 @@ public class MlExportService {
         for (Producto producto : productos) {
             Integer productoId = producto.getId();
             String etiqueta = producto.getSku();
-            ResultadoAltaMl r = self.procesarConProductoCargado(productoId, request.cuotas());
+            ResultadoAltaMl r = self.procesarConProductoCargado(
+                    productoId, request.cuotas(), request.mlCategoryId(), request.mlAtributos(), request.descripcionMl());
             switch (r.estado()) {
                 case CREADO -> {
                     acc.creado();
@@ -78,9 +79,17 @@ public class MlExportService {
      * (producto.getMla() o búsqueda por SKU) → actualizar; si no → alta.
      */
     @Transactional(readOnly = true)
-    public ResultadoAltaMl procesarConProductoCargado(Integer productoId, int cuotas) {
+    public ResultadoAltaMl procesarConProductoCargado(Integer productoId, int cuotas,
+                                                      String mlCategoryId,
+                                                      java.util.List<ar.com.leo.super_master_backend.apis.ml.dto.MlAtributoDTO> mlAtributos,
+                                                      String descripcionMl) {
         Producto p = productoRepository.findById(productoId).orElse(null);
         if (p == null) return ResultadoAltaMl.error("producto no encontrado");
+
+        // Datos de canal transitorios (no persistidos): los usa el publish. En lote llegan null.
+        if (mlCategoryId != null && !mlCategoryId.isBlank()) p.setMlCategoryId(mlCategoryId);
+        if (mlAtributos != null) p.setMlAtributos(mlAtributos);
+        p.setDescripcionMl(descripcionMl);
 
         String mla = (p.getMla() != null) ? p.getMla().getMla() : null;
         String mlauHallado = null;

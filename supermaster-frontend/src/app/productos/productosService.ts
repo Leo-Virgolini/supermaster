@@ -255,7 +255,7 @@ export const exportarProductosADuxAPI = async (skus: string[]): Promise<ExportCa
 
 export type SeoNube = { seoTitle: string; seoDescription: string; seoTags: string };
 
-export type DestinoNube = { tienda: "KT HOGAR" | "KT GASTRO"; cuotas: number; seo?: SeoNube };
+export type DestinoNube = { tienda: "KT HOGAR" | "KT GASTRO"; cuotas: number; seo?: SeoNube; descripcion?: string | null };
 
 export type SeoContexto = {
 	tituloNube: string;
@@ -308,11 +308,16 @@ export const recalcularProductoAPI = async (productoId: number): Promise<void> =
 	if (!res.ok) throw new Error(await extraerMensajeError(res, "No se pudo recalcular el precio del producto"));
 };
 
-export const exportarProductosAMlAPI = async (skus: string[], cuotas: number): Promise<ExportCanalResultDTO> => {
+export const exportarProductosAMlAPI = async (
+	skus: string[], cuotas: number,
+	mlCategoryId?: string | null,
+	mlAtributos?: ProductoMlAtributo[],
+	descripcionMl?: string | null,
+): Promise<ExportCanalResultDTO> => {
 	const res = await fetchAPI(`${API_BASE_URL}/api/ml/exportar-productos`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ skus, cuotas }),
+		body: JSON.stringify({ skus, cuotas, mlCategoryId, mlAtributos, descripcionMl }),
 	});
 	if (!res.ok) throw new Error(await extraerMensajeError(res, "No se pudo subir el producto a Mercado Libre"));
 	return await res.json();
@@ -522,12 +527,26 @@ export type EstadoCanal = {
 	dimensiones: string | null;
 	error: boolean;
 };
-export type EstadoPublicacion = { ml: EstadoCanal; hogar: EstadoCanal; gastro: EstadoCanal };
+export type DatosCanal = {
+	mlCategoryId: string | null;
+	mlCategoryNombre: string | null;
+	mlAtributos: ProductoMlAtributo[];
+	descripcionMl: string | null;
+	descripcionHogar: string | null;
+	descripcionGastro: string | null;
+};
+export type EstadoPublicacion = { ml: EstadoCanal; hogar: EstadoCanal; gastro: EstadoCanal; dux: EstadoCanal; datos: DatosCanal };
 export type EstadoPublicacionUpdate = { ml?: string | null; hogar?: boolean | null; gastro?: boolean | null };
 
 export async function getEstadoPublicacionAPI(id: number): Promise<EstadoPublicacion> {
 	const r = await fetchAPI(`${API_BASE_URL}/api/productos/${id}/estado-publicacion`);
 	return r.json();
+}
+
+export async function getDescripcionSugeridaAPI(id: number, canal: "ml" | "nube"): Promise<string> {
+	const r = await fetchAPI(`${API_BASE_URL}/api/productos/${id}/descripcion-sugerida?canal=${canal}`);
+	const data = await r.json() as { texto: string };
+	return data.texto;
 }
 export type CanalAplicado = { ok: boolean; detalle: string } | null;
 export type EstadoAplicar = { ml: CanalAplicado; hogar: CanalAplicado; gastro: CanalAplicado };

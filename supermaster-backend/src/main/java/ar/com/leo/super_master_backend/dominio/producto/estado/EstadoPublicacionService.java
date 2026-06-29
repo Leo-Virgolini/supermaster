@@ -1,9 +1,12 @@
 package ar.com.leo.super_master_backend.dominio.producto.estado;
 
+import ar.com.leo.super_master_backend.apis.dux.model.Item;
+import ar.com.leo.super_master_backend.apis.dux.service.DuxService;
 import ar.com.leo.super_master_backend.apis.ml.service.MercadoLibreService;
 import ar.com.leo.super_master_backend.apis.nube.service.TiendaNubeService;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
+import ar.com.leo.super_master_backend.dominio.producto.estado.dto.DatosCanalDTO;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoAplicarDTO;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoAplicarDTO.CanalAplicado;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoCanalDTO;
@@ -20,42 +23,80 @@ public class EstadoPublicacionService {
     private final ProductoRepository productoRepository;
     private final MercadoLibreService mercadoLibreService;
     private final TiendaNubeService tiendaNubeService;
+    private final DuxService duxService;
 
     public EstadoPublicacionService(ProductoRepository productoRepository,
                                     MercadoLibreService mercadoLibreService,
-                                    TiendaNubeService tiendaNubeService) {
+                                    TiendaNubeService tiendaNubeService,
+                                    DuxService duxService) {
         this.productoRepository = productoRepository;
         this.mercadoLibreService = mercadoLibreService;
         this.tiendaNubeService = tiendaNubeService;
+        this.duxService = duxService;
     }
 
     @Transactional(readOnly = true)
     public EstadoPublicacionDTO leer(Integer productoId) {
         Producto p = productoRepository.findById(productoId)
                 .orElseThrow(() -> new NotFoundException("Producto no encontrado"));
-        return new EstadoPublicacionDTO(
-                leerMl(p),
-                leerNube(p.getSku(), TiendaNubeService.STORE_HOGAR),
-                leerNube(p.getSku(), TiendaNubeService.STORE_GASTRO));
+
+        // --- ML: una sola GET del ítem, reutilizada para estado y datos ---
+        String mlaCode = p.getMla() != null ? p.getMla().getMla() : null;
+        JsonNode mlItem = (mlaCode != null && !mlaCode.isBlank()) ? mercadoLibreService.leerItemRaw(mlaCode) : null;
+        EstadoCanalDTO ml = estadoMl(mlaCode, mlItem);
+        String descMl = (mlaCode != null && !mlaCode.isBlank()) ? mercadoLibreService.leerDescripcionMl(mlaCode) : null;
+
+        // --- Nube: una sola GET por tienda, reutilizada para estado y descripción ---
+        JsonNode hojarProd = leerNubeProducto(p.getSku(), TiendaNubeService.STORE_HOGAR);
+        JsonNode gastroProd = leerNubeProducto(p.getSku(), TiendaNubeService.STORE_GASTRO);
+        EstadoCanalDTO hogar = estadoNube(hojarProd);
+        EstadoCanalDTO gastro = estadoNube(gastroProd);
+
+        // --- Dux ---
+        EstadoCanalDTO dux = estadoDux(p.getSku());
+
+        DatosCanalDTO datos = new DatosCanalDTO(
+                MlDatosParser.categoryId(mlItem),
+                null, // nombre de categoría no viene en /items/{id}
+                MlDatosParser.atributos(mlItem),
+                descMl,
+                descripcionNube(hojarProd),
+                descripcionNube(gastroProd));
+
+        return new EstadoPublicacionDTO(ml, hogar, gastro, dux, datos);
     }
 
-    private EstadoCanalDTO leerMl(Producto p) {
-        String mlaCode = p.getMla() != null ? p.getMla().getMla() : null;
+    private EstadoCanalDTO estadoMl(String mlaCode, JsonNode item) {
         if (mlaCode == null || mlaCode.isBlank()) return EstadoCanalDTO.noPublicado();
-        JsonNode item = mercadoLibreService.leerItemRaw(mlaCode);
         if (item == null) return EstadoCanalDTO.ofError();
         return MlEstadoParser.parse(item);
     }
 
-    private EstadoCanalDTO leerNube(String sku, String store) {
-        JsonNode product;
+    private JsonNode leerNubeProducto(String sku, String store) {
         try {
-            product = tiendaNubeService.buscarProductoPorSku(sku, store);
+            return tiendaNubeService.buscarProductoPorSku(sku, store);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private EstadoCanalDTO estadoNube(JsonNode product) {
+        if (product == null) return EstadoCanalDTO.noPublicado();
+        return NubeEstadoParser.parse(product);
+    }
+
+    private String descripcionNube(JsonNode product) {
+        if (product == null) return null;
+        return product.path("description").path("es").asString(null);
+    }
+
+    private EstadoCanalDTO estadoDux(String sku) {
+        try {
+            Item item = duxService.obtenerProductoPorCodigo(sku);
+            return DuxEstadoParser.parse(item);
         } catch (Exception e) {
             return EstadoCanalDTO.ofError();
         }
-        if (product == null) return EstadoCanalDTO.noPublicado();
-        return NubeEstadoParser.parse(product);
     }
 
     @Transactional(readOnly = true)

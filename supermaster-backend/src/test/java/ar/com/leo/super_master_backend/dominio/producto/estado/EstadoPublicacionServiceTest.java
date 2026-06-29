@@ -1,5 +1,6 @@
 package ar.com.leo.super_master_backend.dominio.producto.estado;
 
+import ar.com.leo.super_master_backend.apis.dux.service.DuxService;
 import ar.com.leo.super_master_backend.apis.ml.service.MercadoLibreService;
 import ar.com.leo.super_master_backend.apis.nube.service.TiendaNubeService;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
@@ -21,7 +22,8 @@ class EstadoPublicacionServiceTest {
     private final ProductoRepository repo = mock(ProductoRepository.class);
     private final MercadoLibreService ml = mock(MercadoLibreService.class);
     private final TiendaNubeService nube = mock(TiendaNubeService.class);
-    private final EstadoPublicacionService service = new EstadoPublicacionService(repo, ml, nube);
+    private final DuxService dux = mock(DuxService.class);
+    private final EstadoPublicacionService service = new EstadoPublicacionService(repo, ml, nube, dux);
 
     private static tools.jackson.databind.JsonNode json(String s) {
         return new ObjectMapper().readTree(s);
@@ -44,9 +46,11 @@ class EstadoPublicacionServiceTest {
         when(repo.findById(1)).thenReturn(Optional.of(p));
         when(ml.leerItemRaw("MLA123")).thenReturn(json("""
             {"status":"active","price":100,"available_quantity":3,"attributes":[]}"""));
+        when(ml.leerDescripcionMl("MLA123")).thenReturn(null);
         when(nube.buscarProductoPorSku("ABC", TiendaNubeService.STORE_HOGAR)).thenReturn(json("""
             {"id":5,"published":true,"variants":[{"id":9,"price":"100","stock":2,"weight":"1.0","height":"1","width":"1","depth":"1"}]}"""));
         when(nube.buscarProductoPorSku("ABC", TiendaNubeService.STORE_GASTRO)).thenReturn(null);
+        when(dux.obtenerProductoPorCodigo("ABC")).thenThrow(new RuntimeException("no encontrado"));
 
         EstadoPublicacionDTO dto = service.leer(1);
 
@@ -62,6 +66,7 @@ class EstadoPublicacionServiceTest {
         Producto p = producto(null, "ABC");
         when(repo.findById(1)).thenReturn(Optional.of(p));
         when(nube.buscarProductoPorSku(anyString(), anyString())).thenReturn(null);
+        when(dux.obtenerProductoPorCodigo("ABC")).thenThrow(new RuntimeException("no encontrado"));
 
         EstadoPublicacionDTO dto = service.leer(1);
 

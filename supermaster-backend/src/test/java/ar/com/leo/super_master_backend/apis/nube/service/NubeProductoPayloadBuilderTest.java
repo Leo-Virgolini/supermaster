@@ -117,6 +117,26 @@ class NubeProductoPayloadBuilderTest {
     }
 
     @Test
+    void sinDescripcionNube_noIncluyeClave() {
+        // descripcionNube null (campo @Transient no seteado) → guard omite la clave "description"
+        Map<String, Object> payload = NubeProductoPayloadBuilder.construir(
+                base(), new BigDecimal("1500.00"), null, null, null);
+        assertThat(payload).doesNotContainKey("description");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void conDescripcionNube_incluyeDescriptionPassthrough() {
+        // descripcionNube con texto → payload["description"]["es"] = ese texto verbatim
+        Producto p = base();
+        p.setDescripcionNube("<p>Descripción <b>HTML</b> del producto.</p>");
+        Map<String, Object> payload = NubeProductoPayloadBuilder.construir(
+                p, new BigDecimal("1500.00"), null, null, null);
+        assertThat(((Map<String, Object>) payload.get("description")).get("es"))
+                .isEqualTo("<p>Descripción <b>HTML</b> del producto.</p>");
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void conSeo_incluyeSeoTitleDescriptionYTags() {
         SeoGeneradoDTO seo = new SeoGeneradoDTO(

@@ -641,6 +641,16 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                     setDescripcionMl(e.datos.descripcionMl ?? "");
                     setDescripcionHogar(e.datos.descripcionHogar ?? "");
                     setDescripcionGastro(e.datos.descripcionGastro ?? "");
+                    if (e.datos.seoHogar) setSeoHogar({
+                        title: e.datos.seoHogar.title ?? "",
+                        description: e.datos.seoHogar.description ?? "",
+                        tags: e.datos.seoHogar.tags ?? "",
+                    });
+                    if (e.datos.seoGastro) setSeoGastro({
+                        title: e.datos.seoGastro.title ?? "",
+                        description: e.datos.seoGastro.description ?? "",
+                        tags: e.datos.seoGastro.tags ?? "",
+                    });
                     if (e.datos.mlCategoryId) {
                         setMlCategoryId(e.datos.mlCategoryId);
                         setMlCategoryNombre(e.datos.mlCategoryNombre);
@@ -1501,14 +1511,13 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const renderSeoNube = (
         canal: "HOGAR" | "GASTRO",
         titulo: string,
-        activoCanal: boolean,
         seo: { title: string; description: string; tags: string },
         setSeo: React.Dispatch<React.SetStateAction<{ title: string; description: string; tags: string }>>,
     ) => (
-        <div className={`rounded-2xl border border-slate-200 bg-white/70 p-4 transition-opacity dark:border-slate-700 dark:bg-slate-800/60 ${activoCanal ? "" : "opacity-50"}`}>
+        <div className="rounded-2xl border border-slate-200 bg-white/70 p-4 dark:border-slate-700 dark:bg-slate-800/60">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">SEO · {titulo}</span>
-                <Button variant="dark" onClick={() => generarSeo(canal)} disabled={generandoSeo.has(canal) || !activoCanal}>
+                <Button variant="dark" onClick={() => generarSeo(canal)} disabled={generandoSeo.has(canal)}>
                     {generandoSeo.has(canal) ? <SpinnerIcon /> : <SparklesIcon className="h-4 w-4" />}
                     {generandoSeo.has(canal) ? "Generando..." : "Generar SEO con IA"}
                 </Button>
@@ -1516,17 +1525,17 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             <div className="grid grid-cols-1 gap-3">
                 <label className="block">
                     <span className={fieldLabelClassName}>SEO Title</span>
-                    <input type="text" maxLength={70} disabled={!activoCanal} className={`${inputBaseClassName} disabled:cursor-not-allowed disabled:opacity-60`} value={seo.title} onChange={e => setSeo(p => ({ ...p, title: e.target.value }))} placeholder="Título SEO" />
+                    <input type="text" maxLength={70} className={`${inputBaseClassName} disabled:cursor-not-allowed disabled:opacity-60`} value={seo.title} onChange={e => setSeo(p => ({ ...p, title: e.target.value }))} placeholder="Título SEO" />
                     <span className="mt-1 block text-right text-xs text-slate-400">{seo.title.length}/70</span>
                 </label>
                 <label className="block">
                     <span className={fieldLabelClassName}>SEO Description</span>
-                    <textarea maxLength={320} rows={3} disabled={!activoCanal} className={`${inputBaseClassName} disabled:cursor-not-allowed disabled:opacity-60`} value={seo.description} onChange={e => setSeo(p => ({ ...p, description: e.target.value }))} placeholder="Descripción SEO" />
+                    <textarea maxLength={320} rows={3} className={`${inputBaseClassName} disabled:cursor-not-allowed disabled:opacity-60`} value={seo.description} onChange={e => setSeo(p => ({ ...p, description: e.target.value }))} placeholder="Descripción SEO" />
                     <span className="mt-1 block text-right text-xs text-slate-400">{seo.description.length}/320</span>
                 </label>
                 <label className="block">
                     <span className={fieldLabelClassName}>Tags</span>
-                    <input type="text" disabled={!activoCanal} className={`${inputBaseClassName} disabled:cursor-not-allowed disabled:opacity-60`} value={seo.tags} onChange={e => setSeo(p => ({ ...p, tags: e.target.value }))} placeholder="tag1, tag2, ..." />
+                    <input type="text" className={`${inputBaseClassName} disabled:cursor-not-allowed disabled:opacity-60`} value={seo.tags} onChange={e => setSeo(p => ({ ...p, tags: e.target.value }))} placeholder="tag1, tag2, ..." />
                 </label>
             </div>
         </div>
@@ -1576,13 +1585,11 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         <legend className={sectionTitleClassName}><BuildingStorefrontIcon className="h-5 w-5" /> Estado de publicación</legend>
                         <p className={`${sectionDescriptionClassName} mb-3`}>Estado real de cada publicación (se aplica al guardar).</p>
                         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
-                            {renderEstadoCanal("Mercado Libre", estadoCanales?.ml,
-                                <select className={`${selectBaseClassName} w-full`} value={estadoCanales?.ml.estado ?? "active"}
-                                    onChange={e => setEstadoCanales(p => p && ({ ...p, ml: { ...p.ml, estado: e.target.value } }))}>
-                                    <option value="active">Activa</option>
-                                    <option value="paused">Pausada</option>
-                                </select>,
-                                <ShoppingBagIcon className="h-5 w-5 shrink-0 text-yellow-500" />, estadoCanales?.ml.estado ?? "active")}
+                            {renderEstadoCanal("Dux", estadoCanales?.dux,
+                                <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
+                                    {estadoCanales?.dux.estado === "habilitado" ? "Habilitado" : "Deshabilitado"}
+                                </span>,
+                                <BuildingStorefrontIcon className="h-5 w-5 shrink-0 text-slate-500" />, estadoCanales?.dux.estado ?? undefined)}
                             {renderEstadoCanal("Nube · KT HOGAR", estadoCanales?.hogar,
                                 <select className={`${selectBaseClassName} w-full`} value={estadoCanales?.hogar.estado ?? "visible"}
                                     onChange={e => setEstadoCanales(p => p && ({ ...p, hogar: { ...p.hogar, estado: e.target.value } }))}>
@@ -1597,11 +1604,13 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                     <option value="oculta">Oculta</option>
                                 </select>,
                                 <FireIcon className="h-5 w-5 shrink-0 text-emerald-500" />, estadoCanales?.gastro.estado ?? "visible")}
-                            {renderEstadoCanal("Dux", estadoCanales?.dux,
-                                <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
-                                    {estadoCanales?.dux.estado === "habilitado" ? "Habilitado" : "Deshabilitado"}
-                                </span>,
-                                <BuildingStorefrontIcon className="h-5 w-5 shrink-0 text-slate-500" />, estadoCanales?.dux.estado ?? undefined)}
+                            {renderEstadoCanal("Mercado Libre", estadoCanales?.ml,
+                                <select className={`${selectBaseClassName} w-full`} value={estadoCanales?.ml.estado ?? "active"}
+                                    onChange={e => setEstadoCanales(p => p && ({ ...p, ml: { ...p.ml, estado: e.target.value } }))}>
+                                    <option value="active">Activa</option>
+                                    <option value="paused">Pausada</option>
+                                </select>,
+                                <ShoppingBagIcon className="h-5 w-5 shrink-0 text-yellow-500" />, estadoCanales?.ml.estado ?? "active")}
                         </div>
                     </fieldset>
                     )}
@@ -1986,6 +1995,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         </div>
                     </fieldset>
 
+                    {subirMl && (
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.ml}`}>
                         <legend className={sectionTitleClassName}><ShoppingBagIcon /> MercadoLibre</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Publicación de MercadoLibre (MLA) asociada al producto.</p>
@@ -2184,6 +2194,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         </div>
 
                     </fieldset>
+                    )}
 
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.dimensiones}`}>
                         <legend className={sectionTitleClassName}><CubeIcon /> Dimensiones Físicas</legend>
@@ -2203,6 +2214,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                     </fieldset>
 
                     {/* TIENDA NUBE · KT HOGAR */}
+                    {subirKtHogar && (
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.seo}`}>
                         <legend className={sectionTitleClassName}><BuildingStorefrontIcon className="h-5 w-5" /> Tienda Nube · KT HOGAR</legend>
                         <div className="grid grid-cols-1 gap-4">
@@ -2212,7 +2224,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 {formErrors.tituloNube && <p className="mt-1 text-xs text-red-500">{formErrors.tituloNube}</p>}
                                 <span className="mt-0.5 block text-[11px] text-slate-400 dark:text-slate-500">Compartido entre KT HOGAR y KT GASTRO.</span>
                             </label>
-                            {renderSeoNube("HOGAR", "KT Hogar", subirKtHogar, seoHogar, setSeoHogar)}
+                            {renderSeoNube("HOGAR", "KT Hogar", seoHogar, setSeoHogar)}
                             <label className="block">
                                 <span className="flex items-center justify-between gap-2">
                                     <span className={fieldLabelClassName}>Descripción · KT HOGAR</span>
@@ -2228,8 +2240,10 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                             </label>
                         </div>
                     </fieldset>
+                    )}
 
                     {/* TIENDA NUBE · KT GASTRO */}
+                    {subirKtGastro && (
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.seo}`}>
                         <legend className={sectionTitleClassName}><BuildingStorefrontIcon className="h-5 w-5" /> Tienda Nube · KT GASTRO</legend>
                         <div className="grid grid-cols-1 gap-4">
@@ -2239,7 +2253,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 {formErrors.tituloNube && <p className="mt-1 text-xs text-red-500">{formErrors.tituloNube}</p>}
                                 <span className="mt-0.5 block text-[11px] text-slate-400 dark:text-slate-500">Compartido entre KT HOGAR y KT GASTRO.</span>
                             </label>
-                            {renderSeoNube("GASTRO", "KT Gastro", subirKtGastro, seoGastro, setSeoGastro)}
+                            {renderSeoNube("GASTRO", "KT Gastro", seoGastro, setSeoGastro)}
                             <label className="block">
                                 <span className="flex items-center justify-between gap-2">
                                     <span className={fieldLabelClassName}>Descripción · KT GASTRO</span>
@@ -2255,6 +2269,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                             </label>
                         </div>
                     </fieldset>
+                    )}
 
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.inflados}`}>
                         <legend className={sectionTitleClassName}><BanknotesIcon /> Precios Inflados por Canal</legend>

@@ -1,81 +1,54 @@
 package ar.com.leo.super_master_backend.apis.ml.service;
 
-import ar.com.leo.super_master_backend.dominio.marca.entity.Marca;
-import ar.com.leo.super_master_backend.dominio.material.entity.Material;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * MlDescripcionBuilder es ahora passthrough: devuelve p.getDescripcionMl() tal cual.
+ * La generación de la descripción autoestructurada vive en MlDescripcionSugeridaBuilder.
+ */
 class MlDescripcionBuilderTest {
 
     @Test
-    void construir_incluyeCabeceraYBullets() {
+    void construir_devuelveDescripcionMlDelProducto() {
         Producto p = new Producto();
-        Marca marca = new Marca(); marca.setNombre("Tramontina");
-        Material material = new Material(); material.setNombre("Acero");
-        p.setMarca(marca);
-        p.setMaterial(material);
-        p.setCapacidad("500ml");
+        p.setDescripcionMl("Texto plano de la descripción ML.");
 
         String desc = MlDescripcionBuilder.construir(p);
 
-        assertThat(desc).startsWith("CARACTERÍSTICAS");
-        assertThat(desc).contains("• Material: Acero");
-        assertThat(desc).contains("• Marca: Tramontina");
-        assertThat(desc).contains("500ml");
-        assertThat(desc).doesNotContain("<"); // sin HTML
+        assertThat(desc).isEqualTo("Texto plano de la descripción ML.");
     }
 
     @Test
-    void construir_anteponeDescripcionManual_yLuegoCaracteristicas() {
+    void construir_devuelveNull_siDescripcionMlEsNull() {
         Producto p = new Producto();
-        Marca marca = new Marca(); marca.setNombre("Tramontina");
-        p.setMarca(marca);
-        p.setDescripcion("Olla ideal para guisos.\nDoble fondo.");
+        // descripcionMl no seteado -> null
 
         String desc = MlDescripcionBuilder.construir(p);
 
-        assertThat(desc).startsWith("Olla ideal para guisos.\nDoble fondo.");
-        assertThat(desc).contains("CARACTERÍSTICAS");
-        assertThat(desc.indexOf("Olla ideal")).isLessThan(desc.indexOf("CARACTERÍSTICAS"));
-        assertThat(desc).contains("• Marca: Tramontina");
+        assertThat(desc).isNull();
     }
 
     @Test
-    void construir_quitaHtmlDeLaDescripcionManual() {
+    void construir_devuelveStringVacio_siDescripcionMlEsVacia() {
         Producto p = new Producto();
-        p.setDescripcion("Texto <b>negrita</b> y <br> salto");
+        p.setDescripcionMl("");
 
         String desc = MlDescripcionBuilder.construir(p);
 
-        assertThat(desc).startsWith("Texto negrita y  salto");
-        assertThat(desc).doesNotContain("<");
+        assertThat(desc).isEmpty();
     }
 
     @Test
-    void construir_omiteVacios() {
+    void construir_preservaElContenidoTalCual_sinModificaciones() {
         Producto p = new Producto();
-        Marca marca = new Marca(); marca.setNombre("Tramontina");
-        p.setMarca(marca);
+        String contenido = "Línea 1\nLínea 2\n• Bullet con <html> y & caracteres especiales";
+        p.setDescripcionMl(contenido);
 
         String desc = MlDescripcionBuilder.construir(p);
 
-        assertThat(desc).contains("• Marca: Tramontina");
-        assertThat(desc).doesNotContain("Material:");
-        assertThat(desc).doesNotContain("Dimensiones:");
-    }
-
-    @Test
-    void incluyeSkuAlFinal_despuesDeCaracteristicas() {
-        Producto p = new Producto();
-        p.setSku("ABC123");
-        Marca marca = new Marca(); marca.setNombre("Tramontina"); p.setMarca(marca);
-
-        String desc = MlDescripcionBuilder.construir(p);
-
-        assertThat(desc).contains("SKU: ABC123");
-        assertThat(desc.indexOf("CARACTERÍSTICAS")).isLessThan(desc.indexOf("SKU: ABC123"));
-        assertThat(desc).doesNotContain("<");
+        assertThat(desc).isEqualTo(contenido);
     }
 }

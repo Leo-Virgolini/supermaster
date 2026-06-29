@@ -58,18 +58,16 @@ public class Producto {
     @Column(name = "titulo_nube", length = 100)
     private String tituloNube;
 
-    /** Descripción manual del producto (texto plano); se combina con la autogenerada al publicar. */
-    @Size(max = 20000)
-    @Column(name = "descripcion", columnDefinition = "TEXT")
-    private String descripcion;
-
-    @Size(max = 20)
-    @Column(name = "ml_category_id", length = 20)
+    // Datos de canal NO persistidos (fuente de verdad: el canal). Los setea el export desde el request
+    // antes de publicar; en lote van null y el publish los omite. Ver plan 2026-06-29-datos-canal.
+    @Transient
+    private String descripcionMl;
+    @Transient
+    private String descripcionNube;
+    @Transient
     private String mlCategoryId;
-
-    @Size(max = 255)
-    @Column(name = "ml_category_nombre", length = 255)
-    private String mlCategoryNombre;
+    @Transient
+    private java.util.List<ar.com.leo.super_master_backend.apis.ml.dto.MlAtributoDTO> mlAtributos = new java.util.ArrayList<>();
 
     @Size(max = 20)
     @Column(name = "ean", length = 20)
@@ -204,9 +202,7 @@ public class Producto {
     @BatchSize(size = 50)
     private Set<ProductoApto> productosApto = new LinkedHashSet<>();
 
-    @OneToMany(mappedBy = "producto", cascade = CascadeType.ALL, orphanRemoval = true)
-    @BatchSize(size = 50)
-    private Set<ProductoMlAtributo> mlAtributos = new LinkedHashSet<>();
+    // (producto_ml_atributo eliminado; los atributos ML viven en el campo @Transient mlAtributos)
 
     @OneToMany(mappedBy = "producto")
     private Set<ProductoMargen> productoMargenes = new LinkedHashSet<>();

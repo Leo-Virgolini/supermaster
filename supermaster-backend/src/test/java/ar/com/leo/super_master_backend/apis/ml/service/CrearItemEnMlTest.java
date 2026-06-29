@@ -85,8 +85,10 @@ class CrearItemEnMlTest {
     @Test
     void ok_creadoConItemIdYMlau() {
         AtomicReference<String> descripcion = new AtomicReference<>();
+        Producto p = producto();
+        p.setDescripcionMl("Descripción ML del producto.");  // passthrough: se envía tal cual
         ResultadoAltaMl r = MercadoLibreService.crearItemEnMlCore(
-                producto(), om, noExiste, conImagen, subeOk,
+                p, om, noExiste, conImagen, subeOk,
                 CATEGORY_ID, PRECIO_FINAL, Set.of(),
                 cat -> 60,
                 json -> "{\"id\":\"MLA999\",\"user_product_id\":\"MLAU99\"}",
@@ -94,7 +96,20 @@ class CrearItemEnMlTest {
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.CREADO);
         assertThat(r.itemId()).isEqualTo("MLA999");
         assertThat(r.mlau()).isEqualTo("MLAU99");
-        assertThat(descripcion.get()).startsWith("MLA999|CARACTERÍSTICAS");
+        assertThat(descripcion.get()).isEqualTo("MLA999|Descripción ML del producto."); // passthrough exacto
+    }
+
+    @Test
+    void sinDescripcionMl_noLlamaPosterDescripcion() {
+        AtomicReference<String> descripcion = new AtomicReference<>();
+        ResultadoAltaMl r = MercadoLibreService.crearItemEnMlCore(
+                producto(), om, noExiste, conImagen, subeOk,  // producto() sin descripcionMl -> null
+                CATEGORY_ID, PRECIO_FINAL, Set.of(),
+                cat -> 60,
+                json -> "{\"id\":\"MLA998\",\"user_product_id\":\"MLAU98\"}",
+                (id, txt) -> { descripcion.set(id + "|" + txt); return "{}"; });
+        assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.CREADO);
+        assertThat(descripcion.get()).isNull(); // posterDescripcion NO fue llamado
     }
 
     @Test

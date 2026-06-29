@@ -117,7 +117,6 @@ public class ProductoServiceImpl implements ProductoService {
         validarAlMenosUnaClasificacion(entity);
         validarProductoSimpleCompleto(entity);
         productoRepository.save(entity);
-        reemplazarMlAtributos(entity, dto.mlAtributos());
         productoAuditoriaService.registrarCreacion(entity);
         programarRecalculoPostCommit("Producto creado", entity.getId());
         return productoMapper.toDTO(entity);
@@ -162,7 +161,6 @@ public class ProductoServiceImpl implements ProductoService {
         Tag tagAnterior = entity.getTag();
 
         productoMapper.updateEntityFromDTO(dto, entity);
-        reemplazarMlAtributos(entity, dto.mlAtributos());
         validarAlMenosUnaClasificacion(entity);
         validarProductoSimpleCompleto(entity);
         productoRepository.save(entity);
@@ -210,10 +208,6 @@ public class ProductoServiceImpl implements ProductoService {
         Tag tagAnterior = entity.getTag();
 
         aplicarPatch(entity, patchDto);
-        // Solo reemplazar atributos ML si se envió la lista explícitamente (null = no tocar)
-        if (patchDto.getMlAtributos() != null) {
-            reemplazarMlAtributos(entity, patchDto.getMlAtributos());
-        }
         validarAlMenosUnaClasificacion(entity);
         validarProductoSimpleCompleto(entity);
         productoRepository.save(entity);
@@ -1128,7 +1122,6 @@ public class ProductoServiceImpl implements ProductoService {
                 && !presente(patchDto.getTituloDux())
                 && !presente(patchDto.getTituloMl())
                 && !presente(patchDto.getTituloNube())
-                && !presente(patchDto.getDescripcion())
                 && !presente(patchDto.getEsCombo())
                 && !presente(patchDto.getUxb())
                 && !presente(patchDto.getMoq())
@@ -1157,10 +1150,7 @@ public class ProductoServiceImpl implements ProductoService {
                 && !presente(patchDto.getMlPaqAlto())
                 && !presente(patchDto.getMlPaqAncho())
                 && !presente(patchDto.getMlPaqLargo())
-                && !presente(patchDto.getMlPaqPeso())
-                && !presente(patchDto.getMlCategoryId())
-                && !presente(patchDto.getMlCategoryNombre())
-                && patchDto.getMlAtributos() == null;
+                && !presente(patchDto.getMlPaqPeso());
     }
 
     /**
@@ -1203,17 +1193,8 @@ public class ProductoServiceImpl implements ProductoService {
         if (presente(patchDto.getTituloMl())) {
             entity.setTituloMl(leerStringOpcional(patchDto.getTituloMl(), "tituloMl", 100));
         }
-        if (presente(patchDto.getMlCategoryId())) {
-            entity.setMlCategoryId(leerStringOpcional(patchDto.getMlCategoryId(), "mlCategoryId", 20));
-        }
-        if (presente(patchDto.getMlCategoryNombre())) {
-            entity.setMlCategoryNombre(leerStringOpcional(patchDto.getMlCategoryNombre(), "mlCategoryNombre", 255));
-        }
         if (presente(patchDto.getTituloNube())) {
             entity.setTituloNube(leerStringOpcional(patchDto.getTituloNube(), "tituloNube", 100));
-        }
-        if (presente(patchDto.getDescripcion())) {
-            entity.setDescripcion(leerStringOpcional(patchDto.getDescripcion(), "descripcion", 20000));
         }
         if (presente(patchDto.getEsCombo())) {
             entity.setEsCombo(leerBooleanOpcional(patchDto.getEsCombo(), "esCombo"));
@@ -1322,29 +1303,6 @@ public class ProductoServiceImpl implements ProductoService {
         Mla mla = new Mla();
         mla.setId(mlaId);
         return mla;
-    }
-
-    /**
-     * Reemplaza el set completo de atributos ML del producto.
-     * orphanRemoval=true + cascade ALL se encarga del DELETE/INSERT.
-     * Se hace flush tras el clear() para que Hibernate ejecute los DELETEs ANTES
-     * de los INSERTs, evitando violación del unique index (id_producto, attribute_id).
-     * Si la lista es null, no toca el set.
-     */
-    private void reemplazarMlAtributos(Producto entity, List<ProductoMlAtributoDTO> dtos) {
-        entity.getMlAtributos().clear();
-        entityManager.flush(); // fuerza DELETEs antes de los INSERTs
-        if (dtos != null) {
-            for (ProductoMlAtributoDTO a : dtos) {
-                ProductoMlAtributo e = new ProductoMlAtributo();
-                e.setProducto(entity);
-                e.setAttributeId(a.attributeId());
-                e.setValueId((a.valueId() == null || a.valueId().isBlank()) ? null : a.valueId());
-                e.setValueName(a.valueName());
-                e.setNoAplica(a.noAplica());
-                entity.getMlAtributos().add(e);
-            }
-        }
     }
 
     /** Específico: igual al porcentaje [0, 100] pero requerido (no opcional), usado para el IVA del producto. */

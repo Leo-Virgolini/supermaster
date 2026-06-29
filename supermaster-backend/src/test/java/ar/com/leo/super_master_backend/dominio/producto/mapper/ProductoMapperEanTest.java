@@ -20,7 +20,6 @@ class ProductoMapperEanTest {
                 "Titulo test", // tituloDux
                 null,        // tituloMl
                 null,        // tituloNube
-                null,        // descripcion
                 false,       // esCombo
                 null,        // uxb
                 null,        // moq
@@ -46,14 +45,11 @@ class ProductoMapperEanTest {
                 new BigDecimal("21"), // iva
                 null,        // tagReposicion
                 null,        // tag
-                null,        // mlCategoryId
-                null,        // mlCategoryNombre
                 null,        // mlPaqAlto
                 null,        // mlPaqAncho
                 null,        // mlPaqLargo
                 null,        // mlPaqPeso
-                "7791234567890", // ean
-                null         // mlAtributos
+                "7791234567890" // ean
         );
         Producto p = mapper.toEntity(dto);
         assertThat(p.getEan()).isEqualTo("7791234567890");

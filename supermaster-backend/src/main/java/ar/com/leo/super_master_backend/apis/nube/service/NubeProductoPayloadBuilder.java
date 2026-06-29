@@ -19,7 +19,8 @@ public final class NubeProductoPayloadBuilder {
                                                 List<Long> categoriaIds, SeoGeneradoDTO seo) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("name", Map.of("es", p.getTituloNube() != null ? p.getTituloNube() : ""));
-        payload.put("description", Map.of("es", NubeDescripcionBuilder.construir(p)));
+        String descNube = NubeDescripcionBuilder.construir(p);
+        if (descNube != null && !descNube.isBlank()) payload.put("description", Map.of("es", descNube));
         // Se sube siempre oculto (no visible en la tienda); la publicación se decide manualmente en Nube.
         payload.put("published", false);
         payload.put("free_shipping", false);

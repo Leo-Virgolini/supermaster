@@ -1,7 +1,7 @@
 package ar.com.leo.super_master_backend.apis.ml.service;
 
+import ar.com.leo.super_master_backend.apis.ml.dto.MlAtributoDTO;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
-import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoMlAtributo;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -70,7 +70,7 @@ public final class MlItemPayloadBuilder {
         // y se agrega en el loop de guardados; si no hay BRAND guardado, se autocompleta desde la marca.
         // Considera también el "No aplica" como guardado: así NO se autocompleta y se evita BRAND duplicado.
         boolean brandGuardado = p.getMlAtributos().stream()
-                .anyMatch(a -> "BRAND".equals(a.getAttributeId()));
+                .anyMatch(a -> "BRAND".equals(a.attributeId()));
         if (!brandGuardado && p.getMarca() != null && p.getMarca().getNombre() != null) {
             attributes.add(Map.of("id", "BRAND", "value_name", p.getMarca().getNombre()));
         }
@@ -78,7 +78,7 @@ public final class MlItemPayloadBuilder {
         // guardado en la ficha. Gateado por la categoría (solo si declara MATERIAL): a diferencia de
         // BRAND no es universal, y mandarlo a una categoría que no lo acepta haría que ML lo rechace.
         boolean materialGuardado = p.getMlAtributos().stream()
-                .anyMatch(a -> "MATERIAL".equals(a.getAttributeId()));
+                .anyMatch(a -> "MATERIAL".equals(a.attributeId()));
         if (!materialGuardado && categoriaAttrIds.contains("MATERIAL")
                 && p.getMaterial() != null && p.getMaterial().getNombre() != null) {
             attributes.add(Map.of("id", "MATERIAL", "value_name", p.getMaterial().getNombre()));
@@ -111,25 +111,25 @@ public final class MlItemPayloadBuilder {
             }
         }
         // Atributos guardados (formato de venta + características)
-        for (ProductoMlAtributo a : p.getMlAtributos()) {
+        for (MlAtributoDTO a : p.getMlAtributos()) {
             // Si conocemos los atributos válidos de la categoría, descartamos los guardados que NO
             // declara (quedaron "stale" de otra categoría; ML los rechazaría). idsValidos es un
             // superset de la ficha, así que no descarta ninguno legítimo. Con el set vacío (no
             // disponible) NO se filtra, para no perder características.
-            if (!categoriaAttrIds.isEmpty() && !categoriaAttrIds.contains(a.getAttributeId())) {
+            if (!categoriaAttrIds.isEmpty() && !categoriaAttrIds.contains(a.attributeId())) {
                 continue;
             }
             Map<String, Object> m = new LinkedHashMap<>();
-            m.put("id", a.getAttributeId());
-            if (a.isNoAplica()) {
+            m.put("id", a.attributeId());
+            if (a.noAplica()) {
                 // "No aplica": ML lo registra como N/A enviando value_id "-1" y value_name null.
                 m.put("value_id", "-1");
                 m.put("value_name", null);
                 attributes.add(m);
                 continue;
             }
-            if (a.getValueId() != null && !a.getValueId().isBlank()) m.put("value_id", a.getValueId());
-            m.put("value_name", a.getValueName());
+            if (a.valueId() != null && !a.valueId().isBlank()) m.put("value_id", a.valueId());
+            m.put("value_name", a.valueName());
             attributes.add(m);
         }
         return attributes;

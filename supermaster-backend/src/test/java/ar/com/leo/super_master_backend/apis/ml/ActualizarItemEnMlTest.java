@@ -34,12 +34,15 @@ class ActualizarItemEnMlTest {
         AtomicReference<String> desc = new AtomicReference<>();
         double[] precio = new double[1];
 
+        Producto p = producto();
+        p.setDescripcionMl("Descripción ML del producto.");   // passthrough: se envía tal cual
+
         ResultadoAltaMl r = MercadoLibreService.actualizarItemEnMlCore(
-                producto(), "MLA111",
+                p, "MLA111",
                 mla -> 0,                          // sold_quantity = 0
                 (mla, t) -> titulo.set(t),
                 (mla, d) -> desc.set(d),
-                (mla, p) -> { precio[0] = p; return true; },
+                (mla, pr) -> { precio[0] = pr; return true; },
                 sku -> java.util.List.of(),
                 (mla, pics) -> {},
                 (mla, status) -> true, (mla, attrs) -> {},
@@ -49,8 +52,26 @@ class ActualizarItemEnMlTest {
         assertThat(r.itemId()).isEqualTo("MLA111");
         assertThat(r.advertencia()).isNull();
         assertThat(titulo.get()).isEqualTo("Olla acero 24cm premium");
-        assertThat(desc.get()).contains("CARACTERÍSTICAS");
+        assertThat(desc.get()).isEqualTo("Descripción ML del producto."); // passthrough exacto
         assertThat(precio[0]).isEqualTo(5000.0);
+    }
+
+    @Test
+    void sinDescripcionMl_noLlamaPutDesc() {
+        AtomicReference<String> desc = new AtomicReference<>();
+
+        MercadoLibreService.actualizarItemEnMlCore(
+                producto(), "MLA112",             // producto() sin descripcionMl -> null
+                mla -> 0,
+                (mla, t) -> {},
+                (mla, d) -> desc.set(d),          // NO debe llamarse
+                (mla, p) -> true,
+                sku -> java.util.List.of(),
+                (mla, pics) -> {},
+                (mla, status) -> true, (mla, attrs) -> {},
+                new BigDecimal("5000"), Set.of());
+
+        assertThat(desc.get()).isNull(); // putDesc no fue llamado
     }
 
     @Test
@@ -268,11 +289,13 @@ class ActualizarItemEnMlTest {
     @Test
     void fallaDescripcion_sigueActualizadoConAdvertenciaYMotivo() {
         AtomicReference<String> status = new AtomicReference<>();
+        Producto p = productoActivo(true);
+        p.setDescripcionMl("Descripción de prueba"); // necesario para que el guard pase y se invoque putDesc
         ResultadoAltaMl r = MercadoLibreService.actualizarItemEnMlCore(
-                productoActivo(true), "MLA1616",
+                p, "MLA1616",
                 mla -> 0, (mla, t) -> {},
                 (mla, d) -> { throw new RuntimeException("The description must be in plain text"); },
-                (mla, p) -> true,
+                (mla, pr) -> true,
                 sku -> java.util.List.of(), (mla, pics) -> {},
                 (mla, s) -> { status.set(s); return true; }, (mla, attrs) -> {},
                 new BigDecimal("5000"), Set.of());
@@ -336,19 +359,22 @@ class ActualizarItemEnMlTest {
         AtomicReference<String> desc = new AtomicReference<>();
         AtomicReference<String> status = new AtomicReference<>();
 
+        Producto p = productoActivo(true);
+        p.setDescripcionMl("Descripción ML passthrough."); // se envía tal cual
+
         ResultadoAltaMl r = MercadoLibreService.actualizarItemEnMlCore(
-                productoActivo(true), "MLA2003",
+                p, "MLA2003",
                 mla -> 0,
                 (mla, t) -> titulo.set(t),
                 (mla, d) -> desc.set(d),
-                (mla, p) -> true,
+                (mla, pr) -> true,
                 sku -> java.util.List.of(), (mla, pics) -> {},
                 (mla, s) -> { status.set(s); return true; }, (mla, attrs) -> {},
                 null, Set.of());                   // precioFinal = null
 
         assertThat(r.estado()).isEqualTo(ResultadoAltaMl.Estado.ACTUALIZADO);
         assertThat(titulo.get()).isEqualTo("Olla acero 24cm premium"); // título actualizado
-        assertThat(desc.get()).contains("CARACTERÍSTICAS");            // descripción actualizada
+        assertThat(desc.get()).isEqualTo("Descripción ML passthrough."); // passthrough exacto
         assertThat(status.get()).isEqualTo("active");                  // estado actualizado
         assertThat(r.advertencia()).contains("precio no actualizado");
     }

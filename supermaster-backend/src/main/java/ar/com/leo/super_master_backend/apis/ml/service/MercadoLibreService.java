@@ -10,7 +10,6 @@ import ar.com.leo.super_master_backend.apis.ml.dto.CostoVentaResponseDTO;
 import ar.com.leo.super_master_backend.apis.ml.dto.MlAtributoDefDTO;
 import ar.com.leo.super_master_backend.apis.ml.dto.PrediccionCategoriaMlDTO;
 import ar.com.leo.super_master_backend.apis.ml.dto.ResultadoAltaMl;
-import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoMlAtributo;
 import ar.com.leo.super_master_backend.apis.ml.entity.ConfiguracionMl;
 import ar.com.leo.super_master_backend.apis.ml.model.MLCredentials;
 import ar.com.leo.super_master_backend.apis.ml.model.Producto;
@@ -1988,10 +1987,14 @@ public class MercadoLibreService {
 
             // Descripción best-effort: ML rechaza texto no-plano (emojis, HTML); el motivo queda en
             // la advertencia para poder corregir el campo, sin abortar el resto del update.
-            try {
-                putDesc.accept(mla, MlDescripcionBuilder.construir(producto));
-            } catch (Exception e) {
-                advertencia = concatAdv(advertencia, conMotivo("descripción no actualizada", e));
+            // Si el campo transitorio es null (lote sin descripción), no se toca la descripción de ML.
+            String descMl = MlDescripcionBuilder.construir(producto);
+            if (descMl != null && !descMl.isBlank()) {
+                try {
+                    putDesc.accept(mla, descMl);
+                } catch (Exception e) {
+                    advertencia = concatAdv(advertencia, conMotivo("descripción no actualizada", e));
+                }
             }
 
             // Atributos (marca, dimensiones del paquete, IVA, impuesto de importación). Best-effort:
@@ -2146,8 +2149,9 @@ public class MercadoLibreService {
         // pero el N/A NO satisface a un atributo REQUERIDO: por eso un required marcado "No aplica"
         // cuenta como ausente (ML rechazaría el N/A en un required; mejor avisar antes de postear).
         Set<String> presentes = p.getMlAtributos().stream()
-                .filter(a -> !a.isNoAplica())
-                .map(ProductoMlAtributo::getAttributeId).collect(Collectors.toSet());
+                .filter(a -> !a.noAplica())
+                .map(ar.com.leo.super_master_backend.apis.ml.dto.MlAtributoDTO::attributeId)
+                .collect(Collectors.toSet());
         return defs.stream()
                 .filter(MlAtributoDefDTO::required)
                 .map(MlAtributoDefDTO::id)
@@ -2218,10 +2222,13 @@ public class MercadoLibreService {
             String mlau = creado.path("user_product_id").asString("");
 
             String advertencia = null;
-            try {
-                posterDescripcion.apply(itemId, MlDescripcionBuilder.construir(producto));
-            } catch (Exception e) {
-                advertencia = conMotivo("ítem creado pero falló la descripción", e);
+            String descMl = MlDescripcionBuilder.construir(producto);
+            if (descMl != null && !descMl.isBlank()) {
+                try {
+                    posterDescripcion.apply(itemId, descMl);
+                } catch (Exception e) {
+                    advertencia = conMotivo("ítem creado pero falló la descripción", e);
+                }
             }
 
             ResultadoAltaMl r = ResultadoAltaMl.creado(itemId, mlau.isBlank() ? null : mlau);

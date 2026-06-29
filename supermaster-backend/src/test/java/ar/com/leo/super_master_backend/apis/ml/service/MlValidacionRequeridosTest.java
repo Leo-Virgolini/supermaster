@@ -1,8 +1,8 @@
 package ar.com.leo.super_master_backend.apis.ml.service;
 
 import ar.com.leo.super_master_backend.apis.ml.dto.MlAtributoDefDTO;
+import ar.com.leo.super_master_backend.apis.ml.dto.MlAtributoDTO;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
-import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoMlAtributo;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -27,10 +27,7 @@ class MlValidacionRequeridosTest {
     @Test
     void faltantesRequeridos_detectaRequiredAusente_excluyeGtin() {
         Producto p = productoBase(); // sin atributos guardados
-        ProductoMlAtributo sf = new ProductoMlAtributo();
-        sf.setAttributeId("SALE_FORMAT");
-        sf.setValueName("Unidad");
-        p.getMlAtributos().add(sf);
+        p.getMlAtributos().add(new MlAtributoDTO("SALE_FORMAT", null, "Unidad", false));
         List<MlAtributoDefDTO> defs = List.of(
             def("BICYCLE_TYPE", true), def("SALE_FORMAT", true), def("GTIN", true));
         // BICYCLE_TYPE required y ausente -> falta; SALE_FORMAT presente; GTIN excluido aunque required
@@ -40,10 +37,7 @@ class MlValidacionRequeridosTest {
     @Test
     void faltantesRequeridos_todoPresente_listaVacia() {
         Producto p = productoBase();
-        ProductoMlAtributo sf = new ProductoMlAtributo();
-        sf.setAttributeId("BICYCLE_TYPE");
-        sf.setValueName("MTB");
-        p.getMlAtributos().add(sf);
+        p.getMlAtributos().add(new MlAtributoDTO("BICYCLE_TYPE", null, "MTB", false));
         List<MlAtributoDefDTO> defs = List.of(def("BICYCLE_TYPE", true), def("GTIN", true));
         // BICYCLE_TYPE presente; GTIN excluido -> lista vacía
         assertThat(MercadoLibreService.faltantesRequeridos(p, defs)).isEmpty();
@@ -60,11 +54,7 @@ class MlValidacionRequeridosTest {
     @Test
     void faltantesRequeridos_atributoNoAplicaCuentaComoAusente() {
         Producto p = productoBase();
-        ProductoMlAtributo na = new ProductoMlAtributo();
-        na.setAttributeId("BICYCLE_TYPE");
-        na.setValueName("");
-        na.setNoAplica(true); // marcado "No aplica" -> no se envía a ML
-        p.getMlAtributos().add(na);
+        p.getMlAtributos().add(new MlAtributoDTO("BICYCLE_TYPE", null, "", true)); // marcado "No aplica" -> no se envía a ML
         List<MlAtributoDefDTO> defs = List.of(def("BICYCLE_TYPE", true));
         // Aunque esté guardado, al ser "No aplica" no cuenta como presente -> falta
         assertThat(MercadoLibreService.faltantesRequeridos(p, defs)).containsExactly("BICYCLE_TYPE");

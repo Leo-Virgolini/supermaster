@@ -964,7 +964,8 @@ public class TiendaNubeService {
             // (el alta crea oculto) y el PUT parcial no la pisa al editar.
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("name", Map.of("es", producto.getTituloNube() != null ? producto.getTituloNube() : ""));
-            body.put("description", Map.of("es", NubeDescripcionBuilder.construir(producto)));
+            String descNube = NubeDescripcionBuilder.construir(producto);
+            if (descNube != null && !descNube.isBlank()) body.put("description", Map.of("es", descNube));
             if (producto.getMarca() != null && producto.getMarca().getNombre() != null && !producto.getMarca().getNombre().isBlank())
                 body.put("brand", producto.getMarca().getNombre());
             if (categoriaIds != null && !categoriaIds.isEmpty()) {

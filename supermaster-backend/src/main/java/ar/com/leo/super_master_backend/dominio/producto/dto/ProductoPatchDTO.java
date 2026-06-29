@@ -7,7 +7,6 @@ import lombok.Data;
 import org.openapitools.jackson.nullable.JsonNullable;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = false)
@@ -17,7 +16,6 @@ public class ProductoPatchDTO {
     private JsonNullable<String> tituloDux = JsonNullable.undefined();
     private JsonNullable<String> tituloMl = JsonNullable.undefined();
     private JsonNullable<String> tituloNube = JsonNullable.undefined();
-    private JsonNullable<String> descripcion = JsonNullable.undefined();
     private JsonNullable<Boolean> esCombo = JsonNullable.undefined();
     private JsonNullable<Integer> uxb = JsonNullable.undefined();
     private JsonNullable<Integer> moq = JsonNullable.undefined();
@@ -43,14 +41,11 @@ public class ProductoPatchDTO {
     private JsonNullable<BigDecimal> iva = JsonNullable.undefined();
     private JsonNullable<TagReposicion> tagReposicion = JsonNullable.undefined();
     private JsonNullable<Tag> tag = JsonNullable.undefined();
-    private JsonNullable<String> mlCategoryId = JsonNullable.undefined();
-    private JsonNullable<String> mlCategoryNombre = JsonNullable.undefined();
     private JsonNullable<BigDecimal> mlPaqAlto = JsonNullable.undefined();
     private JsonNullable<BigDecimal> mlPaqAncho = JsonNullable.undefined();
     private JsonNullable<BigDecimal> mlPaqLargo = JsonNullable.undefined();
     private JsonNullable<BigDecimal> mlPaqPeso = JsonNullable.undefined();
     private JsonNullable<String> ean = JsonNullable.undefined();
-    private List<ProductoMlAtributoDTO> mlAtributos = null;
 }
 
 

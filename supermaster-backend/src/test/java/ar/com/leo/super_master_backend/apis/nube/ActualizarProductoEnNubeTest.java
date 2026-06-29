@@ -38,8 +38,11 @@ class ActualizarProductoEnNubeTest {
         AtomicReference<String> precioPromo = new AtomicReference<>();
         long[] precioIds = new long[2];
 
+        Producto p = producto();
+        p.setDescripcionNube("<p>Descripción Nube passthrough.</p>"); // necesario para incluir "description" en el PATCH
+
         ResultadoAltaNube r = TiendaNubeService.actualizarProductoEnNubeCore(
-                producto(), new BigDecimal("150"), new BigDecimal("180"), om, "9",
+                p, new BigDecimal("150"), new BigDecimal("180"), om, "9",
                 java.util.List.of(), null,
                 sku -> existente,
                 (uri, body) -> { patchUri.set(uri); patchBody.set(body); },

@@ -14,7 +14,6 @@ public record ProductoDTO(
         String tituloDux,
         String tituloMl,
         String tituloNube,
-        String descripcion,
         Boolean esCombo,
         Integer uxb,
         Integer moq,
@@ -69,7 +68,6 @@ public record ProductoDTO(
 
         // Categoría de Mercado Libre (predictor)
         String mlCategoryId,
-        String mlCategoryNombre,
 
         // Dimensiones del paquete de envío para Mercado Libre
         BigDecimal mlPaqAlto,
@@ -78,9 +76,6 @@ public record ProductoDTO(
         BigDecimal mlPaqPeso,
 
         // Código universal de producto (EAN/GTIN)
-        String ean,
-
-        // Atributos de categoría de Mercado Libre
-        List<ProductoMlAtributoDTO> mlAtributos
+        String ean
 ) {
 }

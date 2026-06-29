@@ -1,9 +1,9 @@
 package ar.com.leo.super_master_backend.apis.ml.service;
 
+import ar.com.leo.super_master_backend.apis.ml.dto.MlAtributoDTO;
 import ar.com.leo.super_master_backend.dominio.marca.entity.Marca;
 import ar.com.leo.super_master_backend.dominio.material.entity.Material;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
-import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoMlAtributo;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -169,9 +169,7 @@ class MlItemPayloadBuilderTest {
     void atributos_eanInvalido_noSeEnvia_yNoBloqueaElResto() {
         Producto p = productoBase();
         p.setEan("1178911569"); // inválido (10 dígitos)
-        ProductoMlAtributo a = new ProductoMlAtributo();
-        a.setAttributeId("SHAPE"); a.setValueName("Cuadrada");
-        p.getMlAtributos().add(a);
+        p.getMlAtributos().add(new MlAtributoDTO("SHAPE", null, "Cuadrada", false));
 
         // La categoría declara GTIN y SHAPE (idsValidos es el superset de atributos de la categoría).
         var attrs = MlItemPayloadBuilder.construirAtributos(p, Set.of("GTIN", "SHAPE"));
@@ -195,11 +193,10 @@ class MlItemPayloadBuilderTest {
     @Test
     void atributos_guardadosSeInyectan_conYsinValueId() {
         Producto p = productoBase();
-        ProductoMlAtributo a1 = new ProductoMlAtributo();
-        a1.setAttributeId("SALE_FORMAT"); a1.setValueId("1359391"); a1.setValueName("Unidad");
-        ProductoMlAtributo a2 = new ProductoMlAtributo();
-        a2.setAttributeId("MODEL"); a2.setValueName("X100");
-        p.getMlAtributos().addAll(List.of(a1, a2));
+        p.getMlAtributos().addAll(List.of(
+            new MlAtributoDTO("SALE_FORMAT", "1359391", "Unidad", false),
+            new MlAtributoDTO("MODEL", null, "X100", false)
+        ));
         var attrs = MlItemPayloadBuilder.construirAtributos(p, Set.of());
         assertThat(attrs).anySatisfy(a -> {
             assertThat(a.get("id")).isEqualTo("SALE_FORMAT");
@@ -216,9 +213,7 @@ class MlItemPayloadBuilderTest {
     @Test
     void atributos_brandGuardadoPrevaleceSobreLaMarcaDelProducto() {
         Producto p = productoBase(); // marca = "Tramontina"
-        ProductoMlAtributo brand = new ProductoMlAtributo();
-        brand.setAttributeId("BRAND"); brand.setValueName("ARCOS");
-        p.getMlAtributos().add(brand);
+        p.getMlAtributos().add(new MlAtributoDTO("BRAND", null, "ARCOS", false));
 
         var attrs = MlItemPayloadBuilder.construirAtributos(p, Set.of());
 
@@ -239,11 +234,10 @@ class MlItemPayloadBuilderTest {
     @Test
     void atributos_guardadosFueraDeLaCategoria_seDescartan() {
         Producto p = productoBase();
-        ProductoMlAtributo valido = new ProductoMlAtributo();
-        valido.setAttributeId("SHAPE"); valido.setValueName("Redonda");
-        ProductoMlAtributo stale = new ProductoMlAtributo();
-        stale.setAttributeId("VOLTAGE"); stale.setValueName("220V"); // la categoría no lo declara
-        p.getMlAtributos().addAll(List.of(valido, stale));
+        p.getMlAtributos().addAll(List.of(
+            new MlAtributoDTO("SHAPE", null, "Redonda", false),
+            new MlAtributoDTO("VOLTAGE", null, "220V", false) // la categoría no lo declara
+        ));
 
         var attrs = MlItemPayloadBuilder.construirAtributos(p, Set.of("SHAPE"));
 
@@ -254,9 +248,7 @@ class MlItemPayloadBuilderTest {
     @Test
     void atributos_sinIdsDeCategoria_noFiltraLosGuardados() {
         Producto p = productoBase();
-        ProductoMlAtributo a1 = new ProductoMlAtributo();
-        a1.setAttributeId("VOLTAGE"); a1.setValueName("220V");
-        p.getMlAtributos().add(a1);
+        p.getMlAtributos().add(new MlAtributoDTO("VOLTAGE", null, "220V", false));
 
         // categoriaAttrIds vacío = no disponible → fail-open, no se filtra.
         var attrs = MlItemPayloadBuilder.construirAtributos(p, Set.of());
@@ -286,9 +278,7 @@ class MlItemPayloadBuilderTest {
     void atributos_materialGuardadoPrevaleceYNoSeDuplica() {
         Producto p = productoBase();
         Material mat = new Material(); mat.setNombre("Acero"); p.setMaterial(mat);
-        ProductoMlAtributo guardado = new ProductoMlAtributo();
-        guardado.setAttributeId("MATERIAL"); guardado.setValueName("Aluminio");
-        p.getMlAtributos().add(guardado);
+        p.getMlAtributos().add(new MlAtributoDTO("MATERIAL", null, "Aluminio", false));
 
         var attrs = MlItemPayloadBuilder.construirAtributos(p, Set.of("MATERIAL"));
 
@@ -301,9 +291,7 @@ class MlItemPayloadBuilderTest {
     void atributos_materialNoAplicaNoSeAutocompletaDesdeElMaterial() {
         Producto p = productoBase();
         Material mat = new Material(); mat.setNombre("Acero"); p.setMaterial(mat);
-        ProductoMlAtributo na = new ProductoMlAtributo();
-        na.setAttributeId("MATERIAL"); na.setValueName(""); na.setNoAplica(true);
-        p.getMlAtributos().add(na);
+        p.getMlAtributos().add(new MlAtributoDTO("MATERIAL", null, "", true));
 
         var attrs = MlItemPayloadBuilder.construirAtributos(p, Set.of("MATERIAL"));
 
@@ -329,9 +317,7 @@ class MlItemPayloadBuilderTest {
     @Test
     void atributos_brandNoAplicaNoSeDuplicaConLaMarca() {
         Producto p = productoBase(); // marca = "Tramontina"
-        ProductoMlAtributo brand = new ProductoMlAtributo();
-        brand.setAttributeId("BRAND"); brand.setValueName(""); brand.setNoAplica(true);
-        p.getMlAtributos().add(brand);
+        p.getMlAtributos().add(new MlAtributoDTO("BRAND", null, "", true));
 
         var attrs = MlItemPayloadBuilder.construirAtributos(p, Set.of());
 
@@ -345,11 +331,10 @@ class MlItemPayloadBuilderTest {
     @Test
     void atributos_noAplicaSeEnviaComoNA() {
         Producto p = productoBase();
-        ProductoMlAtributo na = new ProductoMlAtributo();
-        na.setAttributeId("SHAPE"); na.setValueName(""); na.setNoAplica(true);
-        ProductoMlAtributo ok = new ProductoMlAtributo();
-        ok.setAttributeId("MODEL"); ok.setValueName("X100");
-        p.getMlAtributos().addAll(List.of(na, ok));
+        p.getMlAtributos().addAll(List.of(
+            new MlAtributoDTO("SHAPE", null, "", true),
+            new MlAtributoDTO("MODEL", null, "X100", false)
+        ));
 
         var attrs = MlItemPayloadBuilder.construirAtributos(p, Set.of());
 

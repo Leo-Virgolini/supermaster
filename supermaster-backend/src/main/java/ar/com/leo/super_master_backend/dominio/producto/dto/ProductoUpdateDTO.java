@@ -5,7 +5,6 @@ import ar.com.leo.super_master_backend.dominio.reposicion.entity.TagReposicion;
 import jakarta.validation.constraints.*;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 public record ProductoUpdateDTO(
         @Size(max = 45, message = "El SKU no puede exceder 45 caracteres")
@@ -18,8 +17,6 @@ public record ProductoUpdateDTO(
         String tituloMl,
         @Size(max = 100, message = "El título Nube no puede exceder 100 caracteres")
         String tituloNube,
-        @Size(max = 20000, message = "La descripción no puede exceder 20000 caracteres")
-        String descripcion,
         Boolean esCombo,
         @Positive(message = "UXB debe ser mayor a 0")
         Integer uxb,
@@ -72,11 +69,6 @@ public record ProductoUpdateDTO(
         TagReposicion tagReposicion,
         Tag tag,
 
-        @Size(max = 20, message = "La categoría ML no puede exceder 20 caracteres")
-        String mlCategoryId,
-        @Size(max = 255, message = "El nombre de categoría ML no puede exceder 255 caracteres")
-        String mlCategoryNombre,
-
         @PositiveOrZero(message = "El alto del paquete ML debe ser mayor o igual a 0")
         BigDecimal mlPaqAlto,
         @PositiveOrZero(message = "El ancho del paquete ML debe ser mayor o igual a 0")
@@ -87,8 +79,6 @@ public record ProductoUpdateDTO(
         BigDecimal mlPaqPeso,
 
         @Size(max = 20, message = "El EAN no puede exceder 20 caracteres")
-        String ean,
-
-        List<ProductoMlAtributoDTO> mlAtributos
+        String ean
 ) {
 }

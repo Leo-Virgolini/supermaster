@@ -396,7 +396,6 @@ class RecalculoAutomaticoIntegrationTest {
             Integer marcaIdOverride, Integer tipoIdOverride, Integer clasifGralIdOverride, Integer proveedorIdOverride) {
         return new ProductoUpdateDTO(
                 producto.getSku(), producto.getCodExt(), producto.getTituloDux(), producto.getTituloMl(), producto.getTituloNube(),
-                producto.getDescripcion(),
                 producto.getEsCombo(), producto.getUxb(), producto.getMoq(),
                 producto.getStock(), producto.getActivo(),
                 marcaIdOverride != null ? marcaIdOverride : (producto.getMarca() != null ? producto.getMarca().getId() : null),
@@ -414,10 +413,8 @@ class RecalculoAutomaticoIntegrationTest {
                 ivaOverride != null ? ivaOverride : producto.getIva(),
                 producto.getTagReposicion(),
                 producto.getTag(),
-                null, null,
                 null, null, null, null,
-                null, // ean
-                null  // mlAtributos
+                null  // ean
         );
     }
 

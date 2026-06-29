@@ -58,7 +58,7 @@ public class EstadoPublicacionService {
 
     /** Datos del panel + editables de ML resueltos en un solo paso (para leer en un hilo aparte). */
     private record MlPanel(EstadoCanalDTO estado, String categoryId, String categoryNombre,
-                           List<MlAtributoDTO> atributos, String descripcion) {}
+                           List<MlAtributoDTO> atributos, String descripcion, String mlaResuelto) {}
 
     /** Estado + datos editables de una tienda Nube. */
     private record NubePanel(EstadoCanalDTO estado, String descripcion, SeoCanalDTO seo) {}
@@ -92,7 +92,8 @@ public class EstadoPublicacionService {
                 hogar.descripcion(),
                 gastro.descripcion(),
                 hogar.seo(),
-                gastro.seo());
+                gastro.seo(),
+                ml.mlaResuelto());
 
         return new EstadoPublicacionDTO(ml.estado(), hogar.estado(), gastro.estado(), dux, datos);
     }
@@ -107,17 +108,17 @@ public class EstadoPublicacionService {
         try {
             mlaCode = resolverMlaPorSku(sku);
         } catch (Exception e) {
-            return new MlPanel(EstadoCanalDTO.ofError(), null, null, List.of(), null);
+            return new MlPanel(EstadoCanalDTO.ofError(), null, null, List.of(), null, null);
         }
         if (mlaCode == null || mlaCode.isBlank()) {
-            return new MlPanel(EstadoCanalDTO.noPublicado(), null, null, List.of(), null);
+            return new MlPanel(EstadoCanalDTO.noPublicado(), null, null, List.of(), null, null);
         }
         JsonNode item = mercadoLibreService.leerItemRaw(mlaCode);
         EstadoCanalDTO estado = (item == null) ? EstadoCanalDTO.ofError() : MlEstadoParser.parse(item);
         String descMl = mercadoLibreService.leerDescripcionMl(mlaCode);
         String catId = MlDatosParser.categoryId(item);
         String catNombre = (catId != null && !catId.isBlank()) ? mercadoLibreService.obtenerCategoriaPath(catId) : null;
-        return new MlPanel(estado, catId, catNombre, MlDatosParser.atributos(item), descMl);
+        return new MlPanel(estado, catId, catNombre, MlDatosParser.atributos(item), descMl, mlaCode);
     }
 
     /** Resuelve el código MLA real por SKU contra la API de ML, en cualquier estado vigente (active/paused).

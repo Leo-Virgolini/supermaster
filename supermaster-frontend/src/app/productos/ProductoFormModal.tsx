@@ -266,6 +266,23 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const [estadoCanales, setEstadoCanales] = useState<EstadoPublicacion | null>(null);
     const [estadoOriginal, setEstadoOriginal] = useState<EstadoPublicacion | null>(null);
     const [cargandoEstado, setCargandoEstado] = useState(false);
+    // Código MLA real resuelto por SKU contra ML (de getEstadoPublicacionAPI). Para verificar el MLA guardado.
+    const [mlaResuelto, setMlaResuelto] = useState<string | null>(null);
+    // Verificación (solo informa, no cambia nada): compara el MLA guardado con la publicación vigente en ML.
+    const mlaVerif = useMemo<{ tone: "emerald" | "amber" | "slate"; text: string } | null>(() => {
+        if (cargandoEstado || !estadoCanales) return null;        // todavía sin datos de ML
+        const stored = mlaCodigo.trim();
+        const resuelto = (mlaResuelto ?? "").trim();
+        if (estadoCanales.ml.error)
+            return stored ? { tone: "slate", text: "No se pudo verificar contra Mercado Libre." } : null;
+        if (!stored)
+            return resuelto ? { tone: "amber", text: `⚠ Hay una publicación vigente en ML (${resuelto}) sin vincular en la base.` } : null;
+        if (!resuelto)
+            return { tone: "amber", text: "⚠ No hay publicación vigente en ML para este SKU; el MLA guardado podría estar obsoleto." };
+        if (resuelto === stored)
+            return { tone: "emerald", text: "✓ Verificado en ML: coincide con la publicación vigente." };
+        return { tone: "amber", text: `⚠ El MLA guardado no coincide con la publicación vigente en ML (${resuelto}).` };
+    }, [cargandoEstado, estadoCanales, mlaResuelto, mlaCodigo]);
     const [caratulaPreview, setCaratulaPreview] = useState<string | null>(null);
     const [caratulaFormato, setCaratulaFormato] = useState<string>("jpeg");
     const [caratulaCruda, setCaratulaCruda] = useState<string | null>(null);
@@ -639,9 +656,11 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             })();
 
             setCargandoEstado(true);
+            setMlaResuelto(null);
             getEstadoPublicacionAPI(producto.id)
                 .then(e => {
                     setEstadoCanales(e); setEstadoOriginal(e);
+                    setMlaResuelto(e.datos.mlaResuelto ?? null);
                     // Pre-carga editable desde el canal (no persistido).
                     setDescripcionMl(e.datos.descripcionMl ?? "");
                     setDescripcionHogar(e.datos.descripcionHogar ?? "");
@@ -677,6 +696,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             setDescripcionMl(""); setDescripcionHogar(""); setDescripcionGastro("");
             setMlAtributosVal({});
             setEsComboOriginal(false);
+            setEstadoCanales(null); setEstadoOriginal(null); setMlaResuelto(null);
             void cargarSkuSugerido(false);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2098,6 +2118,14 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 {obteniendoMla ? "Trayendo de MercadoLibre..." : "Autocompletar desde MercadoLibre"}
                             </button>
                         </div>
+                        {mlaVerif && (
+                            <p className={`mb-3 -mt-1 text-xs font-medium ${
+                                mlaVerif.tone === "emerald" ? "text-emerald-600 dark:text-emerald-400"
+                                : mlaVerif.tone === "amber" ? "text-amber-600 dark:text-amber-400"
+                                : "text-slate-500 dark:text-slate-400"}`}>
+                                {mlaVerif.text}
+                            </p>
+                        )}
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
                             <label className="block xl:col-span-3">
                                 <span className={fieldLabelClassName}>Código MLA</span>

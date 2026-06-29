@@ -70,6 +70,7 @@ class EstadoPublicacionServiceTest {
         assertThat(dto.datos().seoHogar()).isNotNull();
         assertThat(dto.datos().seoHogar().title()).isNull();
         assertThat(dto.datos().seoGastro()).isNull(); // gastro no encontrado (product null)
+        assertThat(dto.datos().mlaResuelto()).isEqualTo("MLA123"); // MLA real resuelto por SKU
     }
 
     @Test
@@ -83,6 +84,7 @@ class EstadoPublicacionServiceTest {
         EstadoPublicacionDTO dto = service.leer(1);
 
         assertThat(dto.ml().publicado()).isFalse();
+        assertThat(dto.datos().mlaResuelto()).isNull(); // sin publicación vigente → sin MLA resuelto
         verify(ml, never()).leerItemRaw(any());
     }
 

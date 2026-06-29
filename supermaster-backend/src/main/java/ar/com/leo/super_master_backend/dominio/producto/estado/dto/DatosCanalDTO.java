@@ -13,6 +13,8 @@ public record DatosCanalDTO(
         String descripcionHogar,
         String descripcionGastro,
         SeoCanalDTO seoHogar,
-        SeoCanalDTO seoGastro
+        SeoCanalDTO seoGastro,
+        /** Código MLA real resuelto por SKU contra la API de ML (publicación vigente); null si no hay. */
+        String mlaResuelto
 ) {
 }

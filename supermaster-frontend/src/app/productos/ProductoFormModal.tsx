@@ -455,7 +455,9 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         if (canales.includes("Mercado Libre")) {
             tareas.push((async (): Promise<ResultadoCanal> => {
                 try {
-                    const r = await exportarProductosAMlAPI([skuExport], cuotaMl);
+                    const r = await exportarProductosAMlAPI(
+                        [skuExport], cuotaMl,
+                        mlCategoryId, Object.values(mlAtributosVal), descripcionMl.trim() || null);
                     return clasificarExport("Mercado Libre", r, skuExport);
                 } catch (e) {
                     return { canal: "Mercado Libre", estado: "error", detalle: e instanceof Error ? e.message : "error al subir" };
@@ -492,13 +494,12 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 tagReposicion: tagReposicion || null,
                 tag: tag || null,
                 marcaId, origenId, clasifGralId: clasifGralId!, clasifGastroId, tipoId: tipoId!, proveedorId, materialId, sectorDepositoId, mlaId: mlaIdFinal,
-                mlCategoryId: mlCategoryId, mlCategoryNombre: mlCategoryNombre,
+                mlCategoryId: null, mlCategoryNombre: null,
                 mlPaqAlto: mlPaqAlto === "" ? null : Number(mlPaqAlto),
                 mlPaqAncho: mlPaqAncho === "" ? null : Number(mlPaqAncho),
                 mlPaqLargo: mlPaqLargo === "" ? null : Number(mlPaqLargo),
                 mlPaqPeso: mlPaqPeso === "" ? null : Number(mlPaqPeso),
                 ean: ean.trim() || null,
-                mlAtributos: Object.values(mlAtributosVal),
             };
             const creado = await createProducto(payload, asociarMargenYRelaciones);
             // Si se creó un MLA nuevo SIN envío cargado a mano, calcular su precio de envío (el
@@ -558,8 +559,6 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             setCodExt(producto.codExt ?? "");
             setTituloDux(producto.tituloDux ?? "");
             setTituloMl(producto.tituloMl ?? "");
-            setMlCategoryId(producto.mlCategoryId ?? null);
-            setMlCategoryNombre(producto.mlCategoryNombre ?? null);
             setPrediccionesMl([]);
             setTituloNube(producto.tituloNube ?? "");
             setEsCombo(!!producto.esCombo);
@@ -596,14 +595,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             setMlPaqLargo(producto.mlPaqLargo ?? "");
             setMlPaqPeso(producto.mlPaqPeso ?? "");
             setEan(producto.ean ?? "");
-            // Precarga los atributos ML guardados (si los hay).
-            if (producto.mlAtributos && producto.mlAtributos.length > 0) {
-                const map: Record<string, ProductoMlAtributo> = {};
-                for (const a of producto.mlAtributos) map[a.attributeId] = a;
-                setMlAtributosVal(map);
-            } else {
-                setMlAtributosVal({});
-            }
+            // Atributos ML: se pre-cargan desde el canal en el .then de getEstadoPublicacionAPI.
+            setMlAtributosVal({});
             setFormErrors({});
             setCatalogosSel([]); setAptosSel([]); setClientesSel([]);
             setCatalogosOriginal([]); setAptosOriginal([]); setClientesOriginal([]);
@@ -645,6 +638,15 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                     setDescripcionMl(e.datos.descripcionMl ?? "");
                     setDescripcionHogar(e.datos.descripcionHogar ?? "");
                     setDescripcionGastro(e.datos.descripcionGastro ?? "");
+                    if (e.datos.mlCategoryId) {
+                        setMlCategoryId(e.datos.mlCategoryId);
+                        setMlCategoryNombre(e.datos.mlCategoryNombre);
+                    }
+                    if (e.datos.mlAtributos.length > 0) {
+                        const map: Record<string, ProductoMlAtributo> = {};
+                        for (const a of e.datos.mlAtributos) map[a.attributeId] = a;
+                        setMlAtributosVal(map);
+                    }
                 })
                 .catch(err => { if (!esSesionExpirada(err)) notificar.error("No se pudo leer el estado de publicación"); })
                 .finally(() => setCargandoEstado(false));
@@ -688,13 +690,11 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 costo: costoNum, iva, stock: stock !== "" ? stock : null, moq: moq !== "" ? moq : null,
                 tagReposicion: tagReposicion || null, tag: tag || null,
                 marcaId, origenId, clasifGralId, clasifGastroId, tipoId, proveedorId, materialId, sectorDepositoId, mlaId: mlaIdFinal,
-                mlCategoryId: mlCategoryId, mlCategoryNombre: mlCategoryNombre,
                 mlPaqAlto: mlPaqAlto === "" ? null : Number(mlPaqAlto),
                 mlPaqAncho: mlPaqAncho === "" ? null : Number(mlPaqAncho),
                 mlPaqLargo: mlPaqLargo === "" ? null : Number(mlPaqLargo),
                 mlPaqPeso: mlPaqPeso === "" ? null : Number(mlPaqPeso),
                 ean: ean.trim() || null,
-                mlAtributos: Object.values(mlAtributosVal),
             } as ProductoPatchDTO;
             await updateProductoAPI(id, patch, "FORM");
             // Si se creó un MLA nuevo SIN envío cargado a mano durante la edición, calcularlo

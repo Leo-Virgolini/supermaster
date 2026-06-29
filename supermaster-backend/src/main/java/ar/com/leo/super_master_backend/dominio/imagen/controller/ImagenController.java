@@ -1,7 +1,8 @@
 package ar.com.leo.super_master_backend.dominio.imagen.controller;
 
-import ar.com.leo.super_master_backend.apis.openai.dto.CaratulaGeneradaDTO;
 import ar.com.leo.super_master_backend.apis.openai.dto.CaratulaGuardarDTO;
+import ar.com.leo.super_master_backend.dominio.imagen.dto.CaratulaGeneradaDTO;
+import ar.com.leo.super_master_backend.dominio.imagen.service.GeneracionCaratula;
 import ar.com.leo.super_master_backend.config.Permisos;
 import ar.com.leo.super_master_backend.dominio.imagen.service.CaratulaService;
 import ar.com.leo.super_master_backend.dominio.imagen.service.ImagenService;
@@ -18,6 +19,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
+import java.util.Locale;
 
 @RestController
 @RequestMapping("/api/imagenes")
@@ -64,9 +66,18 @@ public class ImagenController {
     @PostMapping("/caratula/generar/{sku}")
     @PreAuthorize(Permisos.INTEGRACIONES_EDITAR)
     public ResponseEntity<CaratulaGeneradaDTO> generarCaratula(@PathVariable String sku) {
-        byte[] jpg = caratulaService.generar(sku);
-        String b64 = Base64.getEncoder().encodeToString(jpg);
-        return ResponseEntity.ok(new CaratulaGeneradaDTO(b64, caratulaService.formato()));
+        GeneracionCaratula g = caratulaService.generar(sku);
+        String generadaB64 = Base64.getEncoder().encodeToString(g.generada());
+        String crudaB64 = Base64.getEncoder().encodeToString(g.cruda());
+        return ResponseEntity.ok(new CaratulaGeneradaDTO(
+                generadaB64, caratulaService.formato(), crudaB64, subtipoMimeDe(g.crudaNombre())));
+    }
+
+    /** Subtipo MIME para data:image/{x} derivado de la extensión del archivo crudo (jpg→jpeg). */
+    static String subtipoMimeDe(String nombre) {
+        int dot = nombre.lastIndexOf('.');
+        String ext = dot >= 0 ? nombre.substring(dot + 1).toLowerCase(Locale.ROOT) : "";
+        return ext.equals("jpg") ? "jpeg" : ext;
     }
 
     @PostMapping("/caratula/guardar/{sku}")

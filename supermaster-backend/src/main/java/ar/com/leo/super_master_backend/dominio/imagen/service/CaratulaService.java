@@ -15,12 +15,13 @@ public class CaratulaService {
     private final OpenAiImagenService openAiImagenService;
     private final ImagenIaConfigService configService;
 
-    /** Genera (sin guardar) la carátula a partir de la cruda del SKU. */
-    public byte[] generar(String sku) {
+    /** Genera (sin guardar) la carátula a partir de la cruda del SKU; devuelve cruda + generada. */
+    public GeneracionCaratula generar(String sku) {
         String crudaNombre = imagenService.resolverCrudaPorSku(sku);
         if (crudaNombre == null) throw new NotFoundException("No hay imagen cruda para el SKU " + sku);
         byte[] cruda = imagenService.leerCrudaBytes(crudaNombre);
-        return openAiImagenService.generarCaratula(cruda, crudaNombre);
+        byte[] generada = openAiImagenService.generarCaratula(cruda, crudaNombre);
+        return new GeneracionCaratula(cruda, crudaNombre, generada);
     }
 
     /** Formato configurado (output_format), p.ej. "jpeg"/"png"/"webp". */

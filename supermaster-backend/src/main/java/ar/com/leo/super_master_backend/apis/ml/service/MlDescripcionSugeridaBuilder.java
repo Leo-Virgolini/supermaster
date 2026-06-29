@@ -14,8 +14,8 @@ public final class MlDescripcionSugeridaBuilder {
     public static String construir(Producto p) {
         StringBuilder sb = new StringBuilder();
         sb.append("CARACTERÍSTICAS\n");
-        String dimensiones = dimensiones(p);
-        if (!dimensiones.isBlank()) sb.append("• Dimensiones: ").append(dimensiones).append("\n");
+        // Cada dimensión va en su propio bullet (antes iban todas juntas en "• Dimensiones: ...").
+        for (String dim : dimensiones(p)) sb.append("• ").append(dim).append("\n");
         if (p.getMaterial() != null && p.getMaterial().getNombre() != null)
             sb.append("• Material: ").append(p.getMaterial().getNombre()).append("\n");
         String aptos = aptos(p);
@@ -27,7 +27,8 @@ public final class MlDescripcionSugeridaBuilder {
         return sb.toString();
     }
 
-    private static String dimensiones(Producto p) {
+    /** Una entrada "Etiqueta: valor" por dimensión presente (la unidad la trae el valor cargado). */
+    private static List<String> dimensiones(Producto p) {
         List<String> partes = new ArrayList<>();
         agregar(partes, "Capacidad", p.getCapacidad());
         agregar(partes, "Largo", p.getLargo());
@@ -36,7 +37,7 @@ public final class MlDescripcionSugeridaBuilder {
         agregar(partes, "Diámetro boca", p.getDiamboca());
         agregar(partes, "Diámetro base", p.getDiambase());
         agregar(partes, "Espesor", p.getEspesor());
-        return String.join(", ", partes);
+        return partes;
     }
 
     private static void agregar(List<String> partes, String etiqueta, String valor) {

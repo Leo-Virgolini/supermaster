@@ -13,6 +13,7 @@ class MlDescripcionSugeridaBuilderTest {
         Producto p = new Producto();
         p.setSku("ABC123");
         p.setCapacidad("500 ml");
+        p.setLargo("21 cm");
         Material m = new Material();
         m.setNombre("Plástico");
         p.setMaterial(m);
@@ -21,7 +22,10 @@ class MlDescripcionSugeridaBuilderTest {
 
         assertThat(txt).contains("CARACTERÍSTICAS");
         assertThat(txt).contains("Material: Plástico");
-        assertThat(txt).contains("Capacidad: 500 ml");
         assertThat(txt).contains("SKU: ABC123");
+        // Cada dimensión en su propio bullet (ya no agrupadas bajo "Dimensiones:").
+        assertThat(txt).contains("• Capacidad: 500 ml");
+        assertThat(txt).contains("• Largo: 21 cm");
+        assertThat(txt).doesNotContain("Dimensiones:");
     }
 }

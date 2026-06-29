@@ -257,6 +257,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const [cargandoEstado, setCargandoEstado] = useState(false);
     const [caratulaPreview, setCaratulaPreview] = useState<string | null>(null);
     const [caratulaFormato, setCaratulaFormato] = useState<string>("jpeg");
+    const [caratulaCruda, setCaratulaCruda] = useState<string | null>(null);
+    const [caratulaCrudaFormato, setCaratulaCrudaFormato] = useState<string>("jpeg");
     const [generandoCaratula, setGenerandoCaratula] = useState(false);
     const [guardandoCaratula, setGuardandoCaratula] = useState(false);
     const [caratulaCacheBust, setCaratulaCacheBust] = useState(0);
@@ -1191,6 +1193,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             const r = await generarCaratulaAPI(sku.trim());
             setCaratulaPreview(r.imagenBase64);
             setCaratulaFormato(r.formato);
+            setCaratulaCruda(r.crudaBase64);
+            setCaratulaCrudaFormato(r.crudaFormato);
         } catch (e) {
             if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "No se pudo generar la carátula");
         } finally { setGenerandoCaratula(false); }
@@ -1202,6 +1206,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         try {
             await guardarCaratulaAPI(sku.trim(), caratulaPreview);
             setCaratulaPreview(null);
+            setCaratulaCruda(null);
             notificar.success("Carátula guardada");
             getImagenDetalleAPI(sku.trim()).then(setImagenesDetectadas).catch(() => {});
             setCaratulaCacheBust(c => c + 1);
@@ -1210,6 +1215,11 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         } finally {
             setGuardandoCaratula(false);
         }
+    };
+
+    const cancelarCaratula = () => {
+        setCaratulaPreview(null);
+        setCaratulaCruda(null);
     };
 
     // Convierte un bloque de estado SEO a payload de export SOLO si tiene algún campo cargado; si no, undefined.
@@ -1717,16 +1727,34 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 </div>
                                 {editandoProductoId && (
                                     <div className="mt-2">
-                                        <Button variant="dark" onClick={generarCaratula} disabled={generandoCaratula}>
-                                            {generandoCaratula ? <SpinnerIcon /> : <SparklesIcon className="h-4 w-4" />}
-                                            {generandoCaratula ? "Generando..." : "Mejorar carátula con IA"}
-                                        </Button>
+                                        {!caratulaPreview && (
+                                            <Button variant="dark" onClick={generarCaratula} disabled={generandoCaratula}>
+                                                {generandoCaratula ? <SpinnerIcon /> : <SparklesIcon className="h-4 w-4" />}
+                                                {generandoCaratula ? "Generando..." : "Mejorar carátula con IA"}
+                                            </Button>
+                                        )}
                                         {caratulaPreview && (
                                             <div className="mt-3 rounded-2xl border border-slate-200 p-3 dark:border-slate-700">
-                                                <img src={`data:image/${caratulaFormato};base64,${caratulaPreview}`} alt="Preview carátula" className="mx-auto max-h-64" />
+                                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-center">
+                                                    <figure className="flex-1">
+                                                        <figcaption className="mb-1 text-center text-xs text-slate-500">Original</figcaption>
+                                                        {caratulaCruda && <img src={`data:image/${caratulaCrudaFormato};base64,${caratulaCruda}`} alt="Imagen original" className="mx-auto max-h-64" />}
+                                                    </figure>
+                                                    <figure className="flex-1">
+                                                        <figcaption className="mb-1 text-center text-xs text-slate-500">Generada con IA</figcaption>
+                                                        <img src={`data:image/${caratulaFormato};base64,${caratulaPreview}`} alt="Carátula generada" className="mx-auto max-h-64" />
+                                                    </figure>
+                                                </div>
                                                 <div className="mt-2 flex justify-end gap-2">
-                                                    <Button variant="light" onClick={() => setCaratulaPreview(null)} disabled={guardandoCaratula}>Descartar</Button>
-                                                    <Button variant="dark" onClick={guardarCaratula} disabled={guardandoCaratula}>{guardandoCaratula ? <SpinnerIcon /> : <CheckIcon className="h-4 w-4" />} {guardandoCaratula ? "Guardando..." : "Guardar carátula"}</Button>
+                                                    <Button variant="light" onClick={cancelarCaratula} disabled={guardandoCaratula || generandoCaratula}>Cancelar</Button>
+                                                    <Button variant="light" onClick={generarCaratula} disabled={generandoCaratula || guardandoCaratula}>
+                                                        {generandoCaratula ? <SpinnerIcon /> : <SparklesIcon className="h-4 w-4" />}
+                                                        {generandoCaratula ? "Generando..." : "Volver a generar"}
+                                                    </Button>
+                                                    <Button variant="dark" onClick={guardarCaratula} disabled={guardandoCaratula || generandoCaratula}>
+                                                        {guardandoCaratula ? <SpinnerIcon /> : <CheckIcon className="h-4 w-4" />}
+                                                        {guardandoCaratula ? "Guardando..." : "Aceptar"}
+                                                    </Button>
                                                 </div>
                                             </div>
                                         )}

@@ -11,9 +11,11 @@ public record DatosCanalDTO(
         List<MlAtributoDTO> mlAtributos,
         String descripcionMl,
         String descripcionHogar,
-        String descripcionGastro
+        String descripcionGastro,
+        SeoCanalDTO seoHogar,
+        SeoCanalDTO seoGastro
 ) {
     public static DatosCanalDTO vacio() {
-        return new DatosCanalDTO(null, null, List.of(), null, null, null);
+        return new DatosCanalDTO(null, null, List.of(), null, null, null, null, null);
     }
 }

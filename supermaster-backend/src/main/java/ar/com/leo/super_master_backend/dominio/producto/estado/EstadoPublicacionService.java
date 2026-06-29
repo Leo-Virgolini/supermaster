@@ -83,7 +83,9 @@ public class EstadoPublicacionService {
                 MlDatosParser.atributos(mlItem),
                 descMl,
                 descripcionNube(hogarProd),
-                descripcionNube(gastroProd));
+                descripcionNube(gastroProd),
+                NubeSeoParser.parse(hogarProd),
+                NubeSeoParser.parse(gastroProd));
 
         return new EstadoPublicacionDTO(ml, hogar, gastro, dux, datos);
     }

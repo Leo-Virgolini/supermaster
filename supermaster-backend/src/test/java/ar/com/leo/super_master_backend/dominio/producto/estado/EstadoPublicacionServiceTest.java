@@ -67,6 +67,9 @@ class EstadoPublicacionServiceTest {
         assertThat(dto.datos().descripcionMl()).isNull();
         assertThat(dto.datos().descripcionHogar()).isNull();
         assertThat(dto.datos().descripcionGastro()).isNull();
+        assertThat(dto.datos().seoHogar()).isNotNull();
+        assertThat(dto.datos().seoHogar().title()).isNull();
+        assertThat(dto.datos().seoGastro()).isNull(); // gastro no encontrado (product null)
     }
 
     @Test

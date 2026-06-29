@@ -111,7 +111,8 @@ class DuxItemBuilderTest {
         p.setTituloDux("X");
         p.setEsCombo(true);
         p.setActivo(false);
-        // sin costo, iva, marca, proveedor, clasif, unidad, tituloNube
+        p.setCosto(new BigDecimal("500")); // tiene costo, pero por ser COMBO no debe mandarse a Dux
+        // sin iva, marca, proveedor, clasif, unidad, tituloNube
 
         Map<String, Object> m = builder().construir(p);
 
@@ -119,12 +120,12 @@ class DuxItemBuilderTest {
         assertThat(m).containsEntry("tipo_producto", "COMBO");
         assertThat(m).containsEntry("habilitado", "N");
         assertThat(m).containsEntry("trazable", "N"); // combo → no trazable (Dux rechaza compuesto trazable)
+        assertThat(m).doesNotContainKey("costo"); // combo → sin costo (Dux rechaza costo en COMBO)
         // omitidos por null/blank:
         assertThat(m).doesNotContainKey("codigo_externo");
         assertThat(m).doesNotContainKey("cod_barra");
         assertThat(m).doesNotContainKey("ctd_unidades_por_bulto");
         assertThat(m).doesNotContainKey("stock");
-        assertThat(m).doesNotContainKey("costo");
         assertThat(m).doesNotContainKey("porc_iva");
         assertThat(m).doesNotContainKey("id_proveedor");
         assertThat(m).doesNotContainKey("id_rubro");

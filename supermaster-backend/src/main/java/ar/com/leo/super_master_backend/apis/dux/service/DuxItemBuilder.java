@@ -36,7 +36,8 @@ public class DuxItemBuilder {
 
         // Opcionales (se omiten si null/blank)
         if (p.getIva() != null) item.put("porc_iva", p.getIva().doubleValue());
-        if (p.getCosto() != null) item.put("costo", p.getCosto().doubleValue());
+        // Los combos (compuestos) no llevan costo en Dux: su costo lo deriva de los componentes.
+        if (!esCombo && p.getCosto() != null) item.put("costo", p.getCosto().doubleValue());
         if (p.getProveedor() != null && p.getProveedor().getIdDux() != null) {
             item.put("id_proveedor", p.getProveedor().getIdDux());
         }

@@ -18,7 +18,7 @@ Reorganizar el modal de edición/alta de producto para que los campos **específ
 - Frontend: Next.js/React/TS. `cd supermaster-frontend && npx tsc --noEmit` exit 0; sin errores `error` de lint nuevos. No hay tests automáticos de frontend.
 - Trabajar en `main`. Commits terminan con `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`. `git add` solo de archivos específicos, nunca `-A` ni `.superpowers/`.
 - No agregar dependencias nuevas (el editor HTML es sin librerías).
-- Mantener el comportamiento funcional actual: mismos estados, mismas llamadas de guardado/export, misma pre-carga desde `estado.datos`. Es un cambio de **presentación/orden**, no de lógica.
+- Mantener el comportamiento funcional actual: mismas llamadas de guardado/export y misma pre-carga desde `estado.datos`. Es esencialmente un cambio de **presentación/orden**; la única lógica nueva es el estado `esComboOriginal` para el aviso de "Es combo" (ver sección correspondiente).
 
 ## Estructura de secciones (apiladas)
 
@@ -48,6 +48,16 @@ Dux **no** tiene sección propia (sus campos de presentación son generales; su 
 ## SKU destacado
 
 El input del SKU (sección Identificación) recibe un acento **índigo/azul**: borde índigo, fondo levemente tintado, texto en negrita monoespaciada, y la etiqueta "SKU" en índigo. Es solo estilo (clases Tailwind); no cambia validación ni comportamiento. Debe respetar modo oscuro (variantes `dark:`).
+
+## Aviso al cambiar "Es combo" en edición
+
+El SKU sugerido al **crear** depende de `esCombo` (rangos distintos: simple `1000000–1999999`, combo `5000000–5999999`). Al **editar**, togglear `esCombo` **no** cambia el SKU ni lo reasigna al rango del otro tipo. Para evitar confusión:
+
+- Se captura el valor de `esCombo` con el que se abrió el modal (estado nuevo `esComboOriginal`, seteado en la pre-carga de edición).
+- En modo edición, cuando `esCombo` (actual) difiere de `esComboOriginal`, se muestra un **aviso inline ámbar** junto al checkbox "Es combo": *"Cambiar 'Es combo' no modifica el SKU: se mantiene el actual y no se reasigna al rango de SKUs de simple/combo."*
+- En alta no aplica (no hay aviso). El aviso desaparece si se vuelve al valor original.
+
+Es la única lógica nueva (un estado de comparación); el resto es presentación.
 
 ## Editor HTML (descripciones de Nube)
 
@@ -81,4 +91,4 @@ Como es una sola llamada, los indicadores aparecen/desaparecen a la vez, pero qu
 
 ## Testing
 
-- `npx tsc --noEmit` exit 0. Verificación manual: (a) cada sección muestra sus campos y nada cruzado; (b) editar el título Nube en una tienda actualiza la otra; (c) la preview del editor HTML refleja el HTML; (d) al abrir un producto publicado se ven los indicadores de carga y luego los datos; (e) el SKU se ve destacado en claro y oscuro; (f) guardar y exportar siguen funcionando igual.
+- `npx tsc --noEmit` exit 0. Verificación manual: (a) cada sección muestra sus campos y nada cruzado; (b) editar el título Nube en una tienda actualiza la otra; (c) la preview del editor HTML refleja el HTML; (d) al abrir un producto publicado se ven los indicadores de carga y luego los datos; (e) el SKU se ve destacado en claro y oscuro; (f) guardar y exportar siguen funcionando igual; (g) en edición, cambiar "Es combo" muestra el aviso y al volver al valor original desaparece.

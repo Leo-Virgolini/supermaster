@@ -468,6 +468,12 @@ public class DuxService {
         }
     }
 
+    /** Diagnóstico: JSON CRUDO de la consulta por código (todos los campos, incluidos los que el modelo Item no mapea). */
+    public String obtenerProductoPorCodigoRaw(String codItem) {
+        verificarTokens();
+        return retryHandler.get("/items?codigoItem=" + URLEncoder.encode(codItem, StandardCharsets.UTF_8), tokens.token);
+    }
+
     // =====================================================
     // IMPORT: DUX → Local (async)
     // =====================================================

@@ -71,6 +71,17 @@ public class DuxController {
         return ResponseEntity.ok(item);
     }
 
+    /** Diagnóstico: JSON crudo de Dux para un código (incluye campos que el modelo Item no mapea, p.ej. unidad de medida). */
+    @GetMapping("/productos/{codItem}/raw")
+    @PreAuthorize(Permisos.INTEGRACIONES_VER)
+    public ResponseEntity<String> obtenerProductoRaw(@PathVariable String codItem) {
+        String raw = duxService.obtenerProductoPorCodigoRaw(codItem);
+        if (raw == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok().contentType(org.springframework.http.MediaType.APPLICATION_JSON).body(raw);
+    }
+
     // =====================================================
     // LISTAS DE PRECIOS
     // =====================================================

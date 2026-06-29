@@ -236,6 +236,11 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         for (const d of mlAtributosDef) m.set(d.id, d);
         return m;
     }, [mlAtributosDef]);
+    // EQUIPAMIENTO: algún nodo de la clasificación de Nube (gastro si existe, sino general) es "EQUIPAMIENTO".
+    const esEquipamiento = useMemo(() => {
+        const ruta = clasifGastroDisplay || clasifGralDisplay || "";
+        return ruta.split(">").some(seg => seg.trim().toUpperCase() === "EQUIPAMIENTO");
+    }, [clasifGastroDisplay, clasifGralDisplay]);
     const [mlAtributosVal, setMlAtributosVal] = useState<Record<string, ProductoMlAtributo>>({});
     // Límite de caracteres del Título ML según la categoría seleccionada (null = sin categoría).
     const [maxTitleLengthMl, setMaxTitleLengthMl] = useState<number | null>(null);
@@ -2256,6 +2261,11 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                     {subirKtGastro && (
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.seo}`}>
                         <legend className={sectionTitleClassName}><BuildingStorefrontIcon className="h-5 w-5" /> Tienda Nube · KT GASTRO</legend>
+                        {esEquipamiento && (
+                            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+                                Producto de <b>EQUIPAMIENTO</b>: al subir a KT GASTRO se le agregará <b>*</b> al final del título y un bullet <b>&quot;ENVIO A COTIZAR&quot;</b> a la descripción.
+                            </div>
+                        )}
                         <div className="grid grid-cols-1 gap-4">
                             <label className="block">
                                 <span className={fieldLabelClassName}>Título Nube</span>

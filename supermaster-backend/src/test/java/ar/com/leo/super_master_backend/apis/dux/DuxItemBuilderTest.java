@@ -66,7 +66,8 @@ class DuxItemBuilderTest {
         assertThat(m).containsEntry("id_rubro", 10);
         assertThat(m).containsEntry("id_sub_rubro", 20);
         assertThat(m).containsEntry("codigo_marca", "MARCA-1");
-        assertThat(m).containsEntry("id_unidad_medida", 5);
+        // La unidad de medida NO se manda a Dux (su id no se puede obtener de la API), aunque el sector tenga idDux.
+        assertThat(m).doesNotContainKey("id_unidad_medida");
         assertThat(m).containsEntry("cod_barra", "7791234567890");
         assertThat(m).containsEntry("codigo_externo", "EXT-001");
         assertThat(m).containsEntry("ctd_unidades_por_bulto", 6);

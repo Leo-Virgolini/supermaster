@@ -43,9 +43,9 @@ public class DuxItemBuilder {
         if (p.getMarca() != null && p.getMarca().getCodigoDux() != null && !p.getMarca().getCodigoDux().isBlank()) {
             item.put("codigo_marca", p.getMarca().getCodigoDux());
         }
-        if (p.getSectorDeposito() != null && p.getSectorDeposito().getIdDux() != null) {
-            item.put("id_unidad_medida", p.getSectorDeposito().getIdDux());
-        }
+        // La unidad de medida (sector de depósito) NO se manda a Dux: su id no se puede obtener de
+        // forma confiable desde la API (Consultar Items no devuelve la unidad), así que un idDux mal
+        // cargado haría fallar el alta ("id_unidad_medida no encontrado").
         if (p.getEan() != null && !p.getEan().isBlank()) {
             item.put("cod_barra", p.getEan().trim());
         }

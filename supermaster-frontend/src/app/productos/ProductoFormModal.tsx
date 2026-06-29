@@ -1865,11 +1865,11 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 <span className={fieldLabelClassName}>Costo Base <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span></span>
                                 <div className="relative">
                                     <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-400">$</span>
-                                    <input type="number" min={0.01} disabled={esCombo} className={`${inputBaseClassName} !pl-7 ${esCombo ? "cursor-not-allowed opacity-60" : ""} ${formErrors.costo ? inputErrorClassName : ""}`} value={costo} onChange={e => { setCosto(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.costo) setFormErrors(p => ({ ...p, costo: "" })); }} required />
+                                    <input type="number" min={0.01} className={`${inputBaseClassName} !pl-7 ${formErrors.costo ? inputErrorClassName : ""}`} value={costo} onChange={e => { setCosto(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.costo) setFormErrors(p => ({ ...p, costo: "" })); }} required />
                                 </div>
                                 {formErrors.costo
                                     ? <p className="mt-1 text-xs text-red-500">{formErrors.costo}</p>
-                                    : esCombo && <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Deshabilitado en combos (se mantiene el valor actual).</p>}
+                                    : esCombo && <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">En combos, el costo no se envía a Dux (Dux lo rechaza); sí se usa para el precio y los demás canales.</p>}
                             </label>
                             <label className="block">
                                 <span className={fieldLabelClassName}>IVA (%) <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span></span>

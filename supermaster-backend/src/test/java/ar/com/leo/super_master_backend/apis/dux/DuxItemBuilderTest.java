@@ -113,6 +113,7 @@ class DuxItemBuilderTest {
         assertThat(m).containsEntry("cod_item", "9999999");
         assertThat(m).containsEntry("tipo_producto", "COMBO");
         assertThat(m).containsEntry("habilitado", "N");
+        assertThat(m).containsEntry("trazable", "N"); // combo → no trazable (Dux rechaza compuesto trazable)
         // omitidos por null/blank:
         assertThat(m).doesNotContainKey("codigo_externo");
         assertThat(m).doesNotContainKey("cod_barra");

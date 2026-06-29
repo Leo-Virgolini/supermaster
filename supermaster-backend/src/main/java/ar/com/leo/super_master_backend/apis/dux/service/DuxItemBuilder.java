@@ -21,14 +21,16 @@ public class DuxItemBuilder {
         Map<String, Object> item = new HashMap<>();
 
         // Requeridos / fijos
+        boolean esCombo = Boolean.TRUE.equals(p.getEsCombo());
         item.put("cod_item", p.getSku());
         item.put("item", p.getTituloDux() != null ? p.getTituloDux() : "");
-        item.put("tipo_producto", Boolean.TRUE.equals(p.getEsCombo()) ? "COMBO" : "SIMPLE");
+        item.put("tipo_producto", esCombo ? "COMBO" : "SIMPLE");
         item.put("id_moneda", 1);
         item.put("habilitado", Boolean.TRUE.equals(p.getActivo()) ? "S" : "N");
         item.put("stockeable", "S");
         item.put("acepta_stock_negativo", "S");
-        item.put("trazable", "S");
+        // Dux rechaza un ítem trazable que además sea compuesto (combo): los combos van NO trazables.
+        item.put("trazable", esCombo ? "N" : "S");
         item.put("disponible_para", "TODOS");
         item.put("indica_ctd_bultos", "S");
 

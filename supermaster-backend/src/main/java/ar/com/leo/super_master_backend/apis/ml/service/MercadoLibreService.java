@@ -1540,6 +1540,21 @@ public class MercadoLibreService {
         }
     }
 
+    /** GET /items/{id}/description → texto plano de la descripción publicada en ML. Null si falla/ausente. */
+    public String leerDescripcionMl(String mlaCode) {
+        if (mlaCode == null || mlaCode.isBlank()) return null;
+        verificarTokens();
+        try {
+            String response = retryHandler.get("/items/" + mlaCode + "/description", () -> tokens.accessToken);
+            if (response == null) return null;
+            JsonNode node = objectMapper.readTree(response);
+            return node.path("plain_text").asString(null);
+        } catch (Exception e) {
+            log.warn("ML - No se pudo leer la descripción del item {}: {}", mlaCode, e.getMessage());
+            return null;
+        }
+    }
+
     /**
      * Actualiza el precio de todas las variaciones de un item en un solo PUT.
      * ML requiere que todas las variaciones vengan con el mismo precio en el request.

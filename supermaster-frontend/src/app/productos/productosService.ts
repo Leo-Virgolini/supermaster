@@ -564,10 +564,12 @@ export async function putEstadoPublicacionAPI(id: number, body: EstadoPublicacio
 
 export async function generarCaratulaAPI(sku: string): Promise<{ imagenBase64: string; formato: string; crudaBase64: string; crudaFormato: string }> {
 	const r = await fetchAPI(`${API_BASE_URL}/api/imagenes/caratula/generar/${encodeURIComponent(sku)}`, { method: "POST" });
+	if (!r.ok) throw new Error(await extraerMensajeError(r, "No se pudo generar la carátula"));
 	return r.json();
 }
 
 export async function guardarCaratulaAPI(sku: string, imagenBase64: string): Promise<void> {
-	await fetchAPI(`${API_BASE_URL}/api/imagenes/caratula/guardar/${encodeURIComponent(sku)}`,
+	const r = await fetchAPI(`${API_BASE_URL}/api/imagenes/caratula/guardar/${encodeURIComponent(sku)}`,
 		{ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imagenBase64 }) });
+	if (!r.ok) throw new Error(await extraerMensajeError(r, "No se pudo guardar la carátula"));
 }

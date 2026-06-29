@@ -328,7 +328,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         if (uxb < 1) errors.uxb = "UxB debe ser al menos 1";
         if (!clasifGralId && !clasifGastroId) errors.clasificacion = "Seleccioná al menos una clasificación (general o gastronómica)";
         if (!tipoId) errors.tipoId = "El tipo es obligatorio";
-        if (!sectorDepositoId) errors.sectorDeposito = "El sector de depósito es obligatorio (Dux lo requiere)";
+        if (!sectorDepositoId) errors.sectorDeposito = "El sector de depósito es obligatorio";
         if (!esCombo) {
             if (!marcaId) errors.marcaId = "La marca es obligatoria";
             if (!origenId) errors.origenId = "El origen es obligatorio";
@@ -2262,7 +2262,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.seo}`}>
                         <legend className={sectionTitleClassName}><BuildingStorefrontIcon className="h-5 w-5" /> Tienda Nube · KT GASTRO</legend>
                         {esEquipamiento && (
-                            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+                            <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
                                 Producto de <b>EQUIPAMIENTO</b>: al subir a KT GASTRO se le agregará <b>*</b> al final del título y un bullet <b>&quot;ENVIO A COTIZAR&quot;</b> a la descripción.
                             </div>
                         )}

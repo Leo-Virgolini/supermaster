@@ -29,6 +29,8 @@ class DuxItemBuilderTest {
         p.setCosto(new BigDecimal("1000.50"));
         p.setIva(new BigDecimal("21.000"));
         p.setTituloNube("Olla de acero inoxidable 24cm");
+        p.setEan("7791234567890");
+        p.setCodExt("EXT-001");
 
         Marca marca = new Marca();
         marca.setCodigoDux("MARCA-1");
@@ -43,7 +45,7 @@ class DuxItemBuilderTest {
         p.setClasifGral(nivel2);
 
         SectorDeposito um = new SectorDeposito();
-        um.setIdDux(18);
+        um.setIdDux(5);
         p.setSectorDeposito(um);
         return p;
     }
@@ -62,12 +64,14 @@ class DuxItemBuilderTest {
         assertThat(m).containsEntry("id_rubro", 10);
         assertThat(m).containsEntry("id_sub_rubro", 20);
         assertThat(m).containsEntry("codigo_marca", "MARCA-1");
-        assertThat(m).containsEntry("id_unidad_medida", 18);
+        assertThat(m).containsEntry("id_unidad_medida", 5);
+        assertThat(m).containsEntry("cod_barra", "7791234567890");
+        assertThat(m).containsEntry("codigo_externo", "EXT-001");
         assertThat(m).containsEntry("stockeable", "S");
         assertThat(m).containsEntry("acepta_stock_negativo", "S");
         assertThat(m).containsEntry("habilitado", "S");
         assertThat(m).containsEntry("trazable", "S");
-        assertThat(m).containsEntry("disponible_para", "todos");
+        assertThat(m).containsEntry("disponible_para", "TODOS");
         assertThat(m).containsEntry("indica_ctd_bultos", "S");
         assertThat(m).containsEntry("descripcion", "Olla de acero inoxidable 24cm");
     }
@@ -85,7 +89,7 @@ class DuxItemBuilderTest {
         p.setProveedor(prov);
 
         SectorDeposito um = new SectorDeposito();
-        // idDux NO seteado (null)
+        // codigo NO seteado (null)
         p.setSectorDeposito(um);
 
         Map<String, Object> m = builder().construir(p);
@@ -108,10 +112,9 @@ class DuxItemBuilderTest {
         assertThat(m).containsEntry("cod_item", "9999999");
         assertThat(m).containsEntry("tipo_producto", "COMBO");
         assertThat(m).containsEntry("habilitado", "N");
-        // campos eliminados del payload viejo:
+        // omitidos por null/blank:
         assertThat(m).doesNotContainKey("codigo_externo");
-        assertThat(m).doesNotContainKey("ctd_unidades_por_bulto");
-        // omitidos por null:
+        assertThat(m).doesNotContainKey("cod_barra");
         assertThat(m).doesNotContainKey("costo");
         assertThat(m).doesNotContainKey("porc_iva");
         assertThat(m).doesNotContainKey("id_proveedor");

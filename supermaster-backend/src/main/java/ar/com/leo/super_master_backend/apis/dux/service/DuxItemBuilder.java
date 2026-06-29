@@ -29,7 +29,7 @@ public class DuxItemBuilder {
         item.put("stockeable", "S");
         item.put("acepta_stock_negativo", "S");
         item.put("trazable", "S");
-        item.put("disponible_para", "todos");
+        item.put("disponible_para", "TODOS");
         item.put("indica_ctd_bultos", "S");
 
         // Opcionales (se omiten si null/blank)
@@ -43,6 +43,12 @@ public class DuxItemBuilder {
         }
         if (p.getSectorDeposito() != null && p.getSectorDeposito().getIdDux() != null) {
             item.put("id_unidad_medida", p.getSectorDeposito().getIdDux());
+        }
+        if (p.getEan() != null && !p.getEan().isBlank()) {
+            item.put("cod_barra", p.getEan().trim());
+        }
+        if (p.getCodExt() != null && !p.getCodExt().isBlank()) {
+            item.put("codigo_externo", p.getCodExt().trim());
         }
         if (p.getTituloNube() != null && !p.getTituloNube().isBlank()) {
             item.put("descripcion", p.getTituloNube());

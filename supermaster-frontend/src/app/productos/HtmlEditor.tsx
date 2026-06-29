@@ -18,6 +18,10 @@ type Props = {
  */
 export default function HtmlEditor({ value, onChange, disabled, placeholder, rows = 8, id }: Props) {
     const taRef = useRef<HTMLTextAreaElement>(null);
+    // Selección + valor base capturados al abrir el selector de color. El <input type="color"> dispara
+    // onChange en cada movimiento del arrastre: si recomputáramos desde el value mutado, anidaría un
+    // <span> por cada disparo. Recomputamos SIEMPRE desde esta base → un único span (el último gana).
+    const colorCtx = useRef<{ base: string; start: number; end: number } | null>(null);
 
     const inputClass =
         "w-full rounded-xl border border-slate-300 bg-white px-3 py-2 font-mono text-xs text-slate-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100";
@@ -31,6 +35,30 @@ export default function HtmlEditor({ value, onChange, disabled, placeholder, row
         const end = ta.selectionEnd ?? value.length;
         const sel = value.slice(start, end);
         const next = value.slice(0, start) + prefix + sel + suffix + value.slice(end);
+        onChange(next);
+        requestAnimationFrame(() => {
+            const t = taRef.current;
+            if (!t) return;
+            t.focus();
+            t.setSelectionRange(start + prefix.length, start + prefix.length + sel.length);
+        });
+    };
+
+    // Captura la selección actual del textarea como base para el color (antes de abrir el picker).
+    const capturarColor = () => {
+        const ta = taRef.current;
+        if (!ta) return;
+        colorCtx.current = { base: value, start: ta.selectionStart ?? value.length, end: ta.selectionEnd ?? value.length };
+    };
+
+    // Aplica el color recomputando desde la base capturada (no desde el value mutado): evita anidar spans.
+    const aplicarColor = (color: string) => {
+        const ctx = colorCtx.current;
+        if (!ctx || ctx.start === ctx.end) return; // sin selección: no envolver (evita spans vacíos)
+        const { base, start, end } = ctx;
+        const sel = base.slice(start, end);
+        const prefix = `<span style="color:${color}">`;
+        const next = base.slice(0, start) + prefix + sel + "</span>" + base.slice(end);
         onChange(next);
         requestAnimationFrame(() => {
             const t = taRef.current;
@@ -66,7 +94,8 @@ export default function HtmlEditor({ value, onChange, disabled, placeholder, row
                     Color
                     <input type="color" disabled={disabled} defaultValue="#1e40af"
                         className="h-6 w-7 cursor-pointer rounded border border-slate-300 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600"
-                        onChange={e => wrap(`<span style="color:${e.target.value}">`, "</span>")} />
+                        onMouseDown={capturarColor} onFocus={capturarColor}
+                        onChange={e => aplicarColor(e.target.value)} />
                 </label>
             </div>
             <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch">

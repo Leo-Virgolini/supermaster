@@ -284,6 +284,20 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             return { tone: "emerald", text: "✓ Verificado en ML: coincide con la publicación vigente.", alerta: false };
         return { tone: "amber", text: `⚠ El MLA guardado no coincide con la publicación vigente en ML (${resuelto}).`, alerta: true };
     }, [cargandoEstado, estadoCanales, mlaResuelto, mlaCodigo]);
+
+    // EQUIPAMIENTO + KT GASTRO: la Descripción · KT GASTRO siempre incluye el bullet "ENVIO A COTIZAR"
+    // (espejo de lo que el backend agrega al publicar, idempotente). Se quita si deja de aplicar.
+    const BULLET_COTIZAR = "<ul><li>ENVIO A COTIZAR</li></ul>";
+    useEffect(() => {
+        if (cargandoEstado) return; // esperar a que cargue la descripción del canal
+        const debe = esEquipamiento && subirKtGastro;
+        setDescripcionGastro(prev => {
+            const tiene = prev.includes("ENVIO A COTIZAR");
+            if (debe && !tiene) return prev + BULLET_COTIZAR;
+            if (!debe && tiene) return prev.replace(BULLET_COTIZAR, "");
+            return prev;
+        });
+    }, [esEquipamiento, subirKtGastro, cargandoEstado, descripcionGastro]);
     const [caratulaPreview, setCaratulaPreview] = useState<string | null>(null);
     const [caratulaFormato, setCaratulaFormato] = useState<string>("jpeg");
     const [caratulaCruda, setCaratulaCruda] = useState<string | null>(null);
@@ -2319,6 +2333,11 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 <input type="text" className={`${inputBaseClassName} ${formErrors.tituloNube ? inputErrorClassName : ""}`} value={tituloNube} onChange={e => { setTituloNube(e.target.value); if (formErrors.tituloNube) setFormErrors(p => ({ ...p, tituloNube: "" })); }} placeholder="Título para Tienda Nube" />
                                 {formErrors.tituloNube && <p className="mt-1 text-xs text-red-500">{formErrors.tituloNube}</p>}
                                 <span className="mt-0.5 block text-[11px] text-slate-400 dark:text-slate-500">Compartido entre KT HOGAR y KT GASTRO.</span>
+                                {esEquipamiento && tituloNube.trim() && (
+                                    <span className="mt-1 block text-[11px] font-medium text-amber-700 dark:text-amber-300">
+                                        En KT GASTRO se publicará como: «{tituloNube.trim().endsWith("*") ? tituloNube.trim() : tituloNube.trim() + "*"}»
+                                    </span>
+                                )}
                             </label>
                             {renderSeoNube("GASTRO", "KT Gastro", seoGastro, setSeoGastro)}
                             <label className="block">

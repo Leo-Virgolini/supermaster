@@ -1546,8 +1546,14 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             {/* MODAL CREAR / EDITAR PRODUCTO */}
             <Modal isOpen={true} onClose={() => { if (!isSaving) onClose(); }} title={editandoProductoId ? `Editar Producto${sku ? ` · ${sku}` : ""}` : "Nuevo Producto"} size="3xl" closeOnEscape={false} busy={isSaving}
                 footer={<div className="flex w-full items-center justify-between gap-3">
-                    <span className={`text-sm text-red-600 dark:text-red-400 ${Object.values(formErrors).some(Boolean) ? "" : "invisible"}`}>Revisá los campos marcados antes de guardar.</span>
-                    <div className="flex items-center gap-2">
+                    <div className="min-w-0 flex-1">
+                        {resultadosCanal.some(r => r.estado === "error")
+                            ? <span className="block max-h-16 overflow-auto text-sm font-medium text-red-600 dark:text-red-400">
+                                Se guardó, pero falló la subida: {resultadosCanal.filter(r => r.estado === "error").map(r => `${r.canal} — ${r.detalle}`).join(" · ")}
+                              </span>
+                            : <span className={`text-sm text-red-600 dark:text-red-400 ${Object.values(formErrors).some(Boolean) ? "" : "invisible"}`}>Revisá los campos marcados antes de guardar.</span>}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
                         <Button variant="light" onClick={onClose} disabled={isSaving}><XMarkIcon className="w-4 h-4" /> Cancelar</Button>
                         <Button variant="dark" onClick={editandoProductoId ? handleGuardarEdicion : handleCreate} disabled={isSaving || (!editandoProductoId && skuYaExiste)}>{isSaving ? <SpinnerIcon /> : <CheckIcon className="w-4 h-4" />} {isSaving ? (editandoProductoId ? "Guardando..." : "Creando Producto...") : (editandoProductoId ? "Guardar Cambios" : "Crear Producto")}</Button>
                     </div>

@@ -31,6 +31,8 @@ class DuxItemBuilderTest {
         p.setTituloNube("Olla de acero inoxidable 24cm");
         p.setEan("7791234567890");
         p.setCodExt("EXT-001");
+        p.setUxb(6);
+        p.setStock(100);
 
         Marca marca = new Marca();
         marca.setCodigoDux("MARCA-1");
@@ -68,6 +70,8 @@ class DuxItemBuilderTest {
         assertThat(m).doesNotContainKey("id_unidad_medida");
         assertThat(m).containsEntry("cod_barra", "7791234567890");
         assertThat(m).containsEntry("codigo_externo", "EXT-001");
+        assertThat(m).containsEntry("ctd_unidades_por_bulto", 6);
+        assertThat(m).containsEntry("stock", 100);
         assertThat(m).containsEntry("stockeable", "S");
         assertThat(m).containsEntry("acepta_stock_negativo", "S");
         assertThat(m).containsEntry("habilitado", "S");
@@ -117,6 +121,8 @@ class DuxItemBuilderTest {
         // omitidos por null/blank:
         assertThat(m).doesNotContainKey("codigo_externo");
         assertThat(m).doesNotContainKey("cod_barra");
+        assertThat(m).doesNotContainKey("ctd_unidades_por_bulto");
+        assertThat(m).doesNotContainKey("stock");
         assertThat(m).doesNotContainKey("costo");
         assertThat(m).doesNotContainKey("porc_iva");
         assertThat(m).doesNotContainKey("id_proveedor");

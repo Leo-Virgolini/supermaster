@@ -54,6 +54,14 @@ public class DuxItemBuilder {
         if (p.getCodExt() != null && !p.getCodExt().isBlank()) {
             item.put("codigo_externo", p.getCodExt().trim());
         }
+        if (p.getUxb() != null) {
+            item.put("ctd_unidades_por_bulto", p.getUxb());
+        }
+        // Tentativo: el stock en Dux es por depósito (no hay campo escalar en nuevoItem); puede ser
+        // ignorado. Se manda como prueba; si no toma, el stock va por el endpoint de ajuste de stock.
+        if (p.getStock() != null) {
+            item.put("stock", p.getStock());
+        }
         if (p.getTituloNube() != null && !p.getTituloNube().isBlank()) {
             item.put("descripcion", p.getTituloNube());
         }

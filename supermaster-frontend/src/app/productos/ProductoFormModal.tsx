@@ -494,8 +494,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             }
             const payload: ProductoCreateDTO = {
                 sku: sku.trim(), codExt, tituloDux: tituloDux.trim(), tituloMl: tituloMl.trim() || null, tituloNube: tituloNube.trim() || null, esCombo, uxb, activo,
-                capacidad, largo: largo || null, ancho: ancho || null, alto: alto || null,
-                diamboca: diamboca || null, diambase: diambase || null, espesor: espesor || null,
+                capacidad, largo: normalizarFisico("largo") || null, ancho: normalizarFisico("ancho") || null, alto: normalizarFisico("alto") || null,
+                diamboca: normalizarFisico("diamboca") || null, diambase: normalizarFisico("diambase") || null, espesor: normalizarFisico("espesor") || null,
                 costo: costoNum, iva,
                 stock: stock !== "" ? stock : null,
                 moq: moq !== "" ? moq : null,
@@ -704,8 +704,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             }
             const patch = {
                 codExt, tituloDux: tituloDux.trim(), tituloMl: tituloMl.trim() || null, tituloNube: tituloNube.trim() || null, esCombo, uxb, activo,
-                capacidad, largo: largo || null, ancho: ancho || null, alto: alto || null,
-                diamboca: diamboca || null, diambase: diambase || null, espesor: espesor || null,
+                capacidad, largo: normalizarFisico("largo") || null, ancho: normalizarFisico("ancho") || null, alto: normalizarFisico("alto") || null,
+                diamboca: normalizarFisico("diamboca") || null, diambase: normalizarFisico("diambase") || null, espesor: normalizarFisico("espesor") || null,
                 costo: costoNum, iva, stock: stock !== "" ? stock : null, moq: moq !== "" ? moq : null,
                 tagReposicion: tagReposicion || null, tag: tag || null,
                 marcaId, origenId, clasifGralId, clasifGastroId, tipoId, proveedorId, materialId, sectorDepositoId, mlaId: mlaIdFinal,
@@ -963,6 +963,24 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     };
     const formatNumberUnit = (num: string, unidad: string): string =>
         num ? (unidad ? `${num} ${unidad}` : num) : "";
+    // Unidad efectiva de una dimensión: la del valor guardado; si no trae, la que declara ML (ficha de la
+    // categoría); sino el default local. Misma lógica que el selector de renderFisico, para que lo que se VE se GUARDE.
+    const unidadDe = (key: FisicoKey): string => {
+        const enValor = fisicoValues[key].replace(/^\s*-?\d+(?:[.,]\d+)?\s*/, "").trim();
+        if (enValor) return enValor;
+        const mlDef = Object.entries(ML_DIM_MAP)
+            .filter(([, m]) => m.fisico === key)
+            .map(([attrId]) => fichaAttrById.get(attrId))
+            .find(d => d?.valueType === "number_unit" && d.allowedUnits.length > 0);
+        const unidades = mlDef ? mlDef.allowedUnits : FISICO_UNITS[key];
+        return mlDef?.defaultUnit || unidades[0] || "";
+    };
+    // Valor de una dimensión numérica normalizado para persistir: "<num> <unidad>". Garantiza que la unidad
+    // mostrada en el selector se guarde aunque el usuario no toque el campo (bug: largo/ancho/alto sin unidad).
+    const normalizarFisico = (key: FisicoKey): string => {
+        const n = parseNumero(fisicoValues[key]);
+        return n ? formatNumberUnit(n, unidadDe(key)) : "";
+    };
 
     // Actualiza solo el estado del atributo ML (sin tocar las dimensiones físicas).
     const setAtributoCore = (id: string, valueName: string, valueId: string | null = null) => {
@@ -1443,7 +1461,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             .map(([attrId]) => fichaAttrById.get(attrId))
             .find(d => d?.valueType === "number_unit" && d.allowedUnits.length > 0);
         const unidades = mlDef ? mlDef.allowedUnits : FISICO_UNITS[key];
-        const unidadActual = value.replace(/^\s*-?\d+(?:[.,]\d+)?\s*/, "").trim() || mlDef?.defaultUnit || unidades[0];
+        const unidadActual = unidadDe(key);
         // Si el valor guardado trae una unidad que ML ya no ofrece, la incluimos igual para que el
         // select no quede en blanco (y el usuario vea/cambie la unidad real persistida).
         const unidadesMostradas = unidadActual && !unidades.includes(unidadActual) ? [...unidades, unidadActual] : unidades;

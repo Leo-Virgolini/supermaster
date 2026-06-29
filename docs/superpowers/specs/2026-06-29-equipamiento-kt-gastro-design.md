@@ -9,9 +9,9 @@ Al subir un producto a **Tienda Nube — canal KT GASTRO**, si el producto es de
 
 ## Alcance
 
-Solo **backend**, y solo el canal **KT GASTRO** (alta y actualización). No afecta KT HOGAR, Mercado Libre, Dux, ni el dato persistido del producto.
+Solo el canal **KT GASTRO**. **Backend:** aplica el sufijo del título y el bullet al subir (alta y actualización). **Frontend:** muestra un aviso informativo en el modal de producto (crear/editar) cuando el producto es EQUIPAMIENTO y KT GASTRO está seleccionado. No afecta KT HOGAR, Mercado Libre, Dux, ni el dato persistido del producto.
 
-**Fuera de alcance:** KT HOGAR; cambiar la categoría/resolución de Nube; UI.
+**Fuera de alcance:** KT HOGAR; cambiar la categoría/resolución de Nube.
 
 ## Global Constraints
 
@@ -44,6 +44,13 @@ Se reutiliza el patrón de campos `@Transient` ya usado en `Producto`:
 
 El título Nube es un campo **compartido** entre tiendas; por eso el `*` se aplica **al construir el payload de GASTRO** (vía el flag transient), sin tocar el valor guardado ni el payload de KT HOGAR.
 
+## Frontend — aviso en el modal
+
+En el modal de producto (crear/editar), cuando **KT GASTRO está seleccionado** (`subirKtGastro`) **y** el producto es EQUIPAMIENTO, se muestra un **aviso informativo** (no bloqueante) indicando que, al subir a KT GASTRO, se le agregará `*` al final del título y un bullet "ENVIO A COTIZAR" a la descripción.
+
+- **Detección en el front (espejo del backend):** se toma la ruta jerárquica de la clasificación de Nube del producto —la **gastronómica** si tiene (`clasifGastroDisplay`, formato "ABUELO > PADRE > HIJO"), sino la **general** (`clasifGralDisplay`)— se parte por `>` y se considera EQUIPAMIENTO si **algún segmento** (trim, case-insensitive) es exactamente "EQUIPAMIENTO".
+- **Ubicación:** dentro de la sección **Tienda Nube · KT GASTRO** (que ya solo se renderiza cuando `subirKtGastro` está tildado). Es solo presentación; no cambia validación ni el envío (el backend es la fuente de verdad).
+
 ## Manejo de errores / bordes
 
 - Producto sin clasif gastro ni general → `esEquipamiento` = false (no aplica).
@@ -58,3 +65,4 @@ El título Nube es un campo **compartido** entre tiendas; por eso el `*` se apli
   - `NubeEquipamiento.descripcionConBullet`: agrega el bullet si eq; idempotente (no duplica); no toca si `!eq`; maneja desc null/vacía.
   - `NubeProductoPayloadBuilder` (alta): con flag true, `name` termina en `*` y `description.es` contiene "ENVIO A COTIZAR"; con flag false, no.
 - Ajustar tests existentes de `NubeProductoPayloadBuilder` si el flag default (false) cambia algo (no debería: default false = comportamiento actual).
+- Frontend: `npx tsc --noEmit` exit 0; verificación manual: con KT GASTRO tildado y un producto EQUIPAMIENTO, aparece el aviso; si no es EQUIPAMIENTO o KT GASTRO no está tildado, no aparece.

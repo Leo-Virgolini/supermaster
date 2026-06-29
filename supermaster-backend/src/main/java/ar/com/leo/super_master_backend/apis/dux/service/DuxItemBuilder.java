@@ -56,6 +56,7 @@ public class DuxItemBuilder {
         if (p.getUxb() != null) {
             item.put("ctd_unidades_por_bulto", p.getUxb());
         }
+        // El campo "descripcion" de Dux se usa como descripción corta del ítem: va el título de Nube.
         if (p.getTituloNube() != null && !p.getTituloNube().isBlank()) {
             item.put("descripcion", p.getTituloNube());
         }

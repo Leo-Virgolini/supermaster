@@ -40,10 +40,18 @@ public class EstadoPublicacionService {
         Producto p = productoRepository.findById(productoId)
                 .orElseThrow(() -> new NotFoundException("Producto no encontrado"));
 
-        // --- ML: una sola GET del ítem, reutilizada para estado y datos ---
-        String mlaCode = p.getMla() != null ? p.getMla().getMla() : null;
+        // --- ML: el MLA se resuelve por SKU contra la API (no desde la BD), para reflejar la
+        // publicación REAL y vigente (status=active). Un id_mla guardado puede estar stale/mal
+        // vinculado y apuntar a un ítem que sigue activo aunque la publicación real se haya borrado.
+        String mlaCode = null;
+        boolean mlError = false;
+        try {
+            mlaCode = resolverMlaPorSku(p.getSku());
+        } catch (Exception e) {
+            mlError = true;
+        }
         JsonNode mlItem = (mlaCode != null && !mlaCode.isBlank()) ? mercadoLibreService.leerItemRaw(mlaCode) : null;
-        EstadoCanalDTO ml = estadoMl(mlaCode, mlItem);
+        EstadoCanalDTO ml = mlError ? EstadoCanalDTO.ofError() : estadoMl(mlaCode, mlItem);
         String descMl = (mlaCode != null && !mlaCode.isBlank()) ? mercadoLibreService.leerDescripcionMl(mlaCode) : null;
 
         // --- Nube: una sola GET por tienda, reutilizada para estado y descripción ---
@@ -78,6 +86,12 @@ public class EstadoPublicacionService {
                 descripcionNube(gastroProd));
 
         return new EstadoPublicacionDTO(ml, hogar, gastro, dux, datos);
+    }
+
+    /** Resuelve el código MLA real por SKU contra la API de ML (filtra status=active). Null si no hay publicación activa. */
+    private String resolverMlaPorSku(String sku) {
+        var hallado = mercadoLibreService.buscarMlaPorSku(sku);
+        return hallado != null ? hallado.mla() : null;
     }
 
     private EstadoCanalDTO estadoMl(String mlaCode, JsonNode item) {
@@ -118,7 +132,9 @@ public class EstadoPublicacionService {
     private CanalAplicado aplicarMl(Producto p, String estado) {
         if (!"active".equals(estado) && !"paused".equals(estado))
             return new CanalAplicado(false, "Estado inválido");
-        String mla = p.getMla() != null ? p.getMla().getMla() : null;
+        String mla;
+        try { mla = resolverMlaPorSku(p.getSku()); }
+        catch (Exception e) { return new CanalAplicado(false, "Error consultando Mercado Libre"); }
         if (mla == null || mla.isBlank())
             return new CanalAplicado(false, "Sin publicación en Mercado Libre");
         boolean ok = mercadoLibreService.updateItemStatus(mla, estado);

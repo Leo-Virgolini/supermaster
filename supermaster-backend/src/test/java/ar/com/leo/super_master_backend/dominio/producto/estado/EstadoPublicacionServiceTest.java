@@ -44,6 +44,7 @@ class EstadoPublicacionServiceTest {
     void leer_cruzaMlYLasDosTiendas() {
         Producto p = producto("MLA123", "ABC");
         when(repo.findById(1)).thenReturn(Optional.of(p));
+        when(ml.buscarMlaPorSku("ABC")).thenReturn(new MercadoLibreService.MlaPorSku("MLA123", null));
         when(ml.leerItemRaw("MLA123")).thenReturn(json("""
             {"status":"active","price":100,"available_quantity":3,"attributes":[]}"""));
         when(ml.leerDescripcionMl("MLA123")).thenReturn(null);
@@ -72,6 +73,7 @@ class EstadoPublicacionServiceTest {
     void leer_sinMla_mlNoPublicado() {
         Producto p = producto(null, "ABC");
         when(repo.findById(1)).thenReturn(Optional.of(p));
+        when(ml.buscarMlaPorSku("ABC")).thenReturn(null); // sin publicación activa en ML
         when(nube.buscarProductoPorSku(anyString(), anyString())).thenReturn(null);
         when(dux.obtenerProductoPorCodigo("ABC")).thenThrow(new RuntimeException("no encontrado"));
 
@@ -85,6 +87,7 @@ class EstadoPublicacionServiceTest {
     void aplicar_soloLosCanalesPresentes() {
         Producto p = producto("MLA123", "ABC");
         when(repo.findById(1)).thenReturn(Optional.of(p));
+        when(ml.buscarMlaPorSku("ABC")).thenReturn(new MercadoLibreService.MlaPorSku("MLA123", null));
         when(nube.buscarProductoPorSku("ABC", TiendaNubeService.STORE_HOGAR)).thenReturn(json("""
             {"id":5,"published":false,"variants":[{"id":9}]}"""));
         when(ml.updateItemStatus("MLA123", "paused")).thenReturn(true);

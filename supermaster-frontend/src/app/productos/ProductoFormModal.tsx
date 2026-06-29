@@ -1450,6 +1450,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             case "paused": return <PauseCircleIcon className="h-4 w-4 shrink-0 text-amber-500" />;
             case "visible": return <EyeIcon className="h-4 w-4 shrink-0 text-emerald-500" />;
             case "oculta": return <EyeSlashIcon className="h-4 w-4 shrink-0 text-slate-400" />;
+            case "habilitado": return <CheckCircleIcon className="h-5 w-5 shrink-0 text-emerald-500" />;
+            case "deshabilitado": return <MinusCircleIcon className="h-5 w-5 shrink-0 text-slate-400" />;
             default: return null;
         }
     };
@@ -1485,18 +1487,6 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                           <div className="flex justify-between gap-1">
                               <span className="text-slate-400">Stock</span>
                               <span className="font-medium text-slate-600 dark:text-slate-300">{canal.stock}</span>
-                          </div>
-                      )}
-                      {canal.peso && (
-                          <div className="flex justify-between gap-1">
-                              <span className="text-slate-400">Peso</span>
-                              <span className="font-medium text-slate-600 dark:text-slate-300">{canal.peso}</span>
-                          </div>
-                      )}
-                      {canal.dimensiones && (
-                          <div className="col-span-2 flex justify-between gap-1">
-                              <span className="text-slate-400">Dim.</span>
-                              <span className="font-medium text-slate-600 dark:text-slate-300">{canal.dimensiones}</span>
                           </div>
                       )}
                   </div>
@@ -1547,7 +1537,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.canales}`}>
                         <legend className={sectionTitleClassName}><BuildingStorefrontIcon className="h-5 w-5" /> Estado de publicación</legend>
                         <p className={`${sectionDescriptionClassName} mb-3`}>Estado real de cada publicación (se aplica al guardar).</p>
-                        <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
+                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
                             {renderEstadoCanal("Mercado Libre", estadoCanales?.ml,
                                 <select className={`${selectBaseClassName} w-full`} value={estadoCanales?.ml.estado ?? "active"}
                                     onChange={e => setEstadoCanales(p => p && ({ ...p, ml: { ...p.ml, estado: e.target.value } }))}>
@@ -1569,6 +1559,11 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                     <option value="oculta">Oculta</option>
                                 </select>,
                                 <FireIcon className="h-5 w-5 shrink-0 text-emerald-500" />, estadoCanales?.gastro.estado ?? "visible")}
+                            {renderEstadoCanal("Dux", estadoCanales?.dux,
+                                <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
+                                    {estadoCanales?.dux.estado === "habilitado" ? "Habilitado" : "Deshabilitado"}
+                                </span>,
+                                <BuildingStorefrontIcon className="h-5 w-5 shrink-0 text-slate-500" />, estadoCanales?.dux.estado ?? undefined)}
                         </div>
                     </fieldset>
                     )}

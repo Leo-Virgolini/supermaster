@@ -60,11 +60,12 @@ class DuxItemBuilderTest {
         assertThat(m).containsEntry("id_moneda", 1);
         assertThat(m).containsEntry("porc_iva", 21.0);
         assertThat(m).containsEntry("costo", 1000.5);
-        assertThat(m).containsEntry("id_proveedor", 77);
+        // PRUEBA (debug): id_proveedor e id_unidad_medida deshabilitados temporalmente.
+        assertThat(m).doesNotContainKey("id_proveedor");
         assertThat(m).containsEntry("id_rubro", 10);
         assertThat(m).containsEntry("id_sub_rubro", 20);
         assertThat(m).containsEntry("codigo_marca", "MARCA-1");
-        assertThat(m).containsEntry("id_unidad_medida", 5);
+        assertThat(m).doesNotContainKey("id_unidad_medida");
         assertThat(m).containsEntry("cod_barra", "7791234567890");
         assertThat(m).containsEntry("codigo_externo", "EXT-001");
         assertThat(m).containsEntry("stockeable", "S");

@@ -35,15 +35,17 @@ public class DuxItemBuilder {
         // Opcionales (se omiten si null/blank)
         if (p.getIva() != null) item.put("porc_iva", p.getIva().doubleValue());
         if (p.getCosto() != null) item.put("costo", p.getCosto().doubleValue());
-        if (p.getProveedor() != null && p.getProveedor().getIdDux() != null) {
-            item.put("id_proveedor", p.getProveedor().getIdDux());
-        }
+        // PRUEBA (debug): id_proveedor e id_unidad_medida deshabilitados temporalmente para
+        // descartar que sean la causa del fallo al crear/editar un producto en Dux. Revertir.
+        // if (p.getProveedor() != null && p.getProveedor().getIdDux() != null) {
+        //     item.put("id_proveedor", p.getProveedor().getIdDux());
+        // }
         if (p.getMarca() != null && p.getMarca().getCodigoDux() != null && !p.getMarca().getCodigoDux().isBlank()) {
             item.put("codigo_marca", p.getMarca().getCodigoDux());
         }
-        if (p.getSectorDeposito() != null && p.getSectorDeposito().getIdDux() != null) {
-            item.put("id_unidad_medida", p.getSectorDeposito().getIdDux());
-        }
+        // if (p.getSectorDeposito() != null && p.getSectorDeposito().getIdDux() != null) {
+        //     item.put("id_unidad_medida", p.getSectorDeposito().getIdDux());
+        // }
         if (p.getEan() != null && !p.getEan().isBlank()) {
             item.put("cod_barra", p.getEan().trim());
         }

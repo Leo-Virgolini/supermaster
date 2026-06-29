@@ -62,16 +62,17 @@ class DuxItemBuilderTest {
         assertThat(m).containsEntry("id_moneda", 1);
         assertThat(m).containsEntry("porc_iva", 21.0);
         assertThat(m).containsEntry("costo", 1000.5);
-        // PRUEBA (debug): id_proveedor e id_unidad_medida deshabilitados temporalmente.
-        assertThat(m).doesNotContainKey("id_proveedor");
+        assertThat(m).containsEntry("id_proveedor", 77);
         assertThat(m).containsEntry("id_rubro", 10);
         assertThat(m).containsEntry("id_sub_rubro", 20);
         assertThat(m).containsEntry("codigo_marca", "MARCA-1");
+        // PRUEBA (debug): id_unidad_medida deshabilitado temporalmente.
         assertThat(m).doesNotContainKey("id_unidad_medida");
         assertThat(m).containsEntry("cod_barra", "7791234567890");
         assertThat(m).containsEntry("codigo_externo", "EXT-001");
         assertThat(m).containsEntry("ctd_unidades_por_bulto", 6);
-        assertThat(m).containsEntry("stock", 100);
+        // stock NO se manda a Dux (es por depósito); el producto tiene stock=100 pero no va en el payload.
+        assertThat(m).doesNotContainKey("stock");
         assertThat(m).containsEntry("stockeable", "S");
         assertThat(m).containsEntry("acepta_stock_negativo", "S");
         assertThat(m).containsEntry("habilitado", "S");

@@ -37,14 +37,14 @@ public class DuxItemBuilder {
         // Opcionales (se omiten si null/blank)
         if (p.getIva() != null) item.put("porc_iva", p.getIva().doubleValue());
         if (p.getCosto() != null) item.put("costo", p.getCosto().doubleValue());
-        // PRUEBA (debug): id_proveedor e id_unidad_medida deshabilitados temporalmente para
-        // descartar que sean la causa del fallo al crear/editar un producto en Dux. Revertir.
-        // if (p.getProveedor() != null && p.getProveedor().getIdDux() != null) {
-        //     item.put("id_proveedor", p.getProveedor().getIdDux());
-        // }
+        if (p.getProveedor() != null && p.getProveedor().getIdDux() != null) {
+            item.put("id_proveedor", p.getProveedor().getIdDux());
+        }
         if (p.getMarca() != null && p.getMarca().getCodigoDux() != null && !p.getMarca().getCodigoDux().isBlank()) {
             item.put("codigo_marca", p.getMarca().getCodigoDux());
         }
+        // PRUEBA (debug): id_unidad_medida deshabilitado temporalmente para descartar que sea la
+        // causa del fallo al crear/editar un producto en Dux. Revertir tras la prueba.
         // if (p.getSectorDeposito() != null && p.getSectorDeposito().getIdDux() != null) {
         //     item.put("id_unidad_medida", p.getSectorDeposito().getIdDux());
         // }
@@ -56,11 +56,6 @@ public class DuxItemBuilder {
         }
         if (p.getUxb() != null) {
             item.put("ctd_unidades_por_bulto", p.getUxb());
-        }
-        // Tentativo: el stock en Dux es por depósito (no hay campo escalar en nuevoItem); puede ser
-        // ignorado. Se manda como prueba; si no toma, el stock va por el endpoint de ajuste de stock.
-        if (p.getStock() != null) {
-            item.put("stock", p.getStock());
         }
         if (p.getTituloNube() != null && !p.getTituloNube().isBlank()) {
             item.put("descripcion", p.getTituloNube());

@@ -1626,8 +1626,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                         <label htmlFor="subirADux" className="flex-1 cursor-pointer select-none">Sincronizar con Dux</label>
                                         <Tooltip content={(
                                             <>
-                                                Sube o actualiza en Dux (alta o actualización): título, costo, IVA, rubro/subrubro, marca, proveedor, sector de depósito, y habilita o deshabilita según el flag Activo.
-                                                <span className="mt-1 block text-red-300">No se suben a Dux: UxB, stock, código externo, imágenes ni el precio de venta (a Dux va el costo).</span>
+                                                Sube o actualiza en Dux (alta o actualización): título, costo, IVA, rubro/subrubro, marca, proveedor, sector de depósito, código de barras, código externo, unidades por bulto (UxB), y habilita o deshabilita según el flag Activo.
+                                                <span className="mt-1 block text-red-300">No se suben a Dux: stock, imágenes ni el precio de venta (a Dux va el costo).</span>
                                             </>
                                         )} className="flex items-center">
                                             <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />

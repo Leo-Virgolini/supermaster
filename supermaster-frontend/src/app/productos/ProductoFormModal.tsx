@@ -1722,15 +1722,17 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={activo} onChange={e => setActivo(e.target.checked)} id="activo" />
                                 <label htmlFor="activo" className="cursor-pointer select-none">Activo</label>
                             </div>
-                            <div className={checkboxCardClassName}>
-                                <Squares2X2Icon className="h-5 w-5 shrink-0 text-violet-500" />
-                                <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={esCombo} onChange={e => handleToggleCombo(e.target.checked)} id="esCombo" />
-                                <label htmlFor="esCombo" className="cursor-pointer select-none">Es Combo</label>
-                            {editandoProductoId && esCombo !== esComboOriginal && (
-                                <p className="mt-1 w-full text-xs font-medium text-amber-600 dark:text-amber-400">
-                                    ⚠ Cambiar "Es combo" no modifica el SKU: se mantiene el actual y no se reasigna al rango de SKUs de simple/combo.
-                                </p>
-                            )}
+                            <div className="flex flex-col items-start gap-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200">
+                                <div className="flex items-center gap-3">
+                                    <Squares2X2Icon className="h-5 w-5 shrink-0 text-violet-500" />
+                                    <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={esCombo} onChange={e => handleToggleCombo(e.target.checked)} id="esCombo" />
+                                    <label htmlFor="esCombo" className="cursor-pointer select-none">Es Combo</label>
+                                </div>
+                                {editandoProductoId && esCombo !== esComboOriginal && (
+                                    <p className="w-full text-xs font-medium text-amber-600 dark:text-amber-400">
+                                        ⚠ Cambiar "Es combo" no modifica el SKU: se mantiene el actual y no se reasigna al rango de SKUs de simple/combo.
+                                    </p>
+                                )}
                             </div>
                             {/* Identificadores */}
                             <label className="block">
@@ -1988,7 +1990,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         <legend className={sectionTitleClassName}><ShoppingBagIcon /> MercadoLibre</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Publicación de MercadoLibre (MLA) asociada al producto.</p>
                         <div className="mb-4 grid grid-cols-1">
-                            <label className="block md:col-span-2">
+                            <label className="block">
                                 <span className="flex items-center justify-between gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
                                     <span>Título ML{subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
                                     {maxTitleLengthMl != null && (
@@ -2207,6 +2209,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                             <label className="block">
                                 <span className={fieldLabelClassName}>Título Nube</span>
                                 <input type="text" className={`${inputBaseClassName} ${formErrors.tituloNube ? inputErrorClassName : ""}`} value={tituloNube} onChange={e => { setTituloNube(e.target.value); if (formErrors.tituloNube) setFormErrors(p => ({ ...p, tituloNube: "" })); }} placeholder="Título para Tienda Nube" />
+                                {formErrors.tituloNube && <p className="mt-1 text-xs text-red-500">{formErrors.tituloNube}</p>}
                                 <span className="mt-0.5 block text-[11px] text-slate-400 dark:text-slate-500">Compartido entre KT HOGAR y KT GASTRO.</span>
                             </label>
                             {renderSeoNube("HOGAR", "KT Hogar", subirKtHogar, seoHogar, setSeoHogar)}
@@ -2233,6 +2236,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                             <label className="block">
                                 <span className={fieldLabelClassName}>Título Nube</span>
                                 <input type="text" className={`${inputBaseClassName} ${formErrors.tituloNube ? inputErrorClassName : ""}`} value={tituloNube} onChange={e => { setTituloNube(e.target.value); if (formErrors.tituloNube) setFormErrors(p => ({ ...p, tituloNube: "" })); }} placeholder="Título para Tienda Nube" />
+                                {formErrors.tituloNube && <p className="mt-1 text-xs text-red-500">{formErrors.tituloNube}</p>}
                                 <span className="mt-0.5 block text-[11px] text-slate-400 dark:text-slate-500">Compartido entre KT HOGAR y KT GASTRO.</span>
                             </label>
                             {renderSeoNube("GASTRO", "KT Gastro", subirKtGastro, seoGastro, setSeoGastro)}

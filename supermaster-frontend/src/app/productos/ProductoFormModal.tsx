@@ -38,6 +38,7 @@ import { PreciosInfladosSection, type PrecioInfladoDraft } from "./PreciosInflad
 import { HistorialSection } from "./HistorialSection";
 import { ProductoCreateDTO, ProductoDTO, ProductoPatchDTO } from "./types";
 import { formatFechaAR } from "../utils/formatDate";
+import HtmlEditor from "./HtmlEditor";
 
 
 type CanalExport = "Dux" | "Tienda Nube" | "Mercado Libre";
@@ -1497,6 +1498,40 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         </div>
     );
 
+    const renderSeoNube = (
+        canal: "HOGAR" | "GASTRO",
+        titulo: string,
+        activoCanal: boolean,
+        seo: { title: string; description: string; tags: string },
+        setSeo: React.Dispatch<React.SetStateAction<{ title: string; description: string; tags: string }>>,
+    ) => (
+        <div className={`rounded-2xl border border-slate-200 bg-white/70 p-4 transition-opacity dark:border-slate-700 dark:bg-slate-800/60 ${activoCanal ? "" : "opacity-50"}`}>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">SEO · {titulo}</span>
+                <Button variant="dark" onClick={() => generarSeo(canal)} disabled={generandoSeo.has(canal) || !activoCanal}>
+                    {generandoSeo.has(canal) ? <SpinnerIcon /> : <SparklesIcon className="h-4 w-4" />}
+                    {generandoSeo.has(canal) ? "Generando..." : "Generar SEO con IA"}
+                </Button>
+            </div>
+            <div className="grid grid-cols-1 gap-3">
+                <label className="block">
+                    <span className={fieldLabelClassName}>SEO Title</span>
+                    <input type="text" maxLength={70} disabled={!activoCanal} className={`${inputBaseClassName} disabled:cursor-not-allowed disabled:opacity-60`} value={seo.title} onChange={e => setSeo(p => ({ ...p, title: e.target.value }))} placeholder="Título SEO" />
+                    <span className="mt-1 block text-right text-xs text-slate-400">{seo.title.length}/70</span>
+                </label>
+                <label className="block">
+                    <span className={fieldLabelClassName}>SEO Description</span>
+                    <textarea maxLength={320} rows={3} disabled={!activoCanal} className={`${inputBaseClassName} disabled:cursor-not-allowed disabled:opacity-60`} value={seo.description} onChange={e => setSeo(p => ({ ...p, description: e.target.value }))} placeholder="Descripción SEO" />
+                    <span className="mt-1 block text-right text-xs text-slate-400">{seo.description.length}/320</span>
+                </label>
+                <label className="block">
+                    <span className={fieldLabelClassName}>Tags</span>
+                    <input type="text" disabled={!activoCanal} className={`${inputBaseClassName} disabled:cursor-not-allowed disabled:opacity-60`} value={seo.tags} onChange={e => setSeo(p => ({ ...p, tags: e.target.value }))} placeholder="tag1, tag2, ..." />
+                </label>
+            </div>
+        </div>
+    );
+
     return (
         <>
             {/* MODAL CREAR / EDITAR PRODUCTO */}
@@ -1719,58 +1754,6 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 <input type="text" className={`${inputBaseClassName} ${formErrors.tituloDux ? inputErrorClassName : ""}`} value={tituloDux} onChange={e => { setTituloDux(e.target.value); if (formErrors.tituloDux) setFormErrors(p => ({ ...p, tituloDux: "" })); }} placeholder="Título principal (Dux)" required />
                                 {formErrors.tituloDux && <p className="mt-1 text-xs text-red-500">{formErrors.tituloDux}</p>}
                             </label>
-                            <label className="block md:col-span-2">
-                                <span className="flex items-center justify-between gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                                    <span>Título ML{subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
-                                    {maxTitleLengthMl != null && (
-                                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ${
-                                            tituloMl.length >= maxTitleLengthMl
-                                                ? "bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-400"
-                                                : tituloMl.length >= maxTitleLengthMl * 0.9
-                                                    ? "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
-                                                    : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"}`}>
-                                            {tituloMl.length}/{maxTitleLengthMl}
-                                        </span>
-                                    )}
-                                </span>
-                                <input type="text" className={`${inputBaseClassName} ${formErrors.tituloMl ? inputErrorClassName : ""}`} value={tituloMl} onChange={e => { setTituloMl(e.target.value); if (formErrors.tituloMl) setFormErrors(p => ({ ...p, tituloMl: "" })); }} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handlePredecirCategoriasMl(); } }} placeholder="Título para Mercado Libre" maxLength={maxTitleLengthMl ?? undefined} />
-                                {formErrors.tituloMl && <p className="mt-1 text-xs text-red-500">{formErrors.tituloMl}</p>}
-                                <div className="mt-2 flex flex-col gap-2">
-                                    <div className="flex items-center gap-2">
-                                        <Button variant="dark" onClick={handlePredecirCategoriasMl} disabled={!tituloMl.trim() || cargandoPrediccionesMl}>
-                                            <TagIcon className="w-4 h-4" /> {cargandoPrediccionesMl ? "Prediciendo..." : "Predecir categorías"}
-                                        </Button>
-                                        {mlCategoryId && (
-                                            <span title={mlCategoryNombre || String(mlCategoryId)} className="inline-block max-w-full rounded-lg border border-yellow-300 bg-yellow-50 px-2 py-1 text-xs font-medium leading-relaxed text-yellow-800 dark:border-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300">
-                                                {pathConHojaResaltada(mlCategoryNombre || String(mlCategoryId))}
-                                                <button type="button" onClick={() => { setMlCategoryId(null); setMlCategoryNombre(null); setPrediccionesMl([]); }} className="ml-1 align-middle font-bold leading-none text-yellow-600 hover:text-red-500 dark:text-yellow-400" aria-label="Quitar categoría">×</button>
-                                            </span>
-                                        )}
-                                    </div>
-                                    {prediccionesMl.length > 0 && (
-                                        <div className="flex flex-wrap gap-1.5">
-                                            {prediccionesMl.map(p => (
-                                                <button
-                                                    key={p.categoryId}
-                                                    type="button"
-                                                    onClick={() => { setMlCategoryId(p.categoryId); setMlCategoryNombre(p.categoryPath || p.categoryName); setPrediccionesMl([]); if (formErrors.mlCategory) setFormErrors(prev => ({ ...prev, mlCategory: "" })); }}
-                                                    className={`rounded-lg border px-2 py-1 text-left text-xs transition-colors ${mlCategoryId === p.categoryId ? "border-yellow-400 bg-yellow-100 text-yellow-900" : "border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-100 dark:border-blue-700 dark:bg-blue-900/20 dark:text-blue-200 dark:hover:bg-blue-800/40"}`}
-                                                >
-                                                    {pathConHojaResaltada(p.categoryPath || p.categoryName)} <span className="text-blue-400 dark:text-blue-300/70">({p.categoryId})</span>
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
-                                    {formErrors.mlCategory
-                                        ? <p className="text-xs text-red-500">{formErrors.mlCategory}</p>
-                                        : <p className="text-xs text-slate-500 dark:text-slate-400">Si cargás Título ML, es obligatorio elegir una categoría: predecí (o Enter) y seleccioná una de las opciones.</p>}
-                                </div>
-                            </label>
-                            <label className="block md:col-span-2">
-                                <span className={fieldLabelClassName}>Título Nube{(subirKtHogar || subirKtGastro) && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
-                                <input type="text" className={`${inputBaseClassName} ${formErrors.tituloNube ? inputErrorClassName : ""}`} value={tituloNube} onChange={e => { setTituloNube(e.target.value); if (formErrors.tituloNube) setFormErrors(p => ({ ...p, tituloNube: "" })); }} placeholder="Título para Tienda Nube" />
-                                {formErrors.tituloNube && <p className="mt-1 text-xs text-red-500">{formErrors.tituloNube}</p>}
-                            </label>
 
                             {/* Imágenes del SKU (solo lectura; click → carousel con todas) */}
                             <div className="block xl:col-span-4">
@@ -1839,6 +1822,19 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                         )}
                                     </div>
                                 )}
+                            </div>
+                        </div>
+                        {/* EAN / Código de barras */}
+                        <div className="mt-4 border-t border-slate-200/70 pt-4 dark:border-slate-700/70">
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                <label className="block">
+                                    <span className={fieldLabelClassName}>EAN / Código universal</span>
+                                    <input type="text" inputMode="numeric" className={inputBaseClassName} value={ean}
+                                        onChange={e => setEan(e.target.value)} placeholder="Código de barras (8–14 dígitos)" />
+                                    {ean.trim() && !gtinValido(ean) && (
+                                        <span className="mt-0.5 block text-[11px] text-amber-600">Código de barras inválido (8/12/13/14 dígitos + dígito verificador). No se enviará a ML.</span>
+                                    )}
+                                </label>
                             </div>
                         </div>
                     </fieldset>
@@ -1991,6 +1987,55 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.ml}`}>
                         <legend className={sectionTitleClassName}><ShoppingBagIcon /> MercadoLibre</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Publicación de MercadoLibre (MLA) asociada al producto.</p>
+                        <div className="mb-4 grid grid-cols-1">
+                            <label className="block md:col-span-2">
+                                <span className="flex items-center justify-between gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                    <span>Título ML{subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
+                                    {maxTitleLengthMl != null && (
+                                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ${
+                                            tituloMl.length >= maxTitleLengthMl
+                                                ? "bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-400"
+                                                : tituloMl.length >= maxTitleLengthMl * 0.9
+                                                    ? "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
+                                                    : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"}`}>
+                                            {tituloMl.length}/{maxTitleLengthMl}
+                                        </span>
+                                    )}
+                                </span>
+                                <input type="text" className={`${inputBaseClassName} ${formErrors.tituloMl ? inputErrorClassName : ""}`} value={tituloMl} onChange={e => { setTituloMl(e.target.value); if (formErrors.tituloMl) setFormErrors(p => ({ ...p, tituloMl: "" })); }} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handlePredecirCategoriasMl(); } }} placeholder="Título para Mercado Libre" maxLength={maxTitleLengthMl ?? undefined} />
+                                {formErrors.tituloMl && <p className="mt-1 text-xs text-red-500">{formErrors.tituloMl}</p>}
+                                <div className="mt-2 flex flex-col gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <Button variant="dark" onClick={handlePredecirCategoriasMl} disabled={!tituloMl.trim() || cargandoPrediccionesMl}>
+                                            <TagIcon className="w-4 h-4" /> {cargandoPrediccionesMl ? "Prediciendo..." : "Predecir categorías"}
+                                        </Button>
+                                        {mlCategoryId && (
+                                            <span title={mlCategoryNombre || String(mlCategoryId)} className="inline-block max-w-full rounded-lg border border-yellow-300 bg-yellow-50 px-2 py-1 text-xs font-medium leading-relaxed text-yellow-800 dark:border-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300">
+                                                {pathConHojaResaltada(mlCategoryNombre || String(mlCategoryId))}
+                                                <button type="button" onClick={() => { setMlCategoryId(null); setMlCategoryNombre(null); setPrediccionesMl([]); }} className="ml-1 align-middle font-bold leading-none text-yellow-600 hover:text-red-500 dark:text-yellow-400" aria-label="Quitar categoría">×</button>
+                                            </span>
+                                        )}
+                                    </div>
+                                    {prediccionesMl.length > 0 && (
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {prediccionesMl.map(p => (
+                                                <button
+                                                    key={p.categoryId}
+                                                    type="button"
+                                                    onClick={() => { setMlCategoryId(p.categoryId); setMlCategoryNombre(p.categoryPath || p.categoryName); setPrediccionesMl([]); if (formErrors.mlCategory) setFormErrors(prev => ({ ...prev, mlCategory: "" })); }}
+                                                    className={`rounded-lg border px-2 py-1 text-left text-xs transition-colors ${mlCategoryId === p.categoryId ? "border-yellow-400 bg-yellow-100 text-yellow-900" : "border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-100 dark:border-blue-700 dark:bg-blue-900/20 dark:text-blue-200 dark:hover:bg-blue-800/40"}`}
+                                                >
+                                                    {pathConHojaResaltada(p.categoryPath || p.categoryName)} <span className="text-blue-400 dark:text-blue-300/70">({p.categoryId})</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {formErrors.mlCategory
+                                        ? <p className="text-xs text-red-500">{formErrors.mlCategory}</p>
+                                        : <p className="text-xs text-slate-500 dark:text-slate-400">Si cargás Título ML, es obligatorio elegir una categoría: predecí (o Enter) y seleccioná una de las opciones.</p>}
+                                </div>
+                            </label>
+                        </div>
                         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                             <span className="text-xs">
                                 {mlaCodigo.trim()
@@ -2050,39 +2095,33 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                             </label>
                         </div>
 
-                        {/* Descripciones por canal (no se guardan; se leen del canal al abrir y se envían al publicar) */}
+                        {/* Descripción ML (no se guarda; se lee del canal al abrir y se envía al publicar) */}
                         <div className="mt-6 border-t border-slate-200/70 pt-4 dark:border-slate-700/70">
-                            {([
-                                { label: "Descripción Mercado Libre", canal: "ml" as const, value: descripcionMl, set: setDescripcionMl, hint: "Texto plano (sin HTML). Lo que ves es lo que se publica en ML." },
-                                { label: "Descripción Nube · KT HOGAR", canal: "nube" as const, value: descripcionHogar, set: setDescripcionHogar, hint: "Acepta HTML. Lo que ves es lo que se publica en KT HOGAR." },
-                                { label: "Descripción Nube · KT GASTRO", canal: "nube" as const, value: descripcionGastro, set: setDescripcionGastro, hint: "Acepta HTML. Lo que ves es lo que se publica en KT GASTRO." },
-                            ]).map(d => (
-                                <label key={d.label} className="mb-4 block">
-                                    <span className="flex items-center justify-between gap-2">
-                                        <span className={fieldLabelClassName}>{d.label}</span>
-                                        <button type="button" disabled={sugiriendoDesc || !editandoProductoId}
-                                            className="text-xs font-medium text-blue-600 hover:underline disabled:opacity-50 dark:text-blue-400"
-                                            onClick={async () => {
-                                                if (!editandoProductoId) return;
-                                                setSugiriendoDesc(true);
-                                                try {
-                                                    const txt = await getDescripcionSugeridaAPI(editandoProductoId, d.canal);
-                                                    d.set(txt);
-                                                } catch (e) {
-                                                    if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "No se pudo componer la descripción");
-                                                } finally {
-                                                    setSugiriendoDesc(false);
-                                                }
-                                            }}>
-                                            Componer descripción sugerida
-                                        </button>
-                                    </span>
-                                    <textarea className={inputBaseClassName} value={d.value} onChange={e => d.set(e.target.value)} rows={4} maxLength={20000} placeholder={d.hint} />
-                                    <span className="mt-0.5 block text-[11px] text-slate-400 dark:text-slate-500">{d.hint}</span>
-                                </label>
-                            ))}
+                            <label className="block">
+                                <span className="flex items-center justify-between gap-2">
+                                    <span className={fieldLabelClassName}>Descripción Mercado Libre</span>
+                                    <button type="button" disabled={sugiriendoDesc || !editandoProductoId}
+                                        className="text-xs font-medium text-blue-600 hover:underline disabled:opacity-50 dark:text-blue-400"
+                                        onClick={async () => {
+                                            if (!editandoProductoId) return;
+                                            setSugiriendoDesc(true);
+                                            try { setDescripcionMl(await getDescripcionSugeridaAPI(editandoProductoId, "ml")); }
+                                            catch (e) { if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "No se pudo componer la descripción"); }
+                                            finally { setSugiriendoDesc(false); }
+                                        }}>
+                                        Componer descripción sugerida
+                                    </button>
+                                </span>
+                                {cargandoEstado
+                                    ? <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-800/60"><SpinnerIcon /> Cargando datos del canal…</div>
+                                    : <textarea className={inputBaseClassName} value={descripcionMl} onChange={e => setDescripcionMl(e.target.value)} rows={4} maxLength={20000} disabled={cargandoEstado} placeholder="Texto plano (sin HTML). Lo que ves es lo que se publica en ML." />}
+                            </label>
                         </div>
 
+                        {/* Indicador de carga para categoría y ficha ML */}
+                        {cargandoEstado && (
+                            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-800/60"><SpinnerIcon /> Cargando categoría y ficha técnica del canal…</div>
+                        )}
                         {/* Ficha técnica de la categoría ML (Variante / Principales / Secundarias) */}
                         {mlCategoryId && mlFicha && mlFicha.secciones.length > 0 && (
                             <div className="mt-6 border-t border-slate-200/70 pt-4 dark:border-slate-700/70">
@@ -2142,19 +2181,6 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                             </div>
                         </div>
 
-                        {/* EAN / Código de barras */}
-                        <div className="mt-6 border-t border-slate-200/70 pt-4 dark:border-slate-700/70">
-                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                                <label className="block">
-                                    <span className={fieldLabelClassName}>EAN / Código universal</span>
-                                    <input type="text" inputMode="numeric" className={inputBaseClassName} value={ean}
-                                        onChange={e => setEan(e.target.value)} placeholder="Código de barras (8–14 dígitos)" />
-                                    {ean.trim() && !gtinValido(ean) && (
-                                        <span className="mt-0.5 block text-[11px] text-amber-600">Código de barras inválido (8/12/13/14 dígitos + dígito verificador). No se enviará a ML.</span>
-                                    )}
-                                </label>
-                            </div>
-                        </div>
                     </fieldset>
 
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.dimensiones}`}>
@@ -2174,45 +2200,57 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         </div>
                     </fieldset>
 
-                    {/* Precios inflados por canal: en edición opera en vivo; en alta se difiere al crear */}
-                    {(subirKtHogar || subirKtGastro) && (
-                        <fieldset className={`${sectionClassName} ${SECTION_TINT.seo}`}>
-                            <legend className={sectionTitleClassName}><BuildingStorefrontIcon className="h-5 w-5" /> SEO de Tienda Nube</legend>
-                            <p className={`${sectionDescriptionClassName} mb-4`}>Title, descripción y tags para SEO. Generalos con IA o editalos a mano. Si los dejás vacíos, se generan automáticamente al subir.</p>
-                            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                                {([
-                                    ["HOGAR", "KT Hogar", subirKtHogar, seoHogar, setSeoHogar] as const,
-                                    ["GASTRO", "KT Gastro", subirKtGastro, seoGastro, setSeoGastro] as const,
-                                ]).map(([canal, titulo, activoCanal, seo, setSeo]) => (
-                                    <div key={canal} className={`rounded-2xl border border-slate-200 bg-white/70 p-4 transition-opacity dark:border-slate-700 dark:bg-slate-800/60 ${activoCanal ? "" : "opacity-50"}`}>
-                                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{titulo}</span>
-                                            <Button variant="dark" onClick={() => generarSeo(canal)} disabled={generandoSeo.has(canal) || !activoCanal}>
-                                                {generandoSeo.has(canal) ? <SpinnerIcon /> : <SparklesIcon className="h-4 w-4" />}
-                                                {generandoSeo.has(canal) ? "Generando..." : "Generar SEO con IA"}
-                                            </Button>
-                                        </div>
-                                        <div className="grid grid-cols-1 gap-3">
-                                            <label className="block">
-                                                <span className={fieldLabelClassName}>SEO Title</span>
-                                                <input type="text" maxLength={70} disabled={!activoCanal} className={`${inputBaseClassName} disabled:cursor-not-allowed disabled:opacity-60`} value={seo.title} onChange={e => setSeo(p => ({ ...p, title: e.target.value }))} placeholder="Título SEO" />
-                                                <span className="mt-1 block text-right text-xs text-slate-400">{seo.title.length}/70</span>
-                                            </label>
-                                            <label className="block">
-                                                <span className={fieldLabelClassName}>SEO Description</span>
-                                                <textarea maxLength={320} rows={3} disabled={!activoCanal} className={`${inputBaseClassName} disabled:cursor-not-allowed disabled:opacity-60`} value={seo.description} onChange={e => setSeo(p => ({ ...p, description: e.target.value }))} placeholder="Descripción SEO" />
-                                                <span className="mt-1 block text-right text-xs text-slate-400">{seo.description.length}/320</span>
-                                            </label>
-                                            <label className="block">
-                                                <span className={fieldLabelClassName}>Tags</span>
-                                                <input type="text" disabled={!activoCanal} className={`${inputBaseClassName} disabled:cursor-not-allowed disabled:opacity-60`} value={seo.tags} onChange={e => setSeo(p => ({ ...p, tags: e.target.value }))} placeholder="tag1, tag2, ..." />
-                                            </label>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </fieldset>
-                    )}
+                    {/* TIENDA NUBE · KT HOGAR */}
+                    <fieldset className={`${sectionClassName} ${SECTION_TINT.seo}`}>
+                        <legend className={sectionTitleClassName}><BuildingStorefrontIcon className="h-5 w-5" /> Tienda Nube · KT HOGAR</legend>
+                        <div className="grid grid-cols-1 gap-4">
+                            <label className="block">
+                                <span className={fieldLabelClassName}>Título Nube</span>
+                                <input type="text" className={`${inputBaseClassName} ${formErrors.tituloNube ? inputErrorClassName : ""}`} value={tituloNube} onChange={e => { setTituloNube(e.target.value); if (formErrors.tituloNube) setFormErrors(p => ({ ...p, tituloNube: "" })); }} placeholder="Título para Tienda Nube" />
+                                <span className="mt-0.5 block text-[11px] text-slate-400 dark:text-slate-500">Compartido entre KT HOGAR y KT GASTRO.</span>
+                            </label>
+                            {renderSeoNube("HOGAR", "KT Hogar", subirKtHogar, seoHogar, setSeoHogar)}
+                            <label className="block">
+                                <span className="flex items-center justify-between gap-2">
+                                    <span className={fieldLabelClassName}>Descripción · KT HOGAR</span>
+                                    <button type="button" disabled={sugiriendoDesc || !editandoProductoId}
+                                        className="text-xs font-medium text-blue-600 hover:underline disabled:opacity-50 dark:text-blue-400"
+                                        onClick={async () => { if (!editandoProductoId) return; setSugiriendoDesc(true); try { setDescripcionHogar(await getDescripcionSugeridaAPI(editandoProductoId, "nube")); } catch (e) { if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "No se pudo componer la descripción"); } finally { setSugiriendoDesc(false); } }}>
+                                        Componer descripción sugerida
+                                    </button>
+                                </span>
+                                {cargandoEstado
+                                    ? <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-800/60"><SpinnerIcon /> Cargando datos del canal…</div>
+                                    : <HtmlEditor value={descripcionHogar} onChange={setDescripcionHogar} placeholder="HTML. Lo que ves es lo que se publica en KT HOGAR." />}
+                            </label>
+                        </div>
+                    </fieldset>
+
+                    {/* TIENDA NUBE · KT GASTRO */}
+                    <fieldset className={`${sectionClassName} ${SECTION_TINT.seo}`}>
+                        <legend className={sectionTitleClassName}><BuildingStorefrontIcon className="h-5 w-5" /> Tienda Nube · KT GASTRO</legend>
+                        <div className="grid grid-cols-1 gap-4">
+                            <label className="block">
+                                <span className={fieldLabelClassName}>Título Nube</span>
+                                <input type="text" className={`${inputBaseClassName} ${formErrors.tituloNube ? inputErrorClassName : ""}`} value={tituloNube} onChange={e => { setTituloNube(e.target.value); if (formErrors.tituloNube) setFormErrors(p => ({ ...p, tituloNube: "" })); }} placeholder="Título para Tienda Nube" />
+                                <span className="mt-0.5 block text-[11px] text-slate-400 dark:text-slate-500">Compartido entre KT HOGAR y KT GASTRO.</span>
+                            </label>
+                            {renderSeoNube("GASTRO", "KT Gastro", subirKtGastro, seoGastro, setSeoGastro)}
+                            <label className="block">
+                                <span className="flex items-center justify-between gap-2">
+                                    <span className={fieldLabelClassName}>Descripción · KT GASTRO</span>
+                                    <button type="button" disabled={sugiriendoDesc || !editandoProductoId}
+                                        className="text-xs font-medium text-blue-600 hover:underline disabled:opacity-50 dark:text-blue-400"
+                                        onClick={async () => { if (!editandoProductoId) return; setSugiriendoDesc(true); try { setDescripcionGastro(await getDescripcionSugeridaAPI(editandoProductoId, "nube")); } catch (e) { if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "No se pudo componer la descripción"); } finally { setSugiriendoDesc(false); } }}>
+                                        Componer descripción sugerida
+                                    </button>
+                                </span>
+                                {cargandoEstado
+                                    ? <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-800/60"><SpinnerIcon /> Cargando datos del canal…</div>
+                                    : <HtmlEditor value={descripcionGastro} onChange={setDescripcionGastro} placeholder="HTML. Lo que ves es lo que se publica en KT GASTRO." />}
+                            </label>
+                        </div>
+                    </fieldset>
 
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.inflados}`}>
                         <legend className={sectionTitleClassName}><BanknotesIcon /> Precios Inflados por Canal</legend>

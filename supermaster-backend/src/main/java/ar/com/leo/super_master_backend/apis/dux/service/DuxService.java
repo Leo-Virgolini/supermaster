@@ -449,7 +449,7 @@ public class DuxService {
         String response = retryHandler.get("/items?codigoItem=" + URLEncoder.encode(codItem, StandardCharsets.UTF_8), tokens.token);
 
         if (response == null) {
-            return null;
+            throw new RuntimeException("No se pudo consultar el ítem en Dux (sin respuesta)");
         }
 
         try {
@@ -460,11 +460,12 @@ public class DuxService {
                         .filter(i -> codItem.equals(i.getCodItem()))
                         .findFirst().orElse(null);
             }
+            return null; // no encontrado
+        } catch (RuntimeException e) {
+            throw e;
         } catch (Exception e) {
-            log.error("DUX - Error obteniendo producto {}", codItem, e);
+            throw new RuntimeException("No se pudo parsear la respuesta de Dux: " + e.getMessage(), e);
         }
-
-        return null;
     }
 
     // =====================================================

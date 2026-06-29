@@ -1941,7 +1941,7 @@ public class MercadoLibreService {
     }
 
     /** Path completo "Padre > ... > Hoja" de una categoría (null si no se puede obtener). */
-    String obtenerCategoriaPath(String categoryId) {
+    public String obtenerCategoriaPath(String categoryId) {
         if (categoryId == null || categoryId.isBlank()) return null;
         try {
             String body = retryHandler.get("/categories/" + categoryId, () -> tokens.accessToken);

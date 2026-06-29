@@ -77,9 +77,12 @@ public class EstadoPublicacionService {
         // --- Dux ---
         EstadoCanalDTO dux = estadoDux(p.getSku());
 
+        String mlCatId = MlDatosParser.categoryId(mlItem);
+        String mlCatNombre = (mlCatId != null && !mlCatId.isBlank()) ? mercadoLibreService.obtenerCategoriaPath(mlCatId) : null;
+
         DatosCanalDTO datos = new DatosCanalDTO(
-                MlDatosParser.categoryId(mlItem),
-                null, // nombre de categoría no viene en /items/{id}
+                mlCatId,
+                mlCatNombre,
                 MlDatosParser.atributos(mlItem),
                 descMl,
                 descripcionNube(hogarProd),

@@ -16,7 +16,10 @@ public final class NubeEstadoParser {
         JsonNode variant = product.path("variants").path(0);
 
         String precioStr = variant.path("price").asString(null);
-        BigDecimal precio = precioStr != null ? new BigDecimal(precioStr) : null;
+        BigDecimal precio = null;
+        if (precioStr != null && !precioStr.isBlank()) {
+            try { precio = new BigDecimal(precioStr.trim()); } catch (NumberFormatException ignored) {}
+        }
         JsonNode stockN = variant.path("stock");
         Integer stock = stockN.isNumber() ? stockN.asInt() : null;
         String pesoStr = variant.path("weight").asString(null);

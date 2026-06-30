@@ -29,6 +29,7 @@ import {
 } from "./productosService";
 import { updateProductoMargenAPI } from "./productoMargenService";
 import { getCuotasPorCanalAPI } from "../canal-concepto-cuotas/canalConceptoCuotaService";
+import { getImagenConfigAPI, getSeoConfigAPI } from "../config-ia/seoService";
 import ImagenesCarousel from "./ImagenesCarousel";
 import {
     getProductoAptosAPI, getProductoCatalogosAPI, getProductoClientesAPI,
@@ -316,6 +317,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const [crudaElegida, setCrudaElegida] = useState<string | null>(null);
     const [faseCaratula, setFaseCaratula] = useState("");
     const [duracionCaratula, setDuracionCaratula] = useState<number | null>(null);
+    const [modelImagen, setModelImagen] = useState<string>("");
+    const [modelSeo, setModelSeo] = useState<string>("");
 
     // Carga las cuotas reales de cada canal (KT HOGAR / KT GASTRO / ML) para poblar los
     // selectores. Si un canal no se encuentra o no tiene cuotas, su select queda solo con la
@@ -685,6 +688,9 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                     if (!esSesionExpirada(e)) notificar.error("No se pudieron cargar catálogos/aptos/clientes del producto");
                 }
             })();
+
+            getImagenConfigAPI().then(c => setModelImagen(c.model)).catch(() => {});
+            getSeoConfigAPI().then(c => setModelSeo(c.model)).catch(() => {});
 
             setCargandoEstado(true);
             setMlaResuelto(null);
@@ -1374,6 +1380,10 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             notificar.success("Carátula guardada");
             getImagenDetalleAPI(sku.trim()).then(setImagenesDetectadas).catch(() => {});
             setCaratulaCacheBust(c => c + 1);
+            setSelectorCaratulaAbierto(false);
+            setCrudasDisp(null);
+            setCrudaElegida(null);
+            setDuracionCaratula(null);
         } catch (e) {
             if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "No se pudo guardar la carátula");
         } finally {
@@ -1661,10 +1671,18 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         <div className="rounded-2xl border border-slate-200 bg-white/70 p-4 dark:border-slate-700 dark:bg-slate-800/60">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">SEO · {titulo}</span>
-                <Button variant="dark" onClick={() => generarSeo(canal)} disabled={generandoSeo.has(canal)}>
-                    {generandoSeo.has(canal) ? <SpinnerIcon /> : <SparklesIcon className="h-4 w-4" />}
-                    {generandoSeo.has(canal) ? "Generando..." : "Generar SEO con IA"}
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Button variant="dark" onClick={() => generarSeo(canal)} disabled={generandoSeo.has(canal)}>
+                        {generandoSeo.has(canal) ? <SpinnerIcon /> : <SparklesIcon className="h-4 w-4" />}
+                        {generandoSeo.has(canal) ? "Generando..." : "Generar SEO con IA"}
+                    </Button>
+                    {modelSeo && (
+                        <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">
+                            Modelo: {modelSeo}{" "}
+                            <a href="/config-ia?tab=seo" target="_blank" rel="noreferrer" className="text-blue-600 hover:underline dark:text-blue-400">config</a>
+                        </span>
+                    )}
+                </div>
             </div>
             <div className="grid grid-cols-1 gap-3">
                 <label className="block">
@@ -1943,9 +1961,17 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 {editandoProductoId && (
                                     <div className="mt-2">
                                         {!caratulaPreview && !selectorCaratulaAbierto && (
-                                            <Button variant="dark" onClick={abrirSelectorCaratula} disabled={generandoCaratula}>
-                                                <SparklesIcon className="h-4 w-4" /> Mejorar carátula con IA
-                                            </Button>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <Button variant="dark" onClick={abrirSelectorCaratula} disabled={generandoCaratula}>
+                                                    <SparklesIcon className="h-4 w-4" /> Mejorar carátula con IA
+                                                </Button>
+                                                {modelImagen && (
+                                                    <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">
+                                                        Modelo: {modelImagen}{" "}
+                                                        <a href="/config-ia?tab=caratula" target="_blank" rel="noreferrer" className="text-blue-600 hover:underline dark:text-blue-400">config</a>
+                                                    </span>
+                                                )}
+                                            </div>
                                         )}
                                         {selectorCaratulaAbierto && !caratulaPreview && (
                                             <div className="mt-3 rounded-2xl border border-slate-200 p-3 dark:border-slate-700">

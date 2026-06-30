@@ -977,9 +977,10 @@ public class MercadoLibreService {
             // Si falló con item_id, intentar con dimensions como fallback
             String dimensions = producto.getDimensions();
             if (dimensions != null && !dimensions.isBlank()) {
-                log.info("ML - Reintentando cálculo de envío para {} usando dimensions...", itemId);
+                log.info("ML - Reintentando cálculo de envío para {} usando dimensions='{}'...", itemId, dimensions);
+                // Coma cruda (sin URL-encode): ML no decodifica %2C en este endpoint → "Invalid format".
                 String dimUri = String.format("/users/%s/shipping_options/free?dimensions=%s%s",
-                        userId, URLEncoder.encode(dimensions, StandardCharsets.UTF_8), baseParams);
+                        userId, dimensions, baseParams);
                 responseBody = retryHandler.get(dimUri, () -> tokens.accessToken);
             }
 
@@ -1074,8 +1075,10 @@ public class MercadoLibreService {
         String params = String.format(
                 "&item_price=%s&listing_type_id=%s&mode=%s&condition=new&logistic_type=%s&zip_code=%s&verbose=true&free_shipping=true&category_id=%s",
                 itemPrice, listingType, SHIPPING_MODE_ME2, logisticType, zipCode, categoryId);
+        // La coma que separa el peso debe ir CRUDA: ML no decodifica %2C en este endpoint y lo toma como
+        // "Invalid format". `dimensions` solo tiene dígitos, 'x' y ',' (válidos en query), así que no se encodea.
         String uri = String.format("/users/%s/shipping_options/free?dimensions=%s%s",
-                userId, URLEncoder.encode(dimensions, StandardCharsets.UTF_8), params);
+                userId, dimensions, params);
 
         String body;
         try {

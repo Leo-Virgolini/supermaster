@@ -717,6 +717,11 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                     if (e.datos.nubeProfundidad != null) setNubeProfundidad(e.datos.nubeProfundidad);
                     if (e.datos.nubeAncho != null) setNubeAncho(e.datos.nubeAncho);
                     if (e.datos.nubeAlto != null) setNubeAlto(e.datos.nubeAlto);
+                    if (e.datos.nubeTitulo != null) setTituloNube(e.datos.nubeTitulo);
+                    if (e.datos.mlPaqAlto  != null) setMlPaqAlto(e.datos.mlPaqAlto);
+                    if (e.datos.mlPaqAncho != null) setMlPaqAncho(e.datos.mlPaqAncho);
+                    if (e.datos.mlPaqLargo != null) setMlPaqLargo(e.datos.mlPaqLargo);
+                    if (e.datos.mlPaqPeso  != null) setMlPaqPeso(e.datos.mlPaqPeso);
                     if (e.datos.mlCategoryId) {
                         setMlCategoryId(e.datos.mlCategoryId);
                         setMlCategoryNombre(e.datos.mlCategoryNombre);

@@ -546,6 +546,11 @@ export type DatosCanal = {
 	nubeProfundidad: string | null;
 	nubeAncho: string | null;
 	nubeAlto: string | null;
+	nubeTitulo: string | null;
+	mlPaqAlto: number | null;
+	mlPaqAncho: number | null;
+	mlPaqLargo: number | null;
+	mlPaqPeso: number | null;
 };
 export type EstadoPublicacion = { ml: EstadoCanal; hogar: EstadoCanal; gastro: EstadoCanal; dux: EstadoCanal; datos: DatosCanal };
 export type EstadoPublicacionUpdate = { ml?: string | null; hogar?: boolean | null; gastro?: boolean | null };

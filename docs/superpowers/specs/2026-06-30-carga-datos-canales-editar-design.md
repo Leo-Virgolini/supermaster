@@ -26,7 +26,7 @@ Problemas a resolver:
 - Alcance del Tema B cerrado en B1 + B2 + B3 (no hay más cambios pendientes).
 - B3: **todo desde el canal**, incluido el **título** (deja de venir del producto al editar).
 - **El canal manda con fallback al producto (solo en la pre-carga):** al abrir, cuando el canal trae el dato pisa el valor cargado del producto; si el producto no está publicado en ese canal (dato null), se conserva el valor del producto. Consistente con cómo ya se cargan categoría/descripción de ML.
-- **Al guardar: BD + publicación.** `tituloNube` y `mlPaq*` se persisten en la BD del producto (los usan listado/columnas/historial) **y** se propagan a la publicación del canal mediante el flujo "actualizar al editar" ya existente. *Verificar que ese flujo ya manda estos campos al canal; si falta alguno, incluirlo en el plan.* No se quita la persistencia en BD.
+- **Al guardar: BD + publicación.** `tituloNube` y `mlPaq*` se persisten en la BD del producto (los usan listado/columnas/historial) **y** se propagan a la publicación del canal mediante el flujo "actualizar al editar" ya existente. **Verificado para ML:** `actualizarItemEnMlCore` ([MercadoLibreService.java:2029-2032](../../../supermaster-backend/src/main/java/ar/com/leo/super_master_backend/apis/ml/service/MercadoLibreService.java#L2029-L2032)) ya manda las dimensiones del paquete vía `MlItemPayloadBuilder.construirAtributos` (lee de `producto.getMlPaq*`). Para Nube, el título se actualiza en el mismo flujo. No se quita la persistencia en BD; **no hay trabajo de guardado nuevo** en este spec (solo pre-carga + indicadores).
 
 ---
 

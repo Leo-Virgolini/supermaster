@@ -110,6 +110,7 @@ const gtinValido = (codigo: string): boolean => {
 const EXT_ML = new Set(["jpg", "jpeg", "png"]);
 const EXT_NUBE = new Set(["gif", "jpg", "jpeg", "png", "webp"]);
 const MAX_BYTES_IMG = 10 * 1024 * 1024; // 10 MB
+const BULLET_COTIZAR = "<ul><li>ENVIO A COTIZAR</li></ul>";
 
 // Resalta en negrita el último segmento (la categoría hoja) de un path "A > B > C".
 function pathConHojaResaltada(path: string) {
@@ -287,14 +288,14 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
 
     // EQUIPAMIENTO + KT GASTRO: la Descripción · KT GASTRO siempre incluye el bullet "ENVIO A COTIZAR"
     // (espejo de lo que el backend agrega al publicar, idempotente). Se quita si deja de aplicar.
-    const BULLET_COTIZAR = "<ul><li>ENVIO A COTIZAR</li></ul>";
+    // descripcionGastro va en deps a propósito: reasegura el bullet tras editar/componer (es obligatorio para EQUIPAMIENTO+GASTRO).
     useEffect(() => {
         if (cargandoEstado) return; // esperar a que cargue la descripción del canal
         const debe = esEquipamiento && subirKtGastro;
         setDescripcionGastro(prev => {
             const tiene = prev.includes("ENVIO A COTIZAR");
             if (debe && !tiene) return prev + BULLET_COTIZAR;
-            if (!debe && tiene) return prev.replace(BULLET_COTIZAR, "");
+            if (!debe && tiene) return prev.replaceAll(BULLET_COTIZAR, "");
             return prev;
         });
     }, [esEquipamiento, subirKtGastro, cargandoEstado, descripcionGastro]);

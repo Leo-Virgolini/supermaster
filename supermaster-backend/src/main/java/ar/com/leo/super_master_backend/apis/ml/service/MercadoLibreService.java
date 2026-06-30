@@ -557,7 +557,9 @@ public class MercadoLibreService {
         String body = retryHandler.get(uri, () -> tokens.accessToken);
         if (body == null) return BigDecimal.ZERO;
         try {
-            return parseMeliPercentageFee(objectMapper.readTree(body), listingTypeId);
+            BigDecimal comision = parseMeliPercentageFee(objectMapper.readTree(body), listingTypeId);
+            log.info("ML - comisión cat={} price={} → {}%", categoryId, price.setScale(0, java.math.RoundingMode.HALF_UP), comision);
+            return comision;
         } catch (Exception e) {
             log.warn("ML - No se pudo parsear listing_prices para categoria {}: {}", categoryId, e.getMessage());
             return BigDecimal.ZERO;
@@ -1095,6 +1097,8 @@ public class MercadoLibreService {
         try {
             double cost = objectMapper.readTree(body)
                     .path("coverage").path("all_country").path("list_cost").asDouble(0);
+            log.info("ML - envío SKU {}: list_cost(conIVA)={} (dimensions='{}', pvp={})",
+                    producto.getSku(), cost, dimensions, pvp);
             return cost > 0 ? BigDecimal.valueOf(cost) : BigDecimal.ZERO;
         } catch (Exception e) {
             log.warn("ML - consultarEnvioConIvaSinItem: error parseando respuesta para SKU {}: {}",

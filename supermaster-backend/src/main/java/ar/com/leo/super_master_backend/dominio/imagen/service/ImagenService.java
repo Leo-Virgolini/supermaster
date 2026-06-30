@@ -180,6 +180,39 @@ public class ImagenService {
         return null;
     }
 
+    /**
+     * Lista las imágenes crudas del SKU en la carpeta cruda (rawDir): principal ({sku}.ext) primero,
+     * luego adicionales ({sku}_N.ext) por N ascendente. Ante varias extensiones de un slot, gana la de
+     * mayor prioridad (jpg primero). Lista vacía si no hay. Case-insensitive.
+     */
+    public List<String> resolverCrudasPorSku(String sku) {
+        validarNombreSeguro(sku);
+        if (!Files.isDirectory(rawDir)) {
+            return List.of();
+        }
+        String skuLower = sku.trim().toLowerCase(Locale.ROOT);
+        TreeMap<Integer, String> porSlot = new TreeMap<>();
+        try (Stream<Path> entries = Files.list(rawDir)) {
+            for (Path p : (Iterable<Path>) entries::iterator) {
+                if (!Files.isRegularFile(p)) continue;
+                String nombre = p.getFileName().toString();
+                if (!esImagen(nombre)) continue;
+                int dot = nombre.lastIndexOf('.');
+                if (dot <= 0) continue;
+                String base = nombre.substring(0, dot).toLowerCase(Locale.ROOT);
+                Integer slot = slotDe(base, skuLower);
+                if (slot == null) continue;
+                String existente = porSlot.get(slot);
+                if (existente == null || prioridadExtension(nombre) < prioridadExtension(existente)) {
+                    porSlot.put(slot, nombre);
+                }
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("No se pudo listar la carpeta cruda", e);
+        }
+        return List.copyOf(porSlot.values());
+    }
+
     /** Bytes de un archivo de la carpeta cruda. */
     public byte[] leerCrudaBytes(String filename) {
         validarNombreSeguro(filename);

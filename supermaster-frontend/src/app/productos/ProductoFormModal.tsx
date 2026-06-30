@@ -1531,18 +1531,12 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         }
     };
 
-    const renderEstadoCanal = (
-        label: string,
+    const renderEstadoBody = (
         canal: EstadoCanal | undefined,
         control: React.ReactNode,
-        icon: React.ReactNode,
         estadoSel?: string,
     ) => (
-        <div className="rounded-xl border border-slate-200 bg-white/70 p-2.5 dark:border-slate-700 dark:bg-slate-800/60">
-            <div className="mb-1.5 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                {icon}
-                <span className="truncate">{label}</span>
-            </div>
+        <div className="border-t border-slate-200/70 pt-2 dark:border-slate-700/60">
             {cargandoEstado ? <span className="text-xs text-slate-400">Leyendo estado…</span>
               : !canal || canal.error ? <span className="text-xs text-amber-600">No se pudo leer el estado</span>
               : !canal.publicado ? <span className="flex items-center gap-1 text-xs text-slate-400"><MinusCircleIcon className="h-4 w-4 shrink-0" /> No publicado</span>
@@ -1647,46 +1641,11 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                     )}
 
                     <div className={`flex-col gap-5 ${editandoProductoId && panelTab === "historial" ? "hidden" : "flex"}`}>
-                    {editandoProductoId && (
-                    <fieldset className={`${sectionClassName} ${SECTION_TINT.canales}`}>
-                        <legend className={sectionTitleClassName}><BuildingStorefrontIcon className="h-5 w-5" /> Estado de publicación</legend>
-                        <p className={`${sectionDescriptionClassName} mb-3`}>Estado real de cada publicación (se aplica al guardar).</p>
-                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
-                            {renderEstadoCanal("Dux", estadoCanales?.dux,
-                                <select className={`${selectBaseClassName} w-full`} value={estadoCanales?.dux.estado === "deshabilitado" ? "deshabilitado" : "habilitado"}
-                                    onChange={e => setEstadoCanales(p => p && ({ ...p, dux: { ...p.dux, estado: e.target.value } }))}>
-                                    <option value="habilitado">Habilitado</option>
-                                    <option value="deshabilitado">Deshabilitado</option>
-                                </select>,
-                                <BuildingStorefrontIcon className="h-5 w-5 shrink-0 text-slate-500" />, estadoCanales?.dux.estado ?? undefined)}
-                            {renderEstadoCanal("Nube · KT HOGAR", estadoCanales?.hogar,
-                                <select className={`${selectBaseClassName} w-full`} value={estadoCanales?.hogar.estado ?? "visible"}
-                                    onChange={e => setEstadoCanales(p => p && ({ ...p, hogar: { ...p.hogar, estado: e.target.value } }))}>
-                                    <option value="visible">Visible</option>
-                                    <option value="oculta">Oculta</option>
-                                </select>,
-                                <HomeIcon className="h-5 w-5 shrink-0 text-sky-500" />, estadoCanales?.hogar.estado ?? "visible")}
-                            {renderEstadoCanal("Nube · KT GASTRO", estadoCanales?.gastro,
-                                <select className={`${selectBaseClassName} w-full`} value={estadoCanales?.gastro.estado ?? "visible"}
-                                    onChange={e => setEstadoCanales(p => p && ({ ...p, gastro: { ...p.gastro, estado: e.target.value } }))}>
-                                    <option value="visible">Visible</option>
-                                    <option value="oculta">Oculta</option>
-                                </select>,
-                                <FireIcon className="h-5 w-5 shrink-0 text-emerald-500" />, estadoCanales?.gastro.estado ?? "visible")}
-                            {renderEstadoCanal("Mercado Libre", estadoCanales?.ml,
-                                <select className={`${selectBaseClassName} w-full`} value={estadoCanales?.ml.estado ?? "active"}
-                                    onChange={e => setEstadoCanales(p => p && ({ ...p, ml: { ...p.ml, estado: e.target.value } }))}>
-                                    <option value="active">Activa</option>
-                                    <option value="paused">Pausada</option>
-                                </select>,
-                                <ShoppingBagIcon className="h-5 w-5 shrink-0 text-yellow-500" />, estadoCanales?.ml.estado ?? "active")}
-                        </div>
-                    </fieldset>
-                    )}
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.canales}`}>
                         <legend className={sectionTitleClassName}><BuildingStorefrontIcon className="h-5 w-5" /> Canales de venta</legend>
-                        <p className={`${sectionDescriptionClassName} mb-4`}>Dónde publicar/subir el producto.</p>
+                        <p className={`${sectionDescriptionClassName} mb-4`}>Dónde publicar el producto y su estado en cada canal (se aplica al guardar).</p>
                         <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-4">
+                            {/* DUX */}
                             {canExportarDux && (
                                 <div className={canalCardClassName}>
                                     <div className="flex items-center gap-3">
@@ -1695,80 +1654,105 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                         <label htmlFor="subirADux" className="flex-1 cursor-pointer select-none">Sincronizar con Dux</label>
                                         <Tooltip content={(
                                             <>
-                                                Sube o actualiza en Dux (alta o actualización): título, costo, IVA, rubro/subrubro, marca, proveedor, código de barras, código externo, unidades por bulto (UxB), y habilita o deshabilita según el flag Activo.
+                                                Sube o actualiza en Dux (alta o actualización): título, costo, IVA, rubro/subrubro, marca, proveedor, código de barras, código externo, unidades por bulto (UxB), y habilita o deshabilita según el estado elegido.
                                                 <span className="mt-1 block text-red-300">No se suben a Dux: la unidad de medida / sector de depósito (la API de Dux no expone su id), el stock, las imágenes ni el precio de venta (a Dux va el costo).</span>
                                             </>
                                         )} className="flex items-center">
                                             <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
                                         </Tooltip>
                                     </div>
+                                    {editandoProductoId && renderEstadoBody(estadoCanales?.dux,
+                                        <select className={`${selectBaseClassName} w-full`} disabled={!subirADux} value={estadoCanales?.dux.estado === "deshabilitado" ? "deshabilitado" : "habilitado"}
+                                            onChange={e => setEstadoCanales(p => p && ({ ...p, dux: { ...p.dux, estado: e.target.value } }))}>
+                                            <option value="habilitado">Habilitado</option>
+                                            <option value="deshabilitado">Deshabilitado</option>
+                                        </select>,
+                                        estadoCanales?.dux.estado ?? undefined)}
                                 </div>
                             )}
+                            {/* KT HOGAR */}
                             <div className={canalCardClassName}>
                                 <div className="flex items-center gap-3">
                                     <HomeIcon className="h-5 w-5 shrink-0 text-sky-500" />
                                     <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirKtHogar} onChange={e => setSubirKtHogar(e.target.checked)} id="subirKtHogar" disabled={!canExportarDux} />
                                     <label htmlFor="subirKtHogar" className="flex-1 cursor-pointer select-none">Sincronizar con KT HOGAR (Nube)</label>
-                                    <Tooltip content="Sube o actualiza en Tienda Nube: título, descripción, precio (según el plan de cuotas), categorías e imágenes. El producto se sube oculto (no visible en la tienda); la visibilidad se controla manualmente en Nube. El flag 'Activo' no aplica a Nube." className="flex items-center">
+                                    <Tooltip content="Sube o actualiza en Tienda Nube: título, descripción, precio (según el plan de cuotas), categorías e imágenes. El producto se sube oculto (no visible en la tienda); la visibilidad se controla con el estado de esta tarjeta al editar." className="flex items-center">
                                         <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
                                     </Tooltip>
                                 </div>
-                                {subirKtHogar && (
-                                    <div className="flex items-center gap-2 border-t border-slate-200/70 pt-2 dark:border-slate-700/60">
-                                        <span className="text-xs font-normal text-slate-500 dark:text-slate-400">Cuota del precio</span>
-                                        <Tooltip content="Plan de cuotas del canal con el que se publica el precio en Tienda Nube (cada plan aplica su recargo/descuento de financiación)." className="flex-1">
-                                            <select className={`${selectBaseClassName} w-full`} value={cuotaHogar} onChange={e => setCuotaHogar(Number(e.target.value))}>
-                                                {opcionesConSeleccion(cuotasHogarOpts, cuotaHogar).map(c => (
-                                                    <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>
-                                                ))}
-                                            </select>
-                                        </Tooltip>
-                                    </div>
-                                )}
+                                {editandoProductoId && renderEstadoBody(estadoCanales?.hogar,
+                                    <select className={`${selectBaseClassName} w-full`} disabled={!subirKtHogar} value={estadoCanales?.hogar.estado ?? "visible"}
+                                        onChange={e => setEstadoCanales(p => p && ({ ...p, hogar: { ...p.hogar, estado: e.target.value } }))}>
+                                        <option value="visible">Visible</option>
+                                        <option value="oculta">Oculta</option>
+                                    </select>,
+                                    estadoCanales?.hogar.estado ?? "visible")}
+                                <div className="flex items-center gap-2 border-t border-slate-200/70 pt-2 dark:border-slate-700/60">
+                                    <span className="text-xs font-normal text-slate-500 dark:text-slate-400">Cuota del precio</span>
+                                    <Tooltip content="Plan de cuotas del canal con el que se publica el precio en Tienda Nube (cada plan aplica su recargo/descuento de financiación)." className="flex-1">
+                                        <select className={`${selectBaseClassName} w-full`} disabled={!subirKtHogar} value={cuotaHogar} onChange={e => setCuotaHogar(Number(e.target.value))}>
+                                            {opcionesConSeleccion(cuotasHogarOpts, cuotaHogar).map(c => (
+                                                <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>
+                                            ))}
+                                        </select>
+                                    </Tooltip>
+                                </div>
                             </div>
+                            {/* KT GASTRO */}
                             <div className={canalCardClassName}>
                                 <div className="flex items-center gap-3">
                                     <FireIcon className="h-5 w-5 shrink-0 text-emerald-500" />
                                     <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirKtGastro} onChange={e => setSubirKtGastro(e.target.checked)} id="subirKtGastro" disabled={!canExportarDux} />
                                     <label htmlFor="subirKtGastro" className="flex-1 cursor-pointer select-none">Sincronizar con KT GASTRO (Nube)</label>
-                                    <Tooltip content="Sube o actualiza en Tienda Nube: título, descripción, precio (según el plan de cuotas), categorías e imágenes. El producto se sube oculto (no visible en la tienda); la visibilidad se controla manualmente en Nube. El flag 'Activo' no aplica a Nube." className="flex items-center">
+                                    <Tooltip content="Sube o actualiza en Tienda Nube: título, descripción, precio (según el plan de cuotas), categorías e imágenes. El producto se sube oculto (no visible en la tienda); la visibilidad se controla con el estado de esta tarjeta al editar." className="flex items-center">
                                         <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
                                     </Tooltip>
                                 </div>
-                                {subirKtGastro && (
-                                    <div className="flex items-center gap-2 border-t border-slate-200/70 pt-2 dark:border-slate-700/60">
-                                        <span className="text-xs font-normal text-slate-500 dark:text-slate-400">Cuota del precio</span>
-                                        <Tooltip content="Plan de cuotas del canal con el que se publica el precio en Tienda Nube (cada plan aplica su recargo/descuento de financiación)." className="flex-1">
-                                            <select className={`${selectBaseClassName} w-full`} value={cuotaGastro} onChange={e => setCuotaGastro(Number(e.target.value))}>
-                                                {opcionesConSeleccion(cuotasGastroOpts, cuotaGastro).map(c => (
-                                                    <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>
-                                                ))}
-                                            </select>
-                                        </Tooltip>
-                                    </div>
-                                )}
+                                {editandoProductoId && renderEstadoBody(estadoCanales?.gastro,
+                                    <select className={`${selectBaseClassName} w-full`} disabled={!subirKtGastro} value={estadoCanales?.gastro.estado ?? "visible"}
+                                        onChange={e => setEstadoCanales(p => p && ({ ...p, gastro: { ...p.gastro, estado: e.target.value } }))}>
+                                        <option value="visible">Visible</option>
+                                        <option value="oculta">Oculta</option>
+                                    </select>,
+                                    estadoCanales?.gastro.estado ?? "visible")}
+                                <div className="flex items-center gap-2 border-t border-slate-200/70 pt-2 dark:border-slate-700/60">
+                                    <span className="text-xs font-normal text-slate-500 dark:text-slate-400">Cuota del precio</span>
+                                    <Tooltip content="Plan de cuotas del canal con el que se publica el precio en Tienda Nube (cada plan aplica su recargo/descuento de financiación)." className="flex-1">
+                                        <select className={`${selectBaseClassName} w-full`} disabled={!subirKtGastro} value={cuotaGastro} onChange={e => setCuotaGastro(Number(e.target.value))}>
+                                            {opcionesConSeleccion(cuotasGastroOpts, cuotaGastro).map(c => (
+                                                <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>
+                                            ))}
+                                        </select>
+                                    </Tooltip>
+                                </div>
                             </div>
+                            {/* MERCADO LIBRE */}
                             <div className={canalCardClassName}>
                                 <div className="flex items-center gap-3">
                                     <ShoppingBagIcon className="h-5 w-5 shrink-0 text-yellow-500" />
                                     <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirMl} onChange={e => setSubirMl(e.target.checked)} id="subirMl" disabled={!canExportarDux} />
                                     <label htmlFor="subirMl" className="flex-1 cursor-pointer select-none">Sincronizar con Mercado Libre</label>
-                                    <Tooltip content="Sube o actualiza en Mercado Libre: título (si no tiene ventas), descripción, precio (costo × 5), imágenes. El estado de la publicación (activa/pausada) se controla desde la sección &quot;Estado de publicación&quot; al editar. La categoría (la elegida o la que predice ML) se aplica solo al crear; no se modifica en publicaciones existentes." className="flex items-center">
+                                    <Tooltip content="Sube o actualiza en Mercado Libre: título (si no tiene ventas), descripción, precio, imágenes. El estado (activa/pausada) se controla con el estado de esta tarjeta al editar. La categoría (la elegida o la que predice ML) se aplica solo al crear; no se modifica en publicaciones existentes." className="flex items-center">
                                         <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
                                     </Tooltip>
                                 </div>
-                                {subirMl && (
-                                    <div className="flex items-center gap-2 border-t border-slate-200/70 pt-2 dark:border-slate-700/60">
-                                        <span className="text-xs font-normal text-slate-500 dark:text-slate-400">Cuota del precio</span>
-                                        <Tooltip content="Plan de cuotas con el que se publica el precio en Mercado Libre (cada plan aplica su recargo de financiación)." className="flex-1">
-                                            <select className={`${selectBaseClassName} w-full`} value={cuotaMl} onChange={e => setCuotaMl(Number(e.target.value))}>
-                                                {opcionesConSeleccion(cuotasMlOpts, cuotaMl).map(c => (
-                                                    <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>
-                                                ))}
-                                            </select>
-                                        </Tooltip>
-                                    </div>
-                                )}
+                                {editandoProductoId && renderEstadoBody(estadoCanales?.ml,
+                                    <select className={`${selectBaseClassName} w-full`} disabled={!subirMl} value={estadoCanales?.ml.estado ?? "active"}
+                                        onChange={e => setEstadoCanales(p => p && ({ ...p, ml: { ...p.ml, estado: e.target.value } }))}>
+                                        <option value="active">Activa</option>
+                                        <option value="paused">Pausada</option>
+                                    </select>,
+                                    estadoCanales?.ml.estado ?? "active")}
+                                <div className="flex items-center gap-2 border-t border-slate-200/70 pt-2 dark:border-slate-700/60">
+                                    <span className="text-xs font-normal text-slate-500 dark:text-slate-400">Cuota del precio</span>
+                                    <Tooltip content="Plan de cuotas con el que se publica el precio en Mercado Libre (cada plan aplica su recargo de financiación)." className="flex-1">
+                                        <select className={`${selectBaseClassName} w-full`} disabled={!subirMl} value={cuotaMl} onChange={e => setCuotaMl(Number(e.target.value))}>
+                                            {opcionesConSeleccion(cuotasMlOpts, cuotaMl).map(c => (
+                                                <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>
+                                            ))}
+                                        </select>
+                                    </Tooltip>
+                                </div>
                             </div>
                         </div>
                         {(() => {

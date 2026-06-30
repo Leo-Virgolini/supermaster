@@ -2,6 +2,7 @@ package ar.com.leo.super_master_backend.dominio.imagen.controller;
 
 import ar.com.leo.super_master_backend.apis.openai.dto.CaratulaGuardarDTO;
 import ar.com.leo.super_master_backend.apis.openai.dto.CaratulaGeneradaDTO;
+import ar.com.leo.super_master_backend.apis.openai.dto.CrudasDisponiblesDTO;
 import ar.com.leo.super_master_backend.dominio.imagen.service.GeneracionCaratula;
 import ar.com.leo.super_master_backend.config.Permisos;
 import ar.com.leo.super_master_backend.dominio.imagen.service.CaratulaService;
@@ -65,12 +66,31 @@ public class ImagenController {
 
     @PostMapping("/caratula/generar/{sku}")
     @PreAuthorize(Permisos.INTEGRACIONES_EDITAR)
-    public ResponseEntity<CaratulaGeneradaDTO> generarCaratula(@PathVariable String sku) {
-        GeneracionCaratula g = caratulaService.generar(sku);
+    public ResponseEntity<CaratulaGeneradaDTO> generarCaratula(@PathVariable String sku,
+                                                               @RequestParam(required = false) String cruda) {
+        GeneracionCaratula g = caratulaService.generar(sku, cruda);
         String generadaB64 = Base64.getEncoder().encodeToString(g.generada());
         String crudaB64 = Base64.getEncoder().encodeToString(g.cruda());
         return ResponseEntity.ok(new CaratulaGeneradaDTO(
                 generadaB64, caratulaService.formato(), crudaB64, subtipoMimeDe(g.crudaNombre())));
+    }
+
+    @GetMapping("/caratula/crudas/{sku}")
+    @PreAuthorize(Permisos.INTEGRACIONES_VER)
+    public ResponseEntity<CrudasDisponiblesDTO> crudas(@PathVariable String sku) {
+        return ResponseEntity.ok(new CrudasDisponiblesDTO(
+                imagenService.estadoCrudaDir(),
+                imagenService.estadoDestinoDir(),
+                imagenService.resolverCrudasPorSku(sku)));
+    }
+
+    @GetMapping("/cruda/{nombre}")
+    @PreAuthorize(Permisos.INTEGRACIONES_VER)
+    public ResponseEntity<byte[]> cruda(@PathVariable String nombre) {
+        byte[] bytes = imagenService.leerCrudaBytes(nombre);   // valida nombre seguro internamente
+        return ResponseEntity.ok()
+                .contentType(org.springframework.http.MediaType.parseMediaType("image/" + subtipoMimeDe(nombre)))
+                .body(bytes);
     }
 
     /** Subtipo MIME para data:image/{x} derivado de la extensión del archivo crudo (jpg→jpeg). */

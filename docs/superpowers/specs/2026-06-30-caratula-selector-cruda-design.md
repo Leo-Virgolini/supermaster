@@ -20,6 +20,7 @@ Las miniaturas de "Imágenes (por SKU)" que se ven en el modal salen de la **car
 2. **Progreso por fases:** durante la generación, mostrar texto que avanza por fases ("Preparando imagen…" → "Enviando a OpenAI…" → "Generando carátula…"), en lugar del "Generando…" fijo. Al terminar, mostrar el **tiempo que tardó** la generación.
 3. **Diagnóstico de carpeta:** mostrar si la carpeta cruda se encuentra y si hay acceso de lectura, y si la carpeta destino (donde se guarda la carátula) tiene acceso de escritura.
 4. **Select de modelo:** en la pantalla de config IA, convertir el campo "Modelo" de imagen (hoy texto plano) en un `select` con opciones predefinidas.
+5. **Resetear uso acumulado:** botón en la config IA para poner en cero los contadores de consumo (consultas, tokens, costo).
 
 ## Decisiones tomadas (brainstorming)
 
@@ -145,6 +146,25 @@ En [config-ia/page.tsx](../../../supermaster-frontend/src/app/config-ia/page.tsx
 
 ---
 
+### 6. Resetear uso acumulado (config IA)
+
+En la pantalla de Configuración IA, cada box **"USO DE IA … (ACUMULADO)"** tiene un botón **"Resetear"** que pone en cero los contadores de esa función (consultas, tokens entrada/salida, costo). La fila singleton (id=1) se conserva; solo se zeran sus valores.
+
+**Alcance:** el box de uso aparece en ambas pestañas (SEO y Carátula), así que se agrega el botón en **las dos**, cada una reseteando su propia tabla de uso. *(A confirmar por el usuario; si solo se quiere en Carátula, se omite el de SEO — es independiente.)*
+
+**Backend (simétrico para imagen y SEO):**
+
+- `ImagenUsoRepository.reset()` — `@Modifying @Query("UPDATE ImagenUso s SET s.consultas = 0, s.tokensEntrada = 0, s.tokensSalida = 0, s.costoUsd = 0 WHERE s.id = 1")` → devuelve `int` (filas afectadas).
+- `ImagenUsoService.reset()` — `@Transactional`; loguea warn si `reset() == 0` (fila ausente), igual que `registrar`.
+- Endpoint: `POST /api/imagen-ia/uso/reset` → `204 No Content`. `@PreAuthorize(Permisos.INTEGRACIONES_EDITAR)`.
+- Equivalente SEO: `SeoUsoRepository.reset()`, `SeoUsoService.reset()`, `POST /api/seo-ia/uso/reset`.
+
+**Frontend:**
+
+- [seoService.ts](../../../supermaster-frontend/src/app/config-ia/seoService.ts): `resetImagenUsoAPI()` y `resetSeoUsoAPI()`.
+- [useSeoIa.ts](../../../supermaster-frontend/src/app/config-ia/useSeoIa.ts): `resetImagenUso()` / `resetSeoUso()` que llaman al endpoint, refrescan el uso (re-fetch o set a ceros) y notifican éxito. Exponer flags `isResettingSeo` / `isResettingImagen` para deshabilitar el botón mientras corre.
+- [page.tsx](../../../supermaster-frontend/src/app/config-ia/page.tsx): botón "Resetear" en `usoBox`, con **confirmación previa** (es destructivo, no se puede deshacer). Usar el patrón de confirmación ya existente en el proyecto; si no hay uno, un `window.confirm` simple.
+
 ## Manejo de errores
 
 - **Carpeta cruda inexistente / sin lectura:** el endpoint de crudas no falla; devuelve `crudaDir.existe=false` (o `legible=false`) e `imagenes=[]`. El frontend muestra el diagnóstico y el mensaje "No hay imágenes crudas para este SKU".
@@ -163,7 +183,9 @@ En [config-ia/page.tsx](../../../supermaster-frontend/src/app/config-ia/page.tsx
 - `estadoDe(Path)`: carpeta existente legible/escribible; inexistente.
 - Endpoint crudas: forma del DTO; carpeta vacía.
 - `CaratulaService.generar(sku, cruda)`: con cruda válida; con cruda que no pertenece al SKU (rechazo); con `null` (fallback automático).
-- Frontend: smoke manual del selector, progreso por fases, y select de modelo (incl. valor BD fuera de la lista preservado).
+- `ImagenUsoService.reset()` / `SeoUsoService.reset()`: deja la fila en ceros; warn si la fila no existe.
+- Endpoint `POST /uso/reset`: `204`; el `GET /uso` posterior devuelve ceros.
+- Frontend: smoke manual del selector, progreso por fases, tiempo de generación, select de modelo (incl. valor BD fuera de la lista preservado), y botón de reset con confirmación.
 
 ## Fuera de alcance (YAGNI)
 

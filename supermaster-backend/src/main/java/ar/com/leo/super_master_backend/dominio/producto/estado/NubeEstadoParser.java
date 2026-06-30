@@ -30,6 +30,15 @@ public final class NubeEstadoParser {
         String dims = (alto != null && ancho != null && largo != null)
                 ? alto + " × " + ancho + " × " + largo + " cm" : null;
 
-        return new EstadoCanalDTO(true, published ? "visible" : "oculta", precio, stock, peso, dims, false);
+        String promoStr = variant.path("promotional_price").asString(null);
+        BigDecimal promo = null;
+        if (promoStr != null && !promoStr.isBlank()) {
+            try {
+                BigDecimal p = new BigDecimal(promoStr.trim());
+                if (p.signum() > 0) promo = p;   // 0/vacío = sin promo
+            } catch (NumberFormatException ignored) {}
+        }
+
+        return new EstadoCanalDTO(true, published ? "visible" : "oculta", precio, promo, stock, peso, dims, false);
     }
 }

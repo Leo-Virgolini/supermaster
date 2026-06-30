@@ -7,15 +7,16 @@ public record EstadoCanalDTO(
         boolean publicado,
         String estado,        // ML: "active"/"paused"; Nube: "visible"/"oculta"; null si no aplica
         BigDecimal precio,
+        BigDecimal promo,     // precio promocional (Nube: variant.promotional_price); null si no aplica
         Integer stock,
         String peso,          // ej "1.5 kg" / "214 g"
         String dimensiones,   // ej "10 × 20 × 30 cm"
         boolean error
 ) {
     public static EstadoCanalDTO noPublicado() {
-        return new EstadoCanalDTO(false, null, null, null, null, null, false);
+        return new EstadoCanalDTO(false, null, null, null, null, null, null, false);
     }
     public static EstadoCanalDTO ofError() {
-        return new EstadoCanalDTO(false, null, null, null, null, null, true);
+        return new EstadoCanalDTO(false, null, null, null, null, null, null, true);
     }
 }

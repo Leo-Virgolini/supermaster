@@ -49,7 +49,7 @@ class EstadoPublicacionServiceTest {
             {"status":"active","price":100,"available_quantity":3,"attributes":[]}"""));
         when(ml.leerDescripcionMl("MLA123")).thenReturn(null);
         when(nube.buscarProductoPorSku("ABC", TiendaNubeService.STORE_HOGAR)).thenReturn(json("""
-            {"id":5,"published":true,"variants":[{"id":9,"price":"100","stock":2,"weight":"1.0","height":"1","width":"1","depth":"1"}]}"""));
+            {"id":5,"published":true,"variants":[{"id":9,"price":"100","promotional_price":"80","stock":2,"weight":"1.0","height":"1","width":"1","depth":"1"}]}"""));
         when(nube.buscarProductoPorSku("ABC", TiendaNubeService.STORE_GASTRO)).thenReturn(null);
         when(dux.obtenerProductoPorCodigo("ABC")).thenThrow(new RuntimeException("no encontrado"));
 
@@ -59,6 +59,8 @@ class EstadoPublicacionServiceTest {
         assertThat(dto.ml().estado()).isEqualTo("active");
         assertThat(dto.hogar().publicado()).isTrue();
         assertThat(dto.hogar().estado()).isEqualTo("visible");
+        assertThat(dto.hogar().promo()).isEqualByComparingTo(new java.math.BigDecimal("80"));
+        assertThat(dto.ml().promo()).isNull();
         assertThat(dto.gastro().publicado()).isFalse(); // no encontrado
         // dux lanza excepción → error
         assertThat(dto.dux().error()).isTrue();

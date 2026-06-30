@@ -1872,12 +1872,6 @@ public class MercadoLibreService {
         boolean actualizar(String mla, double price);
     }
 
-    /** Cambia el estado de publicación de un item (mla, "active"|"paused") -> ok. */
-    @FunctionalInterface
-    public interface ActualizadorEstadoItem {
-        boolean actualizar(String mla, String status);
-    }
-
     /** Concatena un mensaje de advertencia best-effort al acumulado (separador "; "); null-safe (no pisa la previa). */
     public static String concatAdv(String previa, String mensaje) {
         return (previa == null || previa.isBlank()) ? mensaje : previa + "; " + mensaje;
@@ -1967,7 +1961,6 @@ public class MercadoLibreService {
      *  - updatePrice(mla, price) → actualiza el precio (price = precioFinal).
      *  - resolverPictureIds(sku) → lista de picture IDs ya subidos (vacía = sin imágenes).
      *  - putPictures(mla, pictureIds) → PUT del array de imágenes (solo si no vacío).
-     *  - putStatus(mla, status) → cambia el estado de publicación ("active"/"paused", best-effort).
      *  - precioFinal → PVP calculado; si null, se agrega advertencia y se saltea updatePrice (no aborta).
      */
     public static ResultadoAltaMl actualizarItemEnMlCore(
@@ -1978,7 +1971,6 @@ public class MercadoLibreService {
             ActualizadorPrecioItem updatePrice,
             Function<String, List<String>> resolverPictureIds,
             BiConsumer<String, List<String>> putPictures,
-            ActualizadorEstadoItem putStatus,
             BiConsumer<String, List<Map<String, Object>>> putAttributes,
             BigDecimal precioFinal,
             Set<String> categoriaAttrIds) {
@@ -2033,11 +2025,6 @@ public class MercadoLibreService {
                 }
             } catch (Exception e) {
                 advertencia = concatAdv(advertencia, conMotivo("imágenes no actualizadas", e));
-            }
-
-            String estadoTarget = Boolean.TRUE.equals(producto.getActivo()) ? "active" : "paused";
-            if (!putStatus.actualizar(mla, estadoTarget)) {
-                advertencia = concatAdv(advertencia, "estado de publicación no actualizado");
             }
 
             ResultadoAltaMl r = ResultadoAltaMl.actualizado(mla);
@@ -2124,7 +2111,6 @@ public class MercadoLibreService {
                                 objectMapper.writeValueAsString(Map.of("pictures", pics)));
                     } catch (Exception e) { throw new RuntimeException(e.getMessage(), e); }
                 },
-                this::updateItemStatus,
                 (m, attrs) -> {
                     try {
                         retryHandler.putJson("/items/" + m, () -> tokens.accessToken,
@@ -2323,11 +2309,10 @@ public class MercadoLibreService {
                         () -> tokens.accessToken, objectMapper.writeValueAsString(Map.of("plain_text", plainText))));
         r = aplicarRechazadasImagenes(r, filtro.rechazadas());
 
-        // Producto inactivo: dejar la publicación recién creada en paused (best-effort).
+        // Toda alta queda PAUSADA (el status lo decide el usuario desde el panel de estado, no `activo`).
         // concatAdv preserva una advertencia previa del alta (descripción / imágenes omitidas).
         if (r.estado() == ResultadoAltaMl.Estado.CREADO
                 && r.itemId() != null
-                && !Boolean.TRUE.equals(producto.getActivo())
                 && !updateItemStatus(r.itemId(), "paused")) {
             return r.conAdvertencia(MercadoLibreService.concatAdv(r.advertencia(), "estado de publicación no actualizado (no se pudo pausar)"));
         }

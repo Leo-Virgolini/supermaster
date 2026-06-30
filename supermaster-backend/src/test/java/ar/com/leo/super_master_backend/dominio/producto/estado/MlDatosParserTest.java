@@ -46,4 +46,40 @@ class MlDatosParserTest {
         JsonNode item = parse("{\"category_id\":\"MLA1\"}");
         assertThat(MlDatosParser.atributos(item)).isEmpty();
     }
+
+    @Test
+    void paquete_leeDesdeValueStruct_pesoEnKg() {
+        JsonNode item = parse("""
+            {
+              "attributes": [
+                {"id":"SELLER_PACKAGE_HEIGHT","value_name":"21 cm","value_struct":{"number":21,"unit":"cm"}},
+                {"id":"SELLER_PACKAGE_WIDTH","value_name":"10 cm","value_struct":{"number":10,"unit":"cm"}},
+                {"id":"SELLER_PACKAGE_LENGTH","value_name":"10 cm","value_struct":{"number":10,"unit":"cm"}},
+                {"id":"SELLER_PACKAGE_WEIGHT","value_name":"500 g","value_struct":{"number":500,"unit":"g"}}
+              ]
+            }
+            """);
+        MlDatosParser.PaqueteMl p = MlDatosParser.paquete(item);
+        assertThat(p.altoCm()).isEqualTo(21.0);
+        assertThat(p.anchoCm()).isEqualTo(10.0);
+        assertThat(p.largoCm()).isEqualTo(10.0);
+        assertThat(p.pesoKg()).isEqualTo(0.5); // 500 g → 0.5 kg
+    }
+
+    @Test
+    void paquete_fallbackAValueName_siNoHayStruct() {
+        JsonNode item = parse("""
+            {"attributes":[{"id":"SELLER_PACKAGE_HEIGHT","value_name":"15 cm"}]}
+            """);
+        MlDatosParser.PaqueteMl p = MlDatosParser.paquete(item);
+        assertThat(p.altoCm()).isEqualTo(15.0);
+        assertThat(p.pesoKg()).isNull();
+    }
+
+    @Test
+    void paquete_sinAtributos_todoNull() {
+        MlDatosParser.PaqueteMl p = MlDatosParser.paquete(parse("{\"attributes\":[]}"));
+        assertThat(p.altoCm()).isNull();
+        assertThat(p.pesoKg()).isNull();
+    }
 }

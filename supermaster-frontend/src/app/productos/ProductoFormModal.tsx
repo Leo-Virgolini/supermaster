@@ -697,10 +697,10 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         description: e.datos.seoGastro.description ?? "",
                         tags: e.datos.seoGastro.tags ?? "",
                     });
-                    if (e.datos.nubePeso) setNubePeso(e.datos.nubePeso);
-                    if (e.datos.nubeProfundidad) setNubeProfundidad(e.datos.nubeProfundidad);
-                    if (e.datos.nubeAncho) setNubeAncho(e.datos.nubeAncho);
-                    if (e.datos.nubeAlto) setNubeAlto(e.datos.nubeAlto);
+                    if (e.datos.nubePeso != null) setNubePeso(e.datos.nubePeso);
+                    if (e.datos.nubeProfundidad != null) setNubeProfundidad(e.datos.nubeProfundidad);
+                    if (e.datos.nubeAncho != null) setNubeAncho(e.datos.nubeAncho);
+                    if (e.datos.nubeAlto != null) setNubeAlto(e.datos.nubeAlto);
                     if (e.datos.mlCategoryId) {
                         setMlCategoryId(e.datos.mlCategoryId);
                         setMlCategoryNombre(e.datos.mlCategoryNombre);
@@ -2360,15 +2360,15 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 </label>
                                 <label className="block">
                                     <span className={fieldLabelClassName}>Profundidad (cm)</span>
-                                    <input type="number" min={0} className={inputBaseClassName} value={nubeProfundidad} onChange={e => setNubeProfundidad(e.target.value)} />
+                                    <input type="number" min={0} step="0.01" className={inputBaseClassName} value={nubeProfundidad} onChange={e => setNubeProfundidad(e.target.value)} />
                                 </label>
                                 <label className="block">
                                     <span className={fieldLabelClassName}>Ancho (cm)</span>
-                                    <input type="number" min={0} className={inputBaseClassName} value={nubeAncho} onChange={e => setNubeAncho(e.target.value)} />
+                                    <input type="number" min={0} step="0.01" className={inputBaseClassName} value={nubeAncho} onChange={e => setNubeAncho(e.target.value)} />
                                 </label>
                                 <label className="block">
                                     <span className={fieldLabelClassName}>Alto (cm)</span>
-                                    <input type="number" min={0} className={inputBaseClassName} value={nubeAlto} onChange={e => setNubeAlto(e.target.value)} />
+                                    <input type="number" min={0} step="0.01" className={inputBaseClassName} value={nubeAlto} onChange={e => setNubeAlto(e.target.value)} />
                                 </label>
                             </div>
                         </fieldset>

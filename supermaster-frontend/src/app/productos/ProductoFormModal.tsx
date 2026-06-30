@@ -21,8 +21,10 @@ import {
     getMlCategoriaFichaAPI, type MlAtributoDef, type ProductoMlAtributo,
     type MlFicha, type MlComponente,
     getMlCategoriaMaxTitleAPI,
-    getEstadoPublicacionAPI, putEstadoPublicacionAPI,
-    type EstadoCanal, type EstadoPublicacion, type EstadoPublicacionUpdate,
+    putEstadoPublicacionAPI,
+    getEstadoMlAPI, getEstadoHogarAPI, getEstadoGastroAPI, getEstadoDuxAPI,
+    type EstadoCanal, type EstadoPublicacionUpdate,
+    type MlCanal, type NubeCanal, type DuxCanal,
     generarCaratulaAPI, guardarCaratulaAPI,
     getDescripcionSugeridaAPI,
     getCrudasAPI, crudaMiniaturaURL, type CrudasDisponibles,
@@ -270,18 +272,27 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const [tagReposicion, setTagReposicion] = useState<"" | "PRIO" | "LIQ">("");
     const [tag, setTag] = useState<"" | "MAQUINA" | "REPUESTO" | "MENAJE" | "INSUMO">("");
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-    const [estadoCanales, setEstadoCanales] = useState<EstadoPublicacion | null>(null);
-    const [estadoOriginal, setEstadoOriginal] = useState<EstadoPublicacion | null>(null);
-    const [cargandoEstado, setCargandoEstado] = useState(false);
+    const [cargandoMl, setCargandoMl] = useState(false);
+    const [cargandoHogar, setCargandoHogar] = useState(false);
+    const [cargandoGastro, setCargandoGastro] = useState(false);
+    const [cargandoDux, setCargandoDux] = useState(false);
+    const [estadoMl, setEstadoMl] = useState<MlCanal | null>(null);
+    const [estadoHogar, setEstadoHogar] = useState<NubeCanal | null>(null);
+    const [estadoGastro, setEstadoGastro] = useState<NubeCanal | null>(null);
+    const [estadoDux, setEstadoDux] = useState<DuxCanal | null>(null);
+    // Snapshots originales para detectar cambios de estado al guardar (PUT estado).
+    const [estadoMlOriginal, setEstadoMlOriginal] = useState<MlCanal | null>(null);
+    const [estadoHogarOriginal, setEstadoHogarOriginal] = useState<NubeCanal | null>(null);
+    const [estadoGastroOriginal, setEstadoGastroOriginal] = useState<NubeCanal | null>(null);
     // Código MLA real resuelto por SKU contra ML (de getEstadoPublicacionAPI). Para verificar el MLA guardado.
     const [mlaResuelto, setMlaResuelto] = useState<string | null>(null);
     // Verificación (solo informa, no cambia nada): compara el MLA guardado con la publicación vigente en ML.
     // `alerta` = el MLA guardado está en problema (sin publicación vigente / no coincide) → además se marca el input en rojo.
     const mlaVerif = useMemo<{ tone: "emerald" | "amber" | "slate"; text: string; alerta: boolean } | null>(() => {
-        if (cargandoEstado || !estadoCanales) return null;        // todavía sin datos de ML
+        if (cargandoMl || !estadoMl) return null;        // todavía sin datos de ML
         const stored = mlaCodigo.trim();
         const resuelto = (mlaResuelto ?? "").trim();
-        if (estadoCanales.ml.error)
+        if (estadoMl.estado.error)
             return stored ? { tone: "slate", text: "No se pudo verificar contra Mercado Libre.", alerta: false } : null;
         if (!stored)
             return resuelto ? { tone: "amber", text: `⚠ Hay una publicación vigente en ML (${resuelto}) sin vincular en la base.`, alerta: false } : null;
@@ -290,13 +301,13 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         if (resuelto === stored)
             return { tone: "emerald", text: "✓ Verificado en ML: coincide con la publicación vigente.", alerta: false };
         return { tone: "amber", text: `⚠ El MLA guardado no coincide con la publicación vigente en ML (${resuelto}).`, alerta: true };
-    }, [cargandoEstado, estadoCanales, mlaResuelto, mlaCodigo]);
+    }, [cargandoMl, estadoMl, mlaResuelto, mlaCodigo]);
 
     // EQUIPAMIENTO + KT GASTRO: la Descripción · KT GASTRO siempre incluye el bullet "ENVIO A COTIZAR"
     // (espejo de lo que el backend agrega al publicar, idempotente). Se quita si deja de aplicar.
     // descripcionGastro va en deps a propósito: reasegura el bullet tras editar/componer (es obligatorio para EQUIPAMIENTO+GASTRO).
     useEffect(() => {
-        if (cargandoEstado) return; // esperar a que cargue la descripción del canal
+        if (cargandoGastro) return; // esperar a que cargue la descripción del canal
         const debe = esEquipamiento && subirKtGastro;
         setDescripcionGastro(prev => {
             const tiene = prev.includes("ENVIO A COTIZAR");
@@ -304,7 +315,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             if (!debe && tiene) return prev.replaceAll(BULLET_COTIZAR, "");
             return prev;
         });
-    }, [esEquipamiento, subirKtGastro, cargandoEstado, descripcionGastro]);
+    }, [esEquipamiento, subirKtGastro, cargandoGastro, descripcionGastro]);
     const [caratulaPreview, setCaratulaPreview] = useState<string | null>(null);
     const [caratulaFormato, setCaratulaFormato] = useState<string>("jpeg");
     const [caratulaCruda, setCaratulaCruda] = useState<string | null>(null);
@@ -462,8 +473,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 // carga mientras se espera la respuesta del proceso y lo cerramos al terminar.
                 const toastId = toast.loading("Subiendo a Dux… esperando confirmación del proceso (puede tardar)");
                 try {
-                    // En alta no hay panel (estadoCanales = null) → "S"; en edición, el valor del panel.
-                    const duxHabilitado: "S" | "N" = estadoCanales?.dux.estado === "deshabilitado" ? "N" : "S";
+                    // En alta no hay panel (estadoDux = null) → "S"; en edición, el valor del panel.
+                    const duxHabilitado: "S" | "N" = estadoDux?.estado.estado === "deshabilitado" ? "N" : "S";
                     const r = await exportarProductosADuxAPI([skuExport], duxHabilitado);
                     return clasificarExport("Dux", r, skuExport);
                 } catch (e) {
@@ -692,48 +703,37 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             getImagenConfigAPI().then(c => { if (!cancelled) setModelImagen(c.model); }).catch(() => {});
             getSeoConfigAPI().then(c => { if (!cancelled) setModelSeo(c.model); }).catch(() => {});
 
-            setCargandoEstado(true);
+            setCargandoMl(true); setCargandoHogar(true); setCargandoGastro(true); setCargandoDux(true);
             setMlaResuelto(null);
-            getEstadoPublicacionAPI(producto.id)
-                .then(e => {
-                    if (cancelled) return;
-                    setEstadoCanales(e); setEstadoOriginal(e);
-                    setMlaResuelto(e.datos.mlaResuelto ?? null);
-                    // Pre-carga editable desde el canal (no persistido).
-                    setDescripcionMl(e.datos.descripcionMl ?? "");
-                    setDescripcionHogar(e.datos.descripcionHogar ?? "");
-                    setDescripcionGastro(e.datos.descripcionGastro ?? "");
-                    if (e.datos.seoHogar) setSeoHogar({
-                        title: e.datos.seoHogar.title ?? "",
-                        description: e.datos.seoHogar.description ?? "",
-                        tags: e.datos.seoHogar.tags ?? "",
-                    });
-                    if (e.datos.seoGastro) setSeoGastro({
-                        title: e.datos.seoGastro.title ?? "",
-                        description: e.datos.seoGastro.description ?? "",
-                        tags: e.datos.seoGastro.tags ?? "",
-                    });
-                    if (e.datos.nubePeso != null) setNubePeso(e.datos.nubePeso);
-                    if (e.datos.nubeProfundidad != null) setNubeProfundidad(e.datos.nubeProfundidad);
-                    if (e.datos.nubeAncho != null) setNubeAncho(e.datos.nubeAncho);
-                    if (e.datos.nubeAlto != null) setNubeAlto(e.datos.nubeAlto);
-                    if (e.datos.nubeTitulo != null) setTituloNube(e.datos.nubeTitulo);
-                    if (e.datos.mlPaqAlto  != null) setMlPaqAlto(e.datos.mlPaqAlto);
-                    if (e.datos.mlPaqAncho != null) setMlPaqAncho(e.datos.mlPaqAncho);
-                    if (e.datos.mlPaqLargo != null) setMlPaqLargo(e.datos.mlPaqLargo);
-                    if (e.datos.mlPaqPeso  != null) setMlPaqPeso(e.datos.mlPaqPeso);
-                    if (e.datos.mlCategoryId) {
-                        setMlCategoryId(e.datos.mlCategoryId);
-                        setMlCategoryNombre(e.datos.mlCategoryNombre);
-                    }
-                    if (e.datos.mlAtributos.length > 0) {
-                        const map: Record<string, ProductoMlAtributo> = {};
-                        for (const a of e.datos.mlAtributos) map[a.attributeId] = a;
-                        setMlAtributosVal(map);
-                    }
-                })
-                .catch(err => { if (!cancelled && !esSesionExpirada(err)) notificar.error("No se pudo leer el estado de publicación"); })
-                .finally(() => { if (!cancelled) setCargandoEstado(false); });
+            getEstadoMlAPI(producto.id).then(e => { if (cancelled) return; setEstadoMl(e); setEstadoMlOriginal(e);
+                if (e.categoryId) { setMlCategoryId(e.categoryId); setMlCategoryNombre(e.categoryNombre); }
+                if (e.atributos.length) { const m: Record<string, ProductoMlAtributo> = {}; for (const a of e.atributos) m[a.attributeId] = a; setMlAtributosVal(m); }
+                setDescripcionMl(e.descripcion ?? "");
+                setMlaResuelto(e.mlaResuelto ?? null);
+                if (e.mlPaqAlto != null) setMlPaqAlto(e.mlPaqAlto);
+                if (e.mlPaqAncho != null) setMlPaqAncho(e.mlPaqAncho);
+                if (e.mlPaqLargo != null) setMlPaqLargo(e.mlPaqLargo);
+                if (e.mlPaqPeso != null) setMlPaqPeso(e.mlPaqPeso);
+            }).catch(err => { if (!cancelled && !esSesionExpirada(err)) notificar.error("No se pudo leer Mercado Libre"); })
+              .finally(() => { if (!cancelled) setCargandoMl(false); });
+            getEstadoHogarAPI(producto.id).then(e => { if (cancelled) return; setEstadoHogar(e); setEstadoHogarOriginal(e);
+                setDescripcionHogar(e.descripcion ?? "");
+                if (e.seo) setSeoHogar({ title: e.seo.title ?? "", description: e.seo.description ?? "", tags: e.seo.tags ?? "" });
+                if (e.titulo != null) setTituloNube(e.titulo);
+                if (e.peso != null) setNubePeso(e.peso); if (e.profundidad != null) setNubeProfundidad(e.profundidad);
+                if (e.ancho != null) setNubeAncho(e.ancho); if (e.alto != null) setNubeAlto(e.alto);
+            }).catch(err => { if (!cancelled && !esSesionExpirada(err)) notificar.error("No se pudo leer KT HOGAR"); })
+              .finally(() => { if (!cancelled) setCargandoHogar(false); });
+            getEstadoGastroAPI(producto.id).then(e => { if (cancelled) return; setEstadoGastro(e); setEstadoGastroOriginal(e);
+                setDescripcionGastro(e.descripcion ?? "");
+                if (e.seo) setSeoGastro({ title: e.seo.title ?? "", description: e.seo.description ?? "", tags: e.seo.tags ?? "" });
+                // título/dims Nube ya los toma HOGAR (compartidos); si HOGAR no publica, fallback:
+                if (e.titulo != null) setTituloNube(t => t || e.titulo!);
+            }).catch(err => { if (!cancelled && !esSesionExpirada(err)) notificar.error("No se pudo leer KT GASTRO"); })
+              .finally(() => { if (!cancelled) setCargandoGastro(false); });
+            getEstadoDuxAPI(producto.id).then(e => { if (cancelled) return; setEstadoDux(e); })
+              .catch(err => { if (!cancelled && !esSesionExpirada(err)) notificar.error("No se pudo leer Dux"); })
+              .finally(() => { if (!cancelled) setCargandoDux(false); });
         } else {
             setEditandoProductoId(null);
             setPanelTab("datos");
@@ -743,7 +743,9 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             setDescripcionMl(""); setDescripcionHogar(""); setDescripcionGastro("");
             setMlAtributosVal({});
             setEsComboOriginal(false);
-            setEstadoCanales(null); setEstadoOriginal(null); setMlaResuelto(null);
+            setEstadoMl(null); setEstadoHogar(null); setEstadoGastro(null); setEstadoDux(null);
+            setEstadoMlOriginal(null); setEstadoHogarOriginal(null); setEstadoGastroOriginal(null);
+            setMlaResuelto(null);
             setNubePeso("0.050"); setNubeProfundidad("8.00"); setNubeAncho("5.00"); setNubeAlto("5.00");
             void cargarSkuSugerido(false);
         }
@@ -837,11 +839,12 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             setResultadosCanal(resultados);
 
             // Estado de publicación: aplicar solo lo que cambió respecto de lo leído al abrir.
-            if (estadoCanales && estadoOriginal) {
+            // Se deriva el estado "actual" desde los 4 estados independientes.
+            {
                 const upd: EstadoPublicacionUpdate = {};
-                if (estadoCanales.ml.publicado && estadoCanales.ml.estado !== estadoOriginal.ml.estado) upd.ml = estadoCanales.ml.estado;
-                if (estadoCanales.hogar.publicado && estadoCanales.hogar.estado !== estadoOriginal.hogar.estado) upd.hogar = estadoCanales.hogar.estado === "visible";
-                if (estadoCanales.gastro.publicado && estadoCanales.gastro.estado !== estadoOriginal.gastro.estado) upd.gastro = estadoCanales.gastro.estado === "visible";
+                if (estadoMl?.estado.publicado && estadoMl.estado.estado !== estadoMlOriginal?.estado.estado) upd.ml = estadoMl.estado.estado;
+                if (estadoHogar?.estado.publicado && estadoHogar.estado.estado !== estadoHogarOriginal?.estado.estado) upd.hogar = estadoHogar.estado.estado === "visible";
+                if (estadoGastro?.estado.publicado && estadoGastro.estado.estado !== estadoGastroOriginal?.estado.estado) upd.gastro = estadoGastro.estado.estado === "visible";
                 if (upd.ml !== undefined || upd.hogar !== undefined || upd.gastro !== undefined) {
                     try {
                         const res = await putEstadoPublicacionAPI(editandoProductoId, upd);
@@ -1639,9 +1642,10 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         canal: EstadoCanal | undefined,
         control: React.ReactNode,
         estadoSel?: string,
+        cargando?: boolean,
     ) => (
         <div className="border-t border-slate-200/70 pt-2 dark:border-slate-700/60">
-            {cargandoEstado ? <span className="text-xs text-slate-400">Leyendo estado…</span>
+            {cargando ? <span className="text-xs text-slate-400">Leyendo estado…</span>
               : !canal || canal.error ? <span className="text-xs text-amber-600">No se pudo leer el estado</span>
               : !canal.publicado ? <span className="flex items-center gap-1 text-xs text-slate-400"><MinusCircleIcon className="h-4 w-4 shrink-0" /> No publicado</span>
               : (<>
@@ -1695,7 +1699,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                     )}
                 </div>
             </div>
-            {cargandoEstado ? indicadorCarga("Cargando datos del canal…") : (
+            {(canal === "HOGAR" ? cargandoHogar : cargandoGastro) ? indicadorCarga("Cargando datos del canal…") : (
                 <div className="grid grid-cols-1 gap-3">
                     <label className="block">
                         <span className={fieldLabelClassName}>SEO Title</span>
@@ -1781,13 +1785,13 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                             <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
                                         </Tooltip>
                                     </div>
-                                    {editandoProductoId && renderEstadoBody(estadoCanales?.dux,
-                                        <select className={`${selectBaseClassName} w-full`} disabled={!subirADux} value={estadoCanales?.dux.estado === "deshabilitado" ? "deshabilitado" : "habilitado"}
-                                            onChange={e => setEstadoCanales(p => p && ({ ...p, dux: { ...p.dux, estado: e.target.value } }))}>
+                                    {editandoProductoId && renderEstadoBody(estadoDux?.estado,
+                                        <select className={`${selectBaseClassName} w-full`} disabled={!subirADux} value={estadoDux?.estado.estado === "deshabilitado" ? "deshabilitado" : "habilitado"}
+                                            onChange={e => setEstadoDux(p => p && ({ ...p, estado: { ...p.estado, estado: e.target.value } }))}>
                                             <option value="habilitado">Habilitado</option>
                                             <option value="deshabilitado">Deshabilitado</option>
                                         </select>,
-                                        estadoCanales?.dux.estado ?? undefined)}
+                                        estadoDux?.estado.estado ?? undefined, cargandoDux)}
                                 </div>
                             )}
                             {/* KT HOGAR */}
@@ -1800,13 +1804,13 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                         <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
                                     </Tooltip>
                                 </div>
-                                {editandoProductoId && renderEstadoBody(estadoCanales?.hogar,
-                                    <select className={`${selectBaseClassName} w-full`} disabled={!subirKtHogar} value={estadoCanales?.hogar.estado ?? "visible"}
-                                        onChange={e => setEstadoCanales(p => p && ({ ...p, hogar: { ...p.hogar, estado: e.target.value } }))}>
+                                {editandoProductoId && renderEstadoBody(estadoHogar?.estado,
+                                    <select className={`${selectBaseClassName} w-full`} disabled={!subirKtHogar} value={estadoHogar?.estado.estado ?? "visible"}
+                                        onChange={e => setEstadoHogar(p => p && ({ ...p, estado: { ...p.estado, estado: e.target.value } }))}>
                                         <option value="visible">Visible</option>
                                         <option value="oculta">Oculta</option>
                                     </select>,
-                                    estadoCanales?.hogar.estado ?? "visible")}
+                                    estadoHogar?.estado.estado ?? "visible", cargandoHogar)}
                                 <div className="flex items-center gap-2 border-t border-slate-200/70 pt-2 dark:border-slate-700/60">
                                     <span className="text-xs font-normal text-slate-500 dark:text-slate-400">Cuota del precio</span>
                                     <Tooltip content="Plan de cuotas del canal con el que se publica el precio en Tienda Nube (cada plan aplica su recargo/descuento de financiación)." className="flex-1">
@@ -1828,13 +1832,13 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                         <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
                                     </Tooltip>
                                 </div>
-                                {editandoProductoId && renderEstadoBody(estadoCanales?.gastro,
-                                    <select className={`${selectBaseClassName} w-full`} disabled={!subirKtGastro} value={estadoCanales?.gastro.estado ?? "visible"}
-                                        onChange={e => setEstadoCanales(p => p && ({ ...p, gastro: { ...p.gastro, estado: e.target.value } }))}>
+                                {editandoProductoId && renderEstadoBody(estadoGastro?.estado,
+                                    <select className={`${selectBaseClassName} w-full`} disabled={!subirKtGastro} value={estadoGastro?.estado.estado ?? "visible"}
+                                        onChange={e => setEstadoGastro(p => p && ({ ...p, estado: { ...p.estado, estado: e.target.value } }))}>
                                         <option value="visible">Visible</option>
                                         <option value="oculta">Oculta</option>
                                     </select>,
-                                    estadoCanales?.gastro.estado ?? "visible")}
+                                    estadoGastro?.estado.estado ?? "visible", cargandoGastro)}
                                 <div className="flex items-center gap-2 border-t border-slate-200/70 pt-2 dark:border-slate-700/60">
                                     <span className="text-xs font-normal text-slate-500 dark:text-slate-400">Cuota del precio</span>
                                     <Tooltip content="Plan de cuotas del canal con el que se publica el precio en Tienda Nube (cada plan aplica su recargo/descuento de financiación)." className="flex-1">
@@ -1856,13 +1860,13 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                         <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
                                     </Tooltip>
                                 </div>
-                                {editandoProductoId && renderEstadoBody(estadoCanales?.ml,
-                                    <select className={`${selectBaseClassName} w-full`} disabled={!subirMl} value={estadoCanales?.ml.estado ?? "active"}
-                                        onChange={e => setEstadoCanales(p => p && ({ ...p, ml: { ...p.ml, estado: e.target.value } }))}>
+                                {editandoProductoId && renderEstadoBody(estadoMl?.estado,
+                                    <select className={`${selectBaseClassName} w-full`} disabled={!subirMl} value={estadoMl?.estado.estado ?? "active"}
+                                        onChange={e => setEstadoMl(p => p && ({ ...p, estado: { ...p.estado, estado: e.target.value } }))}>
                                         <option value="active">Activa</option>
                                         <option value="paused">Pausada</option>
                                     </select>,
-                                    estadoCanales?.ml.estado ?? "active")}
+                                    estadoMl?.estado.estado ?? "active", cargandoMl)}
                                 <div className="flex items-center gap-2 border-t border-slate-200/70 pt-2 dark:border-slate-700/60">
                                     <span className="text-xs font-normal text-slate-500 dark:text-slate-400">Cuota del precio</span>
                                     <Tooltip content="Plan de cuotas con el que se publica el precio en Mercado Libre (cada plan aplica su recargo de financiación)." className="flex-1">
@@ -2232,9 +2236,9 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 <input type="text" className={`${inputBaseClassName} ${formErrors.tituloMl ? inputErrorClassName : ""}`} value={tituloMl} onChange={e => { setTituloMl(e.target.value); if (formErrors.tituloMl) setFormErrors(p => ({ ...p, tituloMl: "" })); }} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handlePredecirCategoriasMl(); } }} placeholder="Título para Mercado Libre" maxLength={maxTitleLengthMl ?? undefined} />
                                 {formErrors.tituloMl && <p className="mt-1 text-xs text-red-500">{formErrors.tituloMl}</p>}
                                 <div className="mt-2 flex flex-col gap-2">
-                                    {cargandoEstado ? indicadorCarga("Cargando datos de ML…") : (<>
+                                    {cargandoMl ? indicadorCarga("Cargando datos de ML…") : (<>
                                         <div className="flex items-center gap-2">
-                                            <Button variant="dark" onClick={handlePredecirCategoriasMl} disabled={!tituloMl.trim() || cargandoPrediccionesMl || cargandoEstado}>
+                                            <Button variant="dark" onClick={handlePredecirCategoriasMl} disabled={!tituloMl.trim() || cargandoPrediccionesMl || cargandoMl}>
                                                 <TagIcon className="w-4 h-4" /> {cargandoPrediccionesMl ? "Prediciendo..." : "Predecir categorías"}
                                             </Button>
                                             {mlCategoryId && (
@@ -2350,14 +2354,14 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                         Componer descripción sugerida
                                     </button>
                                 </span>
-                                {cargandoEstado
+                                {cargandoMl
                                     ? indicadorCarga("Cargando datos del canal…")
-                                    : <textarea className={inputBaseClassName} value={descripcionMl} onChange={e => setDescripcionMl(e.target.value)} rows={4} maxLength={20000} disabled={cargandoEstado} placeholder="Texto plano (sin HTML). Lo que ves es lo que se publica en ML." />}
+                                    : <textarea className={inputBaseClassName} value={descripcionMl} onChange={e => setDescripcionMl(e.target.value)} rows={4} maxLength={20000} disabled={cargandoMl} placeholder="Texto plano (sin HTML). Lo que ves es lo que se publica en ML." />}
                             </label>
                         </div>
 
                         {/* Ficha técnica de la categoría ML (Variante / Principales / Secundarias) */}
-                        {cargandoEstado ? indicadorCarga("Cargando datos de ML…") : (mlCategoryId && mlFicha && mlFicha.secciones.length > 0 && (
+                        {cargandoMl ? indicadorCarga("Cargando datos de ML…") : (mlCategoryId && mlFicha && mlFicha.secciones.length > 0 && (
                             <div className="mt-6 border-t border-slate-200/70 pt-4 dark:border-slate-700/70">
                                 <div className="mb-1 flex items-center gap-1.5">
                                     <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Características de Mercado Libre</span>
@@ -2387,7 +2391,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                     <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
                                 </Tooltip>
                             </div>
-                            {cargandoEstado ? indicadorCarga("Cargando datos de ML…") : (
+                            {cargandoMl ? indicadorCarga("Cargando datos de ML…") : (
                                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                                     <label className="block">
                                         <span className={fieldLabelClassName}>Alto (cm){subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
@@ -2444,7 +2448,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         <div className="grid grid-cols-1 gap-4">
                             <label className="block">
                                 <span className={fieldLabelClassName}>Título Nube</span>
-                                {cargandoEstado ? indicadorCarga("Cargando datos del canal…") : (
+                                {cargandoHogar ? indicadorCarga("Cargando datos del canal…") : (
                                     <input type="text" className={`${inputBaseClassName} ${formErrors.tituloNube ? inputErrorClassName : ""}`} value={tituloNube} onChange={e => { setTituloNube(e.target.value); if (formErrors.tituloNube) setFormErrors(p => ({ ...p, tituloNube: "" })); }} placeholder="Título para Tienda Nube" />
                                 )}
                                 {formErrors.tituloNube && <p className="mt-1 text-xs text-red-500">{formErrors.tituloNube}</p>}
@@ -2461,7 +2465,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                         Componer descripción sugerida
                                     </button>
                                 </span>
-                                {cargandoEstado
+                                {cargandoHogar
                                     ? indicadorCarga("Cargando datos del canal…")
                                     : <HtmlEditor value={descripcionHogar} onChange={setDescripcionHogar} placeholder="HTML. Lo que ves es lo que se publica en KT HOGAR." />}
                             </label>
@@ -2473,6 +2477,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         <fieldset className={`${sectionClassName} ${SECTION_TINT.seo}`}>
                             <legend className={sectionTitleClassName}><CubeIcon className="h-5 w-5" /> Paquete de envío · Tienda Nube</legend>
                             <p className={`${sectionDescriptionClassName} mb-3`}>Peso y dimensiones del paquete que se envían a Tienda Nube.</p>
+                            {cargandoHogar ? indicadorCarga("Cargando datos del canal…") : (
                             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                                 <label className="block">
                                     <span className={fieldLabelClassName}>Peso (kg)</span>
@@ -2491,6 +2496,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                     <input type="number" min={0} step="1" className={inputBaseClassName} value={nubeAlto} onChange={e => setNubeAlto(e.target.value)} />
                                 </label>
                             </div>
+                            )}
                         </fieldset>
                     )}
 
@@ -2506,7 +2512,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         <div className="grid grid-cols-1 gap-4">
                             <label className="block">
                                 <span className={fieldLabelClassName}>Título Nube</span>
-                                {cargandoEstado ? indicadorCarga("Cargando datos del canal…") : (
+                                {cargandoGastro ? indicadorCarga("Cargando datos del canal…") : (
                                     <input type="text" className={`${inputBaseClassName} ${formErrors.tituloNube ? inputErrorClassName : ""}`} value={tituloNube} onChange={e => { setTituloNube(e.target.value); if (formErrors.tituloNube) setFormErrors(p => ({ ...p, tituloNube: "" })); }} placeholder="Título para Tienda Nube" />
                                 )}
                                 {formErrors.tituloNube && <p className="mt-1 text-xs text-red-500">{formErrors.tituloNube}</p>}
@@ -2528,7 +2534,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                         Componer descripción sugerida
                                     </button>
                                 </span>
-                                {cargandoEstado
+                                {cargandoGastro
                                     ? indicadorCarga("Cargando datos del canal…")
                                     : <HtmlEditor value={descripcionGastro} onChange={setDescripcionGastro} placeholder="HTML. Lo que ves es lo que se publica en KT GASTRO." />}
                             </label>

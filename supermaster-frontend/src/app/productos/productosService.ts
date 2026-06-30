@@ -529,37 +529,24 @@ export type EstadoCanal = {
 	stock: number | null;
 	peso: string | null;
 	dimensiones: string | null;
+	imagenes: number | null;
 	error: boolean;
 };
 export type SeoCanal = { title: string | null; description: string | null; tags: string | null };
-export type DatosCanal = {
-	mlCategoryId: string | null;
-	mlCategoryNombre: string | null;
-	mlAtributos: ProductoMlAtributo[];
-	descripcionMl: string | null;
-	descripcionHogar: string | null;
-	descripcionGastro: string | null;
-	seoHogar: SeoCanal | null;
-	seoGastro: SeoCanal | null;
-	mlaResuelto: string | null;
-	nubePeso: string | null;
-	nubeProfundidad: string | null;
-	nubeAncho: string | null;
-	nubeAlto: string | null;
-	nubeTitulo: string | null;
-	mlPaqAlto: number | null;
-	mlPaqAncho: number | null;
-	mlPaqLargo: number | null;
-	mlPaqPeso: number | null;
-};
-export type EstadoPublicacion = { ml: EstadoCanal; hogar: EstadoCanal; gastro: EstadoCanal; dux: EstadoCanal; datos: DatosCanal };
+export type MlCanal = { estado: EstadoCanal; categoryId: string | null; categoryNombre: string | null; atributos: ProductoMlAtributo[]; descripcion: string | null; mlaResuelto: string | null; mlPaqAlto: number | null; mlPaqAncho: number | null; mlPaqLargo: number | null; mlPaqPeso: number | null };
+export type NubeCanal = { estado: EstadoCanal; descripcion: string | null; seo: SeoCanal | null; titulo: string | null; peso: string | null; profundidad: string | null; ancho: string | null; alto: string | null };
+export type DuxCanal = { estado: EstadoCanal };
 export type EstadoPublicacionUpdate = { ml?: string | null; hogar?: boolean | null; gastro?: boolean | null };
 
-export async function getEstadoPublicacionAPI(id: number): Promise<EstadoPublicacion> {
-	const r = await fetchAPI(`${API_BASE_URL}/api/productos/${id}/estado-publicacion`);
-	if (!r.ok) throw new Error(await extraerMensajeError(r, "No se pudo leer el estado de publicación"));
+async function getEstadoCanal<T>(id: number, canal: string): Promise<T> {
+	const r = await fetchAPI(`${API_BASE_URL}/api/productos/${id}/estado-publicacion/${canal}`);
+	if (!r.ok) throw new Error(await extraerMensajeError(r, "No se pudo leer el estado del canal"));
 	return r.json();
 }
+export const getEstadoMlAPI = (id: number) => getEstadoCanal<MlCanal>(id, "ml");
+export const getEstadoHogarAPI = (id: number) => getEstadoCanal<NubeCanal>(id, "hogar");
+export const getEstadoGastroAPI = (id: number) => getEstadoCanal<NubeCanal>(id, "gastro");
+export const getEstadoDuxAPI = (id: number) => getEstadoCanal<DuxCanal>(id, "dux");
 
 export async function getDescripcionSugeridaAPI(id: number, canal: "ml" | "nube"): Promise<string> {
 	const r = await fetchAPI(`${API_BASE_URL}/api/productos/${id}/descripcion-sugerida?canal=${canal}`);

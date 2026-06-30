@@ -20,6 +20,13 @@ public record DatosCanalDTO(
         String nubePeso,
         String nubeProfundidad,
         String nubeAncho,
-        String nubeAlto
+        String nubeAlto,
+        /** Título de la publicación de Nube (name.es); null si no publicado. */
+        String nubeTitulo,
+        /** Dimensiones del paquete de ML leídas de la publicación (cm; peso en kg); null si no hay. */
+        Double mlPaqAlto,
+        Double mlPaqAncho,
+        Double mlPaqLargo,
+        Double mlPaqPeso
 ) {
 }

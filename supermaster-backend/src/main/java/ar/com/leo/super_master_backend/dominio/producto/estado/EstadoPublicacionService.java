@@ -58,11 +58,12 @@ public class EstadoPublicacionService {
 
     /** Datos del panel + editables de ML resueltos en un solo paso (para leer en un hilo aparte). */
     private record MlPanel(EstadoCanalDTO estado, String categoryId, String categoryNombre,
-                           List<MlAtributoDTO> atributos, String descripcion, String mlaResuelto) {}
+                           List<MlAtributoDTO> atributos, String descripcion, String mlaResuelto,
+                           MlDatosParser.PaqueteMl paquete) {}
 
     /** Estado + datos editables de una tienda Nube. */
     private record NubePanel(EstadoCanalDTO estado, String descripcion, SeoCanalDTO seo,
-                             String peso, String profundidad, String ancho, String alto) {}
+                             String peso, String profundidad, String ancho, String alto, String titulo) {}
 
     @Transactional(readOnly = true)
     public EstadoPublicacionDTO leer(Integer productoId) {
@@ -98,7 +99,12 @@ public class EstadoPublicacionService {
                 hogar.peso() != null ? hogar.peso() : gastro.peso(),
                 hogar.profundidad() != null ? hogar.profundidad() : gastro.profundidad(),
                 hogar.ancho() != null ? hogar.ancho() : gastro.ancho(),
-                hogar.alto() != null ? hogar.alto() : gastro.alto());
+                hogar.alto() != null ? hogar.alto() : gastro.alto(),
+                hogar.titulo() != null ? hogar.titulo() : gastro.titulo(),
+                ml.paquete().altoCm(),
+                ml.paquete().anchoCm(),
+                ml.paquete().largoCm(),
+                ml.paquete().pesoKg());
 
         return new EstadoPublicacionDTO(ml.estado(), hogar.estado(), gastro.estado(), dux, datos);
     }
@@ -112,18 +118,23 @@ public class EstadoPublicacionService {
         try {
             String mlaCode = resolverMlaPorSku(sku);
             if (mlaCode == null || mlaCode.isBlank()) {
-                return new MlPanel(EstadoCanalDTO.noPublicado(), null, null, List.of(), null, null);
+                return new MlPanel(EstadoCanalDTO.noPublicado(), null, null, List.of(), null, null,
+                        new MlDatosParser.PaqueteMl(null, null, null, null));
             }
             JsonNode item = mercadoLibreService.leerItemRaw(mlaCode);
             if (item == null) {
-                return new MlPanel(EstadoCanalDTO.ofError(), null, null, List.of(), null, null);
+                return new MlPanel(EstadoCanalDTO.ofError(), null, null, List.of(), null, null,
+                        new MlDatosParser.PaqueteMl(null, null, null, null));
             }
             String descMl = mercadoLibreService.leerDescripcionMl(mlaCode);
             String catId = MlDatosParser.categoryId(item);
             String catNombre = (catId != null && !catId.isBlank()) ? mercadoLibreService.obtenerCategoriaPath(catId) : null;
-            return new MlPanel(MlEstadoParser.parse(item), catId, catNombre, MlDatosParser.atributos(item), descMl, mlaCode);
+            MlDatosParser.PaqueteMl paquete = MlDatosParser.paquete(item);
+            return new MlPanel(MlEstadoParser.parse(item), catId, catNombre,
+                    MlDatosParser.atributos(item), descMl, mlaCode, paquete);
         } catch (Exception e) {
-            return new MlPanel(EstadoCanalDTO.ofError(), null, null, List.of(), null, null);
+            return new MlPanel(EstadoCanalDTO.ofError(), null, null, List.of(), null, null,
+                    new MlDatosParser.PaqueteMl(null, null, null, null));
         }
     }
 
@@ -140,15 +151,16 @@ public class EstadoPublicacionService {
         try {
             product = tiendaNubeService.buscarProductoPorSku(sku, store);
         } catch (Exception e) {
-            return new NubePanel(EstadoCanalDTO.ofError(), null, null, null, null, null, null);
+            return new NubePanel(EstadoCanalDTO.ofError(), null, null, null, null, null, null, null);
         }
         JsonNode variant = (product != null) ? product.path("variants").path(0) : null;
         String peso = variant != null ? variant.path("weight").asString(null) : null;
         String prof = variant != null ? variant.path("depth").asString(null) : null;
         String ancho = variant != null ? variant.path("width").asString(null) : null;
         String alto = variant != null ? variant.path("height").asString(null) : null;
+        String titulo = (product != null) ? product.path("name").path("es").asString(null) : null;
         return new NubePanel(estadoNube(product), descripcionNube(product), NubeSeoParser.parse(product),
-                peso, prof, ancho, alto);
+                peso, prof, ancho, alto, titulo);
     }
 
     private EstadoCanalDTO estadoNube(JsonNode product) {

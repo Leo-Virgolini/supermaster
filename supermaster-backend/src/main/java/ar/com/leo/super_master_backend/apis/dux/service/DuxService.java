@@ -1319,11 +1319,11 @@ public class DuxService {
      * @param skus lista de SKUs a exportar, o null para exportar todos
      * @return resultado con productosEnviados, idProceso y errores
      */
-    public ExportDuxResultDTO exportarProductosADux(List<String> skus) {
+    public ExportDuxResultDTO exportarProductosADux(List<String> skus, String habilitado) {
         log.info("Iniciando exportación de productos a DUX...");
         List<String> errores = new ArrayList<>();
 
-        List<Map<String, Object>> productosJson = self.cargarYArmarItemsDux(skus, errores);
+        List<Map<String, Object>> productosJson = self.cargarYArmarItemsDux(skus, errores, habilitado);
 
         if (productosJson.isEmpty()) {
             log.warn("DUX Export - No hay productos válidos para enviar");
@@ -1360,8 +1360,8 @@ public class DuxService {
      * @param skus lista de SKUs a exportar, o null para exportar todos
      * @return resultado con cantidad creada, errores y advertencias
      */
-    public ExportCanalResultDTO exportarProductosADuxConfirmado(List<String> skus) {
-        ExportDuxResultDTO encolado = exportarProductosADux(skus);
+    public ExportCanalResultDTO exportarProductosADuxConfirmado(List<String> skus, String habilitado) {
+        ExportDuxResultDTO encolado = exportarProductosADux(skus, habilitado);
 
         if (encolado.idProceso() == 0) {
             return new ExportCanalResultDTO(0, List.of(), List.of(), List.copyOf(encolado.errores()), List.of());
@@ -1412,11 +1412,12 @@ public class DuxService {
     }
 
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
-    public List<Map<String, Object>> cargarYArmarItemsDux(List<String> skus, List<String> errores) {
+    public List<Map<String, Object>> cargarYArmarItemsDux(List<String> skus, List<String> errores, String habilitado) {
         List<Producto> productos = cargarProductosParaExportacion(skus, errores);
         List<Map<String, Object>> items = new ArrayList<>();
         for (Producto producto : productos) {
             try {
+                if (habilitado != null) producto.setDuxHabilitado(habilitado);
                 items.add(duxItemBuilder.construir(producto));
             } catch (Exception e) {
                 errores.add("SKU " + producto.getSku() + ": Error mapeando - " + e.getMessage());

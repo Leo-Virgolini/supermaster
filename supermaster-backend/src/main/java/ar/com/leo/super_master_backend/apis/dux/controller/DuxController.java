@@ -220,7 +220,8 @@ public class DuxController {
     public ResponseEntity<ExportDuxResultDTO> exportarProductos(
             @RequestBody(required = false) ExportDuxRequestDTO request) {
         List<String> skus = request != null ? request.skus() : null;
-        ExportDuxResultDTO resultado = duxService.exportarProductosADux(skus);
+        String habilitado = request != null ? request.habilitado() : null;
+        ExportDuxResultDTO resultado = duxService.exportarProductosADux(skus, habilitado);
         return ResponseEntity.ok(resultado);
     }
 
@@ -229,7 +230,8 @@ public class DuxController {
     public ResponseEntity<ExportCanalResultDTO> exportarProductosConfirmado(
             @RequestBody(required = false) ExportDuxRequestDTO request) {
         List<String> skus = request != null ? request.skus() : null;
-        ExportCanalResultDTO resultado = duxService.exportarProductosADuxConfirmado(skus);
+        String habilitado = request != null ? request.habilitado() : null;
+        ExportCanalResultDTO resultado = duxService.exportarProductosADuxConfirmado(skus, habilitado);
         return ResponseEntity.ok(resultado);
     }
 

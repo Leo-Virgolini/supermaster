@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Button from "../components/Button/Button";
 import { useSeoIa } from "./useSeoIa";
 import { FORMATO_OPCIONES, MODEL_IMAGEN_OPCIONES, QUALITY_OPCIONES, SIZE_OPCIONES } from "./types";
 import { SparklesIcon } from "@heroicons/react/24/outline";
 
-export default function SeoIaPage() {
+function ConfigIaInner() {
     const { seoConfig, imagenConfig, uso, imagenUso, isLoading, isSavingSeo, isSavingImagen, saveSeoConfig, saveImagenConfig, resetSeoUso, resetImagenUso, isResettingSeo, isResettingImagen } = useSeoIa();
 
     // Borradores SEO
@@ -178,5 +178,13 @@ export default function SeoIaPage() {
             </div>
             </>)}
         </main>
+    );
+}
+
+export default function SeoIaPage() {
+    return (
+        <Suspense fallback={null}>
+            <ConfigIaInner />
+        </Suspense>
     );
 }

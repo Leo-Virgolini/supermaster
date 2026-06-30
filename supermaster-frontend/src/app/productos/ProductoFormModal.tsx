@@ -1104,6 +1104,24 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [mlFicha, fichaAttrIds]);
 
+    // Los atributos required no pueden quedar en "No aplica" (son obligatorios): si vinieran marcados
+    // (carga vieja), se limpia el flag para que el input quede habilitado y completable.
+    useEffect(() => {
+        if (!mlFicha) return;
+        setMlAtributosVal(prev => {
+            const next = { ...prev };
+            let changed = false;
+            for (const d of mlAtributosDef) {
+                if (d.required && next[d.id]?.noAplica) {
+                    next[d.id] = { ...next[d.id], noAplica: false };
+                    changed = true;
+                }
+            }
+            return changed ? next : prev;
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mlFicha, fichaAttrIds]);
+
     // El atributo BRAND (Marca) de la ficha ML espeja SIEMPRE la Marca maestra (la Marca manda):
     // al elegir/cambiar/limpiar la Marca, el BRAND se completa o se vacía en consecuencia.
     useEffect(() => {
@@ -1355,8 +1373,10 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         const hasRgb = d.values.some(o => o.rgb);
         // "No aplica" → input claramente gris (con !important para pisar el bg-white de la clase base).
         const grisOff = disabled ? " !bg-slate-200 !border-slate-200 !text-slate-400 !shadow-none cursor-not-allowed dark:!bg-slate-900/50 dark:!border-slate-700 dark:!text-slate-500" : "";
-        const inputCls = `${inputBaseClassName}${grisOff}`;
-        const selectCls = `${selectBaseClassName}${grisOff}`;
+        // Required vacío (tras intentar guardar): borde rojo en el input, además del label y el aviso.
+        const errCls = (d.required && !!formErrors.mlAtributos && !v?.valueName?.trim()) ? ` ${inputErrorClassName}` : "";
+        const inputCls = `${inputBaseClassName}${grisOff}${errCls}`;
+        const selectCls = `${selectBaseClassName}${grisOff}${errCls}`;
 
         // COLOR_INPUT con paleta: swatch del color seleccionado + select de valores.
         if (c.tipo === "COLOR_INPUT" && hasRgb) {

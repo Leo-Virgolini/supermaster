@@ -22,6 +22,7 @@ Las miniaturas de "Imágenes (por SKU)" que se ven en el modal salen de la **car
 4. **Select de modelo:** en la pantalla de config IA, convertir el campo "Modelo" de imagen (hoy texto plano) en un `select` con opciones predefinidas.
 5. **Resetear uso acumulado:** botón en la config IA para poner en cero los contadores de consumo (consultas, tokens, costo).
 6. **Limpiar crudas al aceptar:** al aceptar (guardar) la carátula generada, eliminar **todas** las imágenes crudas del SKU de la carpeta cruda.
+7. **Modelo en uso + acceso a config:** al lado de los botones de IA del modal de producto ("Mejorar carátula con IA" y "Generar SEO con IA"), mostrar qué modelo se está usando y un link a la pantalla de config IA correspondiente.
 
 ## Decisiones tomadas (brainstorming)
 
@@ -175,6 +176,19 @@ En la pantalla de Configuración IA, cada box **"USO DE IA … (ACUMULADO)"** ti
 - [useSeoIa.ts](../../../supermaster-frontend/src/app/config-ia/useSeoIa.ts): `resetImagenUso()` / `resetSeoUso()` que llaman al endpoint, refrescan el uso (re-fetch o set a ceros) y notifican éxito. Exponer flags `isResettingSeo` / `isResettingImagen` para deshabilitar el botón mientras corre.
 - [page.tsx](../../../supermaster-frontend/src/app/config-ia/page.tsx): botón "Resetear" en `usoBox`, con **confirmación previa** (es destructivo, no se puede deshacer). Usar el patrón de confirmación ya existente en el proyecto; si no hay uno, un `window.confirm` simple.
 
+### 7. Modelo en uso + acceso a config (modal de producto)
+
+Junto a cada botón de IA del modal, mostrar el modelo configurado y un acceso a su pantalla de config:
+
+- **Botón "Mejorar carátula con IA"** → texto "Modelo: `{modelImagen}`" + link a config IA (pestaña Carátula). `modelImagen` se lee de `GET /api/imagen-ia/config` (`.model`).
+- **Botón "Generar SEO con IA"** (en cada bloque SEO de Nube) → texto "Modelo: `{modelSeo}`" + link a config IA (pestaña SEO). `modelSeo` se lee de `GET /api/seo-ia/config` (`.model`).
+
+**Carga de los modelos en el modal:** al abrir el modal de producto se hacen los dos GET de config (imagen y SEO) y se guardan en estado (`modelImagen`, `modelSeo`). Reusa los services existentes `getImagenConfigAPI` / `getSeoConfigAPI`. Mientras cargan, el texto puede omitirse o mostrar "Modelo: …".
+
+**Link a la config:** navega a la pantalla de config IA. Para abrir directo en la pestaña correcta, [config-ia/page.tsx](../../../supermaster-frontend/src/app/config-ia/page.tsx) lee un query param (`?tab=caratula` | `?tab=seo`) y preselecciona esa pestaña; sin el param mantiene su default actual. El link se abre en **nueva pestaña** (`target="_blank"`) para no perder los cambios sin guardar del modal en edición.
+
+**Backend:** sin cambios (los endpoints `GET /config` de imagen y SEO ya existen). El select de modelo de imagen (sección 5) y este texto leen la misma fuente, así que quedan consistentes.
+
 ## Manejo de errores
 
 - **Carpeta cruda inexistente / sin lectura:** el endpoint de crudas no falla; devuelve `crudaDir.existe=false` (o `legible=false`) e `imagenes=[]`. El frontend muestra el diagnóstico y el mensaje "No hay imágenes crudas para este SKU".
@@ -199,7 +213,7 @@ En la pantalla de Configuración IA, cada box **"USO DE IA … (ACUMULADO)"** ti
 - `CaratulaService.guardar`: borra crudas solo tras guardar OK; si `guardarCaratula` lanza, no se borra ninguna cruda.
 - `ImagenUsoService.reset()` / `SeoUsoService.reset()`: deja la fila en ceros; warn si la fila no existe.
 - Endpoint `POST /uso/reset`: `204`; el `GET /uso` posterior devuelve ceros.
-- Frontend: smoke manual del selector, progreso por fases, tiempo de generación, select de modelo (incl. valor BD fuera de la lista preservado), y botón de reset con confirmación.
+- Frontend: smoke manual del selector, progreso por fases, tiempo de generación, select de modelo (incl. valor BD fuera de la lista preservado), botón de reset con confirmación, y el texto "Modelo: …" + link a config (pestaña correcta, nueva pestaña) junto a los botones de carátula y SEO.
 
 ## Fuera de alcance (YAGNI)
 

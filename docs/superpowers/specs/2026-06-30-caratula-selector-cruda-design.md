@@ -17,7 +17,7 @@ Las miniaturas de "Imágenes (por SKU)" que se ven en el modal salen de la **car
 ## Objetivos
 
 1. **Selector de cruda:** al apretar "Mejorar carátula con IA", mostrar un panel que liste **todas** las imágenes crudas cuyo nombre matchea el SKU (`{sku}`, `{sku}_1`, `{sku}_2`…) y permitir elegir cuál mejorar. El selector se muestra **siempre**, incluso si hay una sola cruda.
-2. **Progreso por fases:** durante la generación, mostrar texto que avanza por fases ("Preparando imagen…" → "Enviando a OpenAI…" → "Generando carátula…"), en lugar del "Generando…" fijo.
+2. **Progreso por fases:** durante la generación, mostrar texto que avanza por fases ("Preparando imagen…" → "Enviando a OpenAI…" → "Generando carátula…"), en lugar del "Generando…" fijo. Al terminar, mostrar el **tiempo que tardó** la generación.
 3. **Diagnóstico de carpeta:** mostrar si la carpeta cruda se encuentra y si hay acceso de lectura, y si la carpeta destino (donde se guarda la carátula) tiene acceso de escritura.
 4. **Select de modelo:** en la pantalla de config IA, convertir el campo "Modelo" de imagen (hoy texto plano) en un `select` con opciones predefinidas.
 
@@ -62,6 +62,8 @@ Flujo:
 - `t ≈ 2500 ms`: **"Generando carátula…"** (permanece hasta que la promesa resuelve o falla)
 
 Implementación: array de `{ ms, texto }` y `setTimeout` encadenados (o un `setInterval` que avanza el índice). Se limpian los timers en el `finally` de la generación (resuelto o error). Los textos/tiempos son ajustables en una constante.
+
+**Tiempo de generación:** se marca `inicio = Date.now()` al disparar la llamada y, al resolver, se calcula `duracionMs = Date.now() - inicio` y se guarda en estado (`duracionCaratula`). En el preview del resultado se muestra junto a "Generada con IA" (p. ej. *"Generada con IA · 42 s"*; formato: segundos con un decimal si < 60 s, `m:ss` si ≥ 60 s). Mide el tiempo total percibido en el cliente (incluye red); no requiere cambios de backend. Se limpia al cancelar.
 
 ### 3. Backend
 

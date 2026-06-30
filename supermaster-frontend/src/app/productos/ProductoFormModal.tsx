@@ -1440,6 +1440,12 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     // Card de canal (sección Canales de venta): layout en columna y altura uniforme para que el
     // selector de cuotas no comprima el título ni desalinee las tarjetas entre sí.
     const canalCardClassName = "flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200";
+    const CANAL_TINT = {
+        dux:    "!border-indigo-200 !bg-indigo-50/60 dark:!border-indigo-900/40 dark:!bg-indigo-950/20",
+        hogar:  "!border-blue-200 !bg-blue-50/60 dark:!border-blue-900/40 dark:!bg-blue-950/20",
+        gastro: "!border-emerald-200 !bg-emerald-50/60 dark:!border-emerald-900/40 dark:!bg-emerald-950/20",
+        ml:     "!border-yellow-200 !bg-yellow-50/70 dark:!border-yellow-900/40 dark:!bg-yellow-950/20",
+    } as const;
     const selectBaseClassName = `${inputBaseClassName} appearance-none`;
 
     const indicadorCarga = (texto: string) => (
@@ -1672,6 +1678,12 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                               <span className="font-medium text-slate-600 dark:text-slate-300">{canal.stock}</span>
                           </div>
                       )}
+                      {canal.imagenes != null && (
+                          <div className="flex justify-between gap-1">
+                              <span className="text-slate-400">Imágenes</span>
+                              <span className="font-medium text-slate-600 dark:text-slate-300">{canal.imagenes}</span>
+                          </div>
+                      )}
                   </div>
               </>)}
         </div>
@@ -1771,7 +1783,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-4">
                             {/* DUX */}
                             {canExportarDux && (
-                                <div className={canalCardClassName}>
+                                <div className={`${canalCardClassName} ${CANAL_TINT.dux}`}>
                                     <div className="flex items-center gap-3">
                                         <CubeIcon className="h-5 w-5 shrink-0 text-indigo-500" />
                                         <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirADux} onChange={e => setSubirADux(e.target.checked)} id="subirADux" />
@@ -1795,7 +1807,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 </div>
                             )}
                             {/* KT HOGAR */}
-                            <div className={canalCardClassName}>
+                            <div className={`${canalCardClassName} ${CANAL_TINT.hogar}`}>
                                 <div className="flex items-center gap-3">
                                     <HomeIcon className="h-5 w-5 shrink-0 text-sky-500" />
                                     <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirKtHogar} onChange={e => setSubirKtHogar(e.target.checked)} id="subirKtHogar" disabled={!canExportarDux} />
@@ -1823,7 +1835,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 </div>
                             </div>
                             {/* KT GASTRO */}
-                            <div className={canalCardClassName}>
+                            <div className={`${canalCardClassName} ${CANAL_TINT.gastro}`}>
                                 <div className="flex items-center gap-3">
                                     <FireIcon className="h-5 w-5 shrink-0 text-emerald-500" />
                                     <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirKtGastro} onChange={e => setSubirKtGastro(e.target.checked)} id="subirKtGastro" disabled={!canExportarDux} />
@@ -1851,7 +1863,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 </div>
                             </div>
                             {/* MERCADO LIBRE */}
-                            <div className={canalCardClassName}>
+                            <div className={`${canalCardClassName} ${CANAL_TINT.ml}`}>
                                 <div className="flex items-center gap-3">
                                     <ShoppingBagIcon className="h-5 w-5 shrink-0 text-yellow-500" />
                                     <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirMl} onChange={e => setSubirMl(e.target.checked)} id="subirMl" disabled={!canExportarDux} />

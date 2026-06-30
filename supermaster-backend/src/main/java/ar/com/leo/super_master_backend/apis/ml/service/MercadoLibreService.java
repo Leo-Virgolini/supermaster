@@ -1077,7 +1077,13 @@ public class MercadoLibreService {
         String uri = String.format("/users/%s/shipping_options/free?dimensions=%s%s",
                 userId, URLEncoder.encode(dimensions, StandardCharsets.UTF_8), params);
 
-        String body = retryHandler.get(uri, () -> tokens.accessToken);
+        String body;
+        try {
+            body = retryHandler.get(uri, () -> tokens.accessToken);
+        } catch (Exception e) {
+            // Incluimos el dimensions enviado en el error para diagnosticar (se ve en el footer del modal).
+            throw new IllegalStateException("ML rechazó el cálculo de envío (dimensions enviado='" + dimensions + "'): " + e.getMessage(), e);
+        }
         if (body == null) {
             log.warn("ML - consultarEnvioConIvaSinItem: sin respuesta de ML para SKU {}", producto.getSku());
             return BigDecimal.ZERO;

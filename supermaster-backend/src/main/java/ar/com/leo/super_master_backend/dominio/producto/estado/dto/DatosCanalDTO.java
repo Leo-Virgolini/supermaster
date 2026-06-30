@@ -15,6 +15,11 @@ public record DatosCanalDTO(
         SeoCanalDTO seoHogar,
         SeoCanalDTO seoGastro,
         /** Código MLA real resuelto por SKU contra la API de ML (publicación vigente); null si no hay. */
-        String mlaResuelto
+        String mlaResuelto,
+        /** Dimensiones de la variante en Nube (crudas), para pre-cargar los inputs en edición. */
+        String nubePeso,
+        String nubeProfundidad,
+        String nubeAncho,
+        String nubeAlto
 ) {
 }

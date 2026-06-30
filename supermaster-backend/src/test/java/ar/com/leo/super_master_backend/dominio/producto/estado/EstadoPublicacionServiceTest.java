@@ -73,6 +73,10 @@ class EstadoPublicacionServiceTest {
         assertThat(dto.datos().seoHogar().title()).isNull();
         assertThat(dto.datos().seoGastro()).isNull(); // gastro no encontrado (product null)
         assertThat(dto.datos().mlaResuelto()).isEqualTo("MLA123"); // MLA real resuelto por SKU
+        assertThat(dto.datos().nubePeso()).isEqualTo("1.0");
+        assertThat(dto.datos().nubeProfundidad()).isEqualTo("1"); // depth
+        assertThat(dto.datos().nubeAncho()).isEqualTo("1");        // width
+        assertThat(dto.datos().nubeAlto()).isEqualTo("1");         // height
     }
 
     @Test

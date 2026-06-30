@@ -61,7 +61,8 @@ public class EstadoPublicacionService {
                            List<MlAtributoDTO> atributos, String descripcion, String mlaResuelto) {}
 
     /** Estado + datos editables de una tienda Nube. */
-    private record NubePanel(EstadoCanalDTO estado, String descripcion, SeoCanalDTO seo) {}
+    private record NubePanel(EstadoCanalDTO estado, String descripcion, SeoCanalDTO seo,
+                             String peso, String profundidad, String ancho, String alto) {}
 
     @Transactional(readOnly = true)
     public EstadoPublicacionDTO leer(Integer productoId) {
@@ -93,7 +94,11 @@ public class EstadoPublicacionService {
                 gastro.descripcion(),
                 hogar.seo(),
                 gastro.seo(),
-                ml.mlaResuelto());
+                ml.mlaResuelto(),
+                hogar.peso() != null ? hogar.peso() : gastro.peso(),
+                hogar.profundidad() != null ? hogar.profundidad() : gastro.profundidad(),
+                hogar.ancho() != null ? hogar.ancho() : gastro.ancho(),
+                hogar.alto() != null ? hogar.alto() : gastro.alto());
 
         return new EstadoPublicacionDTO(ml.estado(), hogar.estado(), gastro.estado(), dux, datos);
     }
@@ -135,9 +140,15 @@ public class EstadoPublicacionService {
         try {
             product = tiendaNubeService.buscarProductoPorSku(sku, store);
         } catch (Exception e) {
-            return new NubePanel(EstadoCanalDTO.ofError(), null, null);
+            return new NubePanel(EstadoCanalDTO.ofError(), null, null, null, null, null, null);
         }
-        return new NubePanel(estadoNube(product), descripcionNube(product), NubeSeoParser.parse(product));
+        JsonNode variant = (product != null) ? product.path("variants").path(0) : null;
+        String peso = variant != null ? variant.path("weight").asString(null) : null;
+        String prof = variant != null ? variant.path("depth").asString(null) : null;
+        String ancho = variant != null ? variant.path("width").asString(null) : null;
+        String alto = variant != null ? variant.path("height").asString(null) : null;
+        return new NubePanel(estadoNube(product), descripcionNube(product), NubeSeoParser.parse(product),
+                peso, prof, ancho, alto);
     }
 
     private EstadoCanalDTO estadoNube(JsonNode product) {

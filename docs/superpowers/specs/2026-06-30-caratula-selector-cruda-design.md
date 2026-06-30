@@ -168,7 +168,7 @@ En la pantalla de Configuración IA, cada box **"USO DE IA … (ACUMULADO)"** ti
 - `ImagenUsoRepository.reset()` — `@Modifying @Query("UPDATE ImagenUso s SET s.consultas = 0, s.tokensEntrada = 0, s.tokensSalida = 0, s.costoUsd = 0 WHERE s.id = 1")` → devuelve `int` (filas afectadas).
 - `ImagenUsoService.reset()` — `@Transactional`; loguea warn si `reset() == 0` (fila ausente), igual que `registrar`.
 - Endpoint: `POST /api/imagen-ia/uso/reset` → `204 No Content`. `@PreAuthorize(Permisos.INTEGRACIONES_EDITAR)`.
-- Equivalente SEO: `SeoUsoRepository.reset()`, `SeoUsoService.reset()`, `POST /api/seo-ia/uso/reset`.
+- Equivalente SEO: `SeoUsoRepository.reset()`, `SeoUsoService.reset()`, `POST /api/seo/uso/reset` (el controller de SEO usa base `/api/seo`).
 
 **Frontend:**
 
@@ -181,7 +181,7 @@ En la pantalla de Configuración IA, cada box **"USO DE IA … (ACUMULADO)"** ti
 Junto a cada botón de IA del modal, mostrar el modelo configurado y un acceso a su pantalla de config:
 
 - **Botón "Mejorar carátula con IA"** → texto "Modelo: `{modelImagen}`" + link a config IA (pestaña Carátula). `modelImagen` se lee de `GET /api/imagen-ia/config` (`.model`).
-- **Botón "Generar SEO con IA"** (en cada bloque SEO de Nube) → texto "Modelo: `{modelSeo}`" + link a config IA (pestaña SEO). `modelSeo` se lee de `GET /api/seo-ia/config` (`.model`).
+- **Botón "Generar SEO con IA"** (en cada bloque SEO de Nube) → texto "Modelo: `{modelSeo}`" + link a config IA (pestaña SEO). `modelSeo` se lee de `GET /api/seo/config` (`.model`).
 
 **Carga de los modelos en el modal:** al abrir el modal de producto se hacen los dos GET de config (imagen y SEO) y se guardan en estado (`modelImagen`, `modelSeo`). Reusa los services existentes `getImagenConfigAPI` / `getSeoConfigAPI`. Mientras cargan, el texto puede omitirse o mostrar "Modelo: …".
 

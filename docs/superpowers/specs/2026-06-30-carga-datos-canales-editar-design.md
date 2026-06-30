@@ -19,14 +19,14 @@ Problemas a resolver:
 
 - **B1 — Indicador de carga de ML:** mostrar "Cargando datos de ML…" (mismo patrón existente) en **categoría**, **atributos (ficha técnica)** y **paquete de envío** mientras `cargandoEstado`.
 - **B2 — Paquete de envío desde ML:** parsear `SELLER_PACKAGE_*` del item y pre-cargar los inputs `mlPaq*`.
-- **B3 — Tienda Nube completo desde el canal:** pre-cargar **todos** los campos de Nube (título, SEO, descripción, dimensiones) desde la publicación, para ambos canales (HOGAR/GASTRO).
+- **B3 — Tienda Nube completo desde el canal + indicador:** pre-cargar **todos** los campos de Nube (título, SEO, descripción, dimensiones) desde la publicación, para ambos canales (HOGAR/GASTRO), y mostrar el indicador "Cargando datos del canal…" en los campos que llegan async (SEO title/description/tags, título) mientras `cargandoEstado` — hoy esos campos se ven vacíos durante la carga porque no muestran el indicador (como sí lo hace la descripción).
 
 ## Decisiones tomadas (brainstorming)
 
 - Alcance del Tema B cerrado en B1 + B2 + B3 (no hay más cambios pendientes).
 - B3: **todo desde el canal**, incluido el **título** (deja de venir del producto al editar).
-- **El canal manda con fallback al producto:** cuando el canal trae el dato, pisa el valor cargado del producto; si el producto no está publicado en ese canal (dato null), se conserva el valor del producto. Consistente con cómo ya se cargan categoría/descripción de ML.
-- **No se cambia la persistencia.** `tituloNube` y `mlPaq*` siguen guardándose en el producto (los usan listado/columnas/historial). Solo cambia la **pre-carga** del modal en edición. Externalizarlos por completo queda fuera de alcance.
+- **El canal manda con fallback al producto (solo en la pre-carga):** al abrir, cuando el canal trae el dato pisa el valor cargado del producto; si el producto no está publicado en ese canal (dato null), se conserva el valor del producto. Consistente con cómo ya se cargan categoría/descripción de ML.
+- **Al guardar: BD + publicación.** `tituloNube` y `mlPaq*` se persisten en la BD del producto (los usan listado/columnas/historial) **y** se propagan a la publicación del canal mediante el flujo "actualizar al editar" ya existente. *Verificar que ese flujo ya manda estos campos al canal; si falta alguno, incluirlo en el plan.* No se quita la persistencia en BD.
 
 ---
 
@@ -57,8 +57,10 @@ Los `SELLER_PACKAGE_*` **siguen** en la lista `OMITIR` de `atributos(...)` (no s
 ### B3 — Tienda Nube completo desde el canal (backend)
 
 - **Título:** leer el nombre del producto Nube (`product.name.es`, a confirmar contra el JSON real de Nube) en `leerNubePanel`; agregar `String titulo` al `NubePanel` y `String nubeTitulo` al `DatosCanalDTO`. Como el título es compartido HOGAR/GASTRO, se elige con el mismo patrón de fallback ya usado: `hogar.titulo() != null ? hogar.titulo() : gastro.titulo()`.
-- **SEO:** ya se parsea (`NubeSeoParser.parse`). **Verificar contra la API real** por qué el SEO de KT GASTRO aparece vacío en el caso reportado: (a) la publicación no tiene SEO seteado en Nube (comportamiento correcto, no hay nada que cargar), o (b) bug del parser / del path JSON. Si es (b), corregir `NubeSeoParser`. *(Diagnóstico en implementación; no se asume bug todavía.)*
+- **SEO:** ya se parsea (`NubeSeoParser.parse`) y se carga bien; **no estaba vacío, estaba cargando**. El cambio es de **frontend** (indicador, ver más abajo), no de backend.
 - **Descripción y dimensiones:** ya se cargan del canal; sin cambios.
+
+**Indicador de carga en campos Nube (frontend):** mientras `cargandoEstado`, mostrar "Cargando datos del canal…" (mismo patrón de [líneas 2349-2351](../../../supermaster-frontend/src/app/productos/ProductoFormModal.tsx#L2349-L2351)) en los campos que llegan async y hoy se ven vacíos durante la carga: **Título Nube** y los tres campos **SEO** (title/description/tags) de cada bloque (`renderSeoNube` para HOGAR y GASTRO). La descripción ya tiene el indicador; se replica al resto.
 
 ### Frontend — pre-carga (ProductoFormModal)
 
@@ -91,17 +93,16 @@ Detalle: el botón "Predecir categorías" y la edición manual quedan deshabilit
 
 - **Canal caído / producto no publicado:** `leerMlPanel` / `leerNubePanel` ya capturan todo y nunca lanzan (devuelven panel de error / nulls). Los campos quedan con el valor del producto (fallback). El indicador de carga se apaga igual en el `.finally` (`setCargandoEstado(false)`).
 - **Atributo de paquete con formato inesperado:** si no se puede parsear el número, ese campo queda `null` (no se pre-carga); no rompe la lectura del resto.
-- **SEO vacío:** si tras el diagnóstico resulta ser dato vacío en Nube, no es error: los campos SEO quedan vacíos (correcto).
+- **Campos Nube durante la carga:** mientras `cargandoEstado`, los campos (título, SEO) muestran el indicador "Cargando datos del canal…"; al terminar se llenan con el dato del canal (o quedan vacíos si la publicación realmente no lo tiene).
 
 ## Testing
 
 - `MlDatosParser.paquete`: item con los 4 `SELLER_PACKAGE_*` (cm + gramos→kg correctos); item sin ellos → todos null; `value_struct` ausente con fallback a `value_name`; `atributos(...)` sigue omitiéndolos de la ficha.
 - `EstadoPublicacionService`: `DatosCanalDTO` incluye paquete ML y título Nube; fallback HOGAR→GASTRO para el título; canal en error → nulls.
-- `NubeSeoParser` (si el diagnóstico halla bug): SEO presente se parsea; ausente → vacío.
-- Frontend (smoke manual): abrir producto con publicación ML → paquete se llena desde ML; categoría/atributos/paquete muestran "Cargando datos de ML…" hasta que llega; abrir producto publicado en Nube → título/SEO/descripción/dimensiones se llenan desde el canal en ambas pestañas; producto no publicado → conserva valores del producto.
+- Frontend (smoke manual): abrir producto con publicación ML → paquete se llena desde ML; categoría/atributos/paquete muestran "Cargando datos de ML…" hasta que llega; abrir producto publicado en Nube → título y SEO (title/description/tags) muestran "Cargando datos del canal…" hasta que llegan y luego se llenan desde el canal en ambas pestañas; producto no publicado → conserva valores del producto.
+- Guardado: al guardar un producto editado, `tituloNube` y `mlPaq*` quedan en la BD **y** la publicación del canal refleja los cambios (verificar el flujo "actualizar al editar").
 
 ## Fuera de alcance (YAGNI)
 
-- Externalizar por completo `tituloNube` / `mlPaq*` (dejar de persistirlos): no se pidió; aquí solo cambia la pre-carga del modal.
-- Indicador de carga en los campos de Nube (ya existe el de descripción; el resto se evalúa solo si molesta).
+- Externalizar por completo `tituloNube` / `mlPaq*` (dejar de persistirlos en la BD): se siguen guardando en BD y además en la publicación.
 - Reescritura del paralelismo de `EstadoPublicacionService`.

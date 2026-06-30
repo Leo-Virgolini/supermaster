@@ -42,4 +42,11 @@ public class SeoUsoService {
         return new SeoUsoDTO(u.getConsultas(), u.getTokensEntrada(), u.getTokensSalida(), u.getCostoUsd(),
                 c.getModel(), c.getPrecioInput1m(), c.getPrecioOutput1m());
     }
+
+    @Transactional
+    public void reset() {
+        if (repository.reset() == 0) {
+            log.warn("seo_uso id=1 no existe; el reset no afectó filas");
+        }
+    }
 }

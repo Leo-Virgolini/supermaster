@@ -19,4 +19,10 @@ public interface SeoUsoRepository extends JpaRepository<SeoUso, Long> {
            "s.tokensSalida = s.tokensSalida + :out, " +
            "s.costoUsd = s.costoUsd + :costo WHERE s.id = 1")
     int registrar(@Param("in") long tokensEntrada, @Param("out") long tokensSalida, @Param("costo") BigDecimal costo);
+
+    /** Reset de todos los contadores de uso (singleton id=1). */
+    @Modifying
+    @Query("UPDATE SeoUso s SET s.consultas = 0, s.tokensEntrada = 0, " +
+           "s.tokensSalida = 0, s.costoUsd = 0 WHERE s.id = 1")
+    int reset();
 }

@@ -37,4 +37,11 @@ public class SeoController {
     public ResponseEntity<SeoUsoDTO> uso() {
         return ResponseEntity.ok(seoUsoService.obtener());
     }
+
+    @PostMapping("/uso/reset")
+    @PreAuthorize(Permisos.INTEGRACIONES_EDITAR)
+    public ResponseEntity<Void> resetUso() {
+        seoUsoService.reset();
+        return ResponseEntity.noContent().build();
+    }
 }

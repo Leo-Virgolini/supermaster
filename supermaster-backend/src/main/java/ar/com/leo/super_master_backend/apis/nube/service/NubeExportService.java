@@ -64,6 +64,10 @@ public class NubeExportService {
                 producto.setDescripcionNube(destino.descripcion());
                 producto.setEquipamientoGastro(
                         TiendaNubeService.STORE_GASTRO.equals(tienda) && NubeEquipamiento.esEquipamiento(producto));
+                producto.setNubePeso(request.nubePeso());
+                producto.setNubeProfundidad(request.nubeProfundidad());
+                producto.setNubeAncho(request.nubeAncho());
+                producto.setNubeAlto(request.nubeAlto());
 
                 // Upsert: si ya existe en la tienda, actualizar; si no, crear.
                 ResultadoAltaNube r;

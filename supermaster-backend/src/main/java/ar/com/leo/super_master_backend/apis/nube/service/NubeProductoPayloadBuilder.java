@@ -40,11 +40,11 @@ public final class NubeProductoPayloadBuilder {
             variant.put("price", pvp.toPlainString());
         }
         if (p.getCosto() != null) variant.put("cost", p.getCosto().toPlainString());
-        // Peso y dimensiones por defecto (placeholder hasta cargar datos reales de empaque).
-        variant.put("weight", "0.050");
-        variant.put("depth", "8.00");
-        variant.put("width", "5.00");
-        variant.put("height", "5.00");
+        // Peso y dimensiones: valor del request si viene cargado; si no, el default fijo de Nube.
+        variant.put("weight", dimOrDefault(p.getNubePeso(), "0.050"));
+        variant.put("depth", dimOrDefault(p.getNubeProfundidad(), "8.00"));
+        variant.put("width", dimOrDefault(p.getNubeAncho(), "5.00"));
+        variant.put("height", dimOrDefault(p.getNubeAlto(), "5.00"));
         variant.put("stock", "");
 
         List<Map<String, Object>> variants = new ArrayList<>();
@@ -57,5 +57,10 @@ public final class NubeProductoPayloadBuilder {
 
         NubeSeoPayload.aplicar(payload, seo);
         return payload;
+    }
+
+    /** Valor de dimensión si viene cargado; si no, el default fijo de Nube. */
+    private static String dimOrDefault(String v, String def) {
+        return (v != null && !v.isBlank()) ? v.trim() : def;
     }
 }

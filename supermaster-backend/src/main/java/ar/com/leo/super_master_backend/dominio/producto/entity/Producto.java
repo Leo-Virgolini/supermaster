@@ -73,6 +73,14 @@ public class Producto {
     /** Estado de Dux a enviar en el export (no persistido). "S"/"N"; null = usar `activo`. */
     @Transient
     private String duxHabilitado;
+    @Transient
+    private String nubePeso;
+    @Transient
+    private String nubeProfundidad;
+    @Transient
+    private String nubeAncho;
+    @Transient
+    private String nubeAlto;
 
     @Size(max = 20)
     @Column(name = "ean", length = 20)

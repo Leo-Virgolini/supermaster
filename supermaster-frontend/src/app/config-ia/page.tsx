@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Button from "../components/Button/Button";
 import { useSeoIa } from "./useSeoIa";
-import { FORMATO_OPCIONES, QUALITY_OPCIONES, SIZE_OPCIONES } from "./types";
+import { FORMATO_OPCIONES, MODEL_IMAGEN_OPCIONES, QUALITY_OPCIONES, SIZE_OPCIONES } from "./types";
 import { SparklesIcon } from "@heroicons/react/24/outline";
 
 export default function SeoIaPage() {
-    const { seoConfig, imagenConfig, uso, imagenUso, isLoading, isSavingSeo, isSavingImagen, saveSeoConfig, saveImagenConfig } = useSeoIa();
+    const { seoConfig, imagenConfig, uso, imagenUso, isLoading, isSavingSeo, isSavingImagen, saveSeoConfig, saveImagenConfig, resetSeoUso, resetImagenUso, isResettingSeo, isResettingImagen } = useSeoIa();
 
     // Borradores SEO
     const [promptHogar, setPromptHogar] = useState("");
@@ -25,7 +26,9 @@ export default function SeoIaPage() {
     const [imgIn, setImgIn] = useState("");
     const [imgOut, setImgOut] = useState("");
 
-    const [tab, setTab] = useState<"seo" | "caratula">("seo");
+    const searchParams = useSearchParams();
+    const tabInicial = searchParams.get("tab") === "caratula" ? "caratula" : "seo";
+    const [tab, setTab] = useState<"seo" | "caratula">(tabInicial);
 
     const precioInvalido = (v: string) => v.trim() === "" || !(Number(v) > 0);
 
@@ -64,9 +67,14 @@ export default function SeoIaPage() {
         precioInput1m: Number(imgIn), precioOutput1m: Number(imgOut),
     });
 
-    const usoBox = (titulo: string, u: typeof uso) => (
+    const usoBox = (titulo: string, u: typeof uso, onReset: () => void, resetting: boolean) => (
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/60">
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{titulo}</h2>
+            <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{titulo}</h2>
+                <Button variant="light" onClick={() => { if (window.confirm("¿Resetear el uso acumulado a cero? No se puede deshacer.")) onReset(); }} disabled={resetting || isLoading}>
+                    {resetting ? "Reseteando…" : "Resetear"}
+                </Button>
+            </div>
             {u ? (
                 <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm text-slate-700 dark:text-slate-200">
                     <span><b>Consultas:</b> {fmt(u.consultas)}</span>
@@ -99,7 +107,7 @@ export default function SeoIaPage() {
             </div>
 
             {tab === "seo" && (<>
-            {usoBox("Uso de IA — SEO (acumulado)", uso)}
+            {usoBox("Uso de IA — SEO (acumulado)", uso, resetSeoUso, isResettingSeo)}
 
             {/* Config SEO */}
             <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-700 space-y-3">
@@ -126,7 +134,7 @@ export default function SeoIaPage() {
             </>)}
 
             {tab === "caratula" && (<>
-            {usoBox("Uso de IA — Carátula (acumulado)", imagenUso)}
+            {usoBox("Uso de IA — Carátula (acumulado)", imagenUso, resetImagenUso, isResettingImagen)}
 
             {/* Config Imagen */}
             <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-700 space-y-3">
@@ -136,7 +144,14 @@ export default function SeoIaPage() {
                     <textarea className={textareaCls} value={imgPrompt} onChange={e => setImgPrompt(e.target.value)} disabled={isLoading} />
                 </div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <div><label className="text-xs text-slate-500">Modelo</label><input className={inputCls} value={imgModel} onChange={e => setImgModel(e.target.value)} disabled={isLoading} /></div>
+                    <div><label className="text-xs text-slate-500">Modelo</label>
+                        <select className={inputCls} value={imgModel} onChange={e => setImgModel(e.target.value)} disabled={isLoading}>
+                            {!MODEL_IMAGEN_OPCIONES.some(o => o.value === imgModel) && imgModel !== "" && (
+                                <option value={imgModel}>{imgModel}</option>
+                            )}
+                            {MODEL_IMAGEN_OPCIONES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                    </div>
                     <div><label className="text-xs text-slate-500">Tamaño</label>
                         <select className={inputCls} value={imgSize} onChange={e => setImgSize(e.target.value)} disabled={isLoading}>
                             {SIZE_OPCIONES.map(o => <option key={o} value={o}>{o}</option>)}

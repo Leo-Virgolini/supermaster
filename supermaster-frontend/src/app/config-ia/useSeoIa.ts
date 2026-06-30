@@ -9,6 +9,8 @@ import {
     getSeoUsoAPI,
     updateImagenConfigAPI,
     updateSeoConfigAPI,
+    resetImagenUsoAPI,
+    resetSeoUsoAPI,
 } from "./seoService";
 import type { ImagenConfig, ImagenUso, SeoConfig, SeoUso } from "./types";
 
@@ -20,6 +22,8 @@ export function useSeoIa() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSavingSeo, setIsSavingSeo] = useState(false);
     const [isSavingImagen, setIsSavingImagen] = useState(false);
+    const [isResettingSeo, setIsResettingSeo] = useState(false);
+    const [isResettingImagen, setIsResettingImagen] = useState(false);
 
     const fetchData = useCallback(async () => {
         setIsLoading(true);
@@ -69,5 +73,31 @@ export function useSeoIa() {
         }
     };
 
-    return { seoConfig, imagenConfig, uso, imagenUso, isLoading, isSavingSeo, isSavingImagen, saveSeoConfig, saveImagenConfig };
+    const resetSeoUso = async () => {
+        setIsResettingSeo(true);
+        try {
+            await resetSeoUsoAPI();
+            setUso(await getSeoUsoAPI());
+            notificar.success("Uso de SEO reseteado");
+        } catch (e: unknown) {
+            notificar.error(getErrorMessage(e, "No se pudo resetear el uso de SEO"));
+        } finally {
+            setIsResettingSeo(false);
+        }
+    };
+
+    const resetImagenUso = async () => {
+        setIsResettingImagen(true);
+        try {
+            await resetImagenUsoAPI();
+            setImagenUso(await getImagenUsoAPI());
+            notificar.success("Uso de carátula reseteado");
+        } catch (e: unknown) {
+            notificar.error(getErrorMessage(e, "No se pudo resetear el uso de carátula"));
+        } finally {
+            setIsResettingImagen(false);
+        }
+    };
+
+    return { seoConfig, imagenConfig, uso, imagenUso, isLoading, isSavingSeo, isSavingImagen, saveSeoConfig, saveImagenConfig, resetSeoUso, resetImagenUso, isResettingSeo, isResettingImagen };
 }

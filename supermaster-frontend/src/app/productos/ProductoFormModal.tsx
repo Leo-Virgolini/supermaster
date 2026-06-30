@@ -598,6 +598,9 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
 
     // Precarga al montar: en edición copia los campos del producto; en alta sugiere el SKU.
     useEffect(() => {
+        // Evita que una carga async vieja (p. ej. el doble efecto de StrictMode, o un re-open) pise
+        // cambios que el usuario ya hizo (p. ej. el estado de un canal volvía al anterior "a veces").
+        let cancelled = false;
         if (producto) {
             setEditandoProductoId(producto.id);
             setPanelTab("datos");
@@ -681,6 +684,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             setMlaResuelto(null);
             getEstadoPublicacionAPI(producto.id)
                 .then(e => {
+                    if (cancelled) return;
                     setEstadoCanales(e); setEstadoOriginal(e);
                     setMlaResuelto(e.datos.mlaResuelto ?? null);
                     // Pre-carga editable desde el canal (no persistido).
@@ -711,8 +715,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         setMlAtributosVal(map);
                     }
                 })
-                .catch(err => { if (!esSesionExpirada(err)) notificar.error("No se pudo leer el estado de publicación"); })
-                .finally(() => setCargandoEstado(false));
+                .catch(err => { if (!cancelled && !esSesionExpirada(err)) notificar.error("No se pudo leer el estado de publicación"); })
+                .finally(() => { if (!cancelled) setCargandoEstado(false); });
         } else {
             setEditandoProductoId(null);
             setPanelTab("datos");
@@ -726,6 +730,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             setNubePeso("0.050"); setNubeProfundidad("8.00"); setNubeAncho("5.00"); setNubeAlto("5.00");
             void cargarSkuSugerido(false);
         }
+        return () => { cancelled = true; };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 

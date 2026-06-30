@@ -1049,6 +1049,13 @@ public class MercadoLibreService {
             return BigDecimal.ZERO;
         }
 
+        // ML rechaza dimensiones <= 0 ("Invalid format to dimensions field"). Validamos antes de mandar
+        // para dar un mensaje claro en vez del 400 críptico.
+        if (alto.signum() <= 0 || ancho.signum() <= 0 || largo.signum() <= 0 || peso.signum() <= 0) {
+            throw new IllegalArgumentException(
+                    "las medidas del paquete de envío deben ser mayores a 0 (Alto/Ancho/Largo en cm, Peso en kg)");
+        }
+
         if (zipCode == null || zipCode.isBlank()) {
             log.warn("ML - consultarEnvioConIvaSinItem: zipCode no disponible para SKU {}", producto.getSku());
             return BigDecimal.ZERO;
@@ -1058,8 +1065,10 @@ public class MercadoLibreService {
         // Igual que apis.ml.model.Producto#getDimensions():
         //   String.format("%.0fx%.0fx%.0f,%.0f", heightCm, widthCm, lengthCm, weightG)
         double pesoGramos = peso.doubleValue() * 1000.0;
-        String dimensions = String.format("%.0fx%.0fx%.0f,%.0f",
+        // Locale.US para garantizar separadores ASCII (igual que itemPrice abajo); ML exige enteros sin agrupación.
+        String dimensions = String.format(Locale.US, "%.0fx%.0fx%.0f,%.0f",
                 alto.doubleValue(), ancho.doubleValue(), largo.doubleValue(), pesoGramos);
+        log.info("ML - cálculo de envío SKU {}: dimensions='{}' (pvp={})", producto.getSku(), dimensions, pvp);
 
         String itemPrice = String.format(Locale.forLanguageTag("en-US"), "%.2f", pvp);
         String params = String.format(

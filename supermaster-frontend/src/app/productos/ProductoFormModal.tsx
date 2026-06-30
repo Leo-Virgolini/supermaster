@@ -689,8 +689,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 }
             })();
 
-            getImagenConfigAPI().then(c => setModelImagen(c.model)).catch(() => {});
-            getSeoConfigAPI().then(c => setModelSeo(c.model)).catch(() => {});
+            getImagenConfigAPI().then(c => { if (!cancelled) setModelImagen(c.model); }).catch(() => {});
+            getSeoConfigAPI().then(c => { if (!cancelled) setModelSeo(c.model); }).catch(() => {});
 
             setCargandoEstado(true);
             setMlaResuelto(null);
@@ -1399,6 +1399,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const cancelarCaratula = () => {
         setCaratulaPreview(null);
         setCaratulaCruda(null);
+        setDuracionCaratula(null);
+        setCrudaElegida(null);
     };
 
     // Convierte un bloque de estado SEO a payload de export SOLO si tiene algún campo cargado; si no, undefined.
@@ -1437,12 +1439,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const canalCardClassName = "flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200";
     const selectBaseClassName = `${inputBaseClassName} appearance-none`;
 
-    const indicadorCargaCanal = (
-        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-800/60"><SpinnerIcon /> Cargando datos de ML…</div>
-    );
-
-    const indicadorCargaNube = (
-        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-800/60"><SpinnerIcon /> Cargando datos del canal…</div>
+    const indicadorCarga = (texto: string) => (
+        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-800/60"><SpinnerIcon /> {texto}</div>
     );
 
     // Renderiza el input de un atributo según el tipo de componente de ML.
@@ -1697,7 +1695,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                     )}
                 </div>
             </div>
-            {cargandoEstado ? indicadorCargaNube : (
+            {cargandoEstado ? indicadorCarga("Cargando datos del canal…") : (
                 <div className="grid grid-cols-1 gap-3">
                     <label className="block">
                         <span className={fieldLabelClassName}>SEO Title</span>
@@ -2234,7 +2232,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 <input type="text" className={`${inputBaseClassName} ${formErrors.tituloMl ? inputErrorClassName : ""}`} value={tituloMl} onChange={e => { setTituloMl(e.target.value); if (formErrors.tituloMl) setFormErrors(p => ({ ...p, tituloMl: "" })); }} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handlePredecirCategoriasMl(); } }} placeholder="Título para Mercado Libre" maxLength={maxTitleLengthMl ?? undefined} />
                                 {formErrors.tituloMl && <p className="mt-1 text-xs text-red-500">{formErrors.tituloMl}</p>}
                                 <div className="mt-2 flex flex-col gap-2">
-                                    {cargandoEstado ? indicadorCargaCanal : (<>
+                                    {cargandoEstado ? indicadorCarga("Cargando datos de ML…") : (<>
                                         <div className="flex items-center gap-2">
                                             <Button variant="dark" onClick={handlePredecirCategoriasMl} disabled={!tituloMl.trim() || cargandoPrediccionesMl || cargandoEstado}>
                                                 <TagIcon className="w-4 h-4" /> {cargandoPrediccionesMl ? "Prediciendo..." : "Predecir categorías"}
@@ -2353,13 +2351,13 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                     </button>
                                 </span>
                                 {cargandoEstado
-                                    ? <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-800/60"><SpinnerIcon /> Cargando datos del canal…</div>
+                                    ? indicadorCarga("Cargando datos del canal…")
                                     : <textarea className={inputBaseClassName} value={descripcionMl} onChange={e => setDescripcionMl(e.target.value)} rows={4} maxLength={20000} disabled={cargandoEstado} placeholder="Texto plano (sin HTML). Lo que ves es lo que se publica en ML." />}
                             </label>
                         </div>
 
                         {/* Ficha técnica de la categoría ML (Variante / Principales / Secundarias) */}
-                        {cargandoEstado ? indicadorCargaCanal : (mlCategoryId && mlFicha && mlFicha.secciones.length > 0 && (
+                        {cargandoEstado ? indicadorCarga("Cargando datos de ML…") : (mlCategoryId && mlFicha && mlFicha.secciones.length > 0 && (
                             <div className="mt-6 border-t border-slate-200/70 pt-4 dark:border-slate-700/70">
                                 <div className="mb-1 flex items-center gap-1.5">
                                     <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Características de Mercado Libre</span>
@@ -2389,7 +2387,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                     <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
                                 </Tooltip>
                             </div>
-                            {cargandoEstado ? indicadorCargaCanal : (
+                            {cargandoEstado ? indicadorCarga("Cargando datos de ML…") : (
                                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                                     <label className="block">
                                         <span className={fieldLabelClassName}>Alto (cm){subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
@@ -2446,7 +2444,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         <div className="grid grid-cols-1 gap-4">
                             <label className="block">
                                 <span className={fieldLabelClassName}>Título Nube</span>
-                                {cargandoEstado ? indicadorCargaNube : (
+                                {cargandoEstado ? indicadorCarga("Cargando datos del canal…") : (
                                     <input type="text" className={`${inputBaseClassName} ${formErrors.tituloNube ? inputErrorClassName : ""}`} value={tituloNube} onChange={e => { setTituloNube(e.target.value); if (formErrors.tituloNube) setFormErrors(p => ({ ...p, tituloNube: "" })); }} placeholder="Título para Tienda Nube" />
                                 )}
                                 {formErrors.tituloNube && <p className="mt-1 text-xs text-red-500">{formErrors.tituloNube}</p>}
@@ -2464,7 +2462,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                     </button>
                                 </span>
                                 {cargandoEstado
-                                    ? <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-800/60"><SpinnerIcon /> Cargando datos del canal…</div>
+                                    ? indicadorCarga("Cargando datos del canal…")
                                     : <HtmlEditor value={descripcionHogar} onChange={setDescripcionHogar} placeholder="HTML. Lo que ves es lo que se publica en KT HOGAR." />}
                             </label>
                         </div>
@@ -2508,7 +2506,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         <div className="grid grid-cols-1 gap-4">
                             <label className="block">
                                 <span className={fieldLabelClassName}>Título Nube</span>
-                                {cargandoEstado ? indicadorCargaNube : (
+                                {cargandoEstado ? indicadorCarga("Cargando datos del canal…") : (
                                     <input type="text" className={`${inputBaseClassName} ${formErrors.tituloNube ? inputErrorClassName : ""}`} value={tituloNube} onChange={e => { setTituloNube(e.target.value); if (formErrors.tituloNube) setFormErrors(p => ({ ...p, tituloNube: "" })); }} placeholder="Título para Tienda Nube" />
                                 )}
                                 {formErrors.tituloNube && <p className="mt-1 text-xs text-red-500">{formErrors.tituloNube}</p>}
@@ -2531,7 +2529,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                     </button>
                                 </span>
                                 {cargandoEstado
-                                    ? <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-800/60"><SpinnerIcon /> Cargando datos del canal…</div>
+                                    ? indicadorCarga("Cargando datos del canal…")
                                     : <HtmlEditor value={descripcionGastro} onChange={setDescripcionGastro} placeholder="HTML. Lo que ves es lo que se publica en KT GASTRO." />}
                             </label>
                         </div>

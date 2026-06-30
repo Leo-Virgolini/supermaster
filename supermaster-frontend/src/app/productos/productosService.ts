@@ -522,6 +522,7 @@ export type EstadoCanal = {
 	publicado: boolean;
 	estado: string | null;
 	precio: number | null;
+	promo: number | null;
 	stock: number | null;
 	peso: string | null;
 	dimensiones: string | null;

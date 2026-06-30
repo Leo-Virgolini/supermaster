@@ -1579,6 +1579,12 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                               <span className="font-medium text-slate-600 dark:text-slate-300">{canal.precio.toLocaleString("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                           </div>
                       )}
+                      {canal.promo != null && (
+                          <div className="flex justify-between gap-1">
+                              <span className="text-slate-400">Promo</span>
+                              <span className="font-medium text-emerald-600 dark:text-emerald-400">{canal.promo.toLocaleString("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          </div>
+                      )}
                       {canal.stock != null && (
                           <div className="flex justify-between gap-1">
                               <span className="text-slate-400">Stock</span>

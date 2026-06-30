@@ -571,8 +571,22 @@ export async function putEstadoPublicacionAPI(id: number, body: EstadoPublicacio
 	return r.json() as Promise<EstadoAplicar>;
 }
 
-export async function generarCaratulaAPI(sku: string): Promise<{ imagenBase64: string; formato: string; crudaBase64: string; crudaFormato: string }> {
-	const r = await fetchAPI(`${API_BASE_URL}/api/imagenes/caratula/generar/${encodeURIComponent(sku)}`, { method: "POST" });
+export type EstadoCarpeta = { ruta: string; existe: boolean; esDirectorio: boolean; legible: boolean; escribible: boolean };
+export type CrudasDisponibles = { crudaDir: EstadoCarpeta; destinoDir: EstadoCarpeta; imagenes: string[] };
+
+export async function getCrudasAPI(sku: string): Promise<CrudasDisponibles> {
+	const r = await fetchAPI(`${API_BASE_URL}/api/imagenes/caratula/crudas/${encodeURIComponent(sku)}`);
+	if (!r.ok) throw new Error(await extraerMensajeError(r, "No se pudieron leer las imágenes crudas"));
+	return r.json();
+}
+
+export function crudaMiniaturaURL(nombre: string): string {
+	return `${API_BASE_URL}/api/imagenes/cruda/${encodeURIComponent(nombre)}`;
+}
+
+export async function generarCaratulaAPI(sku: string, crudaNombre?: string): Promise<{ imagenBase64: string; formato: string; crudaBase64: string; crudaFormato: string }> {
+	const q = crudaNombre ? `?cruda=${encodeURIComponent(crudaNombre)}` : "";
+	const r = await fetchAPI(`${API_BASE_URL}/api/imagenes/caratula/generar/${encodeURIComponent(sku)}${q}`, { method: "POST" });
 	if (!r.ok) throw new Error(await extraerMensajeError(r, "No se pudo generar la carátula"));
 	return r.json();
 }

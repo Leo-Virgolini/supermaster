@@ -48,3 +48,13 @@ export const getImagenUsoAPI = async (): Promise<ImagenUso> => {
     if (!res.ok) throw new Error("Error al obtener el uso de carátula");
     return await res.json();
 };
+
+export const resetImagenUsoAPI = async (): Promise<void> => {
+    const res = await fetchAPI(`${IMAGEN_URL}/uso/reset`, { method: "POST" });
+    if (!res.ok) throw new Error("Error al resetear el uso de carátula");
+};
+
+export const resetSeoUsoAPI = async (): Promise<void> => {
+    const res = await fetchAPI(`${API_URL}/uso/reset`, { method: "POST" });
+    if (!res.ok) throw new Error("Error al resetear el uso de SEO");
+};

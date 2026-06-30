@@ -1,5 +1,6 @@
 package ar.com.leo.super_master_backend.dominio.imagen.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +28,7 @@ import java.util.stream.Stream;
  * memoria con un TTL: solo se vuelve a escanear el directorio cuando el índice expira,
  * y las búsquedas filtran sobre la lista cacheada (sin tocar el disco).
  */
+@Slf4j
 @Service
 public class ImagenService {
 
@@ -382,5 +384,41 @@ public class ImagenService {
             if (e.equals(ext)) return true;
         }
         return false;
+    }
+
+    /** Estado de una carpeta para diagnóstico en el frontend. */
+    public record EstadoCarpeta(String ruta, boolean existe, boolean esDirectorio,
+                                boolean legible, boolean escribible) {}
+
+    private static EstadoCarpeta estadoDe(Path dir) {
+        return new EstadoCarpeta(
+                dir.toString(),
+                Files.exists(dir),
+                Files.isDirectory(dir),
+                Files.isReadable(dir),
+                Files.isWritable(dir));
+    }
+
+    /** Diagnóstico de la carpeta cruda (entrada). */
+    public EstadoCarpeta estadoCrudaDir() { return estadoDe(rawDir); }
+
+    /** Diagnóstico de la carpeta destino (donde se guarda la carátula). */
+    public EstadoCarpeta estadoDestinoDir() { return estadoDe(baseDir); }
+
+    /**
+     * Borra todas las crudas del SKU de rawDir. Best-effort: si el borrado de alguna falla,
+     * loguea y continúa. Devuelve cuántas borró efectivamente.
+     */
+    public int eliminarCrudasPorSku(String sku) {
+        validarNombreSeguro(sku);
+        int borradas = 0;
+        for (String nombre : resolverCrudasPorSku(sku)) {
+            try {
+                if (Files.deleteIfExists(rawDir.resolve(nombre))) borradas++;
+            } catch (IOException e) {
+                log.warn("No se pudo borrar la cruda {}: {}", nombre, e.getMessage());
+            }
+        }
+        return borradas;
     }
 }

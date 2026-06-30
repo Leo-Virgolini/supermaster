@@ -1826,7 +1826,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={activo} onChange={e => setActivo(e.target.checked)} id="activo" />
                                 <label htmlFor="activo" className="cursor-pointer select-none">Activo</label>
                             </div>
-                            <div className="flex flex-col items-start gap-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200">
+                            <div className="flex flex-col items-start justify-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200">
                                 <div className="flex items-center gap-3">
                                     <Squares2X2Icon className="h-5 w-5 shrink-0 text-violet-500" />
                                     <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={esCombo} onChange={e => handleToggleCombo(e.target.checked)} id="esCombo" />

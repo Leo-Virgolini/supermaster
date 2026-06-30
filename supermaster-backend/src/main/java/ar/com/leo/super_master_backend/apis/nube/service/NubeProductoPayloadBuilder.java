@@ -46,7 +46,7 @@ public final class NubeProductoPayloadBuilder {
         variant.put("depth", dimOrDefault(p.getNubeProfundidad(), "8.00"));
         variant.put("width", dimOrDefault(p.getNubeAncho(), "5.00"));
         variant.put("height", dimOrDefault(p.getNubeAlto(), "5.00"));
-        variant.put("stock", "");
+        variant.put("stock", "0");
 
         List<Map<String, Object>> variants = new ArrayList<>();
         variants.add(variant);

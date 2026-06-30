@@ -34,8 +34,8 @@ class NubeProductoPayloadBuilderTest {
         Map<String, Object> v = variants.get(0);
         assertThat(v.get("sku")).isEqualTo("SKU1");
         assertThat(v.get("price")).isEqualTo("1500.00");
-        assertThat(v).doesNotContainKey("promotional_price");
-        assertThat(v.get("stock")).isEqualTo("");
+        assertThat(v.get("promotional_price")).isEqualTo(""); // sin inflado: promo vacío (limpia uno viejo en Nube)
+        assertThat(v.get("stock")).isEqualTo("0");
         assertThat(v.get("weight")).isEqualTo("0.050");
         assertThat(v.get("depth")).isEqualTo("8.00");
         assertThat(v.get("width")).isEqualTo("5.00");
@@ -58,7 +58,7 @@ class NubeProductoPayloadBuilderTest {
         Map<String, Object> payload = NubeProductoPayloadBuilder.construir(base(), new BigDecimal("1500.00"), new BigDecimal("1500.00"), null, null);
         Map<String, Object> v = ((List<Map<String, Object>>) payload.get("variants")).get(0);
         assertThat(v.get("price")).isEqualTo("1500.00");
-        assertThat(v).doesNotContainKey("promotional_price");
+        assertThat(v.get("promotional_price")).isEqualTo(""); // inflado <= pvp: sin tachado; promo vacío (limpia uno viejo)
     }
 
     @Test

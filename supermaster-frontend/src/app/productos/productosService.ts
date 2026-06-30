@@ -243,11 +243,11 @@ export const calcularEnvioMlaAPI = async (productoId: number): Promise<void> => 
 // Sube (exporta) productos a Dux por SKU. El backend mapea los datos del producto
 // a los campos del ítem de Dux (cod_item, descripción, costo, IVA, combo, etc.).
 // Devuelve el mismo DTO que Nube/ML (ExportCanalResultDTO).
-export const exportarProductosADuxAPI = async (skus: string[]): Promise<ExportCanalResultDTO> => {
+export const exportarProductosADuxAPI = async (skus: string[], habilitado?: "S" | "N"): Promise<ExportCanalResultDTO> => {
 	const res = await fetchAPI(`${API_BASE_URL}/api/dux/exportar-productos/confirmar`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ skus }),
+		body: JSON.stringify({ skus, habilitado }),
 	});
 	if (!res.ok) throw new Error(await extraerMensajeError(res, "No se pudo subir el producto a Dux"));
 	return await res.json();

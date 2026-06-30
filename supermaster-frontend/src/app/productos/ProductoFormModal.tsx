@@ -448,7 +448,9 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 // carga mientras se espera la respuesta del proceso y lo cerramos al terminar.
                 const toastId = toast.loading("Subiendo a Dux… esperando confirmación del proceso (puede tardar)");
                 try {
-                    const r = await exportarProductosADuxAPI([skuExport]);
+                    // En alta no hay panel (estadoCanales = null) → "S"; en edición, el valor del panel.
+                    const duxHabilitado: "S" | "N" = estadoCanales?.dux.estado === "deshabilitado" ? "N" : "S";
+                    const r = await exportarProductosADuxAPI([skuExport], duxHabilitado);
                     return clasificarExport("Dux", r, skuExport);
                 } catch (e) {
                     return { canal: "Dux", estado: "error", detalle: e instanceof Error ? e.message : "error al subir" };
@@ -1650,9 +1652,11 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         <p className={`${sectionDescriptionClassName} mb-3`}>Estado real de cada publicación (se aplica al guardar).</p>
                         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
                             {renderEstadoCanal("Dux", estadoCanales?.dux,
-                                <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
-                                    {estadoCanales?.dux.estado === "habilitado" ? "Habilitado" : "Deshabilitado"}
-                                </span>,
+                                <select className={`${selectBaseClassName} w-full`} value={estadoCanales?.dux.estado === "deshabilitado" ? "deshabilitado" : "habilitado"}
+                                    onChange={e => setEstadoCanales(p => p && ({ ...p, dux: { ...p.dux, estado: e.target.value } }))}>
+                                    <option value="habilitado">Habilitado</option>
+                                    <option value="deshabilitado">Deshabilitado</option>
+                                </select>,
                                 <BuildingStorefrontIcon className="h-5 w-5 shrink-0 text-slate-500" />, estadoCanales?.dux.estado ?? undefined)}
                             {renderEstadoCanal("Nube · KT HOGAR", estadoCanales?.hogar,
                                 <select className={`${selectBaseClassName} w-full`} value={estadoCanales?.hogar.estado ?? "visible"}

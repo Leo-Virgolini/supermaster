@@ -21,6 +21,7 @@ Las miniaturas de "Imágenes (por SKU)" que se ven en el modal salen de la **car
 3. **Diagnóstico de carpeta:** mostrar si la carpeta cruda se encuentra y si hay acceso de lectura, y si la carpeta destino (donde se guarda la carátula) tiene acceso de escritura.
 4. **Select de modelo:** en la pantalla de config IA, convertir el campo "Modelo" de imagen (hoy texto plano) en un `select` con opciones predefinidas.
 5. **Resetear uso acumulado:** botón en la config IA para poner en cero los contadores de consumo (consultas, tokens, costo).
+6. **Limpiar crudas al aceptar:** al aceptar (guardar) la carátula generada, eliminar **todas** las imágenes crudas del SKU de la carpeta cruda.
 
 ## Decisiones tomadas (brainstorming)
 
@@ -53,6 +54,7 @@ Flujo:
 5. Al terminar → preview "Original vs Generada" (UI ya existente) con **Aceptar / Cancelar / Volver a generar**.
    - "Volver a generar" re-genera con `crudaElegida` (misma cruda).
    - "Cancelar" descarta el preview y vuelve al selector (sin cerrarlo).
+   - **"Aceptar"** guarda la carátula y, si el guardado fue exitoso, el backend **elimina todas las crudas del SKU** (ver 3.d). El preview advierte que aceptar borra las imágenes crudas del SKU.
 
 ### 2. Progreso por fases (frontend)
 
@@ -119,6 +121,14 @@ POST /api/imagenes/caratula/generar/{sku}?cruda={nombre}
   - El resto igual: leer bytes → `OpenAiImagenService.generarCaratula(bytes, nombre)` → devolver `GeneracionCaratula`.
 - Sobrecarga: mantener `generar(String sku)` delegando a `generar(sku, null)` para no romper otros llamadores.
 
+#### 3.d Eliminar crudas al guardar
+
+Al aceptar/guardar la carátula, tras escribirla en `baseDir`, eliminar todas las crudas del SKU de `rawDir`:
+
+- Nuevo `ImagenService.eliminarCrudasPorSku(String sku) : int` — resuelve las crudas con `resolverCrudasPorSku(sku)` y borra cada una con `Files.deleteIfExists(rawDir.resolve(nombre))`. Valida nombre seguro. Devuelve cuántas borró. **Best-effort:** si el borrado de alguna falla, loguea warn y continúa (no rompe el guardado, que ya fue exitoso).
+- En `CaratulaService.guardar(String sku, byte[] datos)`: **primero** guarda la carátula (`imagenService.guardarCaratula(...)`); **solo si eso no lanzó**, llama `imagenService.eliminarCrudasPorSku(sku)`. Orden importa: nunca borrar la cruda si la carátula no se guardó.
+- `rawDir` (Desktop) y `baseDir` (Drive) son carpetas distintas: borrar las crudas no afecta la carátula recién guardada.
+
 ### 4. Frontend — service y estado
 
 En [productosService.ts](../../../supermaster-frontend/src/app/productos/productosService.ts):
@@ -171,11 +181,13 @@ En la pantalla de Configuración IA, cada box **"USO DE IA … (ACUMULADO)"** ti
 - **Generar sin cruda válida:** `404` (`NotFoundException`) como hoy, propagado al toast del frontend.
 - **OpenAI falla / timeout:** ya cubierto (`IllegalStateException` → 500 con mensaje); el progreso por fases se limpia en el `finally`.
 - **Modelo no soportado por edits (p. ej. gpt-image-2):** error de OpenAI propagado al toast.
+- **Borrado de crudas al guardar:** best-effort. Si el guardado de la carátula falla, **no** se borra nada. Si el guardado va OK pero el borrado de alguna cruda falla, se loguea warn y el guardado se considera exitoso igual (la carátula ya está).
 
 ## Seguridad
 
 - `GET /api/imagenes/cruda/{nombre}` y la resolución de crudas validan con `validarNombreSeguro` (sin `/`, `\`, `..`) y restringen a archivos de imagen dentro de `rawDir`.
 - La cruda pasada a `/generar` se valida contra el patrón de slot del SKU antes de leerla.
+- `eliminarCrudasPorSku` valida `validarNombreSeguro(sku)` y solo borra archivos resueltos como crudas del SKU dentro de `rawDir` (nunca rutas arbitrarias).
 
 ## Testing
 
@@ -183,6 +195,8 @@ En la pantalla de Configuración IA, cada box **"USO DE IA … (ACUMULADO)"** ti
 - `estadoDe(Path)`: carpeta existente legible/escribible; inexistente.
 - Endpoint crudas: forma del DTO; carpeta vacía.
 - `CaratulaService.generar(sku, cruda)`: con cruda válida; con cruda que no pertenece al SKU (rechazo); con `null` (fallback automático).
+- `ImagenService.eliminarCrudasPorSku`: borra todas las crudas del SKU; cuenta correcta; SKU inexistente → 0; nombre inseguro → excepción; no toca archivos de otros SKU.
+- `CaratulaService.guardar`: borra crudas solo tras guardar OK; si `guardarCaratula` lanza, no se borra ninguna cruda.
 - `ImagenUsoService.reset()` / `SeoUsoService.reset()`: deja la fila en ceros; warn si la fila no existe.
 - Endpoint `POST /uso/reset`: `204`; el `GET /uso` posterior devuelve ceros.
 - Frontend: smoke manual del selector, progreso por fases, tiempo de generación, select de modelo (incl. valor BD fuera de la lista preservado), y botón de reset con confirmación.

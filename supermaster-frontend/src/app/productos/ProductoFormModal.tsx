@@ -25,6 +25,7 @@ import {
     type EstadoCanal, type EstadoPublicacion, type EstadoPublicacionUpdate,
     generarCaratulaAPI, guardarCaratulaAPI,
     getDescripcionSugeridaAPI,
+    getCrudasAPI, crudaMiniaturaURL, type CrudasDisponibles,
 } from "./productosService";
 import { updateProductoMargenAPI } from "./productoMargenService";
 import { getCuotasPorCanalAPI } from "../canal-concepto-cuotas/canalConceptoCuotaService";
@@ -310,6 +311,11 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const [generandoCaratula, setGenerandoCaratula] = useState(false);
     const [guardandoCaratula, setGuardandoCaratula] = useState(false);
     const [caratulaCacheBust, setCaratulaCacheBust] = useState(0);
+    const [selectorCaratulaAbierto, setSelectorCaratulaAbierto] = useState(false);
+    const [crudasDisp, setCrudasDisp] = useState<CrudasDisponibles | null>(null);
+    const [crudaElegida, setCrudaElegida] = useState<string | null>(null);
+    const [faseCaratula, setFaseCaratula] = useState("");
+    const [duracionCaratula, setDuracionCaratula] = useState<number | null>(null);
 
     // Carga las cuotas reales de cada canal (KT HOGAR / KT GASTRO / ML) para poblar los
     // selectores. Si un canal no se encuentra o no tiene cuotas, su select queda solo con la
@@ -1308,18 +1314,54 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         }
     };
 
-    const generarCaratula = async () => {
+    // Fases de progreso (la llamada a OpenAI es opaca: la última fase permanece hasta que responde).
+    const FASES_CARATULA: { ms: number; texto: string }[] = [
+        { ms: 0, texto: "Preparando imagen…" },
+        { ms: 800, texto: "Enviando a OpenAI…" },
+        { ms: 2500, texto: "Generando carátula…" },
+    ];
+
+    const abrirSelectorCaratula = async () => {
         if (!sku.trim()) return;
-        setGenerandoCaratula(true);
+        setSelectorCaratulaAbierto(true);
+        setCrudasDisp(null);
         try {
-            const r = await generarCaratulaAPI(sku.trim());
+            setCrudasDisp(await getCrudasAPI(sku.trim()));
+        } catch (e) {
+            if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "No se pudieron leer las imágenes crudas");
+        }
+    };
+
+    const fmtDuracion = (ms: number) => {
+        const s = ms / 1000;
+        if (s < 60) return `${s.toFixed(1)} s`;
+        const m = Math.floor(s / 60);
+        return `${m}:${String(Math.round(s % 60)).padStart(2, "0")}`;
+    };
+
+    const generarCaratula = async (crudaNombre?: string) => {
+        const cruda = crudaNombre ?? crudaElegida;
+        if (!sku.trim() || !cruda) return;
+        setCrudaElegida(cruda);
+        setGenerandoCaratula(true);
+        setDuracionCaratula(null);
+        const inicio = Date.now();
+        const timers = FASES_CARATULA.map(f => setTimeout(() => setFaseCaratula(f.texto), f.ms));
+        try {
+            const r = await generarCaratulaAPI(sku.trim(), cruda);
             setCaratulaPreview(r.imagenBase64);
             setCaratulaFormato(r.formato);
             setCaratulaCruda(r.crudaBase64);
             setCaratulaCrudaFormato(r.crudaFormato);
+            setDuracionCaratula(Date.now() - inicio);
+            setSelectorCaratulaAbierto(false);
         } catch (e) {
             if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "No se pudo generar la carátula");
-        } finally { setGenerandoCaratula(false); }
+        } finally {
+            timers.forEach(clearTimeout);
+            setFaseCaratula("");
+            setGenerandoCaratula(false);
+        }
     };
 
     const guardarCaratula = async () => {
@@ -1900,11 +1942,43 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 </div>
                                 {editandoProductoId && (
                                     <div className="mt-2">
-                                        {!caratulaPreview && (
-                                            <Button variant="dark" onClick={generarCaratula} disabled={generandoCaratula}>
-                                                {generandoCaratula ? <SpinnerIcon /> : <SparklesIcon className="h-4 w-4" />}
-                                                {generandoCaratula ? "Generando..." : "Mejorar carátula con IA"}
+                                        {!caratulaPreview && !selectorCaratulaAbierto && (
+                                            <Button variant="dark" onClick={abrirSelectorCaratula} disabled={generandoCaratula}>
+                                                <SparklesIcon className="h-4 w-4" /> Mejorar carátula con IA
                                             </Button>
+                                        )}
+                                        {selectorCaratulaAbierto && !caratulaPreview && (
+                                            <div className="mt-3 rounded-2xl border border-slate-200 p-3 dark:border-slate-700">
+                                                {!crudasDisp ? (
+                                                    <div className="flex items-center gap-2 text-xs text-slate-400"><SpinnerIcon /> Leyendo carpeta cruda…</div>
+                                                ) : (
+                                                    <>
+                                                        <div className="mb-2 text-xs text-slate-500 dark:text-slate-400">
+                                                            <div>{crudasDisp.crudaDir.existe && crudasDisp.crudaDir.legible ? "✓" : "⚠"} Carpeta cruda: {crudasDisp.crudaDir.ruta} {crudasDisp.crudaDir.legible ? "(lectura OK)" : "(sin acceso de lectura)"}</div>
+                                                            <div>{crudasDisp.destinoDir.escribible ? "✓" : "⚠"} Carpeta destino: {crudasDisp.destinoDir.escribible ? "escritura OK" : "sin acceso de escritura"}</div>
+                                                        </div>
+                                                        {generandoCaratula ? (
+                                                            <div className="flex items-center gap-2 px-1 py-3 text-sm text-slate-500"><SpinnerIcon /> {faseCaratula || "Generando…"}</div>
+                                                        ) : crudasDisp.imagenes.length === 0 ? (
+                                                            <p className="text-xs text-amber-600 dark:text-amber-400">No hay imágenes crudas para este SKU en la carpeta.</p>
+                                                        ) : (
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {crudasDisp.imagenes.map(nombre => (
+                                                                    <button key={nombre} type="button" onClick={() => generarCaratula(nombre)} title={nombre}
+                                                                        className="h-20 w-20 overflow-hidden rounded-xl border border-slate-200 hover:border-blue-400 dark:border-slate-700">
+                                                                        <img src={crudaMiniaturaURL(nombre)} alt={nombre} loading="lazy" className="h-full w-full bg-white object-contain" />
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                        {!generandoCaratula && (
+                                                            <div className="mt-2 flex justify-end">
+                                                                <Button variant="light" onClick={() => setSelectorCaratulaAbierto(false)}>Cerrar</Button>
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                )}
+                                            </div>
                                         )}
                                         {caratulaPreview && (
                                             <div className="mt-3 rounded-2xl border border-slate-200 p-3 dark:border-slate-700">
@@ -1914,13 +1988,13 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                                         {caratulaCruda && <img src={`data:image/${caratulaCrudaFormato};base64,${caratulaCruda}`} alt="Imagen original" className="mx-auto max-h-64" />}
                                                     </figure>
                                                     <figure className="flex-1">
-                                                        <figcaption className="mb-1 text-center text-xs text-slate-500">Generada con IA</figcaption>
+                                                        <figcaption className="mb-1 text-center text-xs text-slate-500">Generada con IA{duracionCaratula != null ? ` · ${fmtDuracion(duracionCaratula)}` : ""}</figcaption>
                                                         <img src={`data:image/${caratulaFormato};base64,${caratulaPreview}`} alt="Carátula generada" className="mx-auto max-h-64" />
                                                     </figure>
                                                 </div>
                                                 <div className="mt-2 flex justify-end gap-2">
                                                     <Button variant="light" onClick={cancelarCaratula} disabled={guardandoCaratula || generandoCaratula}>Cancelar</Button>
-                                                    <Button variant="light" onClick={generarCaratula} disabled={generandoCaratula || guardandoCaratula}>
+                                                    <Button variant="light" onClick={() => generarCaratula()} disabled={generandoCaratula || guardandoCaratula}>
                                                         {generandoCaratula ? <SpinnerIcon /> : <SparklesIcon className="h-4 w-4" />}
                                                         {generandoCaratula ? "Generando..." : "Volver a generar"}
                                                     </Button>

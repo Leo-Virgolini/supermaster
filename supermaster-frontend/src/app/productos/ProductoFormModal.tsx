@@ -983,6 +983,12 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         CAPACITY: { fisico: "capacidad", unidad: "" }, // capacidad: string libre con unidad
         THICKNESS: { fisico: "espesor", unidad: "mm" },
     };
+    // Fallback de unidades para atributos number_unit cuya categoría NO declara allowed_units
+    // (ML las acepta igual). Ej.: VOLUME_CAPACITY ("Capacidad en volumen") viene sin unidades,
+    // por eso el selector quedaba vacío.
+    const FALLBACK_UNITS_ML: Record<string, string[]> = {
+        VOLUME_CAPACITY: ["ml", "cc", "l"],
+    };
     // Unidades ofrecidas en "Dimensiones Físicas" (la primera es el default).
     const FISICO_UNITS: Record<FisicoKey, string[]> = {
         largo: ["cm", "mm"], ancho: ["cm", "mm"], alto: ["cm", "mm"],
@@ -1397,7 +1403,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             const num = parts[0] ?? "";
             const unit = parts.slice(1).join(" ");
             // Algunas dimensiones de ML no declaran allowed_units; usamos la unidad del mapeo físico como fallback.
-            const unidades = d.allowedUnits.length ? d.allowedUnits : (ML_DIM_MAP[d.id] ? [ML_DIM_MAP[d.id].unidad] : []);
+            const unidades = d.allowedUnits.length ? d.allowedUnits
+                : FALLBACK_UNITS_ML[d.id] ?? (ML_DIM_MAP[d.id] ? [ML_DIM_MAP[d.id].unidad] : []);
             const unidadActual = unit || d.defaultUnit || unidades[0] || "";
             const setNU = (n: string, u: string) => setAtributo(d.id, n ? `${n} ${u}` : "");
             return (

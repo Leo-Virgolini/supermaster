@@ -39,6 +39,7 @@ public final class NubeEstadoParser {
             } catch (NumberFormatException ignored) {}
         }
 
-        return new EstadoCanalDTO(true, published ? "visible" : "oculta", precio, promo, stock, peso, dims, false);
+        int imagenes = product.path("images").size();
+        return new EstadoCanalDTO(true, published ? "visible" : "oculta", precio, promo, stock, peso, dims, false, imagenes);
     }
 }

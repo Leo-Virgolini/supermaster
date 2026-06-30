@@ -12,6 +12,6 @@ public final class DuxEstadoParser {
         if (item == null) return EstadoCanalDTO.noPublicado();
         boolean habilitado = "S".equalsIgnoreCase(item.getHabilitado());
         return new EstadoCanalDTO(true, habilitado ? "habilitado" : "deshabilitado",
-                null, null, null, null, null, false);
+                null, null, null, null, null, false, null);
     }
 }

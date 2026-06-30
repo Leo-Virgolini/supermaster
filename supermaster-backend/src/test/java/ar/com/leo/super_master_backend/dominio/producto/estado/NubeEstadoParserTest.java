@@ -51,4 +51,13 @@ class NubeEstadoParserTest {
         assertThat(dto.stock()).isNull();
         assertThat(dto.publicado()).isTrue();
     }
+
+    @Test
+    void parse_cuentaImagenesDeImages() {
+        JsonNode product = json("""
+            {"published":true,"variants":[{"price":"10","stock":2}],
+             "images":[{"id":1},{"id":2}]}
+            """);
+        assertThat(NubeEstadoParser.parse(product).imagenes()).isEqualTo(2);
+    }
 }

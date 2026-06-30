@@ -25,7 +25,8 @@ public final class MlEstadoParser {
         String dims = (alto != null && ancho != null && largo != null)
                 ? alto + " × " + ancho + " × " + largo : null;
 
-        return new EstadoCanalDTO(true, status, precio, null, stock, peso, dims, false);
+        int imagenes = item.path("pictures").size();
+        return new EstadoCanalDTO(true, status, precio, null, stock, peso, dims, false, imagenes);
     }
 
     /** value_name del atributo con ese id, o null. Usa asString(null) (idiom Jackson 3 del proyecto). */

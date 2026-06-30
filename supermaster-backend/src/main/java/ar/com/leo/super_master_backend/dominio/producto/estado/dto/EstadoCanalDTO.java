@@ -11,12 +11,13 @@ public record EstadoCanalDTO(
         Integer stock,
         String peso,          // ej "1.5 kg" / "214 g"
         String dimensiones,   // ej "10 × 20 × 30 cm"
-        boolean error
+        boolean error,
+        Integer imagenes      // cantidad de imágenes del canal (ML: pictures.size(); Nube: images.size())
 ) {
     public static EstadoCanalDTO noPublicado() {
-        return new EstadoCanalDTO(false, null, null, null, null, null, null, false);
+        return new EstadoCanalDTO(false, null, null, null, null, null, null, false, null);
     }
     public static EstadoCanalDTO ofError() {
-        return new EstadoCanalDTO(false, null, null, null, null, null, null, true);
+        return new EstadoCanalDTO(false, null, null, null, null, null, null, true, null);
     }
 }

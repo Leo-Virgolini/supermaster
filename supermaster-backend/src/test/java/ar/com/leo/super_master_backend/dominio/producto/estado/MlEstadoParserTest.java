@@ -55,4 +55,13 @@ class MlEstadoParserTest {
         assertThat(dto.dimensiones()).isNull();
         assertThat(dto.publicado()).isTrue();
     }
+
+    @Test
+    void parse_cuentaImagenesDePictures() {
+        JsonNode item = json("""
+            {"status":"active","available_quantity":5,
+             "pictures":[{"id":"1"},{"id":"2"},{"id":"3"}]}
+            """);
+        assertThat(MlEstadoParser.parse(item).imagenes()).isEqualTo(3);
+    }
 }

@@ -1441,6 +1441,10 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-800/60"><SpinnerIcon /> Cargando datos de ML…</div>
     );
 
+    const indicadorCargaNube = (
+        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-800/60"><SpinnerIcon /> Cargando datos del canal…</div>
+    );
+
     // Renderiza el input de un atributo según el tipo de componente de ML.
     const renderMlAtributoInput = (d: MlAtributoDef, c: MlComponente) => {
         const v = mlAtributosVal[d.id];
@@ -1693,22 +1697,24 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                     )}
                 </div>
             </div>
-            <div className="grid grid-cols-1 gap-3">
-                <label className="block">
-                    <span className={fieldLabelClassName}>SEO Title</span>
-                    <input type="text" maxLength={70} className={inputBaseClassName} value={seo.title} onChange={e => setSeo(p => ({ ...p, title: e.target.value }))} placeholder="Título SEO" />
-                    <span className="mt-1 block text-right text-xs text-slate-400">{seo.title.length}/70</span>
-                </label>
-                <label className="block">
-                    <span className={fieldLabelClassName}>SEO Description</span>
-                    <textarea maxLength={320} rows={3} className={inputBaseClassName} value={seo.description} onChange={e => setSeo(p => ({ ...p, description: e.target.value }))} placeholder="Descripción SEO" />
-                    <span className="mt-1 block text-right text-xs text-slate-400">{seo.description.length}/320</span>
-                </label>
-                <label className="block">
-                    <span className={fieldLabelClassName}>Tags</span>
-                    <input type="text" className={inputBaseClassName} value={seo.tags} onChange={e => setSeo(p => ({ ...p, tags: e.target.value }))} placeholder="tag1, tag2, ..." />
-                </label>
-            </div>
+            {cargandoEstado ? indicadorCargaNube : (
+                <div className="grid grid-cols-1 gap-3">
+                    <label className="block">
+                        <span className={fieldLabelClassName}>SEO Title</span>
+                        <input type="text" maxLength={70} className={inputBaseClassName} value={seo.title} onChange={e => setSeo(p => ({ ...p, title: e.target.value }))} placeholder="Título SEO" />
+                        <span className="mt-1 block text-right text-xs text-slate-400">{seo.title.length}/70</span>
+                    </label>
+                    <label className="block">
+                        <span className={fieldLabelClassName}>SEO Description</span>
+                        <textarea maxLength={320} rows={3} className={inputBaseClassName} value={seo.description} onChange={e => setSeo(p => ({ ...p, description: e.target.value }))} placeholder="Descripción SEO" />
+                        <span className="mt-1 block text-right text-xs text-slate-400">{seo.description.length}/320</span>
+                    </label>
+                    <label className="block">
+                        <span className={fieldLabelClassName}>Tags</span>
+                        <input type="text" className={inputBaseClassName} value={seo.tags} onChange={e => setSeo(p => ({ ...p, tags: e.target.value }))} placeholder="tag1, tag2, ..." />
+                    </label>
+                </div>
+            )}
         </div>
     );
 
@@ -2440,7 +2446,9 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         <div className="grid grid-cols-1 gap-4">
                             <label className="block">
                                 <span className={fieldLabelClassName}>Título Nube</span>
-                                <input type="text" className={`${inputBaseClassName} ${formErrors.tituloNube ? inputErrorClassName : ""}`} value={tituloNube} onChange={e => { setTituloNube(e.target.value); if (formErrors.tituloNube) setFormErrors(p => ({ ...p, tituloNube: "" })); }} placeholder="Título para Tienda Nube" />
+                                {cargandoEstado ? indicadorCargaNube : (
+                                    <input type="text" className={`${inputBaseClassName} ${formErrors.tituloNube ? inputErrorClassName : ""}`} value={tituloNube} onChange={e => { setTituloNube(e.target.value); if (formErrors.tituloNube) setFormErrors(p => ({ ...p, tituloNube: "" })); }} placeholder="Título para Tienda Nube" />
+                                )}
                                 {formErrors.tituloNube && <p className="mt-1 text-xs text-red-500">{formErrors.tituloNube}</p>}
                                 <span className="mt-0.5 block text-[11px] text-slate-400 dark:text-slate-500">Compartido entre KT HOGAR y KT GASTRO.</span>
                             </label>
@@ -2500,7 +2508,9 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         <div className="grid grid-cols-1 gap-4">
                             <label className="block">
                                 <span className={fieldLabelClassName}>Título Nube</span>
-                                <input type="text" className={`${inputBaseClassName} ${formErrors.tituloNube ? inputErrorClassName : ""}`} value={tituloNube} onChange={e => { setTituloNube(e.target.value); if (formErrors.tituloNube) setFormErrors(p => ({ ...p, tituloNube: "" })); }} placeholder="Título para Tienda Nube" />
+                                {cargandoEstado ? indicadorCargaNube : (
+                                    <input type="text" className={`${inputBaseClassName} ${formErrors.tituloNube ? inputErrorClassName : ""}`} value={tituloNube} onChange={e => { setTituloNube(e.target.value); if (formErrors.tituloNube) setFormErrors(p => ({ ...p, tituloNube: "" })); }} placeholder="Título para Tienda Nube" />
+                                )}
                                 {formErrors.tituloNube && <p className="mt-1 text-xs text-red-500">{formErrors.tituloNube}</p>}
                                 <span className="mt-0.5 block text-[11px] text-slate-400 dark:text-slate-500">Compartido entre KT HOGAR y KT GASTRO.</span>
                                 {esEquipamiento && tituloNube.trim() && (

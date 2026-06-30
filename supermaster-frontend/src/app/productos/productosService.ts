@@ -286,11 +286,14 @@ export type ExportCanalResultDTO = {
 	advertencias: string[];
 };
 
-export const exportarProductosANubeAPI = async (skus: string[], tiendas: DestinoNube[]): Promise<ExportCanalResultDTO> => {
+export const exportarProductosANubeAPI = async (
+	skus: string[], tiendas: DestinoNube[],
+	dims?: { nubePeso: string; nubeProfundidad: string; nubeAncho: string; nubeAlto: string },
+): Promise<ExportCanalResultDTO> => {
 	const res = await fetchAPI(`${API_BASE_URL}/api/nube/exportar-productos`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ skus, tiendas }),
+		body: JSON.stringify({ skus, tiendas, ...dims }),
 	});
 	if (!res.ok) throw new Error(await extraerMensajeError(res, "No se pudo subir el producto a Tienda Nube"));
 	return await res.json();
@@ -539,6 +542,10 @@ export type DatosCanal = {
 	seoHogar: SeoCanal | null;
 	seoGastro: SeoCanal | null;
 	mlaResuelto: string | null;
+	nubePeso: string | null;
+	nubeProfundidad: string | null;
+	nubeAncho: string | null;
+	nubeAlto: string | null;
 };
 export type EstadoPublicacion = { ml: EstadoCanal; hogar: EstadoCanal; gastro: EstadoCanal; dux: EstadoCanal; datos: DatosCanal };
 export type EstadoPublicacionUpdate = { ml?: string | null; hogar?: boolean | null; gastro?: boolean | null };

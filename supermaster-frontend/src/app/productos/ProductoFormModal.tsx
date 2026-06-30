@@ -167,6 +167,10 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     // No se persiste en la BD del sistema: si el usuario genera/edita estos campos, se usan al exportar; si quedan vacíos, se autogeneran.
     const [seoHogar, setSeoHogar] = useState<{ title: string; description: string; tags: string }>({ title: "", description: "", tags: "" });
     const [seoGastro, setSeoGastro] = useState<{ title: string; description: string; tags: string }>({ title: "", description: "", tags: "" });
+    const [nubePeso, setNubePeso] = useState("0.050");
+    const [nubeProfundidad, setNubeProfundidad] = useState("8.00");
+    const [nubeAncho, setNubeAncho] = useState("5.00");
+    const [nubeAlto, setNubeAlto] = useState("5.00");
     // Canales cuyo SEO se está generando ahora. Es un Set para permitir generar HOGAR y GASTRO
     // en paralelo: cada botón se deshabilita solo por su propio canal, no por el del otro.
     const [generandoSeo, setGenerandoSeo] = useState<Set<"GASTRO" | "HOGAR">>(() => new Set());
@@ -488,7 +492,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 if (subirKtGastro) tiendas.push({ tienda: "KT GASTRO", cuotas: cuotaGastro, seo: seoG, descripcion: descripcionGastro.trim() || null });
                 if (!tiendas.length) return { canal: "Tienda Nube", estado: "ok", detalle: "sin cambios" };
                 try {
-                    const r = await exportarProductosANubeAPI([skuExport], tiendas);
+                    const r = await exportarProductosANubeAPI([skuExport], tiendas, { nubePeso, nubeProfundidad, nubeAncho, nubeAlto });
                     return clasificarExport("Tienda Nube", r, skuExport);
                 } catch (e) {
                     return { canal: "Tienda Nube", estado: "error", detalle: e instanceof Error ? e.message : "error al subir" };
@@ -693,6 +697,10 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         description: e.datos.seoGastro.description ?? "",
                         tags: e.datos.seoGastro.tags ?? "",
                     });
+                    if (e.datos.nubePeso) setNubePeso(e.datos.nubePeso);
+                    if (e.datos.nubeProfundidad) setNubeProfundidad(e.datos.nubeProfundidad);
+                    if (e.datos.nubeAncho) setNubeAncho(e.datos.nubeAncho);
+                    if (e.datos.nubeAlto) setNubeAlto(e.datos.nubeAlto);
                     if (e.datos.mlCategoryId) {
                         setMlCategoryId(e.datos.mlCategoryId);
                         setMlCategoryNombre(e.datos.mlCategoryNombre);
@@ -715,6 +723,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             setMlAtributosVal({});
             setEsComboOriginal(false);
             setEstadoCanales(null); setEstadoOriginal(null); setMlaResuelto(null);
+            setNubePeso("0.050"); setNubeProfundidad("8.00"); setNubeAncho("5.00"); setNubeAlto("5.00");
             void cargarSkuSugerido(false);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2338,6 +2347,31 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                             </label>
                         </div>
                     </fieldset>
+                    )}
+
+                    {(subirKtHogar || subirKtGastro) && (
+                        <fieldset className={`${sectionClassName} ${SECTION_TINT.seo}`}>
+                            <legend className={sectionTitleClassName}><CubeIcon className="h-5 w-5" /> Paquete de envío · Tienda Nube</legend>
+                            <p className={`${sectionDescriptionClassName} mb-3`}>Peso y dimensiones del paquete que se envían a Tienda Nube.</p>
+                            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                                <label className="block">
+                                    <span className={fieldLabelClassName}>Peso (kg)</span>
+                                    <input type="number" min={0} step="0.001" className={inputBaseClassName} value={nubePeso} onChange={e => setNubePeso(e.target.value)} />
+                                </label>
+                                <label className="block">
+                                    <span className={fieldLabelClassName}>Profundidad (cm)</span>
+                                    <input type="number" min={0} className={inputBaseClassName} value={nubeProfundidad} onChange={e => setNubeProfundidad(e.target.value)} />
+                                </label>
+                                <label className="block">
+                                    <span className={fieldLabelClassName}>Ancho (cm)</span>
+                                    <input type="number" min={0} className={inputBaseClassName} value={nubeAncho} onChange={e => setNubeAncho(e.target.value)} />
+                                </label>
+                                <label className="block">
+                                    <span className={fieldLabelClassName}>Alto (cm)</span>
+                                    <input type="number" min={0} className={inputBaseClassName} value={nubeAlto} onChange={e => setNubeAlto(e.target.value)} />
+                                </label>
+                            </div>
+                        </fieldset>
                     )}
 
                     {/* TIENDA NUBE · KT GASTRO */}

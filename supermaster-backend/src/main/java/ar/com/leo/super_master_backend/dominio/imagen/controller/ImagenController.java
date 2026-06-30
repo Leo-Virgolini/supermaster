@@ -85,7 +85,6 @@ public class ImagenController {
     }
 
     @GetMapping("/cruda/{nombre}")
-    @PreAuthorize(Permisos.INTEGRACIONES_VER)
     public ResponseEntity<byte[]> cruda(@PathVariable String nombre) {
         byte[] bytes = imagenService.leerCrudaBytes(nombre);   // valida nombre seguro internamente
         return ResponseEntity.ok()

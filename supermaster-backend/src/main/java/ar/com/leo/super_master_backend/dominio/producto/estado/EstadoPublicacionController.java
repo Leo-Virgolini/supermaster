@@ -1,9 +1,12 @@
 package ar.com.leo.super_master_backend.dominio.producto.estado;
 
+import ar.com.leo.super_master_backend.apis.nube.service.TiendaNubeService;
 import ar.com.leo.super_master_backend.config.Permisos;
+import ar.com.leo.super_master_backend.dominio.producto.estado.dto.DuxCanalDTO;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoAplicarDTO;
-import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoPublicacionDTO;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoPublicacionUpdateDTO;
+import ar.com.leo.super_master_backend.dominio.producto.estado.dto.MlCanalDTO;
+import ar.com.leo.super_master_backend.dominio.producto.estado.dto.NubeCanalDTO;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -17,10 +20,28 @@ public class EstadoPublicacionController {
 
     private final EstadoPublicacionService estadoPublicacionService;
 
-    @GetMapping
+    @GetMapping("/ml")
     @PreAuthorize(Permisos.PRODUCTOS_VER)
-    public ResponseEntity<EstadoPublicacionDTO> leer(@PathVariable @Positive Integer id) {
-        return ResponseEntity.ok(estadoPublicacionService.leer(id));
+    public ResponseEntity<MlCanalDTO> ml(@PathVariable @Positive Integer id) {
+        return ResponseEntity.ok(estadoPublicacionService.leerMl(id));
+    }
+
+    @GetMapping("/hogar")
+    @PreAuthorize(Permisos.PRODUCTOS_VER)
+    public ResponseEntity<NubeCanalDTO> hogar(@PathVariable @Positive Integer id) {
+        return ResponseEntity.ok(estadoPublicacionService.leerNube(id, TiendaNubeService.STORE_HOGAR));
+    }
+
+    @GetMapping("/gastro")
+    @PreAuthorize(Permisos.PRODUCTOS_VER)
+    public ResponseEntity<NubeCanalDTO> gastro(@PathVariable @Positive Integer id) {
+        return ResponseEntity.ok(estadoPublicacionService.leerNube(id, TiendaNubeService.STORE_GASTRO));
+    }
+
+    @GetMapping("/dux")
+    @PreAuthorize(Permisos.PRODUCTOS_VER)
+    public ResponseEntity<DuxCanalDTO> dux(@PathVariable @Positive Integer id) {
+        return ResponseEntity.ok(estadoPublicacionService.leerDux(id));
     }
 
     @PutMapping

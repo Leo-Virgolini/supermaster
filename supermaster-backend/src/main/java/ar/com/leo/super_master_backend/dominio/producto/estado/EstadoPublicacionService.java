@@ -7,23 +7,20 @@ import ar.com.leo.super_master_backend.apis.ml.service.MercadoLibreService;
 import ar.com.leo.super_master_backend.apis.nube.service.TiendaNubeService;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
-import ar.com.leo.super_master_backend.dominio.producto.estado.dto.DatosCanalDTO;
+import ar.com.leo.super_master_backend.dominio.producto.estado.dto.DuxCanalDTO;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoAplicarDTO;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoAplicarDTO.CanalAplicado;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoCanalDTO;
-import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoPublicacionDTO;
+import ar.com.leo.super_master_backend.dominio.producto.estado.dto.MlCanalDTO;
+import ar.com.leo.super_master_backend.dominio.producto.estado.dto.NubeCanalDTO;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoPublicacionUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.SeoCanalDTO;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoRepository;
-import jakarta.annotation.PreDestroy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 @Service
 public class EstadoPublicacionService {
@@ -32,14 +29,6 @@ public class EstadoPublicacionService {
     private final MercadoLibreService mercadoLibreService;
     private final TiendaNubeService tiendaNubeService;
     private final DuxService duxService;
-
-    // Pool para leer los canales en paralelo. Hilos daemon (no bloquean el shutdown de la JVM);
-    // cached porque las lecturas son I/O a APIs externas, ráfagas cortas al abrir el modal.
-    private final ExecutorService estadoPool = Executors.newCachedThreadPool(r -> {
-        Thread t = new Thread(r, "estado-publicacion");
-        t.setDaemon(true);
-        return t;
-    });
 
     public EstadoPublicacionService(ProductoRepository productoRepository,
                                     MercadoLibreService mercadoLibreService,
@@ -51,90 +40,76 @@ public class EstadoPublicacionService {
         this.duxService = duxService;
     }
 
-    @PreDestroy
-    void cerrarPool() {
-        estadoPool.shutdown();
-    }
-
-    /** Datos del panel + editables de ML resueltos en un solo paso (para leer en un hilo aparte). */
-    private record MlPanel(EstadoCanalDTO estado, String categoryId, String categoryNombre,
-                           List<MlAtributoDTO> atributos, String descripcion, String mlaResuelto,
-                           MlDatosParser.PaqueteMl paquete) {}
-
-    /** Estado + datos editables de una tienda Nube. */
-    private record NubePanel(EstadoCanalDTO estado, String descripcion, SeoCanalDTO seo,
-                             String peso, String profundidad, String ancho, String alto, String titulo) {}
-
-    @Transactional(readOnly = true)
-    public EstadoPublicacionDTO leer(Integer productoId) {
-        Producto p = productoRepository.findById(productoId)
-                .orElseThrow(() -> new NotFoundException("Producto no encontrado"));
-        String sku = p.getSku();
-
-        // Los 4 canales se leen EN PARALELO: son solo llamadas I/O a APIs externas (ML/Nube/Dux) que
-        // usan el SKU ya extraído, no la sesión JPA. Cada tarea captura su propio error y nunca lanza,
-        // así un canal caído no rompe a los demás. El tiempo total ≈ el canal más lento (antes era la suma).
-        CompletableFuture<MlPanel> fMl = CompletableFuture.supplyAsync(() -> leerMlPanel(sku), estadoPool);
-        CompletableFuture<NubePanel> fHogar = CompletableFuture.supplyAsync(
-                () -> leerNubePanel(sku, TiendaNubeService.STORE_HOGAR), estadoPool);
-        CompletableFuture<NubePanel> fGastro = CompletableFuture.supplyAsync(
-                () -> leerNubePanel(sku, TiendaNubeService.STORE_GASTRO), estadoPool);
-        CompletableFuture<EstadoCanalDTO> fDux = CompletableFuture.supplyAsync(() -> estadoDux(sku), estadoPool);
-
-        MlPanel ml = fMl.join();
-        NubePanel hogar = fHogar.join();
-        NubePanel gastro = fGastro.join();
-        EstadoCanalDTO dux = fDux.join();
-
-        DatosCanalDTO datos = new DatosCanalDTO(
-                ml.categoryId(),
-                ml.categoryNombre(),
-                ml.atributos(),
-                ml.descripcion(),
-                hogar.descripcion(),
-                gastro.descripcion(),
-                hogar.seo(),
-                gastro.seo(),
-                ml.mlaResuelto(),
-                hogar.peso() != null ? hogar.peso() : gastro.peso(),
-                hogar.profundidad() != null ? hogar.profundidad() : gastro.profundidad(),
-                hogar.ancho() != null ? hogar.ancho() : gastro.ancho(),
-                hogar.alto() != null ? hogar.alto() : gastro.alto(),
-                hogar.titulo() != null ? hogar.titulo() : gastro.titulo(),
-                ml.paquete().altoCm(),
-                ml.paquete().anchoCm(),
-                ml.paquete().largoCm(),
-                ml.paquete().pesoKg());
-
-        return new EstadoPublicacionDTO(ml.estado(), hogar.estado(), gastro.estado(), dux, datos);
-    }
-
     /**
      * Lee ML: el MLA se resuelve por SKU contra la API (no desde la BD), para reflejar la publicación
      * REAL y vigente. Un id_mla guardado puede estar stale/mal vinculado. Nunca lanza (todo en try/catch
      * → ofError); early-return si item==null para no llamar descripción/categoría sobre un ítem inválido.
      */
-    private MlPanel leerMlPanel(String sku) {
+    @Transactional(readOnly = true)
+    public MlCanalDTO leerMl(Integer id) {
+        Producto p = productoRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Producto no encontrado"));
+        String sku = p.getSku();
         try {
             String mlaCode = resolverMlaPorSku(sku);
             if (mlaCode == null || mlaCode.isBlank()) {
-                return new MlPanel(EstadoCanalDTO.noPublicado(), null, null, List.of(), null, null,
-                        new MlDatosParser.PaqueteMl(null, null, null, null));
+                return new MlCanalDTO(EstadoCanalDTO.noPublicado(), null, null, List.of(), null, null,
+                        null, null, null, null);
             }
             JsonNode item = mercadoLibreService.leerItemRaw(mlaCode);
             if (item == null) {
-                return new MlPanel(EstadoCanalDTO.ofError(), null, null, List.of(), null, null,
-                        new MlDatosParser.PaqueteMl(null, null, null, null));
+                return new MlCanalDTO(EstadoCanalDTO.ofError(), null, null, List.of(), null, null,
+                        null, null, null, null);
             }
             String descMl = mercadoLibreService.leerDescripcionMl(mlaCode);
             String catId = MlDatosParser.categoryId(item);
             String catNombre = (catId != null && !catId.isBlank()) ? mercadoLibreService.obtenerCategoriaPath(catId) : null;
             MlDatosParser.PaqueteMl paquete = MlDatosParser.paquete(item);
-            return new MlPanel(MlEstadoParser.parse(item), catId, catNombre,
-                    MlDatosParser.atributos(item), descMl, mlaCode, paquete);
+            List<MlAtributoDTO> atributos = MlDatosParser.atributos(item);
+            return new MlCanalDTO(MlEstadoParser.parse(item), catId, catNombre,
+                    atributos, descMl, mlaCode,
+                    paquete.altoCm(), paquete.anchoCm(), paquete.largoCm(), paquete.pesoKg());
         } catch (Exception e) {
-            return new MlPanel(EstadoCanalDTO.ofError(), null, null, List.of(), null, null,
-                    new MlDatosParser.PaqueteMl(null, null, null, null));
+            return new MlCanalDTO(EstadoCanalDTO.ofError(), null, null, List.of(), null, null,
+                    null, null, null, null);
+        }
+    }
+
+    /** Lee una tienda Nube (una sola GET reutilizada para estado, descripción, SEO y dims). Nunca lanza. */
+    @Transactional(readOnly = true)
+    public NubeCanalDTO leerNube(Integer id, String store) {
+        Producto p = productoRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Producto no encontrado"));
+        String sku = p.getSku();
+        JsonNode product;
+        try {
+            product = tiendaNubeService.buscarProductoPorSku(sku, store);
+        } catch (Exception e) {
+            return new NubeCanalDTO(EstadoCanalDTO.ofError(), null, null, null, null, null, null, null);
+        }
+        JsonNode variant = (product != null) ? product.path("variants").path(0) : null;
+        String peso = variant != null ? variant.path("weight").asString(null) : null;
+        String prof = variant != null ? variant.path("depth").asString(null) : null;
+        String ancho = variant != null ? variant.path("width").asString(null) : null;
+        String alto = variant != null ? variant.path("height").asString(null) : null;
+        String titulo = (product != null) ? product.path("name").path("es").asString(null) : null;
+        EstadoCanalDTO estado = estadoNube(product);
+        String descripcion = descripcionNube(product);
+        SeoCanalDTO seo = NubeSeoParser.parse(product);
+        return new NubeCanalDTO(estado, descripcion, seo, titulo, peso, prof, ancho, alto);
+    }
+
+    /** Lee Dux: findById → sku → DuxEstadoParser. Nunca lanza (ofError ante fallo). */
+    @Transactional(readOnly = true)
+    public DuxCanalDTO leerDux(Integer id) {
+        Producto p = productoRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Producto no encontrado"));
+        String sku = p.getSku();
+        try {
+            Item item = duxService.obtenerProductoPorCodigo(sku);
+            return new DuxCanalDTO(DuxEstadoParser.parse(item));
+        } catch (Exception e) {
+            return new DuxCanalDTO(EstadoCanalDTO.ofError());
         }
     }
 
@@ -145,24 +120,6 @@ public class EstadoPublicacionService {
         return hallado != null ? hallado.mla() : null;
     }
 
-    /** Lee una tienda Nube (una sola GET reutilizada para estado, descripción y SEO). Nunca lanza. */
-    private NubePanel leerNubePanel(String sku, String store) {
-        JsonNode product;
-        try {
-            product = tiendaNubeService.buscarProductoPorSku(sku, store);
-        } catch (Exception e) {
-            return new NubePanel(EstadoCanalDTO.ofError(), null, null, null, null, null, null, null);
-        }
-        JsonNode variant = (product != null) ? product.path("variants").path(0) : null;
-        String peso = variant != null ? variant.path("weight").asString(null) : null;
-        String prof = variant != null ? variant.path("depth").asString(null) : null;
-        String ancho = variant != null ? variant.path("width").asString(null) : null;
-        String alto = variant != null ? variant.path("height").asString(null) : null;
-        String titulo = (product != null) ? product.path("name").path("es").asString(null) : null;
-        return new NubePanel(estadoNube(product), descripcionNube(product), NubeSeoParser.parse(product),
-                peso, prof, ancho, alto, titulo);
-    }
-
     private EstadoCanalDTO estadoNube(JsonNode product) {
         if (product == null) return EstadoCanalDTO.noPublicado();
         return NubeEstadoParser.parse(product);
@@ -171,15 +128,6 @@ public class EstadoPublicacionService {
     private String descripcionNube(JsonNode product) {
         if (product == null) return null;
         return product.path("description").path("es").asString(null);
-    }
-
-    private EstadoCanalDTO estadoDux(String sku) {
-        try {
-            Item item = duxService.obtenerProductoPorCodigo(sku);
-            return DuxEstadoParser.parse(item);
-        } catch (Exception e) {
-            return EstadoCanalDTO.ofError();
-        }
     }
 
     @Transactional(readOnly = true)

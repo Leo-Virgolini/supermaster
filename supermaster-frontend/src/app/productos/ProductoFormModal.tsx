@@ -1437,6 +1437,10 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const canalCardClassName = "flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200";
     const selectBaseClassName = `${inputBaseClassName} appearance-none`;
 
+    const indicadorCargaCanal = (
+        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-800/60"><SpinnerIcon /> Cargando datos de ML…</div>
+    );
+
     // Renderiza el input de un atributo según el tipo de componente de ML.
     const renderMlAtributoInput = (d: MlAtributoDef, c: MlComponente) => {
         const v = mlAtributosVal[d.id];
@@ -2224,34 +2228,36 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 <input type="text" className={`${inputBaseClassName} ${formErrors.tituloMl ? inputErrorClassName : ""}`} value={tituloMl} onChange={e => { setTituloMl(e.target.value); if (formErrors.tituloMl) setFormErrors(p => ({ ...p, tituloMl: "" })); }} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handlePredecirCategoriasMl(); } }} placeholder="Título para Mercado Libre" maxLength={maxTitleLengthMl ?? undefined} />
                                 {formErrors.tituloMl && <p className="mt-1 text-xs text-red-500">{formErrors.tituloMl}</p>}
                                 <div className="mt-2 flex flex-col gap-2">
-                                    <div className="flex items-center gap-2">
-                                        <Button variant="dark" onClick={handlePredecirCategoriasMl} disabled={!tituloMl.trim() || cargandoPrediccionesMl}>
-                                            <TagIcon className="w-4 h-4" /> {cargandoPrediccionesMl ? "Prediciendo..." : "Predecir categorías"}
-                                        </Button>
-                                        {mlCategoryId && (
-                                            <span title={mlCategoryNombre || String(mlCategoryId)} className="inline-block max-w-full rounded-lg border border-indigo-300 bg-white px-2 py-1 text-xs font-medium leading-relaxed text-indigo-800 dark:border-indigo-600 dark:bg-slate-800 dark:text-indigo-200">
-                                                {pathConHojaResaltada(mlCategoryNombre || String(mlCategoryId))}
-                                                <button type="button" onClick={() => { setMlCategoryId(null); setMlCategoryNombre(null); setPrediccionesMl([]); }} className="ml-1 align-middle font-bold leading-none text-indigo-500 hover:text-red-500 dark:text-indigo-300" aria-label="Quitar categoría">×</button>
-                                            </span>
-                                        )}
-                                    </div>
-                                    {prediccionesMl.length > 0 && (
-                                        <div className="flex flex-wrap gap-1.5">
-                                            {prediccionesMl.map(p => (
-                                                <button
-                                                    key={p.categoryId}
-                                                    type="button"
-                                                    onClick={() => { setMlCategoryId(p.categoryId); setMlCategoryNombre(p.categoryPath || p.categoryName); setPrediccionesMl([]); if (formErrors.mlCategory) setFormErrors(prev => ({ ...prev, mlCategory: "" })); }}
-                                                    className={`rounded-lg border px-2 py-1 text-left text-xs transition-colors ${mlCategoryId === p.categoryId ? "border-yellow-400 bg-yellow-100 text-yellow-900" : "border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-100 dark:border-blue-700 dark:bg-blue-900/20 dark:text-blue-200 dark:hover:bg-blue-800/40"}`}
-                                                >
-                                                    {pathConHojaResaltada(p.categoryPath || p.categoryName)} <span className="text-blue-400 dark:text-blue-300/70">({p.categoryId})</span>
-                                                </button>
-                                            ))}
+                                    {cargandoEstado ? indicadorCargaCanal : (<>
+                                        <div className="flex items-center gap-2">
+                                            <Button variant="dark" onClick={handlePredecirCategoriasMl} disabled={!tituloMl.trim() || cargandoPrediccionesMl || cargandoEstado}>
+                                                <TagIcon className="w-4 h-4" /> {cargandoPrediccionesMl ? "Prediciendo..." : "Predecir categorías"}
+                                            </Button>
+                                            {mlCategoryId && (
+                                                <span title={mlCategoryNombre || String(mlCategoryId)} className="inline-block max-w-full rounded-lg border border-indigo-300 bg-white px-2 py-1 text-xs font-medium leading-relaxed text-indigo-800 dark:border-indigo-600 dark:bg-slate-800 dark:text-indigo-200">
+                                                    {pathConHojaResaltada(mlCategoryNombre || String(mlCategoryId))}
+                                                    <button type="button" onClick={() => { setMlCategoryId(null); setMlCategoryNombre(null); setPrediccionesMl([]); }} className="ml-1 align-middle font-bold leading-none text-indigo-500 hover:text-red-500 dark:text-indigo-300" aria-label="Quitar categoría">×</button>
+                                                </span>
+                                            )}
                                         </div>
-                                    )}
-                                    {formErrors.mlCategory
-                                        ? <p className="text-xs text-red-500">{formErrors.mlCategory}</p>
-                                        : <p className="text-xs text-slate-500 dark:text-slate-400">Si cargás Título ML, es obligatorio elegir una categoría: predecí (o Enter) y seleccioná una de las opciones.</p>}
+                                        {prediccionesMl.length > 0 && (
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {prediccionesMl.map(p => (
+                                                    <button
+                                                        key={p.categoryId}
+                                                        type="button"
+                                                        onClick={() => { setMlCategoryId(p.categoryId); setMlCategoryNombre(p.categoryPath || p.categoryName); setPrediccionesMl([]); if (formErrors.mlCategory) setFormErrors(prev => ({ ...prev, mlCategory: "" })); }}
+                                                        className={`rounded-lg border px-2 py-1 text-left text-xs transition-colors ${mlCategoryId === p.categoryId ? "border-yellow-400 bg-yellow-100 text-yellow-900" : "border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-100 dark:border-blue-700 dark:bg-blue-900/20 dark:text-blue-200 dark:hover:bg-blue-800/40"}`}
+                                                    >
+                                                        {pathConHojaResaltada(p.categoryPath || p.categoryName)} <span className="text-blue-400 dark:text-blue-300/70">({p.categoryId})</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                        {formErrors.mlCategory
+                                            ? <p className="text-xs text-red-500">{formErrors.mlCategory}</p>
+                                            : <p className="text-xs text-slate-500 dark:text-slate-400">Si cargás Título ML, es obligatorio elegir una categoría: predecí (o Enter) y seleccioná una de las opciones.</p>}
+                                    </>)}
                                 </div>
                             </label>
                         </div>
@@ -2346,12 +2352,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                             </label>
                         </div>
 
-                        {/* Indicador de carga para categoría y ficha ML */}
-                        {cargandoEstado && (
-                            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-800/60"><SpinnerIcon /> Cargando categoría y ficha técnica del canal…</div>
-                        )}
                         {/* Ficha técnica de la categoría ML (Variante / Principales / Secundarias) */}
-                        {mlCategoryId && mlFicha && mlFicha.secciones.length > 0 && (
+                        {cargandoEstado ? indicadorCargaCanal : (mlCategoryId && mlFicha && mlFicha.secciones.length > 0 && (
                             <div className="mt-6 border-t border-slate-200/70 pt-4 dark:border-slate-700/70">
                                 <div className="mb-1 flex items-center gap-1.5">
                                     <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Características de Mercado Libre</span>
@@ -2371,7 +2373,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                     </div>
                                 ))}
                             </div>
-                        )}
+                        ))}
 
                         {/* Subsección: dimensiones del paquete de envío de ML */}
                         <div className="mt-6 border-t border-slate-200/70 pt-4 dark:border-slate-700/70">
@@ -2381,32 +2383,34 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                     <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
                                 </Tooltip>
                             </div>
-                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                                <label className="block">
-                                    <span className={fieldLabelClassName}>Alto (cm){subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
-                                    <input type="number" min={0.01} className={`${inputBaseClassName} ${formErrors.mlPaqAlto ? inputErrorClassName : ""}`}
-                                        value={mlPaqAlto} onChange={e => { setMlPaqAlto(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.mlPaqAlto) setFormErrors(p => ({ ...p, mlPaqAlto: "" })); }} />
-                                    {formErrors.mlPaqAlto && <p className="mt-1 text-xs text-red-500">{formErrors.mlPaqAlto}</p>}
-                                </label>
-                                <label className="block">
-                                    <span className={fieldLabelClassName}>Ancho (cm){subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
-                                    <input type="number" min={0.01} className={`${inputBaseClassName} ${formErrors.mlPaqAncho ? inputErrorClassName : ""}`}
-                                        value={mlPaqAncho} onChange={e => { setMlPaqAncho(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.mlPaqAncho) setFormErrors(p => ({ ...p, mlPaqAncho: "" })); }} />
-                                    {formErrors.mlPaqAncho && <p className="mt-1 text-xs text-red-500">{formErrors.mlPaqAncho}</p>}
-                                </label>
-                                <label className="block">
-                                    <span className={fieldLabelClassName}>Largo (cm){subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
-                                    <input type="number" min={0.01} className={`${inputBaseClassName} ${formErrors.mlPaqLargo ? inputErrorClassName : ""}`}
-                                        value={mlPaqLargo} onChange={e => { setMlPaqLargo(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.mlPaqLargo) setFormErrors(p => ({ ...p, mlPaqLargo: "" })); }} />
-                                    {formErrors.mlPaqLargo && <p className="mt-1 text-xs text-red-500">{formErrors.mlPaqLargo}</p>}
-                                </label>
-                                <label className="block">
-                                    <span className={fieldLabelClassName}>Peso (kg){subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
-                                    <input type="number" min={0.01} className={`${inputBaseClassName} ${formErrors.mlPaqPeso ? inputErrorClassName : ""}`}
-                                        value={mlPaqPeso} onChange={e => { setMlPaqPeso(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.mlPaqPeso) setFormErrors(p => ({ ...p, mlPaqPeso: "" })); }} />
-                                    {formErrors.mlPaqPeso && <p className="mt-1 text-xs text-red-500">{formErrors.mlPaqPeso}</p>}
-                                </label>
-                            </div>
+                            {cargandoEstado ? indicadorCargaCanal : (
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                    <label className="block">
+                                        <span className={fieldLabelClassName}>Alto (cm){subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
+                                        <input type="number" min={0.01} className={`${inputBaseClassName} ${formErrors.mlPaqAlto ? inputErrorClassName : ""}`}
+                                            value={mlPaqAlto} onChange={e => { setMlPaqAlto(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.mlPaqAlto) setFormErrors(p => ({ ...p, mlPaqAlto: "" })); }} />
+                                        {formErrors.mlPaqAlto && <p className="mt-1 text-xs text-red-500">{formErrors.mlPaqAlto}</p>}
+                                    </label>
+                                    <label className="block">
+                                        <span className={fieldLabelClassName}>Ancho (cm){subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
+                                        <input type="number" min={0.01} className={`${inputBaseClassName} ${formErrors.mlPaqAncho ? inputErrorClassName : ""}`}
+                                            value={mlPaqAncho} onChange={e => { setMlPaqAncho(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.mlPaqAncho) setFormErrors(p => ({ ...p, mlPaqAncho: "" })); }} />
+                                        {formErrors.mlPaqAncho && <p className="mt-1 text-xs text-red-500">{formErrors.mlPaqAncho}</p>}
+                                    </label>
+                                    <label className="block">
+                                        <span className={fieldLabelClassName}>Largo (cm){subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
+                                        <input type="number" min={0.01} className={`${inputBaseClassName} ${formErrors.mlPaqLargo ? inputErrorClassName : ""}`}
+                                            value={mlPaqLargo} onChange={e => { setMlPaqLargo(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.mlPaqLargo) setFormErrors(p => ({ ...p, mlPaqLargo: "" })); }} />
+                                        {formErrors.mlPaqLargo && <p className="mt-1 text-xs text-red-500">{formErrors.mlPaqLargo}</p>}
+                                    </label>
+                                    <label className="block">
+                                        <span className={fieldLabelClassName}>Peso (kg){subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
+                                        <input type="number" min={0.01} className={`${inputBaseClassName} ${formErrors.mlPaqPeso ? inputErrorClassName : ""}`}
+                                            value={mlPaqPeso} onChange={e => { setMlPaqPeso(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.mlPaqPeso) setFormErrors(p => ({ ...p, mlPaqPeso: "" })); }} />
+                                        {formErrors.mlPaqPeso && <p className="mt-1 text-xs text-red-500">{formErrors.mlPaqPeso}</p>}
+                                    </label>
+                                </div>
+                            )}
                         </div>
 
                     </fieldset>

@@ -17,4 +17,9 @@ public interface ImagenUsoRepository extends JpaRepository<ImagenUso, Long> {
            "s.tokensSalida = s.tokensSalida + :out, " +
            "s.costoUsd = s.costoUsd + :costo WHERE s.id = 1")
     int registrar(@Param("in") long tokensEntrada, @Param("out") long tokensSalida, @Param("costo") BigDecimal costo);
+
+    @Modifying
+    @Query("UPDATE ImagenUso s SET s.consultas = 0, s.tokensEntrada = 0, " +
+           "s.tokensSalida = 0, s.costoUsd = 0 WHERE s.id = 1")
+    int reset();
 }

@@ -40,4 +40,11 @@ public class ImagenUsoService {
         return new ImagenUsoDTO(u.getConsultas(), u.getTokensEntrada(), u.getTokensSalida(), u.getCostoUsd(),
                 c.getModel(), c.getPrecioInput1m(), c.getPrecioOutput1m());
     }
+
+    @Transactional
+    public void reset() {
+        if (repository.reset() == 0) {
+            log.warn("imagen_uso id=1 no existe; el reset no afectó filas");
+        }
+    }
 }

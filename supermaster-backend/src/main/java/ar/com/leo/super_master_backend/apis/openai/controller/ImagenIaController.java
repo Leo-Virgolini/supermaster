@@ -33,4 +33,11 @@ public class ImagenIaController {
     @GetMapping("/uso")
     @PreAuthorize(Permisos.INTEGRACIONES_VER)
     public ResponseEntity<ImagenUsoDTO> uso() { return ResponseEntity.ok(usoService.obtener()); }
+
+    @PostMapping("/uso/reset")
+    @PreAuthorize(Permisos.INTEGRACIONES_EDITAR)
+    public ResponseEntity<Void> resetUso() {
+        usoService.reset();
+        return ResponseEntity.noContent().build();
+    }
 }

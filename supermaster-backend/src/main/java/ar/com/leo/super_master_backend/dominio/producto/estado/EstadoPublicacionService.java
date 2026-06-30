@@ -100,25 +100,26 @@ public class EstadoPublicacionService {
 
     /**
      * Lee ML: el MLA se resuelve por SKU contra la API (no desde la BD), para reflejar la publicación
-     * REAL y vigente (status=active). Un id_mla guardado puede estar stale/mal vinculado y apuntar a un
-     * ítem aún activo aunque la publicación real se haya borrado. Nunca lanza (captura y devuelve ofError).
+     * REAL y vigente. Un id_mla guardado puede estar stale/mal vinculado. Nunca lanza (todo en try/catch
+     * → ofError); early-return si item==null para no llamar descripción/categoría sobre un ítem inválido.
      */
     private MlPanel leerMlPanel(String sku) {
-        String mlaCode;
         try {
-            mlaCode = resolverMlaPorSku(sku);
+            String mlaCode = resolverMlaPorSku(sku);
+            if (mlaCode == null || mlaCode.isBlank()) {
+                return new MlPanel(EstadoCanalDTO.noPublicado(), null, null, List.of(), null, null);
+            }
+            JsonNode item = mercadoLibreService.leerItemRaw(mlaCode);
+            if (item == null) {
+                return new MlPanel(EstadoCanalDTO.ofError(), null, null, List.of(), null, null);
+            }
+            String descMl = mercadoLibreService.leerDescripcionMl(mlaCode);
+            String catId = MlDatosParser.categoryId(item);
+            String catNombre = (catId != null && !catId.isBlank()) ? mercadoLibreService.obtenerCategoriaPath(catId) : null;
+            return new MlPanel(MlEstadoParser.parse(item), catId, catNombre, MlDatosParser.atributos(item), descMl, mlaCode);
         } catch (Exception e) {
             return new MlPanel(EstadoCanalDTO.ofError(), null, null, List.of(), null, null);
         }
-        if (mlaCode == null || mlaCode.isBlank()) {
-            return new MlPanel(EstadoCanalDTO.noPublicado(), null, null, List.of(), null, null);
-        }
-        JsonNode item = mercadoLibreService.leerItemRaw(mlaCode);
-        EstadoCanalDTO estado = (item == null) ? EstadoCanalDTO.ofError() : MlEstadoParser.parse(item);
-        String descMl = mercadoLibreService.leerDescripcionMl(mlaCode);
-        String catId = MlDatosParser.categoryId(item);
-        String catNombre = (catId != null && !catId.isBlank()) ? mercadoLibreService.obtenerCategoriaPath(catId) : null;
-        return new MlPanel(estado, catId, catNombre, MlDatosParser.atributos(item), descMl, mlaCode);
     }
 
     /** Resuelve el código MLA real por SKU contra la API de ML, en cualquier estado vigente (active/paused).

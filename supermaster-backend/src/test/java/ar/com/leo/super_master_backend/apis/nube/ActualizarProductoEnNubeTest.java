@@ -75,7 +75,7 @@ class ActualizarProductoEnNubeTest {
                 (productId, variantId, price, promo) -> { precioPrice.set(price); precioPromo.set(promo); return true; });
 
         assertThat(precioPrice.get()).isEqualTo("150");
-        assertThat(precioPromo.get()).isNull();
+        assertThat(precioPromo.get()).isEqualTo(""); // sin inflado: promo vacío para limpiar uno viejo en Nube
     }
 
     @Test

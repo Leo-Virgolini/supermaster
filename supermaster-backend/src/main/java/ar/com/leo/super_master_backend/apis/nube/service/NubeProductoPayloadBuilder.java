@@ -38,6 +38,7 @@ public final class NubeProductoPayloadBuilder {
             variant.put("promotional_price", pvp.toPlainString());
         } else if (pvp != null) {
             variant.put("price", pvp.toPlainString());
+            variant.put("promotional_price", ""); // sin inflado: limpia un promo viejo que haya quedado en Nube
         }
         if (p.getCosto() != null) variant.put("cost", p.getCosto().toPlainString());
         // Peso y dimensiones: valor del request si viene cargado; si no, el default fijo de Nube.

@@ -983,6 +983,7 @@ public class TiendaNubeService {
                 price = pvpInflado.toPlainString(); promo = pvp.toPlainString();
             } else if (pvp != null) {
                 price = pvp.toPlainString();
+                promo = ""; // sin inflado: limpia un promo viejo que haya quedado en Nube (string vacío)
             }
             if (price != null) precioFn.actualizar(productId, variantId, price, promo);
 

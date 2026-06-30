@@ -82,4 +82,32 @@ class MlDatosParserTest {
         assertThat(p.altoCm()).isNull();
         assertThat(p.pesoKg()).isNull();
     }
+
+    @Test
+    void paquete_pesoEnKg_noSeDivide() {
+        // Cuando ML devuelve el peso ya en kg, debe quedarse en kg (no dividir por 1000 de nuevo)
+        JsonNode item = parse("""
+            {
+              "attributes": [
+                {"id":"SELLER_PACKAGE_WEIGHT","value_name":"2 kg","value_struct":{"number":2,"unit":"kg"}}
+              ]
+            }
+            """);
+        MlDatosParser.PaqueteMl p = MlDatosParser.paquete(item);
+        assertThat(p.pesoKg()).isEqualTo(2.0); // 2 kg → 2.0 kg (no 0.002)
+    }
+
+    @Test
+    void paquete_dimensionEnMm_seDividePorDiez() {
+        // Cuando ML devuelve una dimensión en mm, debe convertirse a cm dividiendo por 10
+        JsonNode item = parse("""
+            {
+              "attributes": [
+                {"id":"SELLER_PACKAGE_HEIGHT","value_name":"150 mm","value_struct":{"number":150,"unit":"mm"}}
+              ]
+            }
+            """);
+        MlDatosParser.PaqueteMl p = MlDatosParser.paquete(item);
+        assertThat(p.altoCm()).isEqualTo(15.0); // 150 mm → 15.0 cm
+    }
 }

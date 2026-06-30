@@ -11,6 +11,7 @@ import ar.com.leo.super_master_backend.dominio.imagen.service.ImagenService.Imag
 import ar.com.leo.super_master_backend.dominio.imagen.service.ImagenService.ImagenListado;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -87,8 +88,12 @@ public class ImagenController {
     @GetMapping("/cruda/{nombre}")
     public ResponseEntity<byte[]> cruda(@PathVariable String nombre) {
         byte[] bytes = imagenService.leerCrudaBytes(nombre);   // valida nombre seguro internamente
+        String subtipo = subtipoMimeDe(nombre);
+        MediaType contentType = subtipo.isEmpty()
+                ? MediaType.APPLICATION_OCTET_STREAM
+                : MediaType.parseMediaType("image/" + subtipo);
         return ResponseEntity.ok()
-                .contentType(org.springframework.http.MediaType.parseMediaType("image/" + subtipoMimeDe(nombre)))
+                .contentType(contentType)
                 .body(bytes);
     }
 

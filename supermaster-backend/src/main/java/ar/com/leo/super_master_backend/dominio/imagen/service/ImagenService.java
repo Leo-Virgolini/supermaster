@@ -242,7 +242,7 @@ public class ImagenService {
      * Protege contra path traversal en los métodos que resuelven archivos por SKU o filename.
      */
     private static void validarNombreSeguro(String s) {
-        if (s == null || s.isBlank() || s.contains("/") || s.contains("\\") || s.contains("..")) {
+        if (s == null || s.isBlank() || s.contains("/") || s.contains("\\") || s.contains("..") || s.contains(":")) {
             throw new IllegalArgumentException("Nombre/SKU inválido");
         }
     }

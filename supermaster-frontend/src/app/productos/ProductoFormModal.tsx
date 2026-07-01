@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { notificar } from "../utils/notificar";
 import { esSesionExpirada } from "../utils/fetchAPI";
@@ -44,7 +44,7 @@ import { PreciosInfladosSection, type PrecioInfladoDraft } from "./PreciosInflad
 import { HistorialSection } from "./HistorialSection";
 import { ProductoCreateDTO, ProductoDTO, ProductoPatchDTO } from "./types";
 import VariantesSection from "./variantes/VariantesSection";
-import { VarianteBorrador } from "./variantes/types";
+import { VarianteBorrador, validarVariantes } from "./variantes/types";
 import { formatFechaAR } from "../utils/formatDate";
 import HtmlEditor from "./HtmlEditor";
 
@@ -288,6 +288,10 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             .catch(() => { if (!cancelado) setEjeAtributosCat([]); });
         return () => { cancelado = true; };
     }, [tieneVariantes, mlCategoryId, editandoProductoId]);
+    // Resultados de la creación por variante (para el panel del footer).
+    const [resultadosVariantes, setResultadosVariantes] = useState<{ sku: string; resultados: ResultadoCanal[] }[]>([]);
+    // Cache de "¿el SKU tiene imagen válida para ML?" por cada SKU de variante consultado.
+    const imagenesPorSkuCache = useRef<Map<string, boolean>>(new Map());
 
     // Tab activo del panel en modo edición: form de datos o historial de cambios.
     const [panelTab, setPanelTab] = useState<"datos" | "historial">("datos");
@@ -500,7 +504,15 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
 
     // Ejecuta en paralelo los exports de los canales pedidos. Cada wrapper captura su error
     // y devuelve un ResultadoCanal — nunca rechaza, así un canal no corta a los demás.
-    const ejecutarExportsCanales = async (skuExport: string, canales: CanalExport[]): Promise<ResultadoCanal[]> => {
+    const ejecutarExportsCanales = async (
+        skuExport: string, canales: CanalExport[],
+        ov?: { cuotaMl: number; cuotaHogar: number; cuotaGastro: number; mlAtributos: ProductoMlAtributo[] },
+    ): Promise<ResultadoCanal[]> => {
+        // Valores efectivos: los del override (por variante) o los del producto base.
+        const cuotaMlEf = ov?.cuotaMl ?? cuotaMl;
+        const cuotaHogarEf = ov?.cuotaHogar ?? cuotaHogar;
+        const cuotaGastroEf = ov?.cuotaGastro ?? cuotaGastro;
+        const mlAtributosEf = ov?.mlAtributos ?? Object.values(mlAtributosVal);
         const tareas: Promise<ResultadoCanal>[] = [];
         if (canales.includes("Dux")) {
             tareas.push((async (): Promise<ResultadoCanal> => {
@@ -543,8 +555,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                     subirKtGastro ? resolverSeo(seoGastro, "GASTRO") : Promise.resolve(undefined),
                 ]);
                 const tiendas: DestinoNube[] = [];
-                if (subirKtHogar) tiendas.push({ tienda: "KT HOGAR", cuotas: cuotaHogar, seo: seoH, descripcion: descripcionHogar.trim() || null });
-                if (subirKtGastro) tiendas.push({ tienda: "KT GASTRO", cuotas: cuotaGastro, seo: seoG, descripcion: descripcionGastro.trim() || null });
+                if (subirKtHogar) tiendas.push({ tienda: "KT HOGAR", cuotas: cuotaHogarEf, seo: seoH, descripcion: descripcionHogar.trim() || null });
+                if (subirKtGastro) tiendas.push({ tienda: "KT GASTRO", cuotas: cuotaGastroEf, seo: seoG, descripcion: descripcionGastro.trim() || null });
                 if (!tiendas.length) return { canal: "Tienda Nube", estado: "ok", detalle: "sin cambios" };
                 try {
                     const r = await exportarProductosANubeAPI([skuExport], tiendas, { nubePeso, nubeProfundidad, nubeAncho, nubeAlto });
@@ -558,8 +570,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             tareas.push((async (): Promise<ResultadoCanal> => {
                 try {
                     const r = await exportarProductosAMlAPI(
-                        [skuExport], cuotaMl,
-                        mlCategoryId, Object.values(mlAtributosVal), descripcionMl.trim() || null, tituloMl.trim() || null);
+                        [skuExport], cuotaMlEf,
+                        mlCategoryId, mlAtributosEf, descripcionMl.trim() || null, tituloMl.trim() || null);
                     return clasificarExport("Mercado Libre", r, skuExport);
                 } catch (e) {
                     return { canal: "Mercado Libre", estado: "error", detalle: e instanceof Error ? e.message : "error al subir" };
@@ -569,8 +581,73 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         return Promise.all(tareas);
     };
 
+    // ===== Variantes: helpers de guardado =====
+    // ¿El SKU tiene al menos una imagen válida para ML? El base usa imagenesDetectadas; el resto, el cache.
+    const imagenesDetectadasPorSku = (s: string) => s.trim() === sku.trim()
+        ? imagenesDetectadas.some(i => EXT_ML.has(i.extension) && i.bytes <= MAX_BYTES_IMG)
+        : (imagenesPorSkuCache.current.get(s.trim()) ?? false);
+    const cargarImagenesVariantes = async (skus: string[]) => {
+        await Promise.all(skus.map(async s => {
+            const key = s.trim();
+            if (!key || imagenesPorSkuCache.current.has(key)) return;
+            try { const imgs = await getImagenDetalleAPI(key); imagenesPorSkuCache.current.set(key, imgs.some(i => EXT_ML.has(i.extension) && i.bytes <= MAX_BYTES_IMG)); }
+            catch { imagenesPorSkuCache.current.set(key, false); }
+        }));
+    };
+    // Payload de alta de una variante = clon del base con override de sku/stock/ean/mlaId.
+    const construirPayloadVariante = (over: { sku: string; stock: number | ""; ean: string | null; mlaId: number | null }): ProductoCreateDTO => ({
+        sku: over.sku, codExt, tituloDux: tituloDux.trim(), tituloNube: tituloNube.trim() || null, esCombo, uxb, activo,
+        capacidad, largo: normalizarFisico("largo") || null, ancho: normalizarFisico("ancho") || null, alto: normalizarFisico("alto") || null,
+        diamboca: normalizarFisico("diamboca") || null, diambase: normalizarFisico("diambase") || null, espesor: normalizarFisico("espesor") || null,
+        costo: costo === "" ? 0 : costo, iva,
+        stock: over.stock !== "" ? over.stock : null, moq: moq !== "" ? moq : null,
+        tagReposicion: tagReposicion || null, tag: tag || null,
+        marcaId, origenId, clasifGralId: clasifGralId!, clasifGastroId, tipoId: tipoId!, proveedorId, materialId, sectorDepositoId, mlaId: over.mlaId,
+        mlPaqAlto: mlPaqAlto === "" ? null : Number(mlPaqAlto), mlPaqAncho: mlPaqAncho === "" ? null : Number(mlPaqAncho),
+        mlPaqLargo: mlPaqLargo === "" ? null : Number(mlPaqLargo), mlPaqPeso: mlPaqPeso === "" ? null : Number(mlPaqPeso),
+        ean: over.ean,
+    });
+
+    // Alta con variantes: crea N productos (base + hermanas) y publica cada uno con el MISMO
+    // family_name (tituloMl compartido) + su atributo de eje → ML los agrupa en una familia.
+    const handleCrearConVariantes = async () => {
+        await cargarImagenesVariantes(variantesBorrador.map(v => v.sku));
+        const errVar = validarVariantes({ sku, ejeValorNombre: ejeValorBase }, variantesBorrador, ejeAtributoId, subirMl, imagenesDetectadasPorSku);
+        if (errVar) { notificar.error(errVar); return; }
+        setIsSaving(true);
+        try {
+            // MLA del base (si el usuario tipeó uno); las hermanas crean su propio MLA al publicar.
+            let mlaIdBase: number | null = null;
+            try { const r = await resolverMlaParaGuardar(); mlaIdBase = r.mlaId; }
+            catch (e) { if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "Error al guardar el MLA"); return; }
+            const canales = canalesMarcados();
+            const ejeAttr = (valorId: string | null, valorNombre: string): ProductoMlAtributo => ({ attributeId: ejeAtributoId, valueId: valorId, valueName: valorNombre.trim(), noAplica: false });
+            const mlBase = Object.values(mlAtributosVal).filter(a => a.attributeId !== ejeAtributoId);
+            const items = [
+                { sku: sku.trim(), stock, ean: ean.trim() || null, mlaId: mlaIdBase, cuotaMl, cuotaHogar, cuotaGastro, mlAtributos: [...mlBase, ejeAttr(ejeValorBaseId, ejeValorBase)] },
+                ...variantesBorrador.map(v => ({ sku: v.sku.trim(), stock: v.stock, ean: v.ean.trim() || null, mlaId: null as number | null, cuotaMl: v.cuotaMl, cuotaHogar: v.cuotaHogar, cuotaGastro: v.cuotaGastro, mlAtributos: [...mlBase, ejeAttr(v.ejeValorId, v.ejeValorNombre)] })),
+            ];
+            const acumulado: { sku: string; resultados: ResultadoCanal[] }[] = [];
+            for (const it of items) {
+                try {
+                    const creado = await createProducto(construirPayloadVariante({ sku: it.sku, stock: it.stock, ean: it.ean, mlaId: it.mlaId }), asociarMargenYRelaciones);
+                    if (creado?.id && (subirKtHogar || subirKtGastro) && canExportarDux) { try { await recalcularProductoAPI(creado.id); } catch { /* el export avisa */ } }
+                    const rc = await ejecutarExportsCanales(it.sku, canales, { cuotaMl: it.cuotaMl, cuotaHogar: it.cuotaHogar, cuotaGastro: it.cuotaGastro, mlAtributos: it.mlAtributos });
+                    acumulado.push({ sku: it.sku, resultados: rc });
+                } catch (e) {
+                    acumulado.push({ sku: it.sku, resultados: [{ canal: "Mercado Libre", estado: "error", detalle: e instanceof Error ? e.message : "no se pudo crear la variante" }] });
+                }
+            }
+            setResultadosVariantes(acumulado);
+            const huboError = acumulado.some(a => a.resultados.some(r => r.estado === "error"));
+            if (!huboError) { notificar.success(`${items.length} variantes creadas`); onClose(); }
+            else notificar.error("Algunas variantes fallaron; revisá el detalle abajo.");
+        } finally { setIsSaving(false); }
+    };
+
     const handleCreate = async () => {
         if (!validateForm()) return;
+        if (tieneVariantes) { await handleCrearConVariantes(); return; }
         try {
             setIsSaving(true);
             const costoNum = costo === "" ? 0 : costo;
@@ -1808,7 +1885,11 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             <Modal isOpen={true} onClose={() => { if (!isSaving) onClose(); }} title={editandoProductoId ? `Editar Producto${sku ? ` · ${sku}` : ""}` : "Nuevo Producto"} size="3xl" closeOnEscape={false} busy={isSaving}
                 footer={<div className="flex w-full items-center justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                        {resultadosCanal.some(r => r.estado === "error")
+                        {resultadosVariantes.some(v => v.resultados.some(r => r.estado === "error"))
+                            ? <span className="block max-h-24 overflow-auto text-sm font-medium text-red-600 dark:text-red-400">
+                                Variantes con error: {resultadosVariantes.filter(v => v.resultados.some(r => r.estado === "error")).map(v => `${v.sku} (${v.resultados.filter(r => r.estado === "error").map(r => `${r.canal} — ${r.detalle}`).join("; ")})`).join(" · ")}
+                              </span>
+                            : resultadosCanal.some(r => r.estado === "error")
                             ? <span className="block max-h-16 overflow-auto text-sm font-medium text-red-600 dark:text-red-400">
                                 Se guardó, pero falló la subida: {resultadosCanal.filter(r => r.estado === "error").map(r => `${r.canal} — ${r.detalle}`).join(" · ")}
                               </span>

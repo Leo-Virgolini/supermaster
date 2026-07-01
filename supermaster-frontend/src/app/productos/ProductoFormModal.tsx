@@ -1965,7 +1965,15 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                             {imagenesDetectadas.length}
                                         </span>
                                     )}
-                                    <Tooltip content="Las imágenes se asocian automáticamente por SKU: el sistema toma de la carpeta de imágenes los archivos cuyo nombre coincide con el SKU del producto. No se cargan a mano desde acá — para agregar o cambiar fotos, poné los archivos en esa carpeta nombrados con el SKU y se detectan solos. Click en una miniatura para verlas todas." className="flex items-center">
+                                    <Tooltip content={
+                                        <div className="space-y-1 text-sm">
+                                            <p>Las imágenes se asocian automáticamente por SKU: el sistema toma de la carpeta de imágenes los archivos cuyo nombre coincide con el SKU del producto. No se cargan a mano desde acá — para agregar o cambiar fotos, poné los archivos en esa carpeta nombrados con el SKU y se detectan solos. Click en una miniatura para verlas todas.</p>
+                                            <div className="border-t border-slate-200 pt-1 dark:border-slate-700">
+                                                <p><strong>Imágenes publicadas:</strong> carpeta de imágenes ({crudasDisp?.destinoDir.ruta ?? "app.imagenes-dir"}).</p>
+                                                <p><strong>Imágenes crudas:</strong> carpeta de entrada ({crudasDisp?.crudaDir.ruta ?? "app.imagenes-raw-dir"}).</p>
+                                            </div>
+                                        </div>
+                                    } className="flex items-center">
                                         <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
                                     </Tooltip>
                                 </div>

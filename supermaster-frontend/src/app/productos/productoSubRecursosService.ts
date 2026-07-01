@@ -6,7 +6,7 @@ const BASE = `${API_BASE_URL}/api/productos`;
 // ---- Tipos ----
 export interface ProductoAptoDTO { productoId: number; aptoId: number; }
 export interface ProductoCatalogoDTO { productoId: number; catalogoId: number; }
-export interface ProductoClienteDTO { productoId: number; clienteId: number; }
+export interface ProductoSegmentoDTO { productoId: number; segmentoId: number; }
 
 // ---- Aptos ----
 export const getProductoAptosAPI = async (productoId: number): Promise<ProductoAptoDTO[]> => {
@@ -42,21 +42,21 @@ export const quitarCatalogoAPI = async (productoId: number, catalogoId: number):
     if (!res.ok) throw new Error("Error al quitar catálogo");
 };
 
-// ---- Clientes ----
-export const getProductoClientesAPI = async (productoId: number): Promise<ProductoClienteDTO[]> => {
-    const res = await fetchAPI(`${BASE}/${productoId}/clientes`);
-    if (!res.ok) throw new Error("Error al obtener clientes del producto");
+// ---- Segmentos ----
+export const getProductoSegmentosAPI = async (productoId: number): Promise<ProductoSegmentoDTO[]> => {
+    const res = await fetchAPI(`${BASE}/${productoId}/segmentos`);
+    if (!res.ok) throw new Error("Error al obtener segmentos del producto");
     return res.json();
 };
 
-export const asignarClienteAPI = async (productoId: number, clienteId: number): Promise<void> => {
-    const res = await fetchAPI(`${BASE}/${productoId}/clientes/${clienteId}`, { method: "POST" });
-    if (!res.ok) throw new Error("Error al asignar cliente");
+export const asignarSegmentoAPI = async (productoId: number, segmentoId: number): Promise<void> => {
+    const res = await fetchAPI(`${BASE}/${productoId}/segmentos/${segmentoId}`, { method: "POST" });
+    if (!res.ok) throw new Error("Error al asignar segmento");
 };
 
-export const quitarClienteAPI = async (productoId: number, clienteId: number): Promise<void> => {
-    const res = await fetchAPI(`${BASE}/${productoId}/clientes/${clienteId}`, { method: "DELETE" });
-    if (!res.ok) throw new Error("Error al quitar cliente");
+export const quitarSegmentoAPI = async (productoId: number, segmentoId: number): Promise<void> => {
+    const res = await fetchAPI(`${BASE}/${productoId}/segmentos/${segmentoId}`, { method: "DELETE" });
+    if (!res.ok) throw new Error("Error al quitar segmento");
 };
 
 // ---- Precios Inflados por Canal ----
@@ -156,9 +156,9 @@ export const getAllCatalogosAPI = async (): Promise<{ id: number; nombre: string
     return items.map((c: any) => ({ id: c.id, nombre: c.nombre }));
 };
 
-export const getAllClientesAPI = async (): Promise<{ id: number; nombre: string }[]> => {
-    const res = await fetchAPI(`${API_BASE_URL}/api/clientes?page=0&size=200&sort=nombre,asc`);
-    if (!res.ok) throw new Error("Error al cargar clientes");
+export const getAllSegmentosAPI = async (): Promise<{ id: number; nombre: string }[]> => {
+    const res = await fetchAPI(`${API_BASE_URL}/api/segmentos?page=0&size=200&sort=nombre,asc`);
+    if (!res.ok) throw new Error("Error al cargar segmentos");
     const data = await res.json();
     const items = data.content ?? data;
     return items.map((c: any) => ({ id: c.id, nombre: c.nombre }));

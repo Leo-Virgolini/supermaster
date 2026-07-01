@@ -3,19 +3,19 @@ import { getErrorMessage } from "@/lib/errors";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { notificar } from "../utils/notificar";
 import {
-	ClienteDTO,
-	getClientesAPI,
-	createClienteAPI,
-	updateClienteAPI,
-	deleteClienteAPI,
-} from "./clientesService";
+	SegmentoDTO,
+	getSegmentosAPI,
+	createSegmentoAPI,
+	updateSegmentoAPI,
+	deleteSegmentoAPI,
+} from "./segmentosService";
 
 type PageResponse<T> = {
 	content: T[];
 	page: { totalElements: number; totalPages: number };
 };
 
-export function useClientes(
+export function useSegmentos(
 	pageIndex: number,
 	pageSize: number,
 	filters: Record<string, any> = {},
@@ -24,27 +24,27 @@ export function useClientes(
 	const sortParam = sorting.length > 0
 		? `${sorting[0].id},${sorting[0].desc ? "desc" : "asc"}`
 		: "id,asc";
-	const [clientes, setClientes] = useState<ClienteDTO[]>([]);
+	const [segmentos, setSegmentos] = useState<SegmentoDTO[]>([]);
 	const [totalRecords, setTotalRecords] = useState(0);
 	const [isLoading, setIsLoading] = useState(true);
 	const latestRequestIdRef = useRef(0);
 
-	const getClientes = useCallback(async () => {
+	const getSegmentos = useCallback(async () => {
 		const requestId = ++latestRequestIdRef.current;
 		setIsLoading(true);
 		try {
-			const json: PageResponse<ClienteDTO> = await getClientesAPI(
+			const json: PageResponse<SegmentoDTO> = await getSegmentosAPI(
 				pageIndex,
 				pageSize,
 				filters,
 				sortParam,
 			);
 			if (latestRequestIdRef.current !== requestId) return;
-			setClientes(json.content || []);
+			setSegmentos(json.content || []);
 			setTotalRecords(json.page?.totalElements || 0);
 		} catch (err) {
 			if (latestRequestIdRef.current !== requestId) return;
-			setClientes([]);
+			setSegmentos([]);
 		} finally {
 			if (latestRequestIdRef.current !== requestId) return;
 			setIsLoading(false);
@@ -52,39 +52,39 @@ export function useClientes(
 	}, [pageIndex, pageSize, JSON.stringify(filters), sortParam]);
 
 	useEffect(() => {
-		getClientes();
-	}, [getClientes]);
+		getSegmentos();
+	}, [getSegmentos]);
 
-	const createCliente = async (data: Omit<ClienteDTO, "id">) => {
+	const createSegmento = async (data: Omit<SegmentoDTO, "id">) => {
 		try {
-			const result = await createClienteAPI(data, "FORM");
-			await getClientes();
-			notificar.success(`[Clientes] Registro #${result.id} creado`);
+			const result = await createSegmentoAPI(data, "FORM");
+			await getSegmentos();
+			notificar.success(`[Segmentos] Registro #${result.id} creado`);
 		} catch (e: unknown) {
 			notificar.error(getErrorMessage(e, "Error al crear"));
 			throw e;
 		}
 	};
 
-	const updateCliente = async (id: number, data: Partial<Omit<ClienteDTO, "id">>) => {
+	const updateSegmento = async (id: number, data: Partial<Omit<SegmentoDTO, "id">>) => {
 		try {
 			// El PATCH devuelve el objeto actualizado. Reemplazamos solo esa fila
 			// en lugar de refetchar toda la página: evita el skeleton de loading
 			// y mantiene scroll / selección intactos.
-			const actualizado: ClienteDTO = await updateClienteAPI(id, data, "INLINE");
-			setClientes((prev) => prev.map((c) => (c.id === id ? { ...c, ...actualizado } : c)));
-			notificar.success(`[Clientes] Registro #${id} actualizado`);
+			const actualizado: SegmentoDTO = await updateSegmentoAPI(id, data, "INLINE");
+			setSegmentos((prev) => prev.map((s) => (s.id === id ? { ...s, ...actualizado } : s)));
+			notificar.success(`[Segmentos] Registro #${id} actualizado`);
 		} catch (e: unknown) {
 			notificar.error(getErrorMessage(e, "Error al actualizar"));
 			throw e;
 		}
 	};
 
-	const deleteCliente = async (ids: number[]) => {
+	const deleteSegmento = async (ids: number[]) => {
 		try {
-			await Promise.all(ids.map((id) => deleteClienteAPI(id, "TABLE")));
-			await getClientes();
-			notificar.success(ids.length === 1 ? `[Clientes] Registro #${ids[0]} eliminado` : `[Clientes] ${ids.length} registros eliminados`);
+			await Promise.all(ids.map((id) => deleteSegmentoAPI(id, "TABLE")));
+			await getSegmentos();
+			notificar.success(ids.length === 1 ? `[Segmentos] Registro #${ids[0]} eliminado` : `[Segmentos] ${ids.length} registros eliminados`);
 		} catch (e: unknown) {
 			notificar.error(getErrorMessage(e, "Error al eliminar"));
 			throw e;
@@ -92,11 +92,11 @@ export function useClientes(
 	};
 
 	return {
-		clientes,
+		segmentos,
 		totalRecords,
 		isLoading,
-		createCliente,
-		updateCliente,
-		deleteCliente,
+		createSegmento,
+		updateSegmento,
+		deleteSegmento,
 	};
 }

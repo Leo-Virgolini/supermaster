@@ -10,7 +10,7 @@ import {
     searchMateriales,
     searchCatalogos,
     searchAptos,
-    searchClientes,
+    searchSegmentos,
 } from "../../../app/productos/productosService";
 
 type Props = {
@@ -62,7 +62,7 @@ export default function ColumnContextMenu({ columnId, onClose, onFilter, current
         material: (q: string) => searchMateriales(q, 9999),
         catalogo: (q: string) => searchCatalogos(q, 9999),
         apto: (q: string) => searchAptos(q, 9999),
-        cliente: (q: string) => searchClientes(q, 9999),
+        segmento: (q: string) => searchSegmentos(q, 9999),
         activo: async () => [{ id: true, label: "Sí" }, { id: false, label: "No" }],
         esCombo: async () => [{ id: true, label: "Sí" }, { id: false, label: "No" }],
         tagReposicion: async () => [{ id: "PRIO", label: "PRIO" }, { id: "LIQ", label: "LIQ" }],

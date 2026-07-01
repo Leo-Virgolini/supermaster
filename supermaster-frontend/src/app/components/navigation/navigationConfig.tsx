@@ -154,9 +154,9 @@ export const navigationSections: NavSectionConfig[] = [
                 requiredPermission: "MAESTROS_VER",
             },
             {
-                href: "/clientes",
-                label: "Clientes",
-                description: "Listado de clientes habilitados",
+                href: "/segmentos",
+                label: "Segmentos",
+                description: "Listado de segmentos habilitados",
                 icon: UsersIcon,
                 color: "blue",
                 requiredPermission: "MAESTROS_VER",

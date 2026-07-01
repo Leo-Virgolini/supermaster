@@ -13,7 +13,7 @@ import ProductosFilterPanel, { ProductosFilterToggle } from "./ProductosFilterBa
 import {
     getProductosForExportAPI,
     searchMarcas, searchClasifGral, searchClasifGastro, searchTipos, searchProveedores, searchOrigenes, searchMateriales, searchMlas,
-    searchCatalogos, searchAptos, searchClientes, searchCanales,
+    searchCatalogos, searchAptos, searchSegmentos, searchCanales,
 } from "./productosService";
 import { getColumns } from "./columns";
 import ProductoFormModal from "./ProductoFormModal";
@@ -31,7 +31,7 @@ export default function ProductosPage() {
     const [pageSize, setPageSize] = useState(() => getInitialPageSize("productos"));
     const [filters, setFilters] = useState<any>(() => {
         const initial: any = { search: getSearchParamValue() };
-        const paramKeys = ["catalogoIds", "aptoIds", "clienteIds", "marcaIds", "tipoIds", "materialIds", "origenIds", "clasifGralIds", "clasifGastroIds"];
+        const paramKeys = ["catalogoIds", "aptoIds", "segmentoIds", "marcaIds", "tipoIds", "materialIds", "origenIds", "clasifGralIds", "clasifGastroIds"];
         for (const key of paramKeys) {
             const val = searchParams.get(key);
             if (val) initial[key] = val.split(",").map(Number);
@@ -57,7 +57,7 @@ export default function ProductosPage() {
     useEffect(() => {
         const q = getSearchParamValue();
         const newFilters: any = { search: q };
-        const paramKeys = ["catalogoIds", "aptoIds", "clienteIds", "marcaIds", "tipoIds", "materialIds", "origenIds", "clasifGralIds", "clasifGastroIds"];
+        const paramKeys = ["catalogoIds", "aptoIds", "segmentoIds", "marcaIds", "tipoIds", "materialIds", "origenIds", "clasifGralIds", "clasifGastroIds"];
         for (const key of paramKeys) {
             const val = searchParams.get(key);
             if (val) newFilters[key] = val.split(",").map(Number);
@@ -101,7 +101,7 @@ export default function ProductosPage() {
         "mlaId": "mla",
         "catalogo": "catalogoIds",
         "apto": "aptoIds",
-        "cliente": "clienteIds",
+        "segmento": "segmentoIds",
         "tag": "tags",
     };
 
@@ -114,7 +114,7 @@ export default function ProductosPage() {
         tipoIds: "Tipo", proveedorIds: "Proveedor", origenIds: "Origen", materialIds: "Material",
         mla: "MLA", sku: "SKU", codExt: "Cód. Ext.", tituloDux: "Título Dux",
         activo: "Activo", esCombo: "Combo", tagReposicion: "Tag Rep.",
-        catalogoIds: "Catálogo", aptoIds: "Apto", clienteIds: "Cliente", tags: "Tag",
+        catalogoIds: "Catálogo", aptoIds: "Apto", segmentoIds: "Segmento", tags: "Tag",
     };
 
     const [filterValueLabels, setFilterValueLabels] = useState<Record<string, Record<string, string>>>({});
@@ -130,7 +130,7 @@ export default function ProductosPage() {
         materialIds: (q: string) => searchMateriales(q, 9999),
         catalogoIds: (q: string) => searchCatalogos(q, 9999),
         aptoIds: (q: string) => searchAptos(q, 9999),
-        clienteIds: (q: string) => searchClientes(q, 9999),
+        segmentoIds: (q: string) => searchSegmentos(q, 9999),
         canalIds: (q: string) => searchCanales(q, 9999),
         mlaIds: (q: string) => searchMlas(q, 9999),
         tags: async () => [

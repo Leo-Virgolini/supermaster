@@ -2,16 +2,16 @@ import { API_BASE_URL } from "../config/runtime";
 import { fetchAPI } from "../utils/fetchAPI";
 import { AuditOrigin, FilterValue, buildListParams, withAuditOrigin } from "../utils/apiHelpers";
 
-const API_URL = `${API_BASE_URL}/api/clientes`;
-type ClienteAuditOrigin = AuditOrigin;
+const API_URL = `${API_BASE_URL}/api/segmentos`;
+type SegmentoAuditOrigin = AuditOrigin;
 
-export interface ClienteDTO {
+export interface SegmentoDTO {
 	id: number;
 	nombre: string;
 }
 
 // GET
-export const getClientesAPI = async (
+export const getSegmentosAPI = async (
 	page: number,
 	size: number,
 	filters: Record<string, FilterValue> = {},
@@ -23,18 +23,18 @@ export const getClientesAPI = async (
 };
 
 // CREATE
-export const createClienteAPI = async (data: Omit<ClienteDTO, "id">, origin: ClienteAuditOrigin = "API") => {
+export const createSegmentoAPI = async (data: Omit<SegmentoDTO, "id">, origin: SegmentoAuditOrigin = "API") => {
 	const response = await fetchAPI(API_URL, {
 		method: "POST",
 		headers: withAuditOrigin(origin, { "Content-Type": "application/json" }),
 		body: JSON.stringify(data),
 	});
-	if (!response.ok) throw new Error("Error al crear cliente");
+	if (!response.ok) throw new Error("Error al crear segmento");
 	return await response.json();
 };
 
 // UPDATE
-export const updateClienteAPI = async (id: number, data: Partial<Omit<ClienteDTO, "id">>, origin: ClienteAuditOrigin = "API") => {
+export const updateSegmentoAPI = async (id: number, data: Partial<Omit<SegmentoDTO, "id">>, origin: SegmentoAuditOrigin = "API") => {
 	const response = await fetchAPI(`${API_URL}/${id}`, {
 		method: "PATCH",
 		headers: withAuditOrigin(origin, { "Content-Type": "application/json" }),
@@ -45,7 +45,7 @@ export const updateClienteAPI = async (id: number, data: Partial<Omit<ClienteDTO
 };
 
 // DELETE
-export const deleteClienteAPI = async (id: number, origin: ClienteAuditOrigin = "API") => {
+export const deleteSegmentoAPI = async (id: number, origin: SegmentoAuditOrigin = "API") => {
 	const response = await fetchAPI(`${API_URL}/${id}`, { method: "DELETE", headers: withAuditOrigin(origin) });
 	if (!response.ok) throw new Error("Error al eliminar");
 	return true;

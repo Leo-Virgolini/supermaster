@@ -412,26 +412,26 @@ export const deleteProductoAPI = async (id: number, origin: ProductoAuditOrigin 
 	return true;
 };
 
-// Asocia una relación N-a-N al producto (catalogos | aptos | clientes).
+// Asocia una relación N-a-N al producto (catalogos | aptos | segmentos).
 // Ignora 409 (ya existe) para que la operación sea idempotente.
-const asociarRelacion = async (productoId: number, tipo: "catalogos" | "aptos" | "clientes", relId: number) => {
+const asociarRelacion = async (productoId: number, tipo: "catalogos" | "aptos" | "segmentos", relId: number) => {
 	const res = await fetchAPI(`${API_URL}/${productoId}/${tipo}/${relId}`, { method: "POST", allowedStatuses: [409] });
 	if (!res.ok && res.status !== 409) throw new Error(`Error al asociar ${tipo}`);
 };
 
 export const addProductoCatalogoAPI = (productoId: number, catalogoId: number) => asociarRelacion(productoId, "catalogos", catalogoId);
 export const addProductoAptoAPI = (productoId: number, aptoId: number) => asociarRelacion(productoId, "aptos", aptoId);
-export const addProductoClienteAPI = (productoId: number, clienteId: number) => asociarRelacion(productoId, "clientes", clienteId);
+export const addProductoSegmentoAPI = (productoId: number, segmentoId: number) => asociarRelacion(productoId, "segmentos", segmentoId);
 
 // Quita una relación N-a-N del producto. Ignora 404 (ya no existe) para idempotencia.
-const desasociarRelacion = async (productoId: number, tipo: "catalogos" | "aptos" | "clientes", relId: number) => {
+const desasociarRelacion = async (productoId: number, tipo: "catalogos" | "aptos" | "segmentos", relId: number) => {
 	const res = await fetchAPI(`${API_URL}/${productoId}/${tipo}/${relId}`, { method: "DELETE", allowedStatuses: [404] });
 	if (!res.ok && res.status !== 404) throw new Error(`Error al quitar ${tipo}`);
 };
 
 export const removeProductoCatalogoAPI = (productoId: number, catalogoId: number) => desasociarRelacion(productoId, "catalogos", catalogoId);
 export const removeProductoAptoAPI = (productoId: number, aptoId: number) => desasociarRelacion(productoId, "aptos", aptoId);
-export const removeProductoClienteAPI = (productoId: number, clienteId: number) => desasociarRelacion(productoId, "clientes", clienteId);
+export const removeProductoSegmentoAPI = (productoId: number, segmentoId: number) => desasociarRelacion(productoId, "segmentos", segmentoId);
 
 export const getProductoAuditoriaAPI = async (
 	id: number,
@@ -512,7 +512,7 @@ export const searchMlas = (q: string, size?: number) => fetchOptions("mlas", q, 
 export const searchCanales = (q: string, size?: number) => fetchOptions("canales", q, "nombre", size);
 export const searchCatalogos = (q: string, size?: number) => fetchOptions("catalogos", q, "nombre", size);
 export const searchAptos = (q: string, size?: number) => fetchOptions("aptos", q, "nombre", size);
-export const searchClientes = (q: string, size?: number) => fetchOptions("clientes", q, "nombre", size);
+export const searchSegmentos = (q: string, size?: number) => fetchOptions("segmentos", q, "nombre", size);
 
 export type ImagenDetalle = { nombre: string; extension: string; bytes: number };
 

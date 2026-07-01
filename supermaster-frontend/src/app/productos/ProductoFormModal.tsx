@@ -12,8 +12,8 @@ import AsyncSelect from "../components/AsyncSelect/AsyncSelect";
 import {
     getSiguienteSkuAPI, existeSkuAPI, getMlaPorCodigoAPI, createMlaAPI, getMlaPorIdAPI, patchMlaAPI, type MlaDetalleDTO,
     searchMarcas, searchClasifGral, searchClasifGastro, searchTipos, searchProveedores, searchOrigenes, searchMateriales, searchMlas,
-    searchCatalogos, searchAptos, searchClientes, searchCanales, addProductoCatalogoAPI, addProductoAptoAPI, addProductoClienteAPI,
-    removeProductoCatalogoAPI, removeProductoAptoAPI, removeProductoClienteAPI, updateProductoAPI, getNombreById,
+    searchCatalogos, searchAptos, searchSegmentos, searchCanales, addProductoCatalogoAPI, addProductoAptoAPI, addProductoSegmentoAPI,
+    removeProductoCatalogoAPI, removeProductoAptoAPI, removeProductoSegmentoAPI, updateProductoAPI, getNombreById,
     exportarProductosADuxAPI, calcularEnvioMlaAPI, exportarProductosANubeAPI, exportarProductosAMlAPI, recalcularProductoAPI,
     generarSeoAPI, type DestinoNube, type SeoNube,
     searchSectoresDeposito, predecirCategoriasMlAPI, type PrediccionCategoriaMl,
@@ -35,8 +35,8 @@ import { getCuotasPorCanalAPI } from "../canal-concepto-cuotas/canalConceptoCuot
 import { getImagenConfigAPI, getSeoConfigAPI } from "../config-ia/seoService";
 import ImagenesCarousel from "./ImagenesCarousel";
 import {
-    getProductoAptosAPI, getProductoCatalogosAPI, getProductoClientesAPI,
-    getAllAptosAPI, getAllCatalogosAPI, getAllClientesAPI, asignarPrecioInfladoAPI,
+    getProductoAptosAPI, getProductoCatalogosAPI, getProductoSegmentosAPI,
+    getAllAptosAPI, getAllCatalogosAPI, getAllSegmentosAPI, asignarPrecioInfladoAPI,
 } from "./productoSubRecursosService";
 import MultiAsyncSelect, { type MultiOption } from "../components/MultiAsyncSelect/MultiAsyncSelect";
 import { PreciosInfladosSection, type PrecioInfladoDraft } from "./PreciosInfladosSection";
@@ -257,7 +257,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     // Relaciones N-a-N (se asocian tras crear el producto)
     const [catalogosSel, setCatalogosSel] = useState<MultiOption[]>([]);
     const [aptosSel, setAptosSel] = useState<MultiOption[]>([]);
-    const [clientesSel, setClientesSel] = useState<MultiOption[]>([]);
+    const [segmentosSel, setSegmentosSel] = useState<MultiOption[]>([]);
     // Precios inflados a asignar tras crear el producto (solo modo alta).
     const [preciosInfladosSel, setPreciosInfladosSel] = useState<PrecioInfladoDraft[]>([]);
     // null = modo crear; con id = modo editar (mismo modal/form).
@@ -267,7 +267,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     // Snapshot de N-a-N al abrir en edición, para calcular el diff al guardar.
     const [catalogosOriginal, setCatalogosOriginal] = useState<MultiOption[]>([]);
     const [aptosOriginal, setAptosOriginal] = useState<MultiOption[]>([]);
-    const [clientesOriginal, setClientesOriginal] = useState<MultiOption[]>([]);
+    const [segmentosOriginal, setSegmentosOriginal] = useState<MultiOption[]>([]);
     const [moq, setMoq] = useState<number | "">("");
     const [stock, setStock] = useState<number | "">(0);
     const [tagReposicion, setTagReposicion] = useState<"" | "PRIO" | "LIQ">("");
@@ -441,10 +441,10 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             await Promise.all([
                 ...catalogosSel.map((c) => addProductoCatalogoAPI(productoId, Number(c.id))),
                 ...aptosSel.map((a) => addProductoAptoAPI(productoId, Number(a.id))),
-                ...clientesSel.map((c) => addProductoClienteAPI(productoId, Number(c.id))),
+                ...segmentosSel.map((c) => addProductoSegmentoAPI(productoId, Number(c.id))),
             ]);
         } catch {
-            notificar.error("El producto se creó, pero falló al asociar algún catálogo/apto/cliente");
+            notificar.error("El producto se creó, pero falló al asociar algún catálogo/apto/segmento");
         }
         if (preciosInfladosSel.length > 0) {
             try {
@@ -672,8 +672,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             // Atributos ML: se pre-cargan desde el canal en el .then de getEstadoMlAPI.
             setMlAtributosVal({});
             setFormErrors({});
-            setCatalogosSel([]); setAptosSel([]); setClientesSel([]);
-            setCatalogosOriginal([]); setAptosOriginal([]); setClientesOriginal([]);
+            setCatalogosSel([]); setAptosSel([]); setSegmentosSel([]);
+            setCatalogosOriginal([]); setAptosOriginal([]); setSegmentosOriginal([]);
             // El SEO de Nube no se persiste en la BD del sistema: en edición se pre-carga desde el canal (ver .then de getEstadoHogarAPI/getEstadoGastroAPI); en alta arranca vacío.
             setSeoHogar({ title: "", description: "", tags: "" });
             setSeoGastro({ title: "", description: "", tags: "" });
@@ -687,20 +687,20 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             // Relaciones N-a-N: los GET dan ids; cruzamos con getAll* para los nombres.
             void (async () => {
                 try {
-                    const [aptosAsig, allAptos, catAsig, allCat, cliAsig, allCli] = await Promise.all([
+                    const [aptosAsig, allAptos, catAsig, allCat, segAsig, allSeg] = await Promise.all([
                         getProductoAptosAPI(producto.id), getAllAptosAPI(),
                         getProductoCatalogosAPI(producto.id), getAllCatalogosAPI(),
-                        getProductoClientesAPI(producto.id), getAllClientesAPI(),
+                        getProductoSegmentosAPI(producto.id), getAllSegmentosAPI(),
                     ]);
                     const aptos: MultiOption[] = aptosAsig.map(a => ({ id: a.aptoId, label: allAptos.find(x => x.id === a.aptoId)?.nombre ?? String(a.aptoId) }));
                     const catalogos: MultiOption[] = catAsig.map(c => ({ id: c.catalogoId, label: allCat.find(x => x.id === c.catalogoId)?.nombre ?? String(c.catalogoId) }));
-                    const clientes: MultiOption[] = cliAsig.map(c => ({ id: c.clienteId, label: allCli.find(x => x.id === c.clienteId)?.nombre ?? String(c.clienteId) }));
+                    const segmentos: MultiOption[] = segAsig.map(c => ({ id: c.segmentoId, label: allSeg.find(x => x.id === c.segmentoId)?.nombre ?? String(c.segmentoId) }));
                     setAptosSel(aptos); setAptosOriginal(aptos);
                     setCatalogosSel(catalogos); setCatalogosOriginal(catalogos);
-                    setClientesSel(clientes); setClientesOriginal(clientes);
+                    setSegmentosSel(segmentos); setSegmentosOriginal(segmentos);
                 } catch (e) {
                     // Si la sesión expiró (401), fetchAPI ya redirige al login: no ensuciar con un toast.
-                    if (!esSesionExpirada(e)) notificar.error("No se pudieron cargar catálogos/aptos/clientes del producto");
+                    if (!esSesionExpirada(e)) notificar.error("No se pudieron cargar catálogos/aptos/segmentos del producto");
                 }
             })();
 
@@ -821,14 +821,14 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             };
             const dCat = diff(catalogosOriginal, catalogosSel);
             const dApt = diff(aptosOriginal, aptosSel);
-            const dCli = diff(clientesOriginal, clientesSel);
+            const dSeg = diff(segmentosOriginal, segmentosSel);
             await Promise.all([
                 ...dCat.add.map(x => addProductoCatalogoAPI(id, x)),
                 ...dCat.remove.map(x => removeProductoCatalogoAPI(id, x)),
                 ...dApt.add.map(x => addProductoAptoAPI(id, x)),
                 ...dApt.remove.map(x => removeProductoAptoAPI(id, x)),
-                ...dCli.add.map(x => addProductoClienteAPI(id, x)),
-                ...dCli.remove.map(x => removeProductoClienteAPI(id, x)),
+                ...dSeg.add.map(x => addProductoSegmentoAPI(id, x)),
+                ...dSeg.remove.map(x => removeProductoSegmentoAPI(id, x)),
             ]);
 
             // Recálculo SÍNCRONO antes de exportar a Nube: si se cambió el costo, el PVP queda
@@ -2230,11 +2230,11 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                     </fieldset>
 
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.catalogos}`}>
-                        <legend className={sectionTitleClassName}><UserGroupIcon /> Catálogos y Clientes</legend>
+                        <legend className={sectionTitleClassName}><UserGroupIcon /> Catálogos y Segmentos</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Asociaciones múltiples. Buscá y agregá los que correspondan.</p>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <MultiAsyncSelect label="Catálogos" loadOptions={(q) => searchCatalogos(q)} value={catalogosSel} onChange={setCatalogosSel} placeholder="Buscar catálogo" inputClassName={inputBaseClassName} />
-                            <MultiAsyncSelect label="Clientes" loadOptions={(q) => searchClientes(q)} value={clientesSel} onChange={setClientesSel} placeholder="Buscar cliente" inputClassName={inputBaseClassName} />
+                            <MultiAsyncSelect label="Segmentos" loadOptions={(q) => searchSegmentos(q)} value={segmentosSel} onChange={setSegmentosSel} placeholder="Buscar segmento" inputClassName={inputBaseClassName} />
                         </div>
                     </fieldset>
 

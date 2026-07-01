@@ -2,11 +2,11 @@
 import Link from "next/link";
 import { EyeIcon } from "@heroicons/react/24/outline";
 import { ColumnDef } from "@tanstack/react-table";
-import { ClienteDTO } from "./clientesService";
+import { SegmentoDTO } from "./segmentosService";
 import EditableCell from "../components/Table/core/EditableCell";
 import { getTableActionButtonClasses } from "../components/Table/core/TableActionButton";
 
-export const getColumns = (canEdit = true): ColumnDef<ClienteDTO>[] => [
+export const getColumns = (canEdit = true): ColumnDef<SegmentoDTO>[] => [
     {
         id: "select",
         header: ({ table }) => (
@@ -37,8 +37,8 @@ export const getColumns = (canEdit = true): ColumnDef<ClienteDTO>[] => [
         enableSorting: false,
         cell: ({ row }) => (
             <Link
-                href={`/productos?clienteIds=${row.original.id}`}
-                title="Ver productos de este cliente"
+                href={`/productos?segmentoIds=${row.original.id}`}
+                title="Ver productos de este segmento"
                 className={getTableActionButtonClasses("primary")}
             >
                 <EyeIcon className="w-3.5 h-3.5" />

@@ -5,7 +5,7 @@ import MultiSelectFilter from "./filters/MultiSelectFilter";
 import SegmentedFilter from "./filters/SegmentedFilter";
 import {
     searchMarcas, searchClasifGral, searchClasifGastro, searchTipos, searchMateriales,
-    searchProveedores, searchOrigenes, searchCatalogos, searchAptos, searchClientes,
+    searchProveedores, searchOrigenes, searchCatalogos, searchAptos, searchSegmentos,
     searchCanales, searchMlas,
 } from "./productosService";
 
@@ -39,7 +39,7 @@ const COMERCIAL: MultiDef[] = [
     { label: "Origen", apiParam: "origenIds", loadOptions: searchOrigenes },
     { label: "Catálogo", apiParam: "catalogoIds", loadOptions: searchCatalogos },
     { label: "Apto", apiParam: "aptoIds", loadOptions: searchAptos },
-    { label: "Cliente", apiParam: "clienteIds", loadOptions: searchClientes },
+    { label: "Segmento", apiParam: "segmentoIds", loadOptions: searchSegmentos },
     { label: "Canal", apiParam: "canalIds", loadOptions: searchCanales },
     { label: "MLA", apiParam: "mlaIds", loadOptions: searchMlas },
 ];

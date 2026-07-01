@@ -8,6 +8,9 @@ import ar.com.leo.super_master_backend.apis.nube.service.TiendaNubeService;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.DuxCanalDTO;
+import ar.com.leo.super_master_backend.dominio.producto.estado.dto.FamiliaMlDTO;
+import ar.com.leo.super_master_backend.dominio.producto.estado.dto.FamiliaVarianteDTO;
+import ar.com.leo.super_master_backend.dominio.producto.mla.entity.Mla;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoAplicarDTO;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoAplicarDTO.CanalAplicado;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoCanalDTO;
@@ -20,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -54,12 +58,12 @@ public class EstadoPublicacionService {
             String mlaCode = resolverMlaPorSku(sku);
             if (mlaCode == null || mlaCode.isBlank()) {
                 return new MlCanalDTO(EstadoCanalDTO.noPublicado(), null, null, List.of(), null, null,
-                        null, null, null, null, null);
+                        null, null, null, null, null, null);
             }
             JsonNode item = mercadoLibreService.leerItemRaw(mlaCode);
             if (item == null) {
                 return new MlCanalDTO(EstadoCanalDTO.ofError(), null, null, List.of(), null, null,
-                        null, null, null, null, null);
+                        null, null, null, null, null, null);
             }
             String descMl = mercadoLibreService.leerDescripcionMl(mlaCode);
             String catId = MlDatosParser.categoryId(item);
@@ -71,13 +75,36 @@ public class EstadoPublicacionService {
             // Preferimos family_name; para publicaciones viejas (sin familia) caemos al title.
             String familyName = item.path("family_name").asString(null);
             String titulo = (familyName != null && !familyName.isBlank()) ? familyName : item.path("title").asString(null);
+            String ean = MlDatosParser.codigoUniversal(item);
             return new MlCanalDTO(MlEstadoParser.parse(item), catId, catNombre,
                     atributos, descMl, mlaCode,
-                    paquete.altoCm(), paquete.anchoCm(), paquete.largoCm(), paquete.pesoKg(), titulo);
+                    paquete.altoCm(), paquete.anchoCm(), paquete.largoCm(), paquete.pesoKg(), titulo, ean);
         } catch (Exception e) {
             return new MlCanalDTO(EstadoCanalDTO.ofError(), null, null, List.of(), null, null,
-                    null, null, null, null, null);
+                    null, null, null, null, null, null);
         }
+    }
+
+    /**
+     * Familia de variantes del producto (modelo nuevo). 2b-1: se arma desde la BD por family_id
+     * (los hermanos son productos cuyo MLA comparte family_id). Si el producto no es de familia,
+     * devuelve {@link FamiliaMlDTO#ninguna()}.
+     */
+    @Transactional(readOnly = true)
+    public FamiliaMlDTO leerFamilia(Integer productoId) {
+        Producto p = productoRepository.findById(productoId)
+                .orElseThrow(() -> new NotFoundException("Producto no encontrado"));
+        Mla mla = p.getMla();
+        if (mla == null || mla.getFamilyId() == null || mla.getFamilyId().isBlank()) {
+            return FamiliaMlDTO.ninguna();
+        }
+        List<FamiliaVarianteDTO> variantes = productoRepository.findByMla_FamilyId(mla.getFamilyId()).stream()
+                .map(h -> new FamiliaVarianteDTO(h.getId(), h.getSku(),
+                        (h.getTituloNube() != null && !h.getTituloNube().isBlank()) ? h.getTituloNube() : h.getTituloDux(),
+                        h.getId().equals(productoId)))
+                .sorted(Comparator.comparing(FamiliaVarianteDTO::sku, Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+        return new FamiliaMlDTO("NUEVO", mla.getFamilyId(), mla.getFamilyName(), variantes);
     }
 
     /** Lee una tienda Nube (una sola GET reutilizada para estado, descripción, SEO y dims). Nunca lanza. */
@@ -90,7 +117,7 @@ public class EstadoPublicacionService {
         try {
             product = tiendaNubeService.buscarProductoPorSku(sku, store);
         } catch (Exception e) {
-            return new NubeCanalDTO(EstadoCanalDTO.ofError(), null, null, null, null, null, null, null, null);
+            return new NubeCanalDTO(EstadoCanalDTO.ofError(), null, null, null, null, null, null, null, null, null);
         }
         JsonNode variant = (product != null) ? product.path("variants").path(0) : null;
         String peso = variant != null ? variant.path("weight").asString(null) : null;
@@ -100,10 +127,11 @@ public class EstadoPublicacionService {
         String titulo = (product != null) ? product.path("name").path("es").asString(null) : null;
         // id del producto en Nube (para armar el link "Editar en Tienda Nube"); distinto por tienda.
         Long productId = (product != null && product.path("id").isNumber()) ? product.path("id").asLong() : null;
+        String ean = (variant != null) ? variant.path("barcode").asString(null) : null;
         EstadoCanalDTO estado = estadoNube(product);
         String descripcion = descripcionNube(product);
         SeoCanalDTO seo = NubeSeoParser.parse(product);
-        return new NubeCanalDTO(estado, descripcion, seo, titulo, peso, prof, ancho, alto, productId);
+        return new NubeCanalDTO(estado, descripcion, seo, titulo, peso, prof, ancho, alto, productId, ean);
     }
 
     /** Lee Dux: findById → sku → DuxEstadoParser. Nunca lanza (ofError ante fallo). */

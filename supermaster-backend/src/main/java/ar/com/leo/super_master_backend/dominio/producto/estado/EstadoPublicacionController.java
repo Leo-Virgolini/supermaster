@@ -3,6 +3,7 @@ package ar.com.leo.super_master_backend.dominio.producto.estado;
 import ar.com.leo.super_master_backend.apis.nube.service.TiendaNubeService;
 import ar.com.leo.super_master_backend.config.Permisos;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.DuxCanalDTO;
+import ar.com.leo.super_master_backend.dominio.producto.estado.dto.FamiliaMlDTO;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoAplicarDTO;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoPublicacionUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.MlCanalDTO;
@@ -42,6 +43,12 @@ public class EstadoPublicacionController {
     @PreAuthorize(Permisos.PRODUCTOS_VER)
     public ResponseEntity<DuxCanalDTO> dux(@PathVariable @Positive Integer id) {
         return ResponseEntity.ok(estadoPublicacionService.leerDux(id));
+    }
+
+    @GetMapping("/familia")
+    @PreAuthorize(Permisos.PRODUCTOS_VER)
+    public ResponseEntity<FamiliaMlDTO> familia(@PathVariable @Positive Integer id) {
+        return ResponseEntity.ok(estadoPublicacionService.leerFamilia(id));
     }
 
     @PutMapping

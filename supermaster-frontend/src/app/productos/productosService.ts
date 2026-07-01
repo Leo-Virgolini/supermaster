@@ -255,7 +255,12 @@ export const exportarProductosADuxAPI = async (skus: string[], habilitado?: "S" 
 
 export type SeoNube = { seoTitle: string; seoDescription: string; seoTags: string };
 
-export type DestinoNube = { tienda: "KT HOGAR" | "KT GASTRO"; cuotas: number; seo?: SeoNube; descripcion?: string | null };
+export type DestinoNube = {
+	tienda: "KT HOGAR" | "KT GASTRO"; cuotas: number; seo?: SeoNube; descripcion?: string | null;
+	// Título override y paquete de envío por canal (cada tienda manda los suyos).
+	titulo?: string | null;
+	peso: string; profundidad: string; ancho: string; alto: string;
+};
 
 export type SeoContexto = {
 	tituloNube: string;
@@ -288,12 +293,11 @@ export type ExportCanalResultDTO = {
 
 export const exportarProductosANubeAPI = async (
 	skus: string[], tiendas: DestinoNube[],
-	dims?: { nubePeso: string; nubeProfundidad: string; nubeAncho: string; nubeAlto: string },
 ): Promise<ExportCanalResultDTO> => {
 	const res = await fetchAPI(`${API_BASE_URL}/api/nube/exportar-productos`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ skus, tiendas, ...dims }),
+		body: JSON.stringify({ skus, tiendas }),
 	});
 	if (!res.ok) throw new Error(await extraerMensajeError(res, "No se pudo subir el producto a Tienda Nube"));
 	return await res.json();
@@ -553,6 +557,10 @@ async function getEstadoCanal<T>(id: number, canal: string): Promise<T> {
 	if (!r.ok) throw new Error(await extraerMensajeError(r, "No se pudo leer el estado del canal"));
 	return r.json();
 }
+export type FamiliaVariante = { productoId: number; sku: string; titulo: string | null; esActual: boolean };
+export type FamiliaMl = { modelo: string | null; familyId: string | null; familyName: string | null; variantes: FamiliaVariante[] };
+export const getFamiliaAPI = (id: number) => getEstadoCanal<FamiliaMl>(id, "familia");
+
 export const getEstadoMlAPI = (id: number) => getEstadoCanal<MlCanal>(id, "ml");
 export const getEstadoHogarAPI = (id: number) => getEstadoCanal<NubeCanal>(id, "hogar");
 export const getEstadoGastroAPI = (id: number) => getEstadoCanal<NubeCanal>(id, "gastro");

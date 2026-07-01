@@ -58,6 +58,9 @@ public interface ProductoRepository extends JpaRepository<Producto, Integer>, Jp
 
     List<Producto> findByMlaId(Integer mlaId);
 
+    /** Hermanos de una familia de variantes ML (modelo nuevo): productos cuyo MLA comparte family_id. */
+    List<Producto> findByMla_FamilyId(String familyId);
+
     List<Producto> findByMaterialId(Integer materialId);
 
     List<Producto> findBySectorDepositoId(Integer sectorDepositoId);

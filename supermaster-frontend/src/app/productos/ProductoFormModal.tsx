@@ -22,7 +22,7 @@ import {
     type MlFicha, type MlComponente,
     getMlCategoriaMaxTitleAPI,
     putEstadoPublicacionAPI,
-    getEstadoMlAPI, getEstadoHogarAPI, getEstadoGastroAPI, getEstadoDuxAPI,
+    getEstadoMlAPI, getEstadoHogarAPI, getEstadoGastroAPI, getEstadoDuxAPI, getFamiliaAPI, type FamiliaMl,
     type EstadoCanal, type EstadoPublicacionUpdate,
     type MlCanal, type NubeCanal, type DuxCanal,
     generarCaratulaAPI, guardarCaratulaAPI,
@@ -154,6 +154,9 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const [prediccionesMl, setPrediccionesMl] = useState<PrediccionCategoriaMl[]>([]);
     const [cargandoPrediccionesMl, setCargandoPrediccionesMl] = useState(false);
     const [tituloNube, setTituloNube] = useState("");
+    // Título override por canal Nube. En EDICIÓN se lee de la API de cada store; en ALTA se espeja desde el título base.
+    const [tituloHogar, setTituloHogar] = useState("");
+    const [tituloGastro, setTituloGastro] = useState("");
     const [descripcionMl, setDescripcionMl] = useState("");
     const [descripcionHogar, setDescripcionHogar] = useState("");
     const [descripcionGastro, setDescripcionGastro] = useState("");
@@ -175,10 +178,15 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     // No se persiste en la BD del sistema: si el usuario genera/edita estos campos, se usan al exportar; si quedan vacíos, se autogeneran.
     const [seoHogar, setSeoHogar] = useState<{ title: string; description: string; tags: string }>({ title: "", description: "", tags: "" });
     const [seoGastro, setSeoGastro] = useState<{ title: string; description: string; tags: string }>({ title: "", description: "", tags: "" });
-    const [nubePeso, setNubePeso] = useState("0.050");
-    const [nubeProfundidad, setNubeProfundidad] = useState("8.00");
-    const [nubeAncho, setNubeAncho] = useState("5.00");
-    const [nubeAlto, setNubeAlto] = useState("5.00");
+    // Paquete de envío por canal Nube (peso/dimensiones). Cada store trae los suyos al editar y recibe los suyos al exportar.
+    const [hogarPeso, setHogarPeso] = useState("0.050");
+    const [hogarProfundidad, setHogarProfundidad] = useState("8.00");
+    const [hogarAncho, setHogarAncho] = useState("5.00");
+    const [hogarAlto, setHogarAlto] = useState("5.00");
+    const [gastroPeso, setGastroPeso] = useState("0.050");
+    const [gastroProfundidad, setGastroProfundidad] = useState("8.00");
+    const [gastroAncho, setGastroAncho] = useState("5.00");
+    const [gastroAlto, setGastroAlto] = useState("5.00");
     // Canales cuyo SEO se está generando ahora. Es un Set para permitir generar HOGAR y GASTRO
     // en paralelo: cada botón se deshabilita solo por su propio canal, no por el del otro.
     const [generandoSeo, setGenerandoSeo] = useState<Set<"GASTRO" | "HOGAR">>(() => new Set());
@@ -290,6 +298,14 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     }, [tieneVariantes, mlCategoryId, editandoProductoId]);
     // Resultados de la creación por variante (para el panel del footer).
     const [resultadosVariantes, setResultadosVariantes] = useState<{ sku: string; resultados: ResultadoCanal[] }[]>([]);
+    // Familia de variantes del producto (solo edición; 2b-1: lista read-only desde la BD por family_id).
+    const [familia, setFamilia] = useState<FamiliaMl | null>(null);
+    useEffect(() => {
+        if (!editandoProductoId) { setFamilia(null); return; }
+        let cancel = false;
+        getFamiliaAPI(editandoProductoId).then(f => { if (!cancel) setFamilia(f); }).catch(() => { if (!cancel) setFamilia(null); });
+        return () => { cancel = true; };
+    }, [editandoProductoId]);
     // Cache de "¿el SKU tiene imagen válida para ML?" por cada SKU de variante consultado.
     const imagenesPorSkuCache = useRef<Map<string, boolean>>(new Map());
 
@@ -555,11 +571,11 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                     subirKtGastro ? resolverSeo(seoGastro, "GASTRO") : Promise.resolve(undefined),
                 ]);
                 const tiendas: DestinoNube[] = [];
-                if (subirKtHogar) tiendas.push({ tienda: "KT HOGAR", cuotas: cuotaHogarEf, seo: seoH, descripcion: descripcionHogar.trim() || null });
-                if (subirKtGastro) tiendas.push({ tienda: "KT GASTRO", cuotas: cuotaGastroEf, seo: seoG, descripcion: descripcionGastro.trim() || null });
+                if (subirKtHogar) tiendas.push({ tienda: "KT HOGAR", cuotas: cuotaHogarEf, seo: seoH, descripcion: descripcionHogar.trim() || null, titulo: tituloHogar.trim() || null, peso: hogarPeso, profundidad: hogarProfundidad, ancho: hogarAncho, alto: hogarAlto });
+                if (subirKtGastro) tiendas.push({ tienda: "KT GASTRO", cuotas: cuotaGastroEf, seo: seoG, descripcion: descripcionGastro.trim() || null, titulo: tituloGastro.trim() || null, peso: gastroPeso, profundidad: gastroProfundidad, ancho: gastroAncho, alto: gastroAlto });
                 if (!tiendas.length) return { canal: "Tienda Nube", estado: "ok", detalle: "sin cambios" };
                 try {
-                    const r = await exportarProductosANubeAPI([skuExport], tiendas, { nubePeso, nubeProfundidad, nubeAncho, nubeAlto });
+                    const r = await exportarProductosANubeAPI([skuExport], tiendas);
                     return clasificarExport("Tienda Nube", r, skuExport);
                 } catch (e) {
                     return { canal: "Tienda Nube", estado: "error", detalle: e instanceof Error ? e.message : "error al subir" };
@@ -832,16 +848,18 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             getEstadoHogarAPI(producto.id).then(e => { if (cancelled) return; setEstadoHogar(e); setEstadoHogarOriginal(e);
                 setDescripcionHogar(e.descripcion ?? "");
                 if (e.seo) setSeoHogar({ title: e.seo.title ?? "", description: e.seo.description ?? "", tags: e.seo.tags ?? "" });
-                if (e.titulo != null) setTituloNube(e.titulo);
-                if (e.peso != null) setNubePeso(e.peso); if (e.profundidad != null) setNubeProfundidad(e.profundidad);
-                if (e.ancho != null) setNubeAncho(e.ancho); if (e.alto != null) setNubeAlto(e.alto);
+                if (e.titulo != null) setTituloHogar(e.titulo);
+                if (e.peso != null) setHogarPeso(e.peso); if (e.profundidad != null) setHogarProfundidad(e.profundidad);
+                if (e.ancho != null) setHogarAncho(e.ancho); if (e.alto != null) setHogarAlto(e.alto);
             }).catch(err => { if (!cancelled && !esSesionExpirada(err)) notificar.error("No se pudo leer KT HOGAR"); })
               .finally(() => { if (!cancelled) setCargandoHogar(false); });
             getEstadoGastroAPI(producto.id).then(e => { if (cancelled) return; setEstadoGastro(e); setEstadoGastroOriginal(e);
                 setDescripcionGastro(e.descripcion ?? "");
                 if (e.seo) setSeoGastro({ title: e.seo.title ?? "", description: e.seo.description ?? "", tags: e.seo.tags ?? "" });
-                // título/dims Nube ya los toma HOGAR (compartidos); si HOGAR no publica, fallback:
-                if (e.titulo != null) setTituloNube(t => t || e.titulo!);
+                // Título y paquete de GASTRO se leen de su propia API (independientes de HOGAR).
+                if (e.titulo != null) setTituloGastro(e.titulo);
+                if (e.peso != null) setGastroPeso(e.peso); if (e.profundidad != null) setGastroProfundidad(e.profundidad);
+                if (e.ancho != null) setGastroAncho(e.ancho); if (e.alto != null) setGastroAlto(e.alto);
             }).catch(err => { if (!cancelled && !esSesionExpirada(err)) notificar.error("No se pudo leer KT GASTRO"); })
               .finally(() => { if (!cancelled) setCargandoGastro(false); });
             getEstadoDuxAPI(producto.id).then(e => { if (cancelled) return; setEstadoDux(e); })
@@ -862,7 +880,9 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             setEstadoMl(null); setEstadoHogar(null); setEstadoGastro(null); setEstadoDux(null);
             setEstadoMlOriginal(null); setEstadoHogarOriginal(null); setEstadoGastroOriginal(null);
             setMlaResuelto(null);
-            setNubePeso("0.050"); setNubeProfundidad("8.00"); setNubeAncho("5.00"); setNubeAlto("5.00");
+            setTituloHogar(""); setTituloGastro("");
+            setHogarPeso("0.050"); setHogarProfundidad("8.00"); setHogarAncho("5.00"); setHogarAlto("5.00");
+            setGastroPeso("0.050"); setGastroProfundidad("8.00"); setGastroAncho("5.00"); setGastroAlto("5.00");
             void cargarSkuSugerido(false);
         }
         return () => { cancelled = true; };
@@ -2107,6 +2127,22 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 <input type="text" className={`${inputBaseClassName} ${formErrors.tituloDux ? inputErrorClassName : ""}`} value={tituloDux} onChange={e => { setTituloDux(e.target.value); if (formErrors.tituloDux) setFormErrors(p => ({ ...p, tituloDux: "" })); }} placeholder="Título principal (Dux)" required />
                                 {formErrors.tituloDux && <p className="mt-1 text-xs text-red-500">{formErrors.tituloDux}</p>}
                             </label>
+                            <label className="block xl:col-span-4">
+                                <span className={fieldLabelClassName}>Título Nube (base){(subirKtHogar || subirKtGastro) && <span style={{ color: "#dc2626" }} className="font-bold ml-0.5">*</span>}</span>
+                                <input type="text" className={`${inputBaseClassName} ${formErrors.tituloNube ? inputErrorClassName : ""}`} value={tituloNube}
+                                    onChange={e => {
+                                        const v = e.target.value;
+                                        // En alta, el título base se espeja a cada canal mientras el usuario no los haya editado a mano.
+                                        if (!editandoProductoId) {
+                                            setTituloHogar(prev => (prev === tituloNube ? v : prev));
+                                            setTituloGastro(prev => (prev === tituloNube ? v : prev));
+                                        }
+                                        setTituloNube(v);
+                                        if (formErrors.tituloNube) setFormErrors(p => ({ ...p, tituloNube: "" }));
+                                    }} placeholder="Título base para Tienda Nube" />
+                                {formErrors.tituloNube && <p className="mt-1 text-xs text-red-500">{formErrors.tituloNube}</p>}
+                                <span className="mt-0.5 block text-[11px] text-slate-400 dark:text-slate-500">Se usa para Excel/PDF/Dux/SEO. Al crear se copia a KT HOGAR y KT GASTRO; cada canal puede ajustarlo.</span>
+                            </label>
 
                             {/* Imágenes del SKU (solo lectura; click → carousel con todas) */}
                             <div className="block xl:col-span-4">
@@ -2470,6 +2506,21 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 />
                             </div>
                         )}
+                        {editandoProductoId && familia && familia.variantes.length > 1 && (
+                            <div className="mb-4 rounded-2xl border border-slate-200 bg-white/60 p-3 dark:border-slate-700 dark:bg-slate-800/40">
+                                <div className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-200">Familia de variantes{familia.familyName ? ` · ${familia.familyName}` : ""} <span className="text-xs font-normal text-slate-400">({familia.variantes.length})</span></div>
+                                <ul className="space-y-1">
+                                    {familia.variantes.map(v => (
+                                        <li key={v.productoId} className={`flex items-center gap-2 text-xs ${v.esActual ? "font-semibold text-slate-800 dark:text-slate-100" : "text-slate-600 dark:text-slate-300"}`}>
+                                            <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono dark:bg-slate-700">{v.sku}</span>
+                                            <span className="truncate">{v.titulo}</span>
+                                            {v.esActual && <span className="text-[10px] text-blue-500">(este)</span>}
+                                        </li>
+                                    ))}
+                                </ul>
+                                <p className="mt-2 text-[11px] text-slate-400">Agregar/editar/quitar variantes: próximos incrementos.</p>
+                            </div>
+                        )}
                         <div className="mb-4 grid grid-cols-1">
                             <label className="block">
                                 <span className="flex items-center justify-between gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
@@ -2694,12 +2745,11 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         )}
                         <div className="grid grid-cols-1 gap-4">
                             <label className="block">
-                                <span className={fieldLabelClassName}>Título Nube</span>
+                                <span className={fieldLabelClassName}>Título · KT HOGAR</span>
                                 {cargandoHogar ? indicadorCarga("Cargando datos del canal…") : (
-                                    <input type="text" className={`${inputBaseClassName} ${formErrors.tituloNube ? inputErrorClassName : ""}`} value={tituloNube} onChange={e => { setTituloNube(e.target.value); if (formErrors.tituloNube) setFormErrors(p => ({ ...p, tituloNube: "" })); }} placeholder="Título para Tienda Nube" />
+                                    <input type="text" className={inputBaseClassName} value={tituloHogar} onChange={e => setTituloHogar(e.target.value)} placeholder="Título en KT HOGAR (vacío = usa el título base)" />
                                 )}
-                                {formErrors.tituloNube && <p className="mt-1 text-xs text-red-500">{formErrors.tituloNube}</p>}
-                                <span className="mt-0.5 block text-[11px] text-slate-400 dark:text-slate-500">Compartido entre KT HOGAR y KT GASTRO.</span>
+                                <span className="mt-0.5 block text-[11px] text-slate-400 dark:text-slate-500">Se lee de KT HOGAR al editar. Si queda vacío, se publica el título base.</span>
                             </label>
                             {renderSeoNube("HOGAR", "KT Hogar", seoHogar, setSeoHogar)}
                             {/* div (no <label>): un <label> redirige el click al primer control interno (el botón
@@ -2718,35 +2768,35 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                     ? indicadorCarga("Cargando datos del canal…")
                                     : <HtmlEditor value={descripcionHogar} onChange={setDescripcionHogar} placeholder="HTML. Lo que ves es lo que se publica en KT HOGAR." />}
                             </div>
+                            {/* Paquete de envío · KT HOGAR */}
+                            <div className="border-t border-slate-200/70 pt-4 dark:border-slate-700/70">
+                                <div className="mb-3 flex items-center gap-1.5">
+                                    <CubeIcon className="h-4 w-4 text-slate-500" />
+                                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Paquete de envío</span>
+                                </div>
+                                {cargandoHogar ? indicadorCarga("Cargando datos del canal…") : (
+                                <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                                    <label className="block">
+                                        <span className={fieldLabelClassName}>Peso (kg)</span>
+                                        <input type="number" min={0} step="0.001" className={inputBaseClassName} value={hogarPeso} onChange={e => setHogarPeso(e.target.value)} />
+                                    </label>
+                                    <label className="block">
+                                        <span className={fieldLabelClassName}>Profundidad (cm)</span>
+                                        <input type="number" min={0} step="1" className={inputBaseClassName} value={hogarProfundidad} onChange={e => setHogarProfundidad(e.target.value)} />
+                                    </label>
+                                    <label className="block">
+                                        <span className={fieldLabelClassName}>Ancho (cm)</span>
+                                        <input type="number" min={0} step="1" className={inputBaseClassName} value={hogarAncho} onChange={e => setHogarAncho(e.target.value)} />
+                                    </label>
+                                    <label className="block">
+                                        <span className={fieldLabelClassName}>Alto (cm)</span>
+                                        <input type="number" min={0} step="1" className={inputBaseClassName} value={hogarAlto} onChange={e => setHogarAlto(e.target.value)} />
+                                    </label>
+                                </div>
+                                )}
+                            </div>
                         </div>
                     </fieldset>
-                    )}
-
-                    {(subirKtHogar || subirKtGastro) && (
-                        <fieldset className={`${sectionClassName} ${SECTION_TINT.seo}`}>
-                            <legend className={sectionTitleClassName}><CubeIcon className="h-5 w-5" /> Paquete de envío · Tienda Nube</legend>
-                            <p className={`${sectionDescriptionClassName} mb-3`}>Peso y dimensiones del paquete que se envían a Tienda Nube.</p>
-                            {cargandoHogar ? indicadorCarga("Cargando datos del canal…") : (
-                            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                                <label className="block">
-                                    <span className={fieldLabelClassName}>Peso (kg)</span>
-                                    <input type="number" min={0} step="0.001" className={inputBaseClassName} value={nubePeso} onChange={e => setNubePeso(e.target.value)} />
-                                </label>
-                                <label className="block">
-                                    <span className={fieldLabelClassName}>Profundidad (cm)</span>
-                                    <input type="number" min={0} step="1" className={inputBaseClassName} value={nubeProfundidad} onChange={e => setNubeProfundidad(e.target.value)} />
-                                </label>
-                                <label className="block">
-                                    <span className={fieldLabelClassName}>Ancho (cm)</span>
-                                    <input type="number" min={0} step="1" className={inputBaseClassName} value={nubeAncho} onChange={e => setNubeAncho(e.target.value)} />
-                                </label>
-                                <label className="block">
-                                    <span className={fieldLabelClassName}>Alto (cm)</span>
-                                    <input type="number" min={0} step="1" className={inputBaseClassName} value={nubeAlto} onChange={e => setNubeAlto(e.target.value)} />
-                                </label>
-                            </div>
-                            )}
-                        </fieldset>
                     )}
 
                     {/* TIENDA NUBE · KT GASTRO */}
@@ -2763,17 +2813,16 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         )}
                         <div className="grid grid-cols-1 gap-4">
                             <label className="block">
-                                <span className={fieldLabelClassName}>Título Nube</span>
+                                <span className={fieldLabelClassName}>Título · KT GASTRO</span>
                                 {cargandoGastro ? indicadorCarga("Cargando datos del canal…") : (
-                                    <input type="text" className={`${inputBaseClassName} ${formErrors.tituloNube ? inputErrorClassName : ""}`} value={tituloNube} onChange={e => { setTituloNube(e.target.value); if (formErrors.tituloNube) setFormErrors(p => ({ ...p, tituloNube: "" })); }} placeholder="Título para Tienda Nube" />
+                                    <input type="text" className={inputBaseClassName} value={tituloGastro} onChange={e => setTituloGastro(e.target.value)} placeholder="Título en KT GASTRO (vacío = usa el título base)" />
                                 )}
-                                {formErrors.tituloNube && <p className="mt-1 text-xs text-red-500">{formErrors.tituloNube}</p>}
-                                <span className="mt-0.5 block text-[11px] text-slate-400 dark:text-slate-500">Compartido entre KT HOGAR y KT GASTRO.</span>
-                                {esEquipamiento && tituloNube.trim() && (
+                                <span className="mt-0.5 block text-[11px] text-slate-400 dark:text-slate-500">Se lee de KT GASTRO al editar. Si queda vacío, se publica el título base.</span>
+                                {esEquipamiento && (tituloGastro.trim() || tituloNube.trim()) && (() => { const t = tituloGastro.trim() || tituloNube.trim(); return (
                                     <span className="mt-1 block text-[11px] font-medium text-amber-700 dark:text-amber-300">
-                                        En KT GASTRO se publicará como: «{tituloNube.trim().endsWith("*") ? tituloNube.trim() : tituloNube.trim() + "*"}»
+                                        En KT GASTRO se publicará como: «{t.endsWith("*") ? t : t + "*"}»
                                     </span>
-                                )}
+                                ); })()}
                             </label>
                             {renderSeoNube("GASTRO", "KT Gastro", seoGastro, setSeoGastro)}
                             {/* div (no <label>): evita que el click en el editor dispare el botón "Componer" (ver KT HOGAR). */}
@@ -2790,6 +2839,33 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 {cargandoGastro
                                     ? indicadorCarga("Cargando datos del canal…")
                                     : <HtmlEditor value={descripcionGastro} onChange={setDescripcionGastro} placeholder="HTML. Lo que ves es lo que se publica en KT GASTRO." />}
+                            </div>
+                            {/* Paquete de envío · KT GASTRO */}
+                            <div className="border-t border-slate-200/70 pt-4 dark:border-slate-700/70">
+                                <div className="mb-3 flex items-center gap-1.5">
+                                    <CubeIcon className="h-4 w-4 text-slate-500" />
+                                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Paquete de envío</span>
+                                </div>
+                                {cargandoGastro ? indicadorCarga("Cargando datos del canal…") : (
+                                <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                                    <label className="block">
+                                        <span className={fieldLabelClassName}>Peso (kg)</span>
+                                        <input type="number" min={0} step="0.001" className={inputBaseClassName} value={gastroPeso} onChange={e => setGastroPeso(e.target.value)} />
+                                    </label>
+                                    <label className="block">
+                                        <span className={fieldLabelClassName}>Profundidad (cm)</span>
+                                        <input type="number" min={0} step="1" className={inputBaseClassName} value={gastroProfundidad} onChange={e => setGastroProfundidad(e.target.value)} />
+                                    </label>
+                                    <label className="block">
+                                        <span className={fieldLabelClassName}>Ancho (cm)</span>
+                                        <input type="number" min={0} step="1" className={inputBaseClassName} value={gastroAncho} onChange={e => setGastroAncho(e.target.value)} />
+                                    </label>
+                                    <label className="block">
+                                        <span className={fieldLabelClassName}>Alto (cm)</span>
+                                        <input type="number" min={0} step="1" className={inputBaseClassName} value={gastroAlto} onChange={e => setGastroAlto(e.target.value)} />
+                                    </label>
+                                </div>
+                                )}
                             </div>
                         </div>
                     </fieldset>

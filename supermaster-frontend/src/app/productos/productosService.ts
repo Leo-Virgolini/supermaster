@@ -316,11 +316,12 @@ export const exportarProductosAMlAPI = async (
 	mlCategoryId?: string | null,
 	mlAtributos?: ProductoMlAtributo[],
 	descripcionMl?: string | null,
+	tituloMl?: string | null,
 ): Promise<ExportCanalResultDTO> => {
 	const res = await fetchAPI(`${API_BASE_URL}/api/ml/exportar-productos`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ skus, cuotas, mlCategoryId, mlAtributos, descripcionMl }),
+		body: JSON.stringify({ skus, cuotas, mlCategoryId, mlAtributos, descripcionMl, tituloMl }),
 	});
 	if (!res.ok) throw new Error(await extraerMensajeError(res, "No se pudo subir el producto a Mercado Libre"));
 	return await res.json();
@@ -534,7 +535,7 @@ export type EstadoCanal = {
 	error: boolean;
 };
 export type SeoCanal = { title: string | null; description: string | null; tags: string | null };
-export type MlCanal = { estado: EstadoCanal; categoryId: string | null; categoryNombre: string | null; atributos: ProductoMlAtributo[]; descripcion: string | null; mlaResuelto: string | null; mlPaqAlto: number | null; mlPaqAncho: number | null; mlPaqLargo: number | null; mlPaqPeso: number | null };
+export type MlCanal = { estado: EstadoCanal; categoryId: string | null; categoryNombre: string | null; atributos: ProductoMlAtributo[]; descripcion: string | null; mlaResuelto: string | null; mlPaqAlto: number | null; mlPaqAncho: number | null; mlPaqLargo: number | null; mlPaqPeso: number | null; titulo: string | null };
 export type NubeCanal = { estado: EstadoCanal; descripcion: string | null; seo: SeoCanal | null; titulo: string | null; peso: string | null; profundidad: string | null; ancho: string | null; alto: string | null };
 export type DuxCanal = { estado: EstadoCanal };
 export type EstadoPublicacionUpdate = { ml?: string | null; hogar?: boolean | null; gastro?: boolean | null };

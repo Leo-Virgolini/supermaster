@@ -528,7 +528,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 try {
                     const r = await exportarProductosAMlAPI(
                         [skuExport], cuotaMl,
-                        mlCategoryId, Object.values(mlAtributosVal), descripcionMl.trim() || null);
+                        mlCategoryId, Object.values(mlAtributosVal), descripcionMl.trim() || null, tituloMl.trim() || null);
                     return clasificarExport("Mercado Libre", r, skuExport);
                 } catch (e) {
                     return { canal: "Mercado Libre", estado: "error", detalle: e instanceof Error ? e.message : "error al subir" };
@@ -556,7 +556,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 return;
             }
             const payload: ProductoCreateDTO = {
-                sku: sku.trim(), codExt, tituloDux: tituloDux.trim(), tituloMl: tituloMl.trim() || null, tituloNube: tituloNube.trim() || null, esCombo, uxb, activo,
+                sku: sku.trim(), codExt, tituloDux: tituloDux.trim(), tituloNube: tituloNube.trim() || null, esCombo, uxb, activo,
                 capacidad, largo: normalizarFisico("largo") || null, ancho: normalizarFisico("ancho") || null, alto: normalizarFisico("alto") || null,
                 diamboca: normalizarFisico("diamboca") || null, diambase: normalizarFisico("diambase") || null, espesor: normalizarFisico("espesor") || null,
                 costo: costoNum, iva,
@@ -631,7 +631,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             setSku(producto.sku ?? "");
             setCodExt(producto.codExt ?? "");
             setTituloDux(producto.tituloDux ?? "");
-            setTituloMl(producto.tituloMl ?? "");
+            setTituloMl("");
             setPrediccionesMl([]);
             setTituloNube(producto.tituloNube ?? "");
             setEsCombo(!!producto.esCombo);
@@ -713,6 +713,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 if (e.categoryId) { setMlCategoryId(e.categoryId); setMlCategoryNombre(e.categoryNombre); }
                 if (e.atributos.length) { const m: Record<string, ProductoMlAtributo> = {}; for (const a of e.atributos) m[a.attributeId] = a; setMlAtributosVal(m); }
                 setDescripcionMl(e.descripcion ?? "");
+                setTituloMl(e.titulo ?? "");
                 setMlaResuelto(e.mlaResuelto ?? null);
                 if (e.mlPaqAlto != null) setMlPaqAlto(e.mlPaqAlto);
                 if (e.mlPaqAncho != null) setMlPaqAncho(e.mlPaqAncho);
@@ -778,7 +779,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                 return;
             }
             const patch = {
-                codExt, tituloDux: tituloDux.trim(), tituloMl: tituloMl.trim() || null, tituloNube: tituloNube.trim() || null, esCombo, uxb, activo,
+                codExt, tituloDux: tituloDux.trim(), tituloNube: tituloNube.trim() || null, esCombo, uxb, activo,
                 capacidad, largo: normalizarFisico("largo") || null, ancho: normalizarFisico("ancho") || null, alto: normalizarFisico("alto") || null,
                 diamboca: normalizarFisico("diamboca") || null, diambase: normalizarFisico("diambase") || null, espesor: normalizarFisico("espesor") || null,
                 costo: costoNum, iva, stock: stock !== "" ? stock : null, moq: moq !== "" ? moq : null,

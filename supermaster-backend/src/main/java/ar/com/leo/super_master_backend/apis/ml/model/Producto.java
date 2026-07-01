@@ -1,5 +1,6 @@
 package ar.com.leo.super_master_backend.apis.ml.model;
 
+import ar.com.leo.super_master_backend.apis.ml.service.MlUnidades;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -239,23 +240,11 @@ public class Producto {
     }
 
     private static Double convertirACm(double number, String unit) {
-        if (unit == null) return number;
-        return switch (unit.toLowerCase()) {
-            case "cm" -> number;
-            case "mm" -> number / 10.0;
-            case "m" -> number * 100.0;
-            default -> number;
-        };
+        return MlUnidades.aCm(number, unit);
     }
 
     private static Double convertirAGramos(double number, String unit) {
-        if (unit == null) return number;
-        return switch (unit.toLowerCase()) {
-            case "g" -> number;
-            case "kg" -> number * 1000.0;
-            case "mg" -> number / 1000.0;
-            default -> number;
-        };
+        return MlUnidades.aGramos(number, unit);
     }
 
     // ----- Clases internas -----

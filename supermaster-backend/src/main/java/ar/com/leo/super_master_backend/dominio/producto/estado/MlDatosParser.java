@@ -1,6 +1,7 @@
 package ar.com.leo.super_master_backend.dominio.producto.estado;
 
 import ar.com.leo.super_master_backend.apis.ml.dto.MlAtributoDTO;
+import ar.com.leo.super_master_backend.apis.ml.service.MlUnidades;
 import tools.jackson.databind.JsonNode;
 
 import java.util.ArrayList;
@@ -55,10 +56,10 @@ public final class MlDatosParser {
                 if (num == null) continue;
                 String unit = unitDeAtributo(a);
                 switch (id) {
-                    case "SELLER_PACKAGE_HEIGHT" -> alto = convertirACm(num, unit);
-                    case "SELLER_PACKAGE_WIDTH" -> ancho = convertirACm(num, unit);
-                    case "SELLER_PACKAGE_LENGTH" -> largo = convertirACm(num, unit);
-                    case "SELLER_PACKAGE_WEIGHT" -> pesoKg = convertirAKg(num, unit);
+                    case "SELLER_PACKAGE_HEIGHT" -> alto = MlUnidades.aCm(num, unit);
+                    case "SELLER_PACKAGE_WIDTH" -> ancho = MlUnidades.aCm(num, unit);
+                    case "SELLER_PACKAGE_LENGTH" -> largo = MlUnidades.aCm(num, unit);
+                    case "SELLER_PACKAGE_WEIGHT" -> pesoKg = MlUnidades.aGramos(num, unit) / 1000.0;
                     default -> { /* no es del paquete */ }
                 }
             }
@@ -73,28 +74,6 @@ public final class MlDatosParser {
             return struct.path("unit").asString(null);
         }
         return null;
-    }
-
-    /** Convierte una dimensión al valor en cm según la unidad dada. Fallback cm si unit es null/desconocida. */
-    private static double convertirACm(double number, String unit) {
-        if (unit == null) return number; // fallback: asumir cm
-        return switch (unit.toLowerCase()) {
-            case "cm" -> number;
-            case "mm" -> number / 10.0;
-            case "m"  -> number * 100.0;
-            default   -> number; // unidad desconocida: asumir cm
-        };
-    }
-
-    /** Convierte un peso al valor en kg según la unidad dada. Fallback g→kg si unit es null/desconocida. */
-    private static double convertirAKg(double number, String unit) {
-        if (unit == null) return number / 1000.0; // fallback: asumir g
-        return switch (unit.toLowerCase()) {
-            case "kg" -> number;
-            case "g"  -> number / 1000.0;
-            case "mg" -> number / 1_000_000.0;
-            default   -> number / 1000.0; // unidad desconocida: asumir g
-        };
     }
 
     /** Número del atributo: primero value_struct.number; fallback al número inicial de value_name. */

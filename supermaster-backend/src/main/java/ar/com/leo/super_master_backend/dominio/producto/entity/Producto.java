@@ -50,8 +50,9 @@ public class Producto {
     @Column(name = "titulo_dux", nullable = false, length = 100)
     private String tituloDux;
 
-    @Size(max = 100)
-    @Column(name = "titulo_ml", length = 100)
+    // Título ML NO persistido (fuente de verdad: el ítem de ML). Lo setea el export desde el request
+    // antes de publicar; en lote va null y el publish lo omite. Ver plan 2026-07-01-datos-canal-fieles-modal.
+    @Transient
     private String tituloMl;
 
     @Size(max = 100)

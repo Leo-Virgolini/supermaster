@@ -333,6 +333,7 @@ export type MlAtributoDef = {
 	values: MlAtributoValor[]; allowedUnits: string[]; defaultUnit: string | null;
 	required: boolean; conditional: boolean; multivalued: boolean;
 	relevance: number; valueMaxLength: number | null; example: string | null; hint: string | null;
+	allowVariations?: boolean; variationAttribute?: boolean;
 };
 export type ProductoMlAtributo = { attributeId: string; valueId: string | null; valueName: string; noAplica: boolean };
 
@@ -349,6 +350,13 @@ export type MlFicha = { secciones: MlSeccion[] };
 export const getMlCategoriaFichaAPI = async (categoryId: string): Promise<MlFicha> => {
 	const res = await fetchAPI(`${API_BASE_URL}/api/ml/categorias/${encodeURIComponent(categoryId)}/ficha`);
 	if (!res.ok) throw new Error("No se pudo obtener la ficha técnica de la categoría");
+	return await res.json();
+};
+
+// Atributos de la categoría (incluye tags allowVariations/variationAttribute) — fuente del eje de variación.
+export const getMlCategoriaAtributosAPI = async (categoryId: string): Promise<MlAtributoDef[]> => {
+	const res = await fetchAPI(`${API_BASE_URL}/api/ml/categorias/${encodeURIComponent(categoryId)}/atributos`);
+	if (!res.ok) throw new Error("No se pudieron obtener los atributos de la categoría");
 	return await res.json();
 };
 
@@ -535,8 +543,8 @@ export type EstadoCanal = {
 	error: boolean;
 };
 export type SeoCanal = { title: string | null; description: string | null; tags: string | null };
-export type MlCanal = { estado: EstadoCanal; categoryId: string | null; categoryNombre: string | null; atributos: ProductoMlAtributo[]; descripcion: string | null; mlaResuelto: string | null; mlPaqAlto: number | null; mlPaqAncho: number | null; mlPaqLargo: number | null; mlPaqPeso: number | null; titulo: string | null };
-export type NubeCanal = { estado: EstadoCanal; descripcion: string | null; seo: SeoCanal | null; titulo: string | null; peso: string | null; profundidad: string | null; ancho: string | null; alto: string | null; productId: number | null };
+export type MlCanal = { estado: EstadoCanal; categoryId: string | null; categoryNombre: string | null; atributos: ProductoMlAtributo[]; descripcion: string | null; mlaResuelto: string | null; mlPaqAlto: number | null; mlPaqAncho: number | null; mlPaqLargo: number | null; mlPaqPeso: number | null; titulo: string | null; ean: string | null };
+export type NubeCanal = { estado: EstadoCanal; descripcion: string | null; seo: SeoCanal | null; titulo: string | null; peso: string | null; profundidad: string | null; ancho: string | null; alto: string | null; productId: number | null; ean: string | null };
 export type DuxCanal = { estado: EstadoCanal };
 export type EstadoPublicacionUpdate = { ml?: string | null; hogar?: boolean | null; gastro?: boolean | null };
 

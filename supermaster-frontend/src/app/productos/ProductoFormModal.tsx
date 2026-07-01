@@ -18,7 +18,7 @@ import {
     generarSeoAPI, type DestinoNube, type SeoNube,
     searchSectoresDeposito, predecirCategoriasMlAPI, type PrediccionCategoriaMl,
     getImagenDetalleAPI, type ImagenDetalle,
-    getMlCategoriaFichaAPI, type MlAtributoDef, type ProductoMlAtributo,
+    getMlCategoriaFichaAPI, getMlCategoriaAtributosAPI, type MlAtributoDef, type ProductoMlAtributo,
     type MlFicha, type MlComponente,
     getMlCategoriaMaxTitleAPI,
     putEstadoPublicacionAPI,
@@ -43,6 +43,8 @@ import MultiAsyncSelect, { type MultiOption } from "../components/MultiAsyncSele
 import { PreciosInfladosSection, type PrecioInfladoDraft } from "./PreciosInfladosSection";
 import { HistorialSection } from "./HistorialSection";
 import { ProductoCreateDTO, ProductoDTO, ProductoPatchDTO } from "./types";
+import VariantesSection from "./variantes/VariantesSection";
+import { VarianteBorrador } from "./variantes/types";
 import { formatFechaAR } from "../utils/formatDate";
 import HtmlEditor from "./HtmlEditor";
 
@@ -263,6 +265,30 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const [preciosInfladosSel, setPreciosInfladosSel] = useState<PrecioInfladoDraft[]>([]);
     // null = modo crear; con id = modo editar (mismo modal/form).
     const [editandoProductoId, setEditandoProductoId] = useState<number | null>(null);
+
+    // ===== Variantes (Fase 2a: solo al crear) =====
+    const [tieneVariantes, setTieneVariantes] = useState(false);
+    const [ejeAtributoId, setEjeAtributoId] = useState("");
+    const [ejeValorBase, setEjeValorBase] = useState("");
+    const [ejeValorBaseId, setEjeValorBaseId] = useState<string | null>(null);
+    const [variantesBorrador, setVariantesBorrador] = useState<VarianteBorrador[]>([]);
+    // Atributos de la categoría ML (fuente confiable de allowVariations para el eje).
+    const [ejeAtributosCat, setEjeAtributosCat] = useState<MlAtributoDef[]>([]);
+    const ejeOpciones = useMemo(
+        () => ejeAtributosCat.filter(d => d.allowVariations).map(d => ({
+            id: d.id, name: d.name, values: (d.values ?? []).map(x => ({ id: x.id as string | null, name: x.name })),
+        })),
+        [ejeAtributosCat]);
+    // Trae los atributos de categoría cuando el usuario activa variantes y hay categoría (solo en alta).
+    useEffect(() => {
+        if (editandoProductoId || !tieneVariantes || !mlCategoryId) { setEjeAtributosCat([]); return; }
+        let cancelado = false;
+        getMlCategoriaAtributosAPI(mlCategoryId)
+            .then(defs => { if (!cancelado) setEjeAtributosCat(defs); })
+            .catch(() => { if (!cancelado) setEjeAtributosCat([]); });
+        return () => { cancelado = true; };
+    }, [tieneVariantes, mlCategoryId, editandoProductoId]);
+
     // Tab activo del panel en modo edición: form de datos o historial de cambios.
     const [panelTab, setPanelTab] = useState<"datos" | "historial">("datos");
     // Snapshot de N-a-N al abrir en edición, para calcular el diff al guardar.
@@ -2146,6 +2172,28 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                     {ean.trim() && !gtinValido(ean) && (
                                         <span className="mt-0.5 block text-[11px] text-amber-600">Código de barras inválido (8/12/13/14 dígitos + dígito verificador). No se enviará a ML.</span>
                                     )}
+                                    {/* Comparación con lo que hay hoy en cada canal (el local es el que se envía a todos). */}
+                                    {(() => {
+                                        const local = ean.trim();
+                                        const canales = [
+                                            { label: "Mercado Libre", valor: estadoMl?.ean },
+                                            { label: "KT HOGAR", valor: estadoHogar?.ean },
+                                            { label: "KT GASTRO", valor: estadoGastro?.ean },
+                                        ].filter(c => c.valor != null && c.valor !== "");
+                                        if (canales.length === 0) return null;
+                                        return (
+                                            <div className="mt-1.5 space-y-0.5 text-[11px]">
+                                                {canales.map(c => {
+                                                    const difiere = local !== "" && c.valor!.trim() !== local;
+                                                    return (
+                                                        <div key={c.label} className={difiere ? "font-medium text-amber-600 dark:text-amber-400" : "text-slate-400 dark:text-slate-500"}>
+                                                            {difiere ? "⚠" : "✓"} {c.label}: {c.valor}{difiere ? " — difiere del local (se pisará al publicar)" : ""}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        );
+                                    })()}
                                 </label>
                             </div>
                         </div>
@@ -2323,6 +2371,23 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         <p className={`${sectionDescriptionClassName} mb-2`}>Publicación de MercadoLibre (MLA) asociada al producto.</p>
                         {mlaResuelto && (
                             <a href={mlEditarURL(mlaResuelto)} target="_blank" rel="noreferrer" className="mb-4 inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:underline dark:text-blue-400">Editar en ML ↗</a>
+                        )}
+                        {!editandoProductoId && (
+                            <div className="mb-4">
+                                <VariantesSection
+                                    tiene={tieneVariantes} onTiene={setTieneVariantes}
+                                    ejeOpciones={ejeOpciones}
+                                    ejeAtributoId={ejeAtributoId} onEje={setEjeAtributoId}
+                                    ejeValorBase={ejeValorBase} ejeValorBaseId={ejeValorBaseId}
+                                    onEjeValorBase={(id, nombre) => { setEjeValorBaseId(id); setEjeValorBase(nombre); }}
+                                    skuBase={sku}
+                                    cuotasMlOpts={cuotasMlOpts} cuotasHogarOpts={cuotasHogarOpts} cuotasGastroOpts={cuotasGastroOpts}
+                                    cuotasDefault={{ ml: cuotaMl, hogar: cuotaHogar, gastro: cuotaGastro }}
+                                    variantes={variantesBorrador} onVariantes={setVariantesBorrador}
+                                    subirMl={subirMl} subirKtHogar={subirKtHogar} subirKtGastro={subirKtGastro}
+                                    inputCls={inputBaseClassName} selectCls={selectBaseClassName}
+                                />
+                            </div>
                         )}
                         <div className="mb-4 grid grid-cols-1">
                             <label className="block">

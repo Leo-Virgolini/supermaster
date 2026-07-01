@@ -54,24 +54,25 @@ public class EstadoPublicacionService {
             String mlaCode = resolverMlaPorSku(sku);
             if (mlaCode == null || mlaCode.isBlank()) {
                 return new MlCanalDTO(EstadoCanalDTO.noPublicado(), null, null, List.of(), null, null,
-                        null, null, null, null);
+                        null, null, null, null, null);
             }
             JsonNode item = mercadoLibreService.leerItemRaw(mlaCode);
             if (item == null) {
                 return new MlCanalDTO(EstadoCanalDTO.ofError(), null, null, List.of(), null, null,
-                        null, null, null, null);
+                        null, null, null, null, null);
             }
             String descMl = mercadoLibreService.leerDescripcionMl(mlaCode);
             String catId = MlDatosParser.categoryId(item);
             String catNombre = (catId != null && !catId.isBlank()) ? mercadoLibreService.obtenerCategoriaPath(catId) : null;
             MlDatosParser.PaqueteMl paquete = MlDatosParser.paquete(item);
             List<MlAtributoDTO> atributos = MlDatosParser.atributos(item);
+            String titulo = item.path("title").asString(null);
             return new MlCanalDTO(MlEstadoParser.parse(item), catId, catNombre,
                     atributos, descMl, mlaCode,
-                    paquete.altoCm(), paquete.anchoCm(), paquete.largoCm(), paquete.pesoKg());
+                    paquete.altoCm(), paquete.anchoCm(), paquete.largoCm(), paquete.pesoKg(), titulo);
         } catch (Exception e) {
             return new MlCanalDTO(EstadoCanalDTO.ofError(), null, null, List.of(), null, null,
-                    null, null, null, null);
+                    null, null, null, null, null);
         }
     }
 

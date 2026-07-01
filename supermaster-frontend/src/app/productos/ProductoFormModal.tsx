@@ -739,6 +739,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             getEstadoDuxAPI(producto.id).then(e => { if (cancelled) return; setEstadoDux(e); })
               .catch(err => { if (!cancelled && !esSesionExpirada(err)) notificar.error("No se pudo leer Dux"); })
               .finally(() => { if (!cancelled) setCargandoDux(false); });
+            getCrudasAPI(producto.sku ?? "").then(c => { if (!cancelled) setCrudasDisp(c); }).catch(() => { /* silencioso: el tooltip cae al fallback */ });
         } else {
             setEditandoProductoId(null);
             setPanelTab("datos");

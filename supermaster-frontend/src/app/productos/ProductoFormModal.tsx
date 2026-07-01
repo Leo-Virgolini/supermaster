@@ -280,6 +280,13 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const [ejeValorBase, setEjeValorBase] = useState("");
     const [ejeValorBaseId, setEjeValorBaseId] = useState<string | null>(null);
     const [variantesBorrador, setVariantesBorrador] = useState<VarianteBorrador[]>([]);
+    // 2b-2: agregar una variante a una familia existente (modo edición).
+    const [agregandoVariante, setAgregandoVariante] = useState(false);
+    const [nvSku, setNvSku] = useState("");
+    const [nvEjeValorId, setNvEjeValorId] = useState<string | null>(null);
+    const [nvEjeValorNombre, setNvEjeValorNombre] = useState("");
+    const [nvStock, setNvStock] = useState<number | "">(0);
+    const [nvEan, setNvEan] = useState("");
     // Atributos de la categoría ML (fuente confiable de allowVariations para el eje).
     const [ejeAtributosCat, setEjeAtributosCat] = useState<MlAtributoDef[]>([]);
     const ejeOpciones = useMemo(
@@ -287,15 +294,16 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             id: d.id, name: d.name, values: (d.values ?? []).map(x => ({ id: x.id as string | null, name: x.name })),
         })),
         [ejeAtributosCat]);
-    // Trae los atributos de categoría cuando el usuario activa variantes y hay categoría (solo en alta).
+    // Trae los atributos de categoría para el eje: al crear con variantes, o al agregar una a una familia.
     useEffect(() => {
-        if (editandoProductoId || !tieneVariantes || !mlCategoryId) { setEjeAtributosCat([]); return; }
+        const activo = (!editandoProductoId && tieneVariantes) || (!!editandoProductoId && agregandoVariante);
+        if (!activo || !mlCategoryId) { setEjeAtributosCat([]); return; }
         let cancelado = false;
         getMlCategoriaAtributosAPI(mlCategoryId)
             .then(defs => { if (!cancelado) setEjeAtributosCat(defs); })
             .catch(() => { if (!cancelado) setEjeAtributosCat([]); });
         return () => { cancelado = true; };
-    }, [tieneVariantes, mlCategoryId, editandoProductoId]);
+    }, [tieneVariantes, agregandoVariante, mlCategoryId, editandoProductoId]);
     // Resultados de la creación por variante (para el panel del footer).
     const [resultadosVariantes, setResultadosVariantes] = useState<{ sku: string; resultados: ResultadoCanal[] }[]>([]);
     // Familia de variantes del producto (solo edición; 2b-1: lista read-only desde la BD por family_id).
@@ -658,6 +666,37 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             const huboError = acumulado.some(a => a.resultados.some(r => r.estado === "error"));
             if (!huboError) { notificar.success(`${items.length} variantes creadas`); onClose(); }
             else notificar.error("Algunas variantes fallaron; revisá el detalle abajo.");
+        } finally { setIsSaving(false); }
+    };
+
+    // 2b-2: agrega una variante a la familia del producto que se está editando. Crea un producto nuevo
+    // (clon del actual) y lo publica con el MISMO tituloMl (= family_name) + su atributo de eje → ML lo
+    // une a la familia. Best-effort; refresca el panel de familia al terminar.
+    const handleAgregarVariante = async () => {
+        if (!ejeAtributoId) { notificar.error("Elegí el eje de variación."); return; }
+        if (!nvSku.trim()) { notificar.error("Cargá el SKU de la variante."); return; }
+        if (!nvEjeValorNombre.trim()) { notificar.error("Cargá el valor del eje de la variante."); return; }
+        if (familia?.variantes.some(v => (v.sku ?? "").trim().toLowerCase() === nvSku.trim().toLowerCase())) {
+            notificar.error("Ese SKU ya está en la familia."); return;
+        }
+        if (subirMl) {
+            await cargarImagenesVariantes([nvSku]);
+            if (!imagenesDetectadasPorSku(nvSku)) { notificar.error("Mercado Libre exige al menos una imagen para el SKU."); return; }
+        }
+        setIsSaving(true);
+        try {
+            const creado = await createProducto(construirPayloadVariante({ sku: nvSku.trim(), stock: nvStock, ean: nvEan.trim() || null, mlaId: null }), asociarMargenYRelaciones);
+            if (creado?.id && (subirKtHogar || subirKtGastro) && canExportarDux) { try { await recalcularProductoAPI(creado.id); } catch { /* el export avisa */ } }
+            const mlBase = Object.values(mlAtributosVal).filter(a => a.attributeId !== ejeAtributoId);
+            const rc = await ejecutarExportsCanales(nvSku.trim(), canalesMarcados(), {
+                cuotaMl, cuotaHogar, cuotaGastro,
+                mlAtributos: [...mlBase, { attributeId: ejeAtributoId, valueId: nvEjeValorId, valueName: nvEjeValorNombre.trim(), noAplica: false }],
+            });
+            const errores = rc.filter(r => r.estado === "error");
+            if (errores.length) notificar.error(`Variante creada con errores: ${errores.map(r => `${r.canal} — ${r.detalle}`).join("; ")}`);
+            else notificar.success(`Variante ${nvSku.trim()} agregada a la familia`);
+            if (editandoProductoId) { try { setFamilia(await getFamiliaAPI(editandoProductoId)); } catch { /* se refresca al reabrir */ } }
+            setNvSku(""); setNvEjeValorId(null); setNvEjeValorNombre(""); setNvStock(0); setNvEan(""); setAgregandoVariante(false);
         } finally { setIsSaving(false); }
     };
 
@@ -2518,7 +2557,42 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                         </li>
                                     ))}
                                 </ul>
-                                <p className="mt-2 text-[11px] text-slate-400">Agregar/editar/quitar variantes: próximos incrementos.</p>
+                                {!agregandoVariante ? (
+                                    <button type="button" onClick={() => setAgregandoVariante(true)}
+                                        className="mt-2 rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300">+ Agregar variante</button>
+                                ) : (
+                                    <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50/70 p-2.5 dark:border-slate-700 dark:bg-slate-800/60">
+                                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                            <label className="block"><span className="text-[11px] text-slate-500">Eje</span>
+                                                <select className={`${selectBaseClassName} w-full`} value={ejeAtributoId} onChange={e => setEjeAtributoId(e.target.value)}>
+                                                    <option value="">— elegir eje —</option>
+                                                    {ejeOpciones.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+                                                </select></label>
+                                            <label className="block"><span className="text-[11px] text-slate-500">Valor del eje</span>
+                                                {(() => {
+                                                    const vals = ejeOpciones.find(o => o.id === ejeAtributoId)?.values ?? [];
+                                                    return vals.length > 0 ? (
+                                                        <select className={`${selectBaseClassName} w-full`} value={nvEjeValorId ?? nvEjeValorNombre} onChange={e => { const opt = vals.find(x => (x.id ?? x.name) === e.target.value); setNvEjeValorId(opt?.id ?? null); setNvEjeValorNombre(opt?.name ?? ""); }}>
+                                                            <option value="">— elegir —</option>
+                                                            {vals.map(x => <option key={x.id ?? x.name} value={x.id ?? x.name}>{x.name}</option>)}
+                                                        </select>
+                                                    ) : (
+                                                        <input className={inputBaseClassName} value={nvEjeValorNombre} onChange={e => { setNvEjeValorId(null); setNvEjeValorNombre(e.target.value); }} placeholder="Valor del eje" />
+                                                    );
+                                                })()}</label>
+                                            <label className="block"><span className="text-[11px] text-slate-500">SKU</span>
+                                                <input className={inputBaseClassName} value={nvSku} onChange={e => setNvSku(e.target.value)} placeholder="SKU de la variante" /></label>
+                                            <label className="block"><span className="text-[11px] text-slate-500">Stock</span>
+                                                <input type="number" min={0} step={1} className={inputBaseClassName} value={nvStock} onChange={e => setNvStock(e.target.value === "" ? "" : Number(e.target.value))} placeholder="0" /></label>
+                                            <label className="block"><span className="text-[11px] text-slate-500">EAN</span>
+                                                <input className={inputBaseClassName} value={nvEan} onChange={e => setNvEan(e.target.value)} placeholder="Código de barras" /></label>
+                                        </div>
+                                        <div className="mt-2 flex justify-end gap-2">
+                                            <button type="button" onClick={() => setAgregandoVariante(false)} disabled={isSaving} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 disabled:opacity-50 dark:border-slate-600 dark:text-slate-300">Cancelar</button>
+                                            <button type="button" onClick={handleAgregarVariante} disabled={isSaving} className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">{isSaving ? "Creando…" : "Crear variante"}</button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
                         <div className="mb-4 grid grid-cols-1">

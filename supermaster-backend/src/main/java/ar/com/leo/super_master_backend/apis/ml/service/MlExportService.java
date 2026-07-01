@@ -46,7 +46,8 @@ public class MlExportService {
             Integer productoId = producto.getId();
             String etiqueta = producto.getSku();
             ResultadoAltaMl r = self.procesarConProductoCargado(
-                    productoId, request.cuotas(), request.mlCategoryId(), request.mlAtributos(), request.descripcionMl());
+                    productoId, request.cuotas(), request.mlCategoryId(), request.mlAtributos(),
+                    request.descripcionMl(), request.tituloMl());
             switch (r.estado()) {
                 case CREADO -> {
                     acc.creado();
@@ -82,7 +83,8 @@ public class MlExportService {
     public ResultadoAltaMl procesarConProductoCargado(Integer productoId, int cuotas,
                                                       String mlCategoryId,
                                                       java.util.List<ar.com.leo.super_master_backend.apis.ml.dto.MlAtributoDTO> mlAtributos,
-                                                      String descripcionMl) {
+                                                      String descripcionMl,
+                                                      String tituloMl) {
         Producto p = productoRepository.findById(productoId).orElse(null);
         if (p == null) return ResultadoAltaMl.error("producto no encontrado");
 
@@ -90,6 +92,7 @@ public class MlExportService {
         if (mlCategoryId != null && !mlCategoryId.isBlank()) p.setMlCategoryId(mlCategoryId);
         if (mlAtributos != null) p.setMlAtributos(mlAtributos);
         if (descripcionMl != null) p.setDescripcionMl(descripcionMl);
+        if (tituloMl != null && !tituloMl.isBlank()) p.setTituloMl(tituloMl);
 
         String mla = (p.getMla() != null) ? p.getMla().getMla() : null;
         String mlauHallado = null;

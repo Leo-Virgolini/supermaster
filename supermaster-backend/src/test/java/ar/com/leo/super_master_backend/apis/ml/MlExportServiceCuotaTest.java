@@ -30,7 +30,7 @@ class MlExportServiceCuotaTest {
         when(mercadoLibreService.buscarMlaPorSku("SKU1")).thenReturn(null);
         when(mercadoLibreService.crearItemEnMl(p, 6)).thenReturn(ResultadoAltaMl.error("irrelevante"));
 
-        service.procesarConProductoCargado(1, 6, null, null, null);
+        service.procesarConProductoCargado(1, 6, null, null, null, null);
 
         verify(mercadoLibreService).crearItemEnMl(p, 6);
         verify(mercadoLibreService, never()).crearItemEnMl(any(), eq(0));
@@ -47,7 +47,7 @@ class MlExportServiceCuotaTest {
         when(mercadoLibreService.actualizarItemEnMl(p, "MLA123", 3))
                 .thenReturn(ResultadoAltaMl.actualizado("MLA123", null));
 
-        service.procesarConProductoCargado(1, 3, null, null, null);
+        service.procesarConProductoCargado(1, 3, null, null, null, null);
 
         verify(mercadoLibreService).actualizarItemEnMl(p, "MLA123", 3);
         verify(mercadoLibreService, never()).actualizarItemEnMl(any(), any(), eq(0));

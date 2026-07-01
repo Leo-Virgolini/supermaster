@@ -13,4 +13,5 @@ public record MlExportRequestDTO(
         @NotNull(message = "La cuota es obligatoria") Integer cuotas,
         String mlCategoryId,
         List<MlAtributoDTO> mlAtributos,
-        String descripcionMl) {}
+        String descripcionMl,
+        String tituloMl) {}

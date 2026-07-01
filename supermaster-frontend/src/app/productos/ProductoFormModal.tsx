@@ -2234,7 +2234,9 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         <p className={`${sectionDescriptionClassName} mb-4`}>Asociaciones múltiples. Buscá y agregá los que correspondan.</p>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <MultiAsyncSelect label="Catálogos" loadOptions={(q) => searchCatalogos(q)} value={catalogosSel} onChange={setCatalogosSel} placeholder="Buscar catálogo" inputClassName={inputBaseClassName} />
-                            <MultiAsyncSelect label="Segmentos" loadOptions={(q) => searchSegmentos(q)} value={segmentosSel} onChange={setSegmentosSel} placeholder="Buscar segmento" inputClassName={inputBaseClassName} />
+                            {clasifGastroId != null && (
+                                <MultiAsyncSelect label="Segmentos" loadOptions={(q) => searchSegmentos(q)} value={segmentosSel} onChange={setSegmentosSel} placeholder="Segmentos (panadería, restaurant, …)" inputClassName={inputBaseClassName} />
+                            )}
                         </div>
                     </fieldset>
 

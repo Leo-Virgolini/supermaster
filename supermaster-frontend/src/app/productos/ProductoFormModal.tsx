@@ -2247,38 +2247,50 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 </span>
                                 <input type="text" className={`${inputBaseClassName} ${formErrors.tituloMl ? inputErrorClassName : ""}`} value={tituloMl} onChange={e => { setTituloMl(e.target.value); if (formErrors.tituloMl) setFormErrors(p => ({ ...p, tituloMl: "" })); }} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handlePredecirCategoriasMl(); } }} placeholder="Título para Mercado Libre" maxLength={maxTitleLengthMl ?? undefined} />
                                 {formErrors.tituloMl && <p className="mt-1 text-xs text-red-500">{formErrors.tituloMl}</p>}
-                                <div className="mt-2 flex flex-col gap-2">
-                                    {cargandoMl ? indicadorCarga("Cargando datos de ML…") : (<>
-                                        <div className="flex items-center gap-2">
-                                            <Button variant="dark" onClick={handlePredecirCategoriasMl} disabled={!tituloMl.trim() || cargandoPrediccionesMl || cargandoMl}>
-                                                <TagIcon className="w-4 h-4" /> {cargandoPrediccionesMl ? "Prediciendo..." : "Predecir categorías"}
-                                            </Button>
-                                            {mlCategoryId && (
-                                                <span title={mlCategoryNombre || String(mlCategoryId)} className="inline-block max-w-full rounded-lg border border-indigo-300 bg-white px-2 py-1 text-xs font-medium leading-relaxed text-indigo-800 dark:border-indigo-600 dark:bg-slate-800 dark:text-indigo-200">
-                                                    {pathConHojaResaltada(mlCategoryNombre || String(mlCategoryId))}
-                                                    <button type="button" onClick={() => { setMlCategoryId(null); setMlCategoryNombre(null); setPrediccionesMl([]); }} className="ml-1 align-middle font-bold leading-none text-indigo-500 hover:text-red-500 dark:text-indigo-300" aria-label="Quitar categoría">×</button>
-                                                </span>
-                                            )}
+                                {(() => {
+                                    const mlPublicado = !!(estadoMl?.estado?.publicado || mlaResuelto);
+                                    return mlPublicado ? (
+                                        <div className="mt-2 flex flex-col gap-1">
+                                            <span className="inline-block rounded-lg border border-indigo-300 bg-white px-2 py-1 text-xs font-medium text-indigo-800 dark:border-indigo-600 dark:bg-slate-800 dark:text-indigo-200">
+                                                {mlCategoryNombre ? pathConHojaResaltada(mlCategoryNombre) : (mlCategoryId || "—")}
+                                            </span>
+                                            <span className="text-xs text-amber-600 dark:text-amber-400">Mercado Libre no permite cambiar la categoría de una publicación existente. Para cambiarla hay que republicar (se elimina la publicación con sus visitas y ventas).</span>
                                         </div>
-                                        {prediccionesMl.length > 0 && (
-                                            <div className="flex flex-wrap gap-1.5">
-                                                {prediccionesMl.map(p => (
-                                                    <button
-                                                        key={p.categoryId}
-                                                        type="button"
-                                                        onClick={() => { setMlCategoryId(p.categoryId); setMlCategoryNombre(p.categoryPath || p.categoryName); setPrediccionesMl([]); if (formErrors.mlCategory) setFormErrors(prev => ({ ...prev, mlCategory: "" })); }}
-                                                        className={`rounded-lg border px-2 py-1 text-left text-xs transition-colors ${mlCategoryId === p.categoryId ? "border-yellow-400 bg-yellow-100 text-yellow-900" : "border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-100 dark:border-blue-700 dark:bg-blue-900/20 dark:text-blue-200 dark:hover:bg-blue-800/40"}`}
-                                                    >
-                                                        {pathConHojaResaltada(p.categoryPath || p.categoryName)} <span className="text-blue-400 dark:text-blue-300/70">({p.categoryId})</span>
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-                                        {formErrors.mlCategory
-                                            ? <p className="text-xs text-red-500">{formErrors.mlCategory}</p>
-                                            : <p className="text-xs text-slate-500 dark:text-slate-400">Si cargás Título ML, es obligatorio elegir una categoría: predecí (o Enter) y seleccioná una de las opciones.</p>}
-                                    </>)}
-                                </div>
+                                    ) : (
+                                        <div className="mt-2 flex flex-col gap-2">
+                                            {cargandoMl ? indicadorCarga("Cargando datos de ML…") : (<>
+                                                <div className="flex items-center gap-2">
+                                                    <Button variant="dark" onClick={handlePredecirCategoriasMl} disabled={!tituloMl.trim() || cargandoPrediccionesMl || cargandoMl}>
+                                                        <TagIcon className="w-4 h-4" /> {cargandoPrediccionesMl ? "Prediciendo..." : "Predecir categorías"}
+                                                    </Button>
+                                                    {mlCategoryId && (
+                                                        <span title={mlCategoryNombre || String(mlCategoryId)} className="inline-block max-w-full rounded-lg border border-indigo-300 bg-white px-2 py-1 text-xs font-medium leading-relaxed text-indigo-800 dark:border-indigo-600 dark:bg-slate-800 dark:text-indigo-200">
+                                                            {pathConHojaResaltada(mlCategoryNombre || String(mlCategoryId))}
+                                                            <button type="button" onClick={() => { setMlCategoryId(null); setMlCategoryNombre(null); setPrediccionesMl([]); }} className="ml-1 align-middle font-bold leading-none text-indigo-500 hover:text-red-500 dark:text-indigo-300" aria-label="Quitar categoría">×</button>
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                {prediccionesMl.length > 0 && (
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {prediccionesMl.map(p => (
+                                                            <button
+                                                                key={p.categoryId}
+                                                                type="button"
+                                                                onClick={() => { setMlCategoryId(p.categoryId); setMlCategoryNombre(p.categoryPath || p.categoryName); setPrediccionesMl([]); if (formErrors.mlCategory) setFormErrors(prev => ({ ...prev, mlCategory: "" })); }}
+                                                                className={`rounded-lg border px-2 py-1 text-left text-xs transition-colors ${mlCategoryId === p.categoryId ? "border-yellow-400 bg-yellow-100 text-yellow-900" : "border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-100 dark:border-blue-700 dark:bg-blue-900/20 dark:text-blue-200 dark:hover:bg-blue-800/40"}`}
+                                                            >
+                                                                {pathConHojaResaltada(p.categoryPath || p.categoryName)} <span className="text-blue-400 dark:text-blue-300/70">({p.categoryId})</span>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                {formErrors.mlCategory
+                                                    ? <p className="text-xs text-red-500">{formErrors.mlCategory}</p>
+                                                    : <p className="text-xs text-slate-500 dark:text-slate-400">Si cargás Título ML, es obligatorio elegir una categoría: predecí (o Enter) y seleccioná una de las opciones.</p>}
+                                            </>)}
+                                        </div>
+                                    );
+                                })()}
                             </label>
                         </div>
                         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">

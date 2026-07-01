@@ -2070,6 +2070,21 @@ public class MercadoLibreService {
             ar.com.leo.super_master_backend.apis.ml.model.Producto itemPublicado = getItemByMLA(mla);
             categoryIdActual = (itemPublicado != null) ? itemPublicado.categoryId : null;
             familyNameActual = (itemPublicado != null) ? itemPublicado.familyName : null;
+
+            // Patrón "null = no tocar": en re-sync por lote el request no trae título (tituloMl es @Transient
+            // y el lote no pasa por el modal). Si el título llega null/blank, lo recuperamos del ítem publicado
+            // (family_name si existe, title si no) para no abortar y conservar el título vigente del canal.
+            // Reenviarlo es inofensivo: putTitle en el core ya está gateado por soldQty.
+            // Si getItemByMLA falló (catch) y el título sigue null, el core abortará correctamente.
+            if (itemPublicado != null && (producto.getTituloMl() == null || producto.getTituloMl().isBlank())) {
+                String tituloDelItem = (itemPublicado.familyName != null && !itemPublicado.familyName.isBlank())
+                        ? itemPublicado.familyName
+                        : itemPublicado.title;
+                if (tituloDelItem != null && !tituloDelItem.isBlank()) {
+                    producto.setTituloMl(tituloDelItem);
+                }
+            }
+
             if (categoryIdActual == null || categoryIdActual.isBlank()) {
                 log.warn("ML - sin categoría para {}, no se recalcula el precio", mla);
                 categoryIdActual = null;

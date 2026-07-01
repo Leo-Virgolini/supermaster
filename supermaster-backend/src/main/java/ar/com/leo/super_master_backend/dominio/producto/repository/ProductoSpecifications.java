@@ -237,11 +237,11 @@ public class ProductoSpecifications {
         };
     }
 
-    public static Specification<Producto> clienteIds(List<Integer> ids) {
+    public static Specification<Producto> segmentoIds(List<Integer> ids) {
         return (root, query, cb) -> {
             if (ids == null || ids.isEmpty()) return null;
             marcarDistinct(query);
-            return root.join("productoClientes").get("cliente").get("id").in(ids);
+            return root.join("productoSegmentos").get("segmento").get("id").in(ids);
         };
     }
 

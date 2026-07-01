@@ -391,10 +391,10 @@ public class PrecioSpecifications {
         };
     }
 
-    public static Specification<ProductoCanalPrecio> clienteIds(List<Integer> ids) {
+    public static Specification<ProductoCanalPrecio> segmentoIds(List<Integer> ids) {
         return (root, query, cb) -> {
             if (ids == null || ids.isEmpty()) return null;
-            return productoJoin(root).join("productoClientes").get("cliente").get("id").in(ids);
+            return productoJoin(root).join("productoSegmentos").get("segmento").get("id").in(ids);
         };
     }
 

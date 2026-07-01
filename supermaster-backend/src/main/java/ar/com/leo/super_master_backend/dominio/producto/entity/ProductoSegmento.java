@@ -1,6 +1,6 @@
 package ar.com.leo.super_master_backend.dominio.producto.entity;
 
-import ar.com.leo.super_master_backend.dominio.cliente.entity.Cliente;
+import ar.com.leo.super_master_backend.dominio.segmento.entity.Segmento;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -12,11 +12,11 @@ import org.hibernate.annotations.OnDeleteAction;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "producto_cliente", schema = "supermaster")
-public class ProductoCliente {
+@Table(name = "producto_segmento", schema = "supermaster")
+public class ProductoSegmento {
 
     @EmbeddedId
-    private ProductoClienteId id;
+    private ProductoSegmentoId id;
 
     // ---------------------------
     // RELACIÓN CON PRODUCTO
@@ -28,17 +28,17 @@ public class ProductoCliente {
     private Producto producto;
 
     // ---------------------------
-    // RELACIÓN CON CLIENTE
+    // RELACIÓN CON SEGMENTO
     // ---------------------------
-    @MapsId("clienteId")
+    @MapsId("segmentoId")
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "id_cliente", nullable = false)
-    private Cliente cliente;
+    @JoinColumn(name = "id_segmento", nullable = false)
+    private Segmento segmento;
 
-    public ProductoCliente(Producto producto, Cliente cliente) {
+    public ProductoSegmento(Producto producto, Segmento segmento) {
         this.producto = producto;
-        this.cliente = cliente;
-        this.id = new ProductoClienteId(producto.getId(), cliente.getId());
+        this.segmento = segmento;
+        this.id = new ProductoSegmentoId(producto.getId(), segmento.getId());
     }
 
 }

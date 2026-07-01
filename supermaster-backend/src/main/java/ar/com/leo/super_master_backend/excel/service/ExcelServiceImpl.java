@@ -4256,7 +4256,7 @@ public class ExcelServiceImpl implements ExcelService {
             "producto_margen",              // → productos
             "producto_apto",                // → productos, aptos
             "producto_catalogo",            // → productos, catalogos
-            "producto_cliente",             // → productos, clientes
+            "producto_segmento",            // → productos, segmentos
             // --- Reglas que referencian canales/conceptos/maestros ---
             "canal_concepto_regla",         // → canales, conceptos_calculo, tipos, marcas, clasif_*
             "canal_regla",                  // → canales, productos, tipos, marcas, clasif_*
@@ -4269,7 +4269,7 @@ public class ExcelServiceImpl implements ExcelService {
             "productos",                    // → marcas, tipos, materiales, origenes, clasif_*, proveedores, mlas
             "mlas",
             // --- Maestros de producto ---
-            "clientes",
+            "segmentos",
             "marcas",
             "tipos",
             "materiales",

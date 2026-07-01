@@ -15,7 +15,7 @@ import java.io.Serializable;
 @NoArgsConstructor
 @EqualsAndHashCode
 @Embeddable
-public class ProductoClienteId implements Serializable {
+public class ProductoSegmentoId implements Serializable {
 
     private static final long serialVersionUID = -5686937608961789449L;
 
@@ -24,12 +24,12 @@ public class ProductoClienteId implements Serializable {
     private Integer productoId;
 
     @NotNull
-    @Column(name = "id_cliente", nullable = false)
-    private Integer clienteId;
+    @Column(name = "id_segmento", nullable = false)
+    private Integer segmentoId;
 
-    public ProductoClienteId(Integer productoId, Integer clienteId) {
+    public ProductoSegmentoId(Integer productoId, Integer segmentoId) {
         this.productoId = productoId;
-        this.clienteId = clienteId;
+        this.segmentoId = segmentoId;
     }
 
 }

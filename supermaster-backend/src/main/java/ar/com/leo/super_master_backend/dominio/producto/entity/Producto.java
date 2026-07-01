@@ -229,7 +229,7 @@ public class Producto {
 
     @OneToMany(mappedBy = "producto")
     @BatchSize(size = 50)
-    private Set<ProductoCliente> productoClientes = new LinkedHashSet<>();
+    private Set<ProductoSegmento> productoSegmentos = new LinkedHashSet<>();
 
     @OneToMany(mappedBy = "producto")
     private Set<ProductoCanalPrecioInflado> productoCanalPreciosInflados = new LinkedHashSet<>();

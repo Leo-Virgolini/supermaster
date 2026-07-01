@@ -67,7 +67,7 @@ public record ProductoConPreciosDTO(
         // Many-to-many (nombres)
         List<String> aptos,
         List<String> catalogos,
-        List<String> clientes,
+        List<String> segmentos,
 
         // Canales con sus precios
         List<CanalPreciosDTO> canales,

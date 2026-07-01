@@ -66,7 +66,7 @@ public class ProductoServiceImpl implements ProductoService {
     private final ReglaDescuentoRepository reglaDescuentoRepository;
     private final ProductoAptoRepository productoAptoRepository;
     private final ProductoCatalogoRepository productoCatalogoRepository;
-    private final ProductoClienteRepository productoClienteRepository;
+    private final ProductoSegmentoRepository productoSegmentoRepository;
     private final ProductoAuditoriaService productoAuditoriaService;
 
     // Field injection (no por @RequiredArgsConstructor): evita alterar el constructor, que
@@ -385,7 +385,7 @@ public class ProductoServiceImpl implements ProductoService {
                 ProductoSpecifications.aptoIds(filter.aptoIds()),
                 ProductoSpecifications.canalIds(filter.canalIds()),
                 ProductoSpecifications.catalogoIds(filter.catalogoIds()),
-                ProductoSpecifications.clienteIds(filter.clienteIds()),
+                ProductoSpecifications.segmentoIds(filter.segmentoIds()),
                 ProductoSpecifications.mlaIds(filter.mlaIds())
         );
 
@@ -421,7 +421,7 @@ public class ProductoServiceImpl implements ProductoService {
         return CAMPOS_MARGEN_SORT.containsKey(key)
                 || key.equals("catalogo") || key.equals("catalogos")
                 || key.equals("apto") || key.equals("aptos")
-                || key.equals("cliente") || key.equals("clientes");
+                || key.equals("segmento") || key.equals("segmentos");
     }
 
     /**
@@ -477,18 +477,18 @@ public class ProductoServiceImpl implements ProductoService {
                         menorNombre.select(cb.least(paNombre.get("apto").<String>get("nombre")));
                         menorNombre.where(cb.equal(paNombre.get("producto"), root));
                         orders.add(o.isAscending() ? cb.asc(menorNombre) : cb.desc(menorNombre));
-                    } else if (key.equals("cliente") || key.equals("clientes")) {
-                        // Cliente es many-to-many: mismo enfoque que catálogo. Sin clientes
-                        // -> al final; se ordena por el 1er cliente alfabético.
+                    } else if (key.equals("segmento") || key.equals("segmentos")) {
+                        // Segmento es many-to-many: mismo enfoque que catálogo. Sin segmentos
+                        // -> al final; se ordena por el 1er segmento alfabético.
                         Subquery<Long> cuenta = query.subquery(Long.class);
-                        Root<ProductoCliente> pclCount = cuenta.from(ProductoCliente.class);
-                        cuenta.select(cb.count(pclCount));
-                        cuenta.where(cb.equal(pclCount.get("producto"), root));
+                        Root<ProductoSegmento> pslCount = cuenta.from(ProductoSegmento.class);
+                        cuenta.select(cb.count(pslCount));
+                        cuenta.where(cb.equal(pslCount.get("producto"), root));
                         orders.add(cb.asc(cb.<Integer>selectCase().when(cb.equal(cuenta, 0L), 1).otherwise(0)));
                         Subquery<String> menorNombre = query.subquery(String.class);
-                        Root<ProductoCliente> pclNombre = menorNombre.from(ProductoCliente.class);
-                        menorNombre.select(cb.least(pclNombre.get("cliente").<String>get("nombre")));
-                        menorNombre.where(cb.equal(pclNombre.get("producto"), root));
+                        Root<ProductoSegmento> pslNombre = menorNombre.from(ProductoSegmento.class);
+                        menorNombre.select(cb.least(pslNombre.get("segmento").<String>get("nombre")));
+                        menorNombre.where(cb.equal(pslNombre.get("producto"), root));
                         orders.add(o.isAscending() ? cb.asc(menorNombre) : cb.desc(menorNombre));
                     } else {
                         // path directo (soporta anidados con punto, ej. "marca.nombre")
@@ -580,7 +580,7 @@ public class ProductoServiceImpl implements ProductoService {
                 PrecioSpecifications.aptoIds(filter.aptoIds()),
                 PrecioSpecifications.canalIds(filter.canalIds()),
                 PrecioSpecifications.catalogoIds(filter.catalogoIds()),
-                PrecioSpecifications.clienteIds(filter.clienteIds()),
+                PrecioSpecifications.segmentoIds(filter.segmentoIds()),
                 PrecioSpecifications.mlaIds(filter.mlaIds())
         );
 
@@ -934,7 +934,7 @@ public class ProductoServiceImpl implements ProductoService {
                 ProductoSpecifications.aptoIds(filter.aptoIds()),
                 ProductoSpecifications.canalIds(filter.canalIds()),
                 ProductoSpecifications.catalogoIds(filter.catalogoIds()),
-                ProductoSpecifications.clienteIds(filter.clienteIds()),
+                ProductoSpecifications.segmentoIds(filter.segmentoIds()),
                 ProductoSpecifications.mlaIds(filter.mlaIds()),
                 // Filtro SQL: solo productos que tengan precios para este canal/cuotas
                 ProductoSpecifications.tienePreciosEnCanalCuotas(filter.canalId(), filter.cuotas())
@@ -1091,11 +1091,11 @@ public class ProductoServiceImpl implements ProductoService {
                         Collectors.mapping(pc -> pc.getCatalogo().getNombre(), Collectors.toList())
                 ));
 
-        Map<Integer, List<String>> clientesPorProducto = productoClienteRepository.findByProductoIdInWithCliente(ids).stream()
+        Map<Integer, List<String>> segmentosPorProducto = productoSegmentoRepository.findByProductoIdInWithSegmento(ids).stream()
                 .collect(Collectors.groupingBy(
-                        pc -> pc.getProducto().getId(),
+                        ps -> ps.getProducto().getId(),
                         LinkedHashMap::new,
-                        Collectors.mapping(pc -> pc.getCliente().getNombre(), Collectors.toList())
+                        Collectors.mapping(ps -> ps.getSegmento().getNombre(), Collectors.toList())
                 ));
 
         Map<Integer, ProductoMargen> margenesPorProducto = productoMargenRepository.findByProductoIdIn(ids).stream()
@@ -1108,7 +1108,7 @@ public class ProductoServiceImpl implements ProductoService {
                         producto,
                         aptosPorProducto.getOrDefault(producto.getId(), List.of()),
                         catalogosPorProducto.getOrDefault(producto.getId(), List.of()),
-                        clientesPorProducto.getOrDefault(producto.getId(), List.of()),
+                        segmentosPorProducto.getOrDefault(producto.getId(), List.of()),
                         margenesPorProducto.get(producto.getId())
                 ))
                 .toList();

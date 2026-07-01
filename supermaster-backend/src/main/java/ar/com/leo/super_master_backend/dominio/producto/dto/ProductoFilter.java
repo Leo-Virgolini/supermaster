@@ -78,7 +78,7 @@ public record ProductoFilter(
         List<Integer> aptoIds,
         List<Integer> canalIds,
         List<Integer> catalogoIds,
-        List<Integer> clienteIds,
+        List<Integer> segmentoIds,
         List<Integer> mlaIds,
 
         // 10) FILTRAR PRECIOS POR CANAL (también usado para ordenamiento)

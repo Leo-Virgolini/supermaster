@@ -142,7 +142,7 @@ public class PrecioController {
             @RequestParam(required = false) List<Integer> aptoIds,
             @RequestParam(required = false) List<Integer> canalIds,
             @RequestParam(required = false) List<Integer> catalogoIds,
-            @RequestParam(required = false) List<Integer> clienteIds,
+            @RequestParam(required = false) List<Integer> segmentoIds,
             @RequestParam(required = false) List<Integer> mlaIds,
 
             // =======================
@@ -209,7 +209,7 @@ public class PrecioController {
                 aptoIds,
                 canalIds,
                 catalogoIds,
-                clienteIds,
+                segmentoIds,
                 mlaIds,
                 canalId,
                 cuotas

@@ -46,11 +46,11 @@ public interface ProductoMapper {
         return toDTO(entity, null, null, null, null);
     }
 
-    default ProductoDTO toDTO(Producto entity, List<String> aptos, List<String> catalogos, List<String> clientes) {
-        return toDTO(entity, aptos, catalogos, clientes, null);
+    default ProductoDTO toDTO(Producto entity, List<String> aptos, List<String> catalogos, List<String> segmentos) {
+        return toDTO(entity, aptos, catalogos, segmentos, null);
     }
 
-    default ProductoDTO toDTO(Producto entity, List<String> aptos, List<String> catalogos, List<String> clientes, ProductoMargen margen) {
+    default ProductoDTO toDTO(Producto entity, List<String> aptos, List<String> catalogos, List<String> segmentos, ProductoMargen margen) {
         if (entity == null) return null;
         return new ProductoDTO(
                 entity.getId(),
@@ -94,7 +94,7 @@ public interface ProductoMapper {
                 entity.getFechaModificacion(),
                 aptos != null ? aptos : obtenerAptos(entity),
                 catalogos != null ? catalogos : obtenerCatalogos(entity),
-                clientes != null ? clientes : obtenerClientes(entity),
+                segmentos != null ? segmentos : obtenerSegmentos(entity),
                 margen != null ? margen.getMargenMinorista() : null,
                 margen != null ? margen.getMargenMayorista() : null,
                 entity.getMlCategoryId(),
@@ -124,10 +124,10 @@ public interface ProductoMapper {
                 : List.of();
     }
 
-    private List<String> obtenerClientes(Producto entity) {
-        return entity.getProductoClientes() != null
-                ? entity.getProductoClientes().stream()
-                    .map(pcl -> pcl.getCliente().getNombre())
+    private List<String> obtenerSegmentos(Producto entity) {
+        return entity.getProductoSegmentos() != null
+                ? entity.getProductoSegmentos().stream()
+                    .map(psl -> psl.getSegmento().getNombre())
                     .sorted()
                     .toList()
                 : List.of();
@@ -416,9 +416,9 @@ public interface ProductoMapper {
                             .sorted()
                             .toList()
                         : List.of(),
-                producto.getProductoClientes() != null
-                        ? producto.getProductoClientes().stream()
-                            .map(pcl -> pcl.getCliente().getNombre())
+                producto.getProductoSegmentos() != null
+                        ? producto.getProductoSegmentos().stream()
+                            .map(psl -> psl.getSegmento().getNombre())
                             .sorted()
                             .toList()
                         : List.of(),

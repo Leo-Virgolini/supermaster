@@ -75,8 +75,8 @@ public class ExcelController {
      * Limpia datos de la BD (operación destructiva). Vacía las siguientes tablas y
      * resetea sus AUTO_INCREMENT:
      * venta_diaria_cache, orden_compra_lineas, ordenes_compra, producto_apto,
-     * producto_catalogo, producto_cliente, producto_canal_precio_inflado,
-     * producto_canal_precios, producto_margen, mlas, productos, clientes,
+     * producto_catalogo, producto_segmento, producto_canal_precio_inflado,
+     * producto_canal_precios, producto_margen, mlas, productos, segmentos,
      * marcas, tipos, materiales, origenes, clasif_gral, clasif_gastro, proveedores.
      * <p>
      * Body opcional: {@code { "tablas": ["productos", "marcas"] }}.
@@ -303,7 +303,7 @@ public class ExcelController {
             @RequestParam(required = false) List<Integer> aptoIds,
             @RequestParam(required = false) List<Integer> canalIds,
             @RequestParam(required = false) List<Integer> catalogoIds,
-            @RequestParam(required = false) List<Integer> clienteIds,
+            @RequestParam(required = false) List<Integer> segmentoIds,
             @RequestParam(required = false) List<Integer> mlaIds,
 
             // 8) SORT (Spring lo resuelve automáticamente desde ?sort=campo,asc)
@@ -391,7 +391,7 @@ public class ExcelController {
                     aptoIds,
                     canalIds,
                     catalogoIds,
-                    clienteIds,
+                    segmentoIds,
                     mlaIds,
                     canalId,
                     cuotas

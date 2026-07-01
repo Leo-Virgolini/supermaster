@@ -60,7 +60,7 @@ public record ProductoDTO(
         // Many-to-many (nombres)
         List<String> aptos,
         List<String> catalogos,
-        List<String> clientes,
+        List<String> segmentos,
 
         // Márgenes (de producto_margen, expuestos para edición inline en la tabla)
         BigDecimal margenMinorista,

@@ -1,6 +1,6 @@
-package ar.com.leo.super_master_backend.dominio.cliente.entity;
+package ar.com.leo.super_master_backend.dominio.segmento.entity;
 
-import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoCliente;
+import ar.com.leo.super_master_backend.dominio.producto.entity.ProductoSegmento;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -15,12 +15,12 @@ import java.util.Set;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "clientes", schema = "supermaster")
-public class Cliente {
+@Table(name = "segmentos", schema = "supermaster")
+public class Segmento {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id_cliente", nullable = false)
+    @Column(name = "id_segmento", nullable = false)
     private Integer id;
 
     @Size(max = 45)
@@ -28,11 +28,11 @@ public class Cliente {
     @Column(name = "nombre", nullable = false, length = 45)
     private String nombre;
 
-    @OneToMany(mappedBy = "cliente", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<ProductoCliente> productoClientes = new LinkedHashSet<>();
+    @OneToMany(mappedBy = "segmento", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<ProductoSegmento> productoSegmentos = new LinkedHashSet<>();
 
-    public Cliente(Integer clienteId) {
-        this.id = clienteId;
+    public Segmento(Integer segmentoId) {
+        this.id = segmentoId;
     }
 
 }

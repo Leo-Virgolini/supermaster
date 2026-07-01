@@ -1,12 +1,12 @@
-package ar.com.leo.super_master_backend.dominio.cliente.controller;
+package ar.com.leo.super_master_backend.dominio.segmento.controller;
 
 import ar.com.leo.super_master_backend.config.Permisos;
 import ar.com.leo.super_master_backend.dominio.auditoria.dto.AuditoriaCambioDTO;
-import ar.com.leo.super_master_backend.dominio.cliente.dto.ClienteCreateDTO;
-import ar.com.leo.super_master_backend.dominio.cliente.dto.ClienteDTO;
-import ar.com.leo.super_master_backend.dominio.cliente.dto.ClientePatchDTO;
-import ar.com.leo.super_master_backend.dominio.cliente.dto.ClienteUpdateDTO;
-import ar.com.leo.super_master_backend.dominio.cliente.service.ClienteService;
+import ar.com.leo.super_master_backend.dominio.segmento.dto.SegmentoCreateDTO;
+import ar.com.leo.super_master_backend.dominio.segmento.dto.SegmentoDTO;
+import ar.com.leo.super_master_backend.dominio.segmento.dto.SegmentoPatchDTO;
+import ar.com.leo.super_master_backend.dominio.segmento.dto.SegmentoUpdateDTO;
+import ar.com.leo.super_master_backend.dominio.segmento.service.SegmentoService;
 import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoResumenDTO;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
@@ -23,20 +23,20 @@ import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/clientes")
-public class ClienteController {
+@RequestMapping("/api/segmentos")
+public class SegmentoController {
 
-    private final ClienteService service;
+    private final SegmentoService service;
 
     @GetMapping
     @PreAuthorize(Permisos.MAESTROS_VER)
-    public ResponseEntity<Page<ClienteDTO>> listar(@RequestParam(required = false) String search, Pageable pageable) {
+    public ResponseEntity<Page<SegmentoDTO>> listar(@RequestParam(required = false) String search, Pageable pageable) {
         return ResponseEntity.ok(service.listar(search, pageable));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize(Permisos.MAESTROS_VER)
-    public ResponseEntity<ClienteDTO> obtener(@PathVariable @Positive(message = "El ID debe ser positivo") Integer id) {
+    public ResponseEntity<SegmentoDTO> obtener(@PathVariable @Positive(message = "El ID debe ser positivo") Integer id) {
         return ResponseEntity.ok(service.obtener(id));
     }
 
@@ -50,8 +50,8 @@ public class ClienteController {
 
     @PostMapping
     @PreAuthorize(Permisos.MAESTROS_EDITAR)
-    public ResponseEntity<ClienteDTO> crear(@Valid @RequestBody ClienteCreateDTO dto) {
-        ClienteDTO creado = service.crear(dto);
+    public ResponseEntity<SegmentoDTO> crear(@Valid @RequestBody SegmentoCreateDTO dto) {
+        SegmentoDTO creado = service.crear(dto);
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
                 .path("/{id}")
@@ -62,18 +62,18 @@ public class ClienteController {
 
     @PutMapping("/{id}")
     @PreAuthorize(Permisos.MAESTROS_EDITAR)
-    public ResponseEntity<ClienteDTO> actualizar(
+    public ResponseEntity<SegmentoDTO> actualizar(
             @PathVariable @Positive(message = "El ID debe ser positivo") Integer id,
-            @Valid @RequestBody ClienteUpdateDTO dto
+            @Valid @RequestBody SegmentoUpdateDTO dto
     ) {
         return ResponseEntity.ok(service.actualizar(id, dto));
     }
 
     @PatchMapping("/{id}")
     @PreAuthorize(Permisos.MAESTROS_EDITAR)
-    public ResponseEntity<ClienteDTO> patch(
+    public ResponseEntity<SegmentoDTO> patch(
             @PathVariable @Positive(message = "El ID debe ser positivo") Integer id,
-            @RequestBody ClientePatchDTO patch
+            @RequestBody SegmentoPatchDTO patch
     ) {
         return ResponseEntity.ok(service.patch(id, patch));
     }
@@ -93,4 +93,3 @@ public class ClienteController {
     }
 
 }
-

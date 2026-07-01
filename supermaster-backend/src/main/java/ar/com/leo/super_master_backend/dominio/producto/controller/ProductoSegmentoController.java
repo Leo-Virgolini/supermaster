@@ -1,8 +1,8 @@
 package ar.com.leo.super_master_backend.dominio.producto.controller;
 
 import ar.com.leo.super_master_backend.config.Permisos;
-import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoClienteDTO;
-import ar.com.leo.super_master_backend.dominio.producto.service.ProductoClienteService;
+import ar.com.leo.super_master_backend.dominio.producto.dto.ProductoSegmentoDTO;
+import ar.com.leo.super_master_backend.dominio.producto.service.ProductoSegmentoService;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -15,24 +15,24 @@ import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/productos/{productoId}/clientes")
-public class ProductoClienteController {
+@RequestMapping("/api/productos/{productoId}/segmentos")
+public class ProductoSegmentoController {
 
-    private final ProductoClienteService service;
+    private final ProductoSegmentoService service;
 
     @GetMapping
     @PreAuthorize(Permisos.PRODUCTOS_VER)
-    public ResponseEntity<List<ProductoClienteDTO>> listar(@PathVariable @Positive(message = "El ID de producto debe ser positivo") Integer productoId) {
+    public ResponseEntity<List<ProductoSegmentoDTO>> listar(@PathVariable @Positive(message = "El ID de producto debe ser positivo") Integer productoId) {
         return ResponseEntity.ok(service.listar(productoId));
     }
 
-    @PostMapping("/{clienteId}")
+    @PostMapping("/{segmentoId}")
     @PreAuthorize(Permisos.PRODUCTOS_EDITAR)
-    public ResponseEntity<ProductoClienteDTO> agregar(
+    public ResponseEntity<ProductoSegmentoDTO> agregar(
             @PathVariable @Positive(message = "El ID de producto debe ser positivo") Integer productoId,
-            @PathVariable @Positive(message = "El ID de cliente debe ser positivo") Integer clienteId
+            @PathVariable @Positive(message = "El ID de segmento debe ser positivo") Integer segmentoId
     ) {
-        ProductoClienteDTO creado = service.agregar(productoId, clienteId);
+        ProductoSegmentoDTO creado = service.agregar(productoId, segmentoId);
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
                 .path("")
@@ -41,13 +41,13 @@ public class ProductoClienteController {
         return ResponseEntity.created(location).body(creado);
     }
 
-    @DeleteMapping("/{clienteId}")
+    @DeleteMapping("/{segmentoId}")
     @PreAuthorize(Permisos.PRODUCTOS_EDITAR)
     public ResponseEntity<Void> eliminar(
             @PathVariable @Positive(message = "El ID de producto debe ser positivo") Integer productoId,
-            @PathVariable @Positive(message = "El ID de cliente debe ser positivo") Integer clienteId
+            @PathVariable @Positive(message = "El ID de segmento debe ser positivo") Integer segmentoId
     ) {
-        service.eliminar(productoId, clienteId);
+        service.eliminar(productoId, segmentoId);
         return ResponseEntity.noContent().build();
     }
 

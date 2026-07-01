@@ -122,7 +122,7 @@ public class ProductoController {
             @RequestParam(required = false) List<Integer> aptoIds,
             @RequestParam(required = false) List<Integer> canalIds,
             @RequestParam(required = false) List<Integer> catalogoIds,
-            @RequestParam(required = false) List<Integer> clienteIds,
+            @RequestParam(required = false) List<Integer> segmentoIds,
             @RequestParam(required = false) List<Integer> mlaIds,
 
             Pageable pageable
@@ -179,7 +179,7 @@ public class ProductoController {
                 aptoIds,
                 canalIds,
                 catalogoIds,
-                clienteIds,
+                segmentoIds,
                 mlaIds,
                 null,  // canalId (no aplica, no devuelve precios)
                 null   // cuotas (no aplica, no devuelve precios)

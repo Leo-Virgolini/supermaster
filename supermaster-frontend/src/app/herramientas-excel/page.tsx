@@ -489,13 +489,13 @@ const GRUPOS_TABLAS: { titulo: string; descripcion: string; tablas: string[] }[]
     },
     {
         titulo: "Productos y relaciones",
-        descripcion: "Productos, MLAs y las tablas N-N (apto/catalogo/cliente).",
+        descripcion: "Productos, MLAs y las tablas N-N (apto/catalogo/segmento).",
         tablas: [
             "productos",
             "mlas",
             "producto_apto",
             "producto_catalogo",
-            "producto_cliente",
+            "producto_segmento",
         ],
     },
     {
@@ -509,7 +509,7 @@ const GRUPOS_TABLAS: { titulo: string; descripcion: string; tablas: string[] }[]
             "clasif_gral",
             "clasif_gastro",
             "proveedores",
-            "clientes",
+            "segmentos",
             "aptos",
             "catalogos",
         ],
@@ -554,7 +554,7 @@ const DEPENDENCIAS: Record<string, string[]> = {
     clasif_gral: ["productos", "canal_concepto_regla", "canal_regla", "reglas_descuentos", "catalogo_pdf_config"],
     clasif_gastro: ["productos", "canal_concepto_regla", "canal_regla", "reglas_descuentos"],
     proveedores: ["productos", "ordenes_compra"],
-    clientes: ["producto_cliente"],
+    segmentos: ["producto_segmento"],
     aptos: ["producto_apto"],
     // catalogos referenciada por catalogo_pdf_config (FK informal Integer, sin @JoinColumn).
     catalogos: ["producto_catalogo", "reglas_descuentos", "catalogo_pdf_config"],
@@ -564,7 +564,7 @@ const DEPENDENCIAS: Record<string, string[]> = {
     productos: [
         "producto_apto",
         "producto_catalogo",
-        "producto_cliente",
+        "producto_segmento",
         "producto_canal_precio_inflado",
         "producto_canal_precios",
         "producto_margen",

@@ -347,7 +347,7 @@ export function getColumns(onEditarProducto: (producto: ProductoDTO) => void, ca
         }
     },
     {
-        id: "cliente", accessorKey: "clientes", header: "Cliente", size: 120,
+        id: "segmento", accessorKey: "segmentos", header: "Segmento", size: 120,
         cell: ({ getValue }) => {
             const vals = getValue() as string[] | null;
             const text = vals?.length ? vals.join(", ") : null;

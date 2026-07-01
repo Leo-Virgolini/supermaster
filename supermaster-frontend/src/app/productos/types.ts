@@ -53,7 +53,7 @@ export interface ProductoDTO {
 	// Many-to-many (nombres)
 	aptos: string[];
 	catalogos: string[];
-	clientes: string[];
+	segmentos: string[];
 
 	// Nombres para mostrar en tabla (Campos "Flattened")
 	marcaNombre?: string;

@@ -115,9 +115,9 @@ const entityLabelMap: Record<string, string> = {
     PRODUCTO_CANAL_PRECIO_INFLADO: "Precio inflado de producto",
     PRODUCTO_APTO: "Apto de producto",
     PRODUCTO_CATALOGO: "Catálogo de producto",
-    PRODUCTO_CLIENTE: "Cliente de producto",
+    PRODUCTO_SEGMENTO: "Segmento de producto",
     PROVEEDOR: "Proveedor",
-    CLIENTE: "Cliente",
+    SEGMENTO: "Segmento",
     CANAL: "Canal",
     CONCEPTO_CALCULO: "Concepto cálculo",
     CANAL_CONCEPTO: "Concepto en canal",
@@ -170,9 +170,9 @@ const entidadOptions = [
     { value: "PRODUCTO_CANAL_PRECIO_INFLADO", label: "Precios inflados de producto" },
     { value: "PRODUCTO_APTO", label: "Aptos de producto" },
     { value: "PRODUCTO_CATALOGO", label: "Catálogos de producto" },
-    { value: "PRODUCTO_CLIENTE", label: "Clientes de producto" },
+    { value: "PRODUCTO_SEGMENTO", label: "Segmentos de producto" },
     { value: "PROVEEDOR", label: "Proveedores" },
-    { value: "CLIENTE", label: "Clientes" },
+    { value: "SEGMENTO", label: "Segmentos" },
     { value: "CANAL", label: "Canales" },
     { value: "CONCEPTO_CALCULO", label: "Conceptos cálculo" },
     { value: "CANAL_CONCEPTO", label: "Conceptos en canal" },
@@ -505,14 +505,14 @@ export default function AuditoriaPage() {
             );
         }
 
-        if (item.entidad === "CLIENTE") {
+        if (item.entidad === "SEGMENTO") {
             return (
                 <Link
-                    href={`/clientes?search=${encodeURIComponent(code)}`}
+                    href={`/segmentos?search=${encodeURIComponent(code)}`}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700 transition hover:bg-indigo-100 dark:border-indigo-500/30 dark:bg-indigo-500/15 dark:text-indigo-200 dark:hover:bg-indigo-500/25"
                 >
                     <EyeIcon className="h-3.5 w-3.5" />
-                    Ir al cliente
+                    Ir al segmento
                 </Link>
             );
         }

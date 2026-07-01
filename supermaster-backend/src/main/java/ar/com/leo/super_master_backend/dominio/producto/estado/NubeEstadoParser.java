@@ -4,6 +4,8 @@ import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoCanalDT
 import tools.jackson.databind.JsonNode;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 /** Parsea el JSON de GET /products/sku/{sku} de Nube a un EstadoCanalDTO (puro). */
 public final class NubeEstadoParser {
@@ -39,7 +41,13 @@ public final class NubeEstadoParser {
             } catch (NumberFormatException ignored) {}
         }
 
-        int imagenes = product.path("images").size();
-        return new EstadoCanalDTO(true, published ? "visible" : "oculta", precio, promo, stock, peso, dims, false, imagenes);
+        JsonNode images = product.path("images");
+        int imagenes = images.size();
+        List<String> urls = new ArrayList<>();
+        for (JsonNode img : images) {
+            String src = img.path("src").asString(null);
+            if (src != null) urls.add(src);
+        }
+        return new EstadoCanalDTO(true, published ? "visible" : "oculta", precio, promo, stock, peso, dims, false, imagenes, urls);
     }
 }

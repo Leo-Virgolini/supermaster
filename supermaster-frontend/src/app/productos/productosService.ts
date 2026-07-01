@@ -530,6 +530,7 @@ export type EstadoCanal = {
 	peso: string | null;
 	dimensiones: string | null;
 	imagenes: number | null;
+	imagenesUrls: string[] | null;
 	error: boolean;
 };
 export type SeoCanal = { title: string | null; description: string | null; tags: string | null };

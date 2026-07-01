@@ -16,7 +16,7 @@ public final class DuxEstadoParser {
         boolean habilitado = "S".equalsIgnoreCase(item.getHabilitado());
         Integer stock = parseStock(item.getStock());
         return new EstadoCanalDTO(true, habilitado ? "habilitado" : "deshabilitado",
-                null, null, stock, null, null, false, null);
+                null, null, stock, null, null, false, null, List.of());
     }
 
     private static Integer parseStock(List<Stock> stocks) {

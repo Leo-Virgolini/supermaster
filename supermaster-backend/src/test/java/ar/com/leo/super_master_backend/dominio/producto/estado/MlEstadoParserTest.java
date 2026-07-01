@@ -57,11 +57,16 @@ class MlEstadoParserTest {
     }
 
     @Test
-    void parse_cuentaImagenesDePictures() {
+    void parse_cuentaImagenesYExtraeUrlsDePictures() {
+        // secure_url preferido; url como fallback cuando no hay secure_url.
         JsonNode item = json("""
             {"status":"active","available_quantity":5,
-             "pictures":[{"id":"1"},{"id":"2"},{"id":"3"}]}
+             "pictures":[{"secure_url":"https://ml/a.jpg"},
+                         {"secure_url":"https://ml/b.jpg"},
+                         {"url":"https://ml/c.jpg"}]}
             """);
-        assertThat(MlEstadoParser.parse(item).imagenes()).isEqualTo(3);
+        EstadoCanalDTO dto = MlEstadoParser.parse(item);
+        assertThat(dto.imagenes()).isEqualTo(3);
+        assertThat(dto.imagenesUrls()).containsExactly("https://ml/a.jpg", "https://ml/b.jpg", "https://ml/c.jpg");
     }
 }

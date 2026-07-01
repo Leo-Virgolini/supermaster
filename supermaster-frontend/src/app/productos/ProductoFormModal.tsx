@@ -1689,6 +1689,17 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                           </div>
                       )}
                   </div>
+                  {canal.imagenesUrls != null && canal.imagenesUrls.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                          {canal.imagenesUrls.map((url, i) => (
+                              <a key={i} href={url} target="_blank" rel="noreferrer" title={`Imagen ${i + 1} — abrir en tamaño completo`}
+                                 className="block h-12 w-12 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition-transform hover:scale-105 dark:border-slate-600">
+                                  <img src={url} alt={`Imagen ${i + 1}`} loading="lazy" className="h-full w-full object-contain"
+                                       onError={(e) => { const a = e.currentTarget.parentElement as HTMLElement | null; if (a) a.style.display = "none"; }} />
+                              </a>
+                          ))}
+                      </div>
+                  )}
               </>)}
         </div>
     );
@@ -1962,7 +1973,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                             {/* Imágenes del SKU (solo lectura; click → carousel con todas) */}
                             <div className="block xl:col-span-4">
                                 <div className="flex items-center gap-1.5">
-                                    <span className={fieldLabelClassName}>Imágenes (por SKU)</span>
+                                    <span className={fieldLabelClassName}>Imágenes locales</span>
                                     {imagenesDetectadas.length > 0 && (
                                         <span className="inline-flex items-center justify-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" title={`${imagenesDetectadas.length} imagen${imagenesDetectadas.length === 1 ? "" : "es"} detectada${imagenesDetectadas.length === 1 ? "" : "s"} para este SKU`}>
                                             {imagenesDetectadas.length}
@@ -1971,9 +1982,23 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                     <Tooltip content={
                                         <div className="space-y-1 text-sm">
                                             <p>Las imágenes se asocian automáticamente por SKU: el sistema toma de la carpeta de imágenes los archivos cuyo nombre coincide con el SKU del producto. No se cargan a mano desde acá — para agregar o cambiar fotos, poné los archivos en esa carpeta nombrados con el SKU y se detectan solos. Click en una miniatura para verlas todas.</p>
+                                            {(() => {
+                                                const ej = sku.trim() || "SKU";
+                                                const codeCls = "rounded bg-slate-100 px-1 font-mono text-xs text-slate-700 dark:bg-slate-700 dark:text-slate-200";
+                                                return (
+                                                    <div className="border-t border-slate-200 pt-1 dark:border-slate-700">
+                                                        <p><strong>Nombre y orden de los archivos:</strong></p>
+                                                        <ul className="ml-4 list-disc space-y-0.5">
+                                                            <li><strong>Carátula</strong> (imagen principal, va primera): archivo llamado exactamente como el SKU, <code className={codeCls}>{ej}.jpg</code></li>
+                                                            <li><strong>Adicionales:</strong> <code className={codeCls}>{ej}_1.jpg</code>, <code className={codeCls}>{ej}_2.jpg</code>, … Se ordenan por ese número ascendente ({ej}_1 antes que {ej}_2).</li>
+                                                        </ul>
+                                                        <p className="mt-1">Formatos que se buscan: <strong>JPG, JPEG, PNG, GIF, WEBP, BMP, SVG</strong>. Si un mismo archivo existe en varios formatos, se usa el primero de esa lista (JPG antes que PNG, etc.). No distingue mayúsculas de minúsculas.</p>
+                                                    </div>
+                                                );
+                                            })()}
                                             <div className="border-t border-slate-200 pt-1 dark:border-slate-700">
-                                                <p><strong>Imágenes publicadas:</strong> carpeta de imágenes ({crudasDisp?.destinoDir.ruta ?? "app.imagenes-dir"}).</p>
-                                                <p><strong>Imágenes crudas:</strong> carpeta de entrada ({crudasDisp?.crudaDir.ruta ?? "app.imagenes-raw-dir"}).</p>
+                                                <p><strong>Carpeta destino:</strong> imágenes finales, listas para publicar ({crudasDisp?.destinoDir.ruta ?? "app.imagenes-dir"}).</p>
+                                                <p><strong>Carpeta de entrada (crudas):</strong> imágenes sin procesar, base para generar la carátula ({crudasDisp?.crudaDir.ruta ?? "app.imagenes-raw-dir"}).</p>
                                             </div>
                                         </div>
                                     } className="flex items-center">

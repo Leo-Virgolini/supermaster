@@ -4,6 +4,8 @@ import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoCanalDT
 import tools.jackson.databind.JsonNode;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 /** Parsea el JSON de GET /items/{id} de ML a un EstadoCanalDTO (puro). */
 public final class MlEstadoParser {
@@ -25,8 +27,15 @@ public final class MlEstadoParser {
         String dims = (alto != null && ancho != null && largo != null)
                 ? alto + " × " + ancho + " × " + largo : null;
 
-        int imagenes = item.path("pictures").size();
-        return new EstadoCanalDTO(true, status, precio, null, stock, peso, dims, false, imagenes);
+        JsonNode pictures = item.path("pictures");
+        int imagenes = pictures.size();
+        List<String> urls = new ArrayList<>();
+        for (JsonNode pic : pictures) {
+            String url = pic.path("secure_url").asString(null);
+            if (url == null) url = pic.path("url").asString(null);
+            if (url != null) urls.add(url);
+        }
+        return new EstadoCanalDTO(true, status, precio, null, stock, peso, dims, false, imagenes, urls);
     }
 
     /** value_name del atributo con ese id, o null. Usa asString(null) (idiom Jackson 3 del proyecto). */

@@ -53,11 +53,13 @@ class NubeEstadoParserTest {
     }
 
     @Test
-    void parse_cuentaImagenesDeImages() {
+    void parse_cuentaImagenesYExtraeUrlsDeImages() {
         JsonNode product = json("""
             {"published":true,"variants":[{"price":"10","stock":2}],
-             "images":[{"id":1},{"id":2}]}
+             "images":[{"id":1,"src":"https://nube/a.jpg"},{"id":2,"src":"https://nube/b.jpg"}]}
             """);
-        assertThat(NubeEstadoParser.parse(product).imagenes()).isEqualTo(2);
+        EstadoCanalDTO dto = NubeEstadoParser.parse(product);
+        assertThat(dto.imagenes()).isEqualTo(2);
+        assertThat(dto.imagenesUrls()).containsExactly("https://nube/a.jpg", "https://nube/b.jpg");
     }
 }

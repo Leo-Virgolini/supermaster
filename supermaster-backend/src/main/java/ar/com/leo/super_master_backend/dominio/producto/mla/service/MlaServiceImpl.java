@@ -159,7 +159,13 @@ public class MlaServiceImpl implements MlaService {
     @Override
     @Transactional
     public void asegurarYAsociar(Integer productoId, String mlaCode, String mlau) {
-        Integer mlaId = self.asegurarMla(mlaCode, mlau);
+        asegurarYAsociar(productoId, mlaCode, mlau, null, null);
+    }
+
+    @Override
+    @Transactional
+    public void asegurarYAsociar(Integer productoId, String mlaCode, String mlau, String familyId, String familyName) {
+        Integer mlaId = self.asegurarMla(mlaCode, mlau, familyId, familyName);
         Mla mla = repo.findById(mlaId)
                 .orElseThrow(() -> new NotFoundException("MLA no encontrado tras asegurarlo: " + mlaCode));
         ar.com.leo.super_master_backend.dominio.producto.entity.Producto producto = productoRepository.findById(productoId)
@@ -168,16 +174,30 @@ public class MlaServiceImpl implements MlaService {
         productoRepository.save(producto);
     }
 
-    /**
-     * Crea (o devuelve, si ya existe) el MLA por su código, en su PROPIA transacción
-     * y sin llamadas externas dentro. Devuelve el id del MLA.
-     */
     @Transactional
     public Integer asegurarMla(String mlaCode, String mlau) {
-        return repo.findFirstByMla(mlaCode).map(Mla::getId).orElseGet(() -> {
+        return asegurarMla(mlaCode, mlau, null, null);
+    }
+
+    /**
+     * Crea (o devuelve, si ya existe) el MLA por su código, en su PROPIA transacción
+     * y sin llamadas externas dentro. Devuelve el id del MLA. Si vino family (modelo nuevo
+     * de ML) y el MLA existente no la tenía, la completa (no pisa valores ya cargados).
+     */
+    @Transactional
+    public Integer asegurarMla(String mlaCode, String mlau, String familyId, String familyName) {
+        return repo.findFirstByMla(mlaCode).map(existente -> {
+            boolean cambio = false;
+            if (familyId != null && existente.getFamilyId() == null) { existente.setFamilyId(familyId); cambio = true; }
+            if (familyName != null && existente.getFamilyName() == null) { existente.setFamilyName(familyName); cambio = true; }
+            if (cambio) repo.save(existente);
+            return existente.getId();
+        }).orElseGet(() -> {
             Mla nuevo = new Mla();
             nuevo.setMla(mlaCode);
             nuevo.setMlau(mlau);
+            nuevo.setFamilyId(familyId);
+            nuevo.setFamilyName(familyName);
             nuevo.setTopePromocion(0);
             Mla guardado = repo.save(nuevo);
             auditoriaService.registrarCambios(

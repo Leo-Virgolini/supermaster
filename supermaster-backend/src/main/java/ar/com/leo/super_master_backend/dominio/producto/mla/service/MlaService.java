@@ -47,5 +47,12 @@ public interface MlaService {
      * Usado por el post-alta de Mercado Libre tras crear la publicación.
      */
     void asegurarYAsociar(Integer productoId, String mlaCode, String mlau);
+
+    /**
+     * Como {@link #asegurarYAsociar(Integer, String, String)} pero además persiste el nivel de
+     * familia del modelo nuevo de ML (User Products): family_id y family_name compartidos por
+     * las variantes. Si el MLA ya existía, completa family_id/family_name solo si estaban vacíos.
+     */
+    void asegurarYAsociar(Integer productoId, String mlaCode, String mlau, String familyId, String familyName);
 }
 

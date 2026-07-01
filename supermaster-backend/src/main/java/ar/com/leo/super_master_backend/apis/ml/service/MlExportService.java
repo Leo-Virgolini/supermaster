@@ -53,7 +53,7 @@ public class MlExportService {
                     acc.creado();
                     List<String> avisos = new ArrayList<>();
                     if (r.advertencia() != null) avisos.add(r.advertencia());
-                    avisos.addAll(postAlta(productoId, r.itemId(), r.mlau()));
+                    avisos.addAll(postAlta(productoId, r.itemId(), r.mlau(), r.familyId(), r.familyName()));
                     for (String a : avisos) acc.advertencia(etiqueta + ": " + a);
                 }
                 case ACTUALIZADO -> {
@@ -113,11 +113,11 @@ public class MlExportService {
         return mercadoLibreService.crearItemEnMl(p, cuotas);
     }
 
-    /** Asocia el MLA y calcula comisión + envío. Cada paso es best-effort en su propia tx; devuelve avisos. */
-    private List<String> postAlta(Integer productoId, String itemId, String mlau) {
+    /** Asocia el MLA (con family del modelo nuevo) y calcula comisión + envío. Cada paso es best-effort en su propia tx; devuelve avisos. */
+    private List<String> postAlta(Integer productoId, String itemId, String mlau, String familyId, String familyName) {
         List<String> avisos = new ArrayList<>();
         try {
-            mlaService.asegurarYAsociar(productoId, itemId, mlau);
+            mlaService.asegurarYAsociar(productoId, itemId, mlau, familyId, familyName);
         } catch (Exception e) {
             log.warn("ML - No se pudo asociar el MLA {} al producto {}: {}", itemId, productoId, e.getMessage());
             avisos.add("no se pudo asociar el MLA");

@@ -1126,6 +1126,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     // Al cargar la ficha, pre-llena los atributos de dimensión vacíos desde las dimensiones físicas.
     useEffect(() => {
         if (!mlFicha) return;
+        if (editandoProductoId) return; // en edición los atributos vienen del canal, no de datos locales
         setMlAtributosVal(prev => {
             const next = { ...prev };
             let changed = false;
@@ -1141,7 +1142,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             return changed ? next : prev;
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mlFicha, fichaAttrIds]);
+    }, [mlFicha, fichaAttrIds, editandoProductoId]);
 
     // Los atributos required no pueden quedar en "No aplica" (son obligatorios): si vinieran marcados
     // (carga vieja), se limpia el flag para que el input quede habilitado y completable.
@@ -1165,6 +1166,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     // al elegir/cambiar/limpiar la Marca, el BRAND se completa o se vacía en consecuencia.
     useEffect(() => {
         if (!mlFicha || !fichaAttrIds.has("BRAND")) return;
+        if (editandoProductoId) return; // en edición los atributos vienen del canal, no de datos locales
         const marcaLeaf = marcaDisplay.split(">").pop()?.trim() ?? "";
         // Si hay Marca elegida pero su nombre aún no cargó, esperamos: no borrar el BRAND guardado.
         if (marcaId && !marcaLeaf) return;
@@ -1178,11 +1180,12 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             }
             return { ...prev, BRAND: { attributeId: "BRAND", valueId: null, valueName: marcaLeaf, noAplica: false } };
         });
-    }, [mlFicha, fichaAttrIds, marcaDisplay, marcaId]);
+    }, [mlFicha, fichaAttrIds, marcaDisplay, marcaId, editandoProductoId]);
 
     // El atributo MATERIAL de la ficha ML espeja SIEMPRE el Material maestro (mismo criterio que BRAND).
     useEffect(() => {
         if (!mlFicha || !fichaAttrIds.has("MATERIAL")) return;
+        if (editandoProductoId) return; // en edición los atributos vienen del canal, no de datos locales
         const material = materialDisplay.trim();
         // El nombre del material puede llegar async (getNombreById): si hay Material elegido pero el
         // nombre aún no cargó, esperamos en vez de borrar el MATERIAL guardado.
@@ -1197,7 +1200,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             }
             return { ...prev, MATERIAL: { attributeId: "MATERIAL", valueId: null, valueName: material, noAplica: false } };
         });
-    }, [mlFicha, fichaAttrIds, materialDisplay, materialId]);
+    }, [mlFicha, fichaAttrIds, materialDisplay, materialId, editandoProductoId]);
 
     const aplicarMlaEnForm = (mla: { id: number; mla: string; mlau: string | null; precioEnvio: number | null; comisionPorcentaje: number | null; topePromocion: number | null }) => {
         setMlaCodigo(mla.mla);

@@ -34,6 +34,16 @@ public class Mla {
     @Column(name = "mlau", length = 20, unique = true)
     private String mlau;
 
+    // Modelo nuevo de ML (User Products): la familia agrupa las variantes por family_name.
+    // family_id se guarda como texto porque puede exceder BIGINT con signo (~2^64).
+    @Size(max = 30)
+    @Column(name = "family_id", length = 30)
+    private String familyId;
+
+    @Size(max = 255)
+    @Column(name = "family_name", length = 255)
+    private String familyName;
+
     @Column(name = "precio_envio", precision = 10, scale = 2)
     private BigDecimal precioEnvio;
 

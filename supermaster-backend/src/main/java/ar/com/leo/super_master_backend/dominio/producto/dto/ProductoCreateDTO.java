@@ -15,8 +15,6 @@ public record ProductoCreateDTO(
         @NotBlank(message = "El título Dux es obligatorio")
         @Size(max = 100, message = "El título Dux no puede exceder 100 caracteres")
         String tituloDux,
-        @Size(max = 100, message = "El título ML no puede exceder 100 caracteres")
-        String tituloMl,
         @Size(max = 100, message = "El título Nube no puede exceder 100 caracteres")
         String tituloNube,
         Boolean esCombo,

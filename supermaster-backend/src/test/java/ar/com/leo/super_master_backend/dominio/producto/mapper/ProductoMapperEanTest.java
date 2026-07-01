@@ -18,7 +18,6 @@ class ProductoMapperEanTest {
                 "SKU-001",   // sku
                 null,        // codExt
                 "Titulo test", // tituloDux
-                null,        // tituloMl
                 null,        // tituloNube
                 false,       // esCombo
                 null,        // uxb

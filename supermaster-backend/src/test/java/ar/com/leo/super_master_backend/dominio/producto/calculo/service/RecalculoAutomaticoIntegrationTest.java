@@ -395,7 +395,7 @@ class RecalculoAutomaticoIntegrationTest {
     private ProductoUpdateDTO buildProductoUpdate(BigDecimal costoOverride, BigDecimal ivaOverride,
             Integer marcaIdOverride, Integer tipoIdOverride, Integer clasifGralIdOverride, Integer proveedorIdOverride) {
         return new ProductoUpdateDTO(
-                producto.getSku(), producto.getCodExt(), producto.getTituloDux(), producto.getTituloMl(), producto.getTituloNube(),
+                producto.getSku(), producto.getCodExt(), producto.getTituloDux(), producto.getTituloNube(),
                 producto.getEsCombo(), producto.getUxb(), producto.getMoq(),
                 producto.getStock(), producto.getActivo(),
                 marcaIdOverride != null ? marcaIdOverride : (producto.getMarca() != null ? producto.getMarca().getId() : null),

@@ -12,7 +12,6 @@ public record ProductoDTO(
         String sku,
         String codExt,
         String tituloDux,
-        String tituloMl,
         String tituloNube,
         Boolean esCombo,
         Integer uxb,

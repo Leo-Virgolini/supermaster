@@ -4,7 +4,6 @@ public record ProductoResumenDTO(
         Integer id,
         String sku,
         String tituloDux,
-        String tituloMl,
         String tituloNube
 ) {
 }

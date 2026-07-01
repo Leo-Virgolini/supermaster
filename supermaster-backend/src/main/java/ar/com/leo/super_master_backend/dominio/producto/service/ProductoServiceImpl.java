@@ -1120,7 +1120,6 @@ public class ProductoServiceImpl implements ProductoService {
         return !presente(patchDto.getSku())
                 && !presente(patchDto.getCodExt())
                 && !presente(patchDto.getTituloDux())
-                && !presente(patchDto.getTituloMl())
                 && !presente(patchDto.getTituloNube())
                 && !presente(patchDto.getEsCombo())
                 && !presente(patchDto.getUxb())
@@ -1189,9 +1188,6 @@ public class ProductoServiceImpl implements ProductoService {
         }
         if (presente(patchDto.getTituloDux())) {
             entity.setTituloDux(leerStringRequerido(patchDto.getTituloDux(), "tituloDux", 100));
-        }
-        if (presente(patchDto.getTituloMl())) {
-            entity.setTituloMl(leerStringOpcional(patchDto.getTituloMl(), "tituloMl", 100));
         }
         if (presente(patchDto.getTituloNube())) {
             entity.setTituloNube(leerStringOpcional(patchDto.getTituloNube(), "tituloNube", 100));

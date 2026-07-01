@@ -57,7 +57,6 @@ public interface ProductoMapper {
                 entity.getSku(),
                 entity.getCodExt(),
                 entity.getTituloDux(),
-                entity.getTituloMl(),
                 entity.getTituloNube(),
                 entity.getEsCombo(),
                 entity.getUxb(),
@@ -360,7 +359,6 @@ public interface ProductoMapper {
 
                 producto.getCodExt(),
                 producto.getTituloDux(),
-                producto.getTituloMl(),
                 producto.getTituloNube(),
                 producto.getEsCombo(),
                 producto.getClasifGastro() != null ? producto.getClasifGastro().getEsMaquina() : null,

@@ -2850,7 +2850,7 @@ public class ExcelServiceImpl implements ExcelService {
 
             // Headers fijos del producto
             String[] headersFijos = {
-                    "ID", "SKU", "MLA", "MLAU", "PRECIO_ENVIO", "COMISION_ML", "COD_EXT", "TITULO_DUX", "TITULO_ML", "TITULO_NUBE",
+                    "ID", "SKU", "MLA", "MLAU", "PRECIO_ENVIO", "COMISION_ML", "COD_EXT", "TITULO_DUX", "TITULO_NUBE",
                     "ES_COMBO", "ES_MAQUINA", "IMAGEN_URL", "STOCK", "ACTIVO", "MARCA", "ORIGEN",
                     "CLASIF_GRAL", "CLASIF_GASTRO", "TIPO", "PROVEEDOR", "MATERIAL", "UXB", "CAPACIDAD",
                     "LARGO", "ANCHO", "ALTO", "DIAMBOCA", "DIAMBASE", "ESPESOR", "COSTO",
@@ -3133,7 +3133,6 @@ public class ExcelServiceImpl implements ExcelService {
                 setCellValue(row.createCell(cellIndex++), producto.comisionPorcentaje(), currentPorcentajeStyleFijo);
                 setCellValue(row.createCell(cellIndex++), producto.codExt(), currentDataStyle);
                 setCellValue(row.createCell(cellIndex++), producto.tituloDux(), currentDataStyle);
-                setCellValue(row.createCell(cellIndex++), producto.tituloMl(), currentDataStyle);
                 setCellValue(row.createCell(cellIndex++), producto.tituloNube(), currentDataStyle);
                 setCellValue(row.createCell(cellIndex++), producto.esCombo(), currentDataStyle);
                 // Si clasifGastro es null, esMaquina debe ser false

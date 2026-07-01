@@ -21,7 +21,6 @@ public record ProductoConPreciosDTO(
 
         String codExt,
         String tituloDux,
-        String tituloMl,
         String tituloNube,
         Boolean esCombo,
         Boolean esMaquina,

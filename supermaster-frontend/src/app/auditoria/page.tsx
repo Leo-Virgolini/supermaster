@@ -63,7 +63,7 @@ const fieldLabelMap: Record<string, string> = {
     entrega: "Entrega",
     financiacionPorcentaje: "Financiación %",
     leadTimeDias: "Lead time",
-    cliente: "Cliente",
+    segmento: "Segmento",
     sku: "SKU",
     codExt: "Cód. Ext.",
     descripcion: "Descripción",
@@ -561,7 +561,7 @@ export default function AuditoriaPage() {
                 registro:
                     item.entidad === "PRODUCTO" ? "Producto" :
                     item.entidad === "PROVEEDOR" ? "Proveedor" :
-                    item.entidad === "CLIENTE" ? "Cliente" :
+                    item.entidad === "SEGMENTO" ? "Segmento" :
                     "—",
             }));
 

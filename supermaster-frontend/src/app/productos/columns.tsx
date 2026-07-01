@@ -140,10 +140,6 @@ export function getColumns(onEditarProducto: (producto: ProductoDTO) => void, ca
         cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={getValue() as string} onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val)} className={FONT.title} disabled={!canEdit} />)
     },
     {
-        accessorKey: "tituloMl", header: "Título ML", size: 220, meta: { editable: true, headerClassName: HEADER_ML },
-        cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={(getValue() as string) ?? ""} nullable onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val)} className={FONT.text} disabled={!canEdit} />)
-    },
-    {
         accessorKey: "tituloNube", header: "Título Nube", size: 220, meta: { editable: true },
         cell: ({ getValue, row, column, table }) => (<EditableCell initialValue={(getValue() as string) ?? ""} nullable onSave={(val) => (table.options.meta as any)?.updateData?.(row.index, column.id, val)} className={FONT.text} disabled={!canEdit} />)
     },

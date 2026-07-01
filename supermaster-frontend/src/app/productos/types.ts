@@ -6,7 +6,6 @@ export interface ProductoDTO {
 	sku: string;
 	codExt: string;
 	tituloDux: string;
-	tituloMl: string | null;
 	tituloNube: string | null;
 	esCombo: boolean;
 	uxb: number;
@@ -84,7 +83,6 @@ export interface ProductoCreateDTO {
 	sku: string;
 	codExt: string;
 	tituloDux: string;
-	tituloMl: string | null;
 	tituloNube: string | null;
 	esCombo: boolean;
 	uxb: number;

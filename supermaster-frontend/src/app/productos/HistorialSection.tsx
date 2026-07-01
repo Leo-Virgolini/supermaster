@@ -42,7 +42,6 @@ export function HistorialSection({ productoId, productoSku }: { productoId: numb
         sku: "SKU",
         codExt: "Cód. Ext.",
         tituloDux: "Título Dux",
-        tituloMl: "Título ML",
         tituloNube: "Título Nube",
         esCombo: "Es combo",
         uxb: "UxB",

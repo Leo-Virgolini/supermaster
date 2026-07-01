@@ -68,7 +68,6 @@ const fieldLabelMap: Record<string, string> = {
     codExt: "Cód. Ext.",
     descripcion: "Descripción",
     tituloDux: "Título Dux",
-    tituloMl: "Título ML",
     tituloNube: "Título Nube",
     esCombo: "Es combo",
     uxb: "UxB",

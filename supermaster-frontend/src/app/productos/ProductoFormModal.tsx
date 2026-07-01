@@ -2493,7 +2493,9 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 <span className="mt-0.5 block text-[11px] text-slate-400 dark:text-slate-500">Compartido entre KT HOGAR y KT GASTRO.</span>
                             </label>
                             {renderSeoNube("HOGAR", "KT Hogar", seoHogar, setSeoHogar)}
-                            <label className="block">
+                            {/* div (no <label>): un <label> redirige el click al primer control interno (el botón
+                                "Componer"), lo que disparaba una recomposición al clickear el editor contentEditable. */}
+                            <div className="block">
                                 <span className="flex items-center justify-between gap-2">
                                     <span className={fieldLabelClassName}>Descripción · KT HOGAR</span>
                                     <button type="button" disabled={sugiriendoDesc || !editandoProductoId}
@@ -2506,7 +2508,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 {cargandoHogar
                                     ? indicadorCarga("Cargando datos del canal…")
                                     : <HtmlEditor value={descripcionHogar} onChange={setDescripcionHogar} placeholder="HTML. Lo que ves es lo que se publica en KT HOGAR." />}
-                            </label>
+                            </div>
                         </div>
                     </fieldset>
                     )}
@@ -2562,7 +2564,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 )}
                             </label>
                             {renderSeoNube("GASTRO", "KT Gastro", seoGastro, setSeoGastro)}
-                            <label className="block">
+                            {/* div (no <label>): evita que el click en el editor dispare el botón "Componer" (ver KT HOGAR). */}
+                            <div className="block">
                                 <span className="flex items-center justify-between gap-2">
                                     <span className={fieldLabelClassName}>Descripción · KT GASTRO</span>
                                     <button type="button" disabled={sugiriendoDesc || !editandoProductoId}
@@ -2575,7 +2578,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 {cargandoGastro
                                     ? indicadorCarga("Cargando datos del canal…")
                                     : <HtmlEditor value={descripcionGastro} onChange={setDescripcionGastro} placeholder="HTML. Lo que ves es lo que se publica en KT GASTRO." />}
-                            </label>
+                            </div>
                         </div>
                     </fieldset>
                     )}

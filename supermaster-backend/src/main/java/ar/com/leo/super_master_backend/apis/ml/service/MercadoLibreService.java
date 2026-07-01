@@ -2258,6 +2258,10 @@ public class MercadoLibreService {
             String itemId = creado.path("id").asString("");
             if (itemId.isBlank()) return ResultadoAltaMl.error("ML no devolvió id del ítem");
             String mlau = creado.path("user_product_id").asString("");
+            // Modelo nuevo (User Products): la familia agrupa las variantes por family_name.
+            String familyId = creado.path("family_id").isMissingNode() ? null : creado.path("family_id").asString(null);
+            String familyNameResp = creado.path("family_name").asString("");
+            if (familyNameResp.isBlank()) familyNameResp = null;
 
             String advertencia = null;
             String descMl = MlDescripcionBuilder.construir(producto);
@@ -2269,7 +2273,7 @@ public class MercadoLibreService {
                 }
             }
 
-            ResultadoAltaMl r = ResultadoAltaMl.creado(itemId, mlau.isBlank() ? null : mlau);
+            ResultadoAltaMl r = ResultadoAltaMl.creado(itemId, mlau.isBlank() ? null : mlau, familyId, familyNameResp);
             return advertencia == null ? r : r.conAdvertencia(advertencia);
         } catch (Exception e) {
             return ResultadoAltaMl.error(e.getMessage());

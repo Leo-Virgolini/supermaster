@@ -28,6 +28,7 @@ import {
     generarCaratulaAPI, guardarCaratulaAPI,
     getDescripcionSugeridaAPI,
     getCrudasAPI, crudaMiniaturaURL, type CrudasDisponibles,
+    mlEditarURL,
 } from "./productosService";
 import { updateProductoMargenAPI } from "./productoMargenService";
 import { getCuotasPorCanalAPI } from "../canal-concepto-cuotas/canalConceptoCuotaService";
@@ -2319,6 +2320,9 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 : "text-slate-500 dark:text-slate-400"}`}>
                                 {mlaVerif.text}
                             </p>
+                        )}
+                        {mlaResuelto && (
+                            <a href={mlEditarURL(mlaResuelto)} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline dark:text-blue-400">Editar en ML ↗</a>
                         )}
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
                             <label className="block xl:col-span-3">

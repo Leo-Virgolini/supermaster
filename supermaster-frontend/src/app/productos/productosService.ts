@@ -576,6 +576,15 @@ export function crudaMiniaturaURL(nombre: string): string {
 	return `${API_BASE_URL}/api/imagenes/cruda/${encodeURIComponent(nombre)}`;
 }
 
+// "MLA1234" -> "https://articulo.mercadolibre.com.ar/MLA-1234" (ML redirige al artículo)
+export function mlVerURL(codigo: string): string {
+	const conGuion = codigo.replace(/^(MLAU?|MLA)(\d)/, "$1-$2");
+	return `https://articulo.mercadolibre.com.ar/${conGuion}`;
+}
+export function mlEditarURL(codigo: string): string {
+	return `https://www.mercadolibre.com.ar/publicaciones/${codigo}/modificar`;
+}
+
 export async function generarCaratulaAPI(sku: string, crudaNombre?: string): Promise<{ imagenBase64: string; formato: string; crudaBase64: string; crudaFormato: string }> {
 	const q = crudaNombre ? `?cruda=${encodeURIComponent(crudaNombre)}` : "";
 	const r = await fetchAPI(`${API_BASE_URL}/api/imagenes/caratula/generar/${encodeURIComponent(sku)}${q}`, { method: "POST" });

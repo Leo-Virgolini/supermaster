@@ -6,6 +6,7 @@ import EditableCell from "../components/Table/core/EditableCell";
 import { formatFechaAR } from "../utils/formatDate";
 import { ArrowPathIcon, EyeIcon } from "@heroicons/react/24/outline";
 import TableActionButton from "../components/Table/core/TableActionButton";
+import { mlVerURL } from "../productos/productosService";
 
 interface CalcLoading {
     envio: boolean;
@@ -107,6 +108,21 @@ export const getColumns = (
                 </TableActionButton>
             </div>
         ),
+    },
+    {
+        id: "ver",
+        header: "Ver",
+        size: 70,
+        enableSorting: false,
+        cell: ({ row }) => {
+            const codigo = row.original.mla?.trim();
+            if (!codigo) return null;
+            return (
+                <div className="flex justify-center">
+                    <a href={mlVerURL(codigo)} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline dark:text-blue-400">Ver ↗</a>
+                </div>
+            );
+        },
     },
     {
         id: "acciones",

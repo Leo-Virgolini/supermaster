@@ -1180,7 +1180,8 @@ public class TiendaNubeService {
         return ok == archivos.size() ? null : (ok + " de " + archivos.size() + " imágenes subidas");
     }
 
-    /** Reemplaza las imágenes del producto en Nube por las locales actuales (GET lista -> DELETE -> POST). Best-effort. */
+    /** Reemplaza las imágenes del producto en Nube por las locales actuales (GET lista -> DELETE -> POST). Best-effort.
+     *  Nube admite productos sin imágenes: es un espejo de lo local (si no hay locales, la galería queda vacía). */
     private String sincronizarImagenesNube(StoreCredentials store, Long productoNubeId, String sku) {
         // 1) Listar y borrar las imágenes actuales.
         try {
@@ -1207,7 +1208,7 @@ public class TiendaNubeService {
         // 2) Subir las locales válidas (filtradas por formato/tamaño); reportar omitidas.
         ImagenService.FiltroImagenes filtro = imagenService.filtrarParaCanal(sku, EXT_NUBE);
         if (filtro.validas().isEmpty() && filtro.rechazadas().isEmpty()) {
-            return null; // sin imágenes locales: nada que sincronizar
+            return null; // sin imágenes locales: la galería de Nube queda vacía (permitido)
         }
         String advSubida = filtro.validas().isEmpty() ? null : subirImagenes(store, productoNubeId, filtro.validas());
         return combinarAdvertencias(advSubida, ImagenService.describirRechazadas(filtro.rechazadas()));

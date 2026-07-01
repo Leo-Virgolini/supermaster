@@ -2,8 +2,10 @@ package ar.com.leo.super_master_backend.apis.nube.service;
 
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
 
+import java.text.Collator;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 /** Compone una descripción SUGERIDA en HTML (características) para Tienda Nube. */
@@ -66,6 +68,7 @@ public final class NubeDescripcionSugeridaBuilder {
         return p.getProductosApto().stream()
                 .filter(pa -> pa.getApto() != null && pa.getApto().getNombre() != null)
                 .map(pa -> pa.getApto().getNombre())
+                .sorted(Collator.getInstance(Locale.of("es", "AR")))  // orden alfabético estable (getProductosApto() es un Set)
                 .collect(Collectors.toList());
     }
 

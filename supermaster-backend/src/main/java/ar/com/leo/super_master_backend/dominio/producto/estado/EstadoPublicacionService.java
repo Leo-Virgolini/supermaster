@@ -66,7 +66,11 @@ public class EstadoPublicacionService {
             String catNombre = (catId != null && !catId.isBlank()) ? mercadoLibreService.obtenerCategoriaPath(catId) : null;
             MlDatosParser.PaqueteMl paquete = MlDatosParser.paquete(item);
             List<MlAtributoDTO> atributos = MlDatosParser.atributos(item);
-            String titulo = item.path("title").asString(null);
+            // Modelo nuevo (User Products): el `title` lo autogenera ML agregando el valor de la variante
+            // (ej. "...Plateado"), pero lo editable/genérico (y que respeta los 60 chars) es el `family_name`.
+            // Preferimos family_name; para publicaciones viejas (sin familia) caemos al title.
+            String familyName = item.path("family_name").asString(null);
+            String titulo = (familyName != null && !familyName.isBlank()) ? familyName : item.path("title").asString(null);
             return new MlCanalDTO(MlEstadoParser.parse(item), catId, catNombre,
                     atributos, descMl, mlaCode,
                     paquete.altoCm(), paquete.anchoCm(), paquete.largoCm(), paquete.pesoKg(), titulo);
@@ -86,7 +90,7 @@ public class EstadoPublicacionService {
         try {
             product = tiendaNubeService.buscarProductoPorSku(sku, store);
         } catch (Exception e) {
-            return new NubeCanalDTO(EstadoCanalDTO.ofError(), null, null, null, null, null, null, null);
+            return new NubeCanalDTO(EstadoCanalDTO.ofError(), null, null, null, null, null, null, null, null);
         }
         JsonNode variant = (product != null) ? product.path("variants").path(0) : null;
         String peso = variant != null ? variant.path("weight").asString(null) : null;
@@ -94,10 +98,12 @@ public class EstadoPublicacionService {
         String ancho = variant != null ? variant.path("width").asString(null) : null;
         String alto = variant != null ? variant.path("height").asString(null) : null;
         String titulo = (product != null) ? product.path("name").path("es").asString(null) : null;
+        // id del producto en Nube (para armar el link "Editar en Tienda Nube"); distinto por tienda.
+        Long productId = (product != null && product.path("id").isNumber()) ? product.path("id").asLong() : null;
         EstadoCanalDTO estado = estadoNube(product);
         String descripcion = descripcionNube(product);
         SeoCanalDTO seo = NubeSeoParser.parse(product);
-        return new NubeCanalDTO(estado, descripcion, seo, titulo, peso, prof, ancho, alto);
+        return new NubeCanalDTO(estado, descripcion, seo, titulo, peso, prof, ancho, alto, productId);
     }
 
     /** Lee Dux: findById → sku → DuxEstadoParser. Nunca lanza (ofError ante fallo). */

@@ -9,5 +9,6 @@ public record NubeCanalDTO(
         String peso,
         String profundidad,
         String ancho,
-        String alto
+        String alto,
+        Long productId
 ) {}

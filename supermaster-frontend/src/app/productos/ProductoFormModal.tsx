@@ -29,6 +29,7 @@ import {
     getDescripcionSugeridaAPI,
     getCrudasAPI, crudaMiniaturaURL, type CrudasDisponibles,
     mlEditarURL,
+    nubeEditarURL, NUBE_ADMIN_SUBDOMINIO,
 } from "./productosService";
 import { updateProductoMargenAPI } from "./productoMargenService";
 import { getCuotasPorCanalAPI } from "../canal-concepto-cuotas/canalConceptoCuotaService";
@@ -329,6 +330,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const [crudaElegida, setCrudaElegida] = useState<string | null>(null);
     const [faseCaratula, setFaseCaratula] = useState("");
     const [duracionCaratula, setDuracionCaratula] = useState<number | null>(null);
+    const [transcurridoCaratula, setTranscurridoCaratula] = useState(0); // ms transcurridos en vivo mientras genera
     const [modelImagen, setModelImagen] = useState<string>("");
     const [modelSeo, setModelSeo] = useState<string>("");
 
@@ -404,6 +406,9 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         if (ancho.length > 45) errors.ancho = "Máximo 45 caracteres";
         if (alto.length > 45) errors.alto = "Máximo 45 caracteres";
         if (subirMl) {
+            // Mercado Libre exige al menos una imagen válida (JPG/PNG, ≤10 MB). Tienda Nube sí admite sin imagen.
+            const hayImagenMlValida = imagenesDetectadas.some(img => EXT_ML.has(img.extension) && img.bytes <= MAX_BYTES_IMG);
+            if (!hayImagenMlValida) errors.imagenesMl = "Mercado Libre requiere al menos una imagen (JPG o PNG, hasta 10 MB). Seleccioná una imagen para el SKU.";
             if (mlPaqAlto === "" || Number(mlPaqAlto) <= 0) errors.mlPaqAlto = "Requerido para subir a ML";
             if (mlPaqAncho === "" || Number(mlPaqAncho) <= 0) errors.mlPaqAncho = "Requerido para subir a ML";
             if (mlPaqLargo === "" || Number(mlPaqLargo) <= 0) errors.mlPaqLargo = "Requerido para subir a ML";
@@ -1370,10 +1375,12 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         setCrudaElegida(cruda);
         setGenerandoCaratula(true);
         setDuracionCaratula(null);
+        setTranscurridoCaratula(0);
         const inicio = Date.now();
         const timers = FASES_CARATULA.map(f => setTimeout(() => setFaseCaratula(f.texto), f.ms));
+        const cron = setInterval(() => setTranscurridoCaratula(Date.now() - inicio), 200);
         try {
-            const r = await generarCaratulaAPI(sku.trim(), cruda);
+            const r = await generarCaratulaAPI(sku.trim(), cruda, tituloNube);
             setCaratulaPreview(r.imagenBase64);
             setCaratulaFormato(r.formato);
             setCaratulaCruda(r.crudaBase64);
@@ -1384,6 +1391,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "No se pudo generar la carátula");
         } finally {
             timers.forEach(clearTimeout);
+            clearInterval(cron);
             setFaseCaratula("");
             setGenerandoCaratula(false);
         }
@@ -1655,6 +1663,38 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         }
     };
 
+    const ESTADO_BADGE: Record<string, { label: string; cls: string }> = {
+        active:        { label: "Activa",        cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" },
+        paused:        { label: "Pausada",       cls: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" },
+        visible:       { label: "Visible",       cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" },
+        oculta:        { label: "Oculta",        cls: "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300" },
+        habilitado:    { label: "Habilitado",    cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" },
+        deshabilitado: { label: "Deshabilitado", cls: "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300" },
+        // Estados de ML que NO se pueden setear desde el panel (solo lectura): se muestran como badge, sin toggle.
+        under_review:  { label: "En revisión",   cls: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" },
+        closed:        { label: "Cerrada",       cls: "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300" },
+        inactive:      { label: "Inactiva",      cls: "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300" },
+    };
+
+    // Estados de ML que el usuario SÍ puede alternar (la API de ML solo acepta active/paused).
+    const ML_ESTADO_EDITABLE = (estado: string | null | undefined) => estado == null || estado === "active" || estado === "paused";
+
+    const statChip = (label: string, value: string, valueCls = "text-slate-700 dark:text-slate-200") => (
+        <span className="inline-flex flex-col rounded-lg bg-white/70 px-2 py-1 leading-tight shadow-sm ring-1 ring-slate-200/70 dark:bg-slate-900/40 dark:ring-slate-700/60">
+            <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400">{label}</span>
+            <span className={`text-xs font-semibold ${valueCls}`}>{value}</span>
+        </span>
+    );
+
+    // Switch on/off para el estado (binario) de cada canal. "on" = estado positivo (Habilitado/Visible/Activa).
+    const estadoToggle = (on: boolean, onChange: (on: boolean) => void, disabled: boolean, onLabel: string, offLabel: string) => (
+        <button type="button" role="switch" aria-checked={on} aria-label={on ? onLabel : offLabel} disabled={disabled} onClick={() => onChange(!on)}
+            title={disabled ? undefined : `${on ? onLabel : offLabel} — clic para cambiar`}
+            className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 ${on ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"}`}>
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${on ? "translate-x-[1.125rem]" : "translate-x-0.5"}`} />
+        </button>
+    );
+
     const renderEstadoBody = (
         canal: EstadoCanal | undefined,
         control: React.ReactNode,
@@ -1663,38 +1703,20 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     ) => (
         <div className="border-t border-slate-200/70 pt-2 dark:border-slate-700/60">
             {cargando ? <span className="text-xs text-slate-400">Leyendo estado…</span>
-              : !canal || canal.error ? <span className="text-xs text-amber-600">No se pudo leer el estado</span>
-              : !canal.publicado ? <span className="flex items-center gap-1 text-xs text-slate-400"><MinusCircleIcon className="h-4 w-4 shrink-0" /> No publicado</span>
+              : !canal || canal.error ? <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">No se pudo leer el estado</span>
+              : !canal.publicado ? <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500 dark:bg-slate-700/60 dark:text-slate-300"><MinusCircleIcon className="h-3.5 w-3.5 shrink-0" /> No publicado</span>
               : (<>
                   <div className="flex items-center gap-2">
-                      {estadoIcon(estadoSel)}
-                      <div className="flex-1">{control}</div>
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${ESTADO_BADGE[estadoSel ?? ""]?.cls ?? "bg-slate-100 text-slate-500 dark:bg-slate-700/60 dark:text-slate-300"}`}>
+                          {estadoIcon(estadoSel)}{ESTADO_BADGE[estadoSel ?? ""]?.label ?? estadoSel}
+                      </span>
+                      <div className="ml-auto shrink-0">{control}</div>
                   </div>
-                  <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                      {canal.precio != null && (
-                          <div className="flex justify-between gap-1">
-                              <span className="text-slate-400">Precio</span>
-                              <span className="font-medium text-slate-600 dark:text-slate-300">{canal.precio.toLocaleString("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                          </div>
-                      )}
-                      {canal.promo != null && (
-                          <div className="flex justify-between gap-1">
-                              <span className="text-slate-400">Promo</span>
-                              <span className="font-medium text-emerald-600 dark:text-emerald-400">{canal.promo.toLocaleString("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                          </div>
-                      )}
-                      {canal.stock != null && (
-                          <div className="flex justify-between gap-1">
-                              <span className="text-slate-400">Stock</span>
-                              <span className="font-medium text-slate-600 dark:text-slate-300">{canal.stock}</span>
-                          </div>
-                      )}
-                      {canal.imagenes != null && (
-                          <div className="flex justify-between gap-1">
-                              <span className="text-slate-400">Imágenes</span>
-                              <span className="font-medium text-slate-600 dark:text-slate-300">{canal.imagenes}</span>
-                          </div>
-                      )}
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                      {canal.precio != null && statChip("Precio", canal.precio.toLocaleString("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 2, maximumFractionDigits: 2 }))}
+                      {canal.promo != null && statChip("Promo", canal.promo.toLocaleString("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 2, maximumFractionDigits: 2 }), "text-emerald-600 dark:text-emerald-400")}
+                      {canal.stock != null && statChip("Stock", String(canal.stock))}
+                      {canal.imagenes != null && statChip("Imágenes", String(canal.imagenes))}
                   </div>
                   {canal.imagenesUrls != null && canal.imagenesUrls.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
@@ -1766,9 +1788,17 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                               </span>
                             : <span className={`text-sm text-red-600 dark:text-red-400 ${Object.values(formErrors).some(Boolean) ? "" : "invisible"}`}>Revisá los campos marcados antes de guardar.</span>}
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                        <Button variant="light" onClick={onClose} disabled={isSaving}><XMarkIcon className="w-4 h-4" /> Cancelar</Button>
-                        <Button variant="dark" onClick={editandoProductoId ? handleGuardarEdicion : handleCreate} disabled={isSaving || (!editandoProductoId && skuYaExiste)}>{isSaving ? <SpinnerIcon /> : <CheckIcon className="w-4 h-4" />} {isSaving ? (editandoProductoId ? "Guardando..." : "Creando Producto...") : (editandoProductoId ? "Guardar Cambios" : "Crear Producto")}</Button>
+                    <div className="flex shrink-0 items-center gap-3">
+                        <button type="button" onClick={onClose} disabled={isSaving}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">
+                            <XMarkIcon className="h-4 w-4" /> Cancelar
+                        </button>
+                        <button type="button" onClick={editandoProductoId ? handleGuardarEdicion : handleCreate}
+                            disabled={isSaving || (!editandoProductoId && skuYaExiste)}
+                            className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-light focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 dark:focus:ring-offset-slate-900">
+                            {isSaving ? <SpinnerIcon /> : <CheckIcon className="h-4 w-4" />}
+                            {isSaving ? (editandoProductoId ? "Guardando..." : "Creando Producto...") : (editandoProductoId ? "Guardar Cambios" : "Crear Producto")}
+                        </button>
                     </div>
                 </div>}>
                 <div className="text-sm">
@@ -1802,10 +1832,10 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.canales}`}>
                         <legend className={sectionTitleClassName}><BuildingStorefrontIcon className="h-5 w-5" /> Canales de venta</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Dónde publicar el producto y su estado en cada canal (se aplica al guardar).</p>
-                        <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-4">
+                        <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 xl:grid-cols-4">
                             {/* DUX */}
                             {canExportarDux && (
-                                <div className={`${canalCardClassName} ${CANAL_TINT.dux}`}>
+                                <div className={`${canalCardClassName} ${CANAL_TINT.dux} h-full transition-opacity ${subirADux ? "" : "opacity-55"}`}>
                                     <div className="flex items-center gap-3">
                                         <CubeIcon className="h-5 w-5 shrink-0 text-indigo-500" />
                                         <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirADux} onChange={e => setSubirADux(e.target.checked)} id="subirADux" />
@@ -1820,16 +1850,14 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                         </Tooltip>
                                     </div>
                                     {editandoProductoId && renderEstadoBody(estadoDux?.estado,
-                                        <select className={`${selectBaseClassName} w-full`} disabled={!subirADux} value={estadoDux?.estado.estado === "deshabilitado" ? "deshabilitado" : "habilitado"}
-                                            onChange={e => setEstadoDux(p => p && ({ ...p, estado: { ...p.estado, estado: e.target.value } }))}>
-                                            <option value="habilitado">Habilitado</option>
-                                            <option value="deshabilitado">Deshabilitado</option>
-                                        </select>,
+                                        estadoToggle(estadoDux?.estado.estado !== "deshabilitado",
+                                            on => setEstadoDux(p => p && ({ ...p, estado: { ...p.estado, estado: on ? "habilitado" : "deshabilitado" } })),
+                                            !subirADux, "Habilitado", "Deshabilitado"),
                                         estadoDux?.estado.estado ?? undefined, cargandoDux)}
                                 </div>
                             )}
                             {/* KT HOGAR */}
-                            <div className={`${canalCardClassName} ${CANAL_TINT.hogar}`}>
+                            <div className={`${canalCardClassName} ${CANAL_TINT.hogar} h-full transition-opacity ${subirKtHogar ? "" : "opacity-55"}`}>
                                 <div className="flex items-center gap-3">
                                     <HomeIcon className="h-5 w-5 shrink-0 text-sky-500" />
                                     <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirKtHogar} onChange={e => setSubirKtHogar(e.target.checked)} id="subirKtHogar" disabled={!canExportarDux} />
@@ -1839,13 +1867,11 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                     </Tooltip>
                                 </div>
                                 {editandoProductoId && renderEstadoBody(estadoHogar?.estado,
-                                    <select className={`${selectBaseClassName} w-full`} disabled={!subirKtHogar} value={estadoHogar?.estado.estado ?? "visible"}
-                                        onChange={e => setEstadoHogar(p => p && ({ ...p, estado: { ...p.estado, estado: e.target.value } }))}>
-                                        <option value="visible">Visible</option>
-                                        <option value="oculta">Oculta</option>
-                                    </select>,
+                                    estadoToggle(estadoHogar?.estado.estado !== "oculta",
+                                        on => setEstadoHogar(p => p && ({ ...p, estado: { ...p.estado, estado: on ? "visible" : "oculta" } })),
+                                        !subirKtHogar, "Visible", "Oculta"),
                                     estadoHogar?.estado.estado ?? "visible", cargandoHogar)}
-                                <div className="flex items-center gap-2 border-t border-slate-200/70 pt-2 dark:border-slate-700/60">
+                                <div className="mt-auto flex items-center gap-2 border-t border-slate-200/70 pt-2 dark:border-slate-700/60">
                                     <span className="text-xs font-normal text-slate-500 dark:text-slate-400">Cuota del precio</span>
                                     <Tooltip content="Plan de cuotas del canal con el que se publica el precio en Tienda Nube (cada plan aplica su recargo/descuento de financiación)." className="flex-1">
                                         <select className={`${selectBaseClassName} w-full`} disabled={!subirKtHogar} value={cuotaHogar} onChange={e => setCuotaHogar(Number(e.target.value))}>
@@ -1857,7 +1883,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 </div>
                             </div>
                             {/* KT GASTRO */}
-                            <div className={`${canalCardClassName} ${CANAL_TINT.gastro}`}>
+                            <div className={`${canalCardClassName} ${CANAL_TINT.gastro} h-full transition-opacity ${subirKtGastro ? "" : "opacity-55"}`}>
                                 <div className="flex items-center gap-3">
                                     <FireIcon className="h-5 w-5 shrink-0 text-emerald-500" />
                                     <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirKtGastro} onChange={e => setSubirKtGastro(e.target.checked)} id="subirKtGastro" disabled={!canExportarDux} />
@@ -1867,13 +1893,11 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                     </Tooltip>
                                 </div>
                                 {editandoProductoId && renderEstadoBody(estadoGastro?.estado,
-                                    <select className={`${selectBaseClassName} w-full`} disabled={!subirKtGastro} value={estadoGastro?.estado.estado ?? "visible"}
-                                        onChange={e => setEstadoGastro(p => p && ({ ...p, estado: { ...p.estado, estado: e.target.value } }))}>
-                                        <option value="visible">Visible</option>
-                                        <option value="oculta">Oculta</option>
-                                    </select>,
+                                    estadoToggle(estadoGastro?.estado.estado !== "oculta",
+                                        on => setEstadoGastro(p => p && ({ ...p, estado: { ...p.estado, estado: on ? "visible" : "oculta" } })),
+                                        !subirKtGastro, "Visible", "Oculta"),
                                     estadoGastro?.estado.estado ?? "visible", cargandoGastro)}
-                                <div className="flex items-center gap-2 border-t border-slate-200/70 pt-2 dark:border-slate-700/60">
+                                <div className="mt-auto flex items-center gap-2 border-t border-slate-200/70 pt-2 dark:border-slate-700/60">
                                     <span className="text-xs font-normal text-slate-500 dark:text-slate-400">Cuota del precio</span>
                                     <Tooltip content="Plan de cuotas del canal con el que se publica el precio en Tienda Nube (cada plan aplica su recargo/descuento de financiación)." className="flex-1">
                                         <select className={`${selectBaseClassName} w-full`} disabled={!subirKtGastro} value={cuotaGastro} onChange={e => setCuotaGastro(Number(e.target.value))}>
@@ -1885,7 +1909,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 </div>
                             </div>
                             {/* MERCADO LIBRE */}
-                            <div className={`${canalCardClassName} ${CANAL_TINT.ml}`}>
+                            <div className={`${canalCardClassName} ${CANAL_TINT.ml} h-full transition-opacity ${subirMl ? "" : "opacity-55"}`}>
                                 <div className="flex items-center gap-3">
                                     <ShoppingBagIcon className="h-5 w-5 shrink-0 text-yellow-500" />
                                     <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" checked={subirMl} onChange={e => setSubirMl(e.target.checked)} id="subirMl" disabled={!canExportarDux} />
@@ -1895,13 +1919,13 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                     </Tooltip>
                                 </div>
                                 {editandoProductoId && renderEstadoBody(estadoMl?.estado,
-                                    <select className={`${selectBaseClassName} w-full`} disabled={!subirMl} value={estadoMl?.estado.estado ?? "active"}
-                                        onChange={e => setEstadoMl(p => p && ({ ...p, estado: { ...p.estado, estado: e.target.value } }))}>
-                                        <option value="active">Activa</option>
-                                        <option value="paused">Pausada</option>
-                                    </select>,
+                                    ML_ESTADO_EDITABLE(estadoMl?.estado.estado)
+                                        ? estadoToggle(estadoMl?.estado.estado !== "paused",
+                                            on => setEstadoMl(p => p && ({ ...p, estado: { ...p.estado, estado: on ? "active" : "paused" } })),
+                                            !subirMl, "Activa", "Pausada")
+                                        : null,
                                     estadoMl?.estado.estado ?? "active", cargandoMl)}
-                                <div className="flex items-center gap-2 border-t border-slate-200/70 pt-2 dark:border-slate-700/60">
+                                <div className="mt-auto flex items-center gap-2 border-t border-slate-200/70 pt-2 dark:border-slate-700/60">
                                     <span className="text-xs font-normal text-slate-500 dark:text-slate-400">Cuota del precio</span>
                                     <Tooltip content="Plan de cuotas con el que se publica el precio en Mercado Libre (cada plan aplica su recargo de financiación)." className="flex-1">
                                         <select className={`${selectBaseClassName} w-full`} disabled={!subirMl} value={cuotaMl} onChange={e => setCuotaMl(Number(e.target.value))}>
@@ -2012,6 +2036,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                         <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
                                     </Tooltip>
                                 </div>
+                                {formErrors.imagenesMl && <p className="mt-1 text-xs font-medium text-red-500">{formErrors.imagenesMl}</p>}
                                 <div className="mt-1 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-700 dark:bg-slate-800/70">
                                     {imagenesDetectadas.length === 0 ? (
                                         <div className="space-y-1 text-xs text-amber-600 dark:text-amber-400">
@@ -2057,10 +2082,12 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                                             <div>{crudasDisp.destinoDir.escribible ? "✓" : "⚠"} Carpeta destino: {crudasDisp.destinoDir.escribible ? "escritura OK" : "sin acceso de escritura"}</div>
                                                         </div>
                                                         {generandoCaratula ? (
-                                                            <div className="flex items-center gap-2 px-1 py-3 text-sm text-slate-500"><SpinnerIcon /> {faseCaratula || "Generando…"}</div>
+                                                            <div className="flex items-center gap-2 px-1 py-3 text-sm text-slate-500"><SpinnerIcon /> {faseCaratula || "Generando…"} {transcurridoCaratula > 0 && <span className="tabular-nums text-slate-400">· {fmtDuracion(transcurridoCaratula)}</span>}</div>
                                                         ) : crudasDisp.imagenes.length === 0 ? (
                                                             <p className="text-xs text-amber-600 dark:text-amber-400">No hay imágenes crudas para este SKU en la carpeta.</p>
                                                         ) : (
+                                                            <>
+                                                            <p className="mb-2 text-xs font-medium text-slate-600 dark:text-slate-300">Seleccioná una imagen para generar la carátula:</p>
                                                             <div className="flex flex-wrap gap-2">
                                                                 {crudasDisp.imagenes.map(nombre => (
                                                                     <button key={nombre} type="button" onClick={() => generarCaratula(nombre)} title={nombre}
@@ -2069,6 +2096,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                                                     </button>
                                                                 ))}
                                                             </div>
+                                                            </>
                                                         )}
                                                         {!generandoCaratula && (
                                                             <div className="mt-2 flex justify-end">
@@ -2158,6 +2186,23 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         )}
                     </fieldset>
 
+                    <fieldset className={`${sectionClassName} ${SECTION_TINT.margenes}`}>
+                        <legend className={sectionTitleClassName}><ReceiptPercentIcon /> Márgenes</legend>
+                        <p className={`${sectionDescriptionClassName} mb-4`}>Márgenes minorista y mayorista (porcentaje).{!esCombo ? " Al menos uno obligatorio." : " Opcionales para combos."}</p>
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <label className="block">
+                                <span className={fieldLabelClassName}>Margen minorista (%)</span>
+                                <input type="number" step={0.5} className={`${inputBaseClassName} ${formErrors.margen ? inputErrorClassName : ""}`} value={margenMinorista} onChange={e => { setMargenMinorista(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.margen) setFormErrors(p => ({ ...p, margen: "" })); }} placeholder="Sin definir" />
+                            </label>
+                            <label className="block">
+                                <span className={fieldLabelClassName}>Margen mayorista (%)</span>
+                                <input type="number" step={0.5} className={`${inputBaseClassName} ${formErrors.margen ? inputErrorClassName : ""}`} value={margenMayorista} onChange={e => { setMargenMayorista(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.margen) setFormErrors(p => ({ ...p, margen: "" })); }} placeholder="Sin definir" />
+                            </label>
+                        </div>
+                        {formErrors.margen && <p className="mt-2 text-xs text-red-500">{formErrors.margen}</p>}
+                    </fieldset>
+                    </div>
+
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.reposicion}`}>
                         <legend className={sectionTitleClassName}><ArchiveBoxIcon /> Reposición y Stock</legend>
                         <p className={`${sectionDescriptionClassName} mb-4`}>Disponibilidad inicial y prioridades de compra.</p>
@@ -2185,23 +2230,6 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 </div>
                             </label>
                         </div>
-                    </fieldset>
-                    </div>
-
-                    <fieldset className={`${sectionClassName} ${SECTION_TINT.margenes}`}>
-                        <legend className={sectionTitleClassName}><ReceiptPercentIcon /> Márgenes</legend>
-                        <p className={`${sectionDescriptionClassName} mb-4`}>Márgenes minorista y mayorista (porcentaje).{!esCombo ? " Al menos uno obligatorio." : " Opcionales para combos."}</p>
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                            <label className="block">
-                                <span className={fieldLabelClassName}>Margen minorista (%)</span>
-                                <input type="number" step={0.5} className={`${inputBaseClassName} ${formErrors.margen ? inputErrorClassName : ""}`} value={margenMinorista} onChange={e => { setMargenMinorista(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.margen) setFormErrors(p => ({ ...p, margen: "" })); }} placeholder="Sin definir" />
-                            </label>
-                            <label className="block">
-                                <span className={fieldLabelClassName}>Margen mayorista (%)</span>
-                                <input type="number" step={0.5} className={`${inputBaseClassName} ${formErrors.margen ? inputErrorClassName : ""}`} value={margenMayorista} onChange={e => { setMargenMayorista(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.margen) setFormErrors(p => ({ ...p, margen: "" })); }} placeholder="Sin definir" />
-                            </label>
-                        </div>
-                        {formErrors.margen && <p className="mt-2 text-xs text-red-500">{formErrors.margen}</p>}
                     </fieldset>
 
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.clasificacion}`}>
@@ -2272,10 +2300,30 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         </div>
                     </fieldset>
 
+                    <fieldset className={`${sectionClassName} ${SECTION_TINT.dimensiones}`}>
+                        <legend className={sectionTitleClassName}><CubeIcon /> Dimensiones Físicas</legend>
+                        <p className={`${sectionDescriptionClassName} mb-4`}>Medidas y atributos técnicos para logística y catálogo.</p>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                            {renderFisico("capacidad", "Capacidad")}
+                            {renderFisico("largo", "Largo")}
+                            {renderFisico("ancho", "Ancho")}
+                            {renderFisico("alto", "Alto")}
+                            {renderFisico("diamboca", "Diám. Boca")}
+                            {renderFisico("diambase", "Diám. Base")}
+                            {renderFisico("espesor", "Espesor")}
+                            <div className="md:col-span-2 xl:col-span-4">
+                                <MultiAsyncSelect label="Aptos" loadOptions={(q) => searchAptos(q)} value={aptosSel} onChange={setAptosSel} placeholder="Buscar apto" inputClassName={inputBaseClassName} chipClassName="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300" />
+                            </div>
+                        </div>
+                    </fieldset>
+
                     {subirMl && (
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.ml}`}>
                         <legend className={sectionTitleClassName}><ShoppingBagIcon /> MercadoLibre</legend>
-                        <p className={`${sectionDescriptionClassName} mb-4`}>Publicación de MercadoLibre (MLA) asociada al producto.</p>
+                        <p className={`${sectionDescriptionClassName} mb-2`}>Publicación de MercadoLibre (MLA) asociada al producto.</p>
+                        {mlaResuelto && (
+                            <a href={mlEditarURL(mlaResuelto)} target="_blank" rel="noreferrer" className="mb-4 inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:underline dark:text-blue-400">Editar en ML ↗</a>
+                        )}
                         <div className="mb-4 grid grid-cols-1">
                             <label className="block">
                                 <span className="flex items-center justify-between gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
@@ -2363,9 +2411,6 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 {mlaVerif.text}
                             </p>
                         )}
-                        {mlaResuelto && (
-                            <a href={mlEditarURL(mlaResuelto)} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline dark:text-blue-400">Editar en ML ↗</a>
-                        )}
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
                             <label className="block xl:col-span-3">
                                 <span className={fieldLabelClassName}>Código MLA</span>
@@ -2426,7 +2471,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 </span>
                                 {cargandoMl
                                     ? indicadorCarga("Cargando datos del canal…")
-                                    : <textarea className={inputBaseClassName} value={descripcionMl} onChange={e => setDescripcionMl(e.target.value)} rows={4} maxLength={20000} disabled={cargandoMl} placeholder="Texto plano (sin HTML). Lo que ves es lo que se publica en ML." />}
+                                    : <textarea className={`${inputBaseClassName} resize-y min-h-[12rem]`} value={descripcionMl} onChange={e => setDescripcionMl(e.target.value)} rows={9} maxLength={20000} disabled={cargandoMl} placeholder="Texto plano (sin HTML). Lo que ves es lo que se publica en ML." />}
                             </label>
                         </div>
 
@@ -2457,7 +2502,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         <div className="mt-6 border-t border-slate-200/70 pt-4 dark:border-slate-700/70">
                             <div className="mb-3 flex items-center gap-1.5">
                                 <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Paquete para envío</span>
-                                <Tooltip content="ML exige las dimensiones del paquete para publicar. Cargá alto/ancho/largo en cm y el peso en kg; se envían a ML en cm y gramos, redondeados a enteros." className="flex items-center">
+                                <Tooltip content="ML exige las dimensiones del paquete para publicar. Cargá alto/ancho/largo en cm (enteros; ML no usa decimales) y el peso en kg (hasta el gramo). Se envían a ML en cm y gramos, redondeados a enteros." className="flex items-center">
                                     <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
                                 </Tooltip>
                             </div>
@@ -2465,25 +2510,25 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                                     <label className="block">
                                         <span className={fieldLabelClassName}>Alto (cm){subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
-                                        <input type="number" min={0.01} className={`${inputBaseClassName} ${formErrors.mlPaqAlto ? inputErrorClassName : ""}`}
+                                        <input type="number" min={1} step={1} className={`${inputBaseClassName} ${formErrors.mlPaqAlto ? inputErrorClassName : ""}`}
                                             value={mlPaqAlto} onChange={e => { setMlPaqAlto(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.mlPaqAlto) setFormErrors(p => ({ ...p, mlPaqAlto: "" })); }} />
                                         {formErrors.mlPaqAlto && <p className="mt-1 text-xs text-red-500">{formErrors.mlPaqAlto}</p>}
                                     </label>
                                     <label className="block">
                                         <span className={fieldLabelClassName}>Ancho (cm){subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
-                                        <input type="number" min={0.01} className={`${inputBaseClassName} ${formErrors.mlPaqAncho ? inputErrorClassName : ""}`}
+                                        <input type="number" min={1} step={1} className={`${inputBaseClassName} ${formErrors.mlPaqAncho ? inputErrorClassName : ""}`}
                                             value={mlPaqAncho} onChange={e => { setMlPaqAncho(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.mlPaqAncho) setFormErrors(p => ({ ...p, mlPaqAncho: "" })); }} />
                                         {formErrors.mlPaqAncho && <p className="mt-1 text-xs text-red-500">{formErrors.mlPaqAncho}</p>}
                                     </label>
                                     <label className="block">
                                         <span className={fieldLabelClassName}>Largo (cm){subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
-                                        <input type="number" min={0.01} className={`${inputBaseClassName} ${formErrors.mlPaqLargo ? inputErrorClassName : ""}`}
+                                        <input type="number" min={1} step={1} className={`${inputBaseClassName} ${formErrors.mlPaqLargo ? inputErrorClassName : ""}`}
                                             value={mlPaqLargo} onChange={e => { setMlPaqLargo(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.mlPaqLargo) setFormErrors(p => ({ ...p, mlPaqLargo: "" })); }} />
                                         {formErrors.mlPaqLargo && <p className="mt-1 text-xs text-red-500">{formErrors.mlPaqLargo}</p>}
                                     </label>
                                     <label className="block">
                                         <span className={fieldLabelClassName}>Peso (kg){subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
-                                        <input type="number" min={0.01} className={`${inputBaseClassName} ${formErrors.mlPaqPeso ? inputErrorClassName : ""}`}
+                                        <input type="number" min={0.1} step={0.1} className={`${inputBaseClassName} ${formErrors.mlPaqPeso ? inputErrorClassName : ""}`}
                                             value={mlPaqPeso} onChange={e => { setMlPaqPeso(e.target.value === "" ? "" : Number(e.target.value)); if (formErrors.mlPaqPeso) setFormErrors(p => ({ ...p, mlPaqPeso: "" })); }} />
                                         {formErrors.mlPaqPeso && <p className="mt-1 text-xs text-red-500">{formErrors.mlPaqPeso}</p>}
                                     </label>
@@ -2494,27 +2539,13 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                     </fieldset>
                     )}
 
-                    <fieldset className={`${sectionClassName} ${SECTION_TINT.dimensiones}`}>
-                        <legend className={sectionTitleClassName}><CubeIcon /> Dimensiones Físicas</legend>
-                        <p className={`${sectionDescriptionClassName} mb-4`}>Medidas y atributos técnicos para logística y catálogo.</p>
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                            {renderFisico("capacidad", "Capacidad")}
-                            {renderFisico("largo", "Largo")}
-                            {renderFisico("ancho", "Ancho")}
-                            {renderFisico("alto", "Alto")}
-                            {renderFisico("diamboca", "Diám. Boca")}
-                            {renderFisico("diambase", "Diám. Base")}
-                            {renderFisico("espesor", "Espesor")}
-                            <div className="md:col-span-2 xl:col-span-4">
-                                <MultiAsyncSelect label="Aptos" loadOptions={(q) => searchAptos(q)} value={aptosSel} onChange={setAptosSel} placeholder="Buscar apto" inputClassName={inputBaseClassName} chipClassName="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300" />
-                            </div>
-                        </div>
-                    </fieldset>
-
                     {/* TIENDA NUBE · KT HOGAR */}
                     {subirKtHogar && (
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.seo}`}>
                         <legend className={sectionTitleClassName}><BuildingStorefrontIcon className="h-5 w-5" /> Tienda Nube · KT HOGAR</legend>
+                        {estadoHogar?.productId != null && NUBE_ADMIN_SUBDOMINIO.HOGAR && (
+                            <a href={nubeEditarURL(NUBE_ADMIN_SUBDOMINIO.HOGAR, estadoHogar.productId)} target="_blank" rel="noreferrer" className="mb-3 inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:underline dark:text-blue-400">Editar en Tienda Nube ↗</a>
+                        )}
                         <div className="grid grid-cols-1 gap-4">
                             <label className="block">
                                 <span className={fieldLabelClassName}>Título Nube</span>
@@ -2576,6 +2607,9 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                     {subirKtGastro && (
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.seo}`}>
                         <legend className={sectionTitleClassName}><BuildingStorefrontIcon className="h-5 w-5" /> Tienda Nube · KT GASTRO</legend>
+                        {estadoGastro?.productId != null && NUBE_ADMIN_SUBDOMINIO.GASTRO && (
+                            <a href={nubeEditarURL(NUBE_ADMIN_SUBDOMINIO.GASTRO, estadoGastro.productId)} target="_blank" rel="noreferrer" className="mb-3 inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:underline dark:text-blue-400">Editar en Tienda Nube ↗</a>
+                        )}
                         {esEquipamiento && (
                             <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
                                 Producto de <b>EQUIPAMIENTO</b>: al subir a KT GASTRO se le agregará <b>*</b> al final del título y un bullet <b>&quot;ENVIO A COTIZAR&quot;</b> a la descripción.

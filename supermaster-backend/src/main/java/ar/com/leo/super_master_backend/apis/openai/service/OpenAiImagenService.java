@@ -69,15 +69,26 @@ public class OpenAiImagenService {
 
     /** Edita la imagen cruda vía OpenAI y devuelve la carátula según el formato configurado (tal cual de gpt). */
     public byte[] generarCaratula(byte[] cruda, String filename) {
+        return generarCaratula(cruda, filename, null);
+    }
+
+    /**
+     * Genera la carátula sustituyendo el placeholder {@code {NOMBRE_PRODUCTO}} del prompt por el
+     * nombre del producto (título Nube). Si el nombre es null/blanco, el placeholder se reemplaza
+     * por vacío para no filtrar el token literal a OpenAI.
+     */
+    public byte[] generarCaratula(byte[] cruda, String filename, String nombreProducto) {
         String apiKey = apiKey();
         if (apiKey == null || apiKey.isBlank())
             throw new ServiceNotConfiguredException("OPENAI_IMAGE",
                     "Falta image_api_key en openai_tokens.json");
 
         var cfg = configService.cargar();
+        String nombre = (nombreProducto == null) ? "" : nombreProducto.trim();
+        String prompt = cfg.getContenido().replace("{NOMBRE_PRODUCTO}", nombre);
         MultiValueMap<String, Object> parts = new LinkedMultiValueMap<>();
         parts.add("model", cfg.getModel());
-        parts.add("prompt", cfg.getContenido());
+        parts.add("prompt", prompt);
         parts.add("size", cfg.getSize());
         parts.add("output_format", cfg.getOutputFormat());
         parts.add("quality", cfg.getQuality());

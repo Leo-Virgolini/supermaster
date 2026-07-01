@@ -17,14 +17,19 @@ public class CaratulaService {
 
     /** Genera (sin guardar) a partir de la cruda automática del SKU. */
     public GeneracionCaratula generar(String sku) {
-        return generar(sku, null);
+        return generar(sku, null, null);
+    }
+
+    public GeneracionCaratula generar(String sku, String crudaNombre) {
+        return generar(sku, crudaNombre, null);
     }
 
     /**
      * Genera (sin guardar) a partir de una cruda elegida del SKU. Si {@code crudaNombre} es null,
      * resuelve la cruda automáticamente. Si no es null, valida que pertenezca al SKU.
+     * {@code nombreProducto} (título Nube) reemplaza el placeholder {@code {NOMBRE_PRODUCTO}} del prompt.
      */
-    public GeneracionCaratula generar(String sku, String crudaNombre) {
+    public GeneracionCaratula generar(String sku, String crudaNombre, String nombreProducto) {
         String nombre;
         if (crudaNombre == null) {
             nombre = imagenService.resolverCrudaPorSku(sku);
@@ -35,7 +40,7 @@ public class CaratulaService {
             nombre = crudaNombre;
         }
         byte[] cruda = imagenService.leerCrudaBytes(nombre);
-        byte[] generada = openAiImagenService.generarCaratula(cruda, nombre);
+        byte[] generada = openAiImagenService.generarCaratula(cruda, nombre, nombreProducto);
         return new GeneracionCaratula(cruda, nombre, generada);
     }
 

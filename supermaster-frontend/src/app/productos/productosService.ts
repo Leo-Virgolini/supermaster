@@ -536,7 +536,7 @@ export type EstadoCanal = {
 };
 export type SeoCanal = { title: string | null; description: string | null; tags: string | null };
 export type MlCanal = { estado: EstadoCanal; categoryId: string | null; categoryNombre: string | null; atributos: ProductoMlAtributo[]; descripcion: string | null; mlaResuelto: string | null; mlPaqAlto: number | null; mlPaqAncho: number | null; mlPaqLargo: number | null; mlPaqPeso: number | null; titulo: string | null };
-export type NubeCanal = { estado: EstadoCanal; descripcion: string | null; seo: SeoCanal | null; titulo: string | null; peso: string | null; profundidad: string | null; ancho: string | null; alto: string | null };
+export type NubeCanal = { estado: EstadoCanal; descripcion: string | null; seo: SeoCanal | null; titulo: string | null; peso: string | null; profundidad: string | null; ancho: string | null; alto: string | null; productId: number | null };
 export type DuxCanal = { estado: EstadoCanal };
 export type EstadoPublicacionUpdate = { ml?: string | null; hogar?: boolean | null; gastro?: boolean | null };
 
@@ -587,9 +587,23 @@ export function mlEditarURL(codigo: string): string {
 	return `https://www.mercadolibre.com.ar/publicaciones/${codigo}/modificar`;
 }
 
-export async function generarCaratulaAPI(sku: string, crudaNombre?: string): Promise<{ imagenBase64: string; formato: string; crudaBase64: string; crudaFormato: string }> {
-	const q = crudaNombre ? `?cruda=${encodeURIComponent(crudaNombre)}` : "";
-	const r = await fetchAPI(`${API_BASE_URL}/api/imagenes/caratula/generar/${encodeURIComponent(sku)}${q}`, { method: "POST" });
+// Subdominio del admin de cada tienda Nube (para armar el link "Editar en Tienda Nube").
+// HOGAR: pendiente de confirmar el subdominio real; hasta entonces no se muestra el link.
+export const NUBE_ADMIN_SUBDOMINIO: Record<"HOGAR" | "GASTRO", string> = {
+	HOGAR: "",
+	GASTRO: "kitchentoolsgastronomia",
+};
+// productId es el id del producto EN NUBE (lo devuelve su API), no el de la BD local.
+export function nubeEditarURL(subdominio: string, productId: number): string {
+	return `https://${subdominio}.mitiendanube.com/admin/products/${productId}`;
+}
+
+export async function generarCaratulaAPI(sku: string, crudaNombre?: string, tituloNube?: string): Promise<{ imagenBase64: string; formato: string; crudaBase64: string; crudaFormato: string }> {
+	const params = new URLSearchParams();
+	if (crudaNombre) params.set("cruda", crudaNombre);
+	if (tituloNube && tituloNube.trim()) params.set("tituloNube", tituloNube.trim());
+	const qs = params.toString();
+	const r = await fetchAPI(`${API_BASE_URL}/api/imagenes/caratula/generar/${encodeURIComponent(sku)}${qs ? `?${qs}` : ""}`, { method: "POST" });
 	if (!r.ok) throw new Error(await extraerMensajeError(r, "No se pudo generar la carátula"));
 	return r.json();
 }

@@ -13,7 +13,7 @@ class MlValidacionRequeridosTest {
 
     /** Helper: crea un MlAtributoDefDTO mínimo con id y required. */
     private static MlAtributoDefDTO def(String id, boolean required) {
-        return new MlAtributoDefDTO(id, id, "STRING", List.of(), List.of(), null, required, false, false, "PRINCIPALES", 1, null, null, null);
+        return new MlAtributoDefDTO(id, id, "STRING", List.of(), List.of(), null, required, false, false, "PRINCIPALES", 1, null, null, null, false, false);
     }
 
     /** Producto base sin atributos guardados. */

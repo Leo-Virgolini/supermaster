@@ -231,7 +231,8 @@ public class MlFichaService {
         return new MlAtributoDefDTO(
                 id, name, valueType, values, units, defaultUnit,
                 required, conditional, multivalued, null,
-                relevance, maxLen, null, null);
+                relevance, maxLen, null, null,
+                hasTag(a, "allow_variations"), hasTag(a, "variation_attribute"));
     }
 
     private static boolean hasTag(JsonNode attr, String tag) {

@@ -163,6 +163,9 @@ public class MlCategoriaAtributoService {
             boolean required    = !tags.isMissingNode() && (tags.has("required") || tags.has("new_required"));
             boolean conditional = !tags.isMissingNode() && tags.has("conditional_required");
             boolean multivalued = !tags.isMissingNode() && tags.has("multivalued");
+            // Variantes (modelo nuevo ML): allow_variations = puede ser eje; variation_attribute = puede ir por variante.
+            boolean allowVariations    = !tags.isMissingNode() && tags.has("allow_variations");
+            boolean variationAttribute = !tags.isMissingNode() && tags.has("variation_attribute");
 
             // values[]
             List<MlAtributoValorDTO> values = new ArrayList<>();
@@ -207,7 +210,8 @@ public class MlCategoriaAtributoService {
             result.add(new MlAtributoDefDTO(
                     id, name, valueType, values, allowedUnits, defaultUnit,
                     required, conditional, multivalued, grupo,
-                    relevance, valueMaxLength, example, hint
+                    relevance, valueMaxLength, example, hint,
+                    allowVariations, variationAttribute
             ));
         }
         // Ordenar por relevance ascendente (1 = más importante primero); estable conserva el orden de ML.

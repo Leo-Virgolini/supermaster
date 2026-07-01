@@ -20,6 +20,8 @@ public record MlAtributoDefDTO(
         int relevance,
         Integer valueMaxLength,
         String example,
-        String hint
+        String hint,
+        boolean allowVariations,
+        boolean variationAttribute
 ) {
 }

@@ -50,6 +50,25 @@ class MlCategoriaAtributoServiceTest {
     }
 
     @Test
+    void parsear_marcaEjesDeVariacion() throws Exception {
+        String json = """
+          [
+            {"id":"COLOR","name":"Color","value_type":"list",
+             "tags":{"allow_variations":true,"hidden":true},
+             "values":[{"id":"52049","name":"Negro"}]},
+            {"id":"MODEL","name":"Modelo","value_type":"string","tags":{}}
+          ]""";
+        JsonNode arr = new ObjectMapper().readTree(json);
+        List<MlAtributoDefDTO> defs = MlCategoriaAtributoService.parsear(arr);
+
+        MlAtributoDefDTO color = defs.stream().filter(d -> d.id().equals("COLOR")).findFirst().orElseThrow();
+        MlAtributoDefDTO model = defs.stream().filter(d -> d.id().equals("MODEL")).findFirst().orElseThrow();
+        assertThat(color.allowVariations()).isTrue();
+        assertThat(color.variationAttribute()).isFalse();
+        assertThat(model.allowVariations()).isFalse();
+    }
+
+    @Test
     void parsear_ordenaPorRelevance_yUsaTooltipComoHintFallback() throws Exception {
         String json = """
           [

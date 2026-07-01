@@ -31,7 +31,8 @@ class MlCategoriaAtributosEndpointTest {
                 "BICYCLE_TYPE", "Tipo de bicicleta", "string",
                 List.of(new MlAtributoValorDTO("1", "MTB", null)),
                 List.of(), null,
-                true, false, false, "PRINCIPALES", 1, null, null, null
+                true, false, false, "PRINCIPALES", 1, null, null, null,
+                false, false
         );
         when(service.obtenerAtributos(categoryId)).thenReturn(List.of(atributo));
 

@@ -127,7 +127,7 @@ public interface ProductoMapper {
     private List<String> obtenerSegmentos(Producto entity) {
         return entity.getProductoSegmentos() != null
                 ? entity.getProductoSegmentos().stream()
-                    .map(psl -> psl.getSegmento().getNombre())
+                    .map(ps -> ps.getSegmento().getNombre())
                     .sorted()
                     .toList()
                 : List.of();
@@ -418,7 +418,7 @@ public interface ProductoMapper {
                         : List.of(),
                 producto.getProductoSegmentos() != null
                         ? producto.getProductoSegmentos().stream()
-                            .map(psl -> psl.getSegmento().getNombre())
+                            .map(ps -> ps.getSegmento().getNombre())
                             .sorted()
                             .toList()
                         : List.of(),

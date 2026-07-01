@@ -21,3 +21,6 @@ ALTER TABLE supermaster.producto_segmento
     ADD CONSTRAINT `fk_producto_segmento_segmento`
         FOREIGN KEY (`id_segmento`) REFERENCES supermaster.segmentos (`id_segmento`)
         ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- 4. Renombrar índice UNIQUE sobre nombre (limpieza cosmética: nombre viejo era cliente_UNIQUE)
+ALTER TABLE supermaster.segmentos RENAME INDEX cliente_UNIQUE TO segmento_UNIQUE;

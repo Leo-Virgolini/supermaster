@@ -115,7 +115,7 @@ public class SegmentoServiceImpl implements SegmentoService {
         }
         return productoSegmentoRepository.findBySegmentoId(segmentoId)
                 .stream()
-                .map(pc -> productoMapper.toResumenDTO(pc.getProducto()))
+                .map(ps -> productoMapper.toResumenDTO(ps.getProducto()))
                 .toList();
     }
 

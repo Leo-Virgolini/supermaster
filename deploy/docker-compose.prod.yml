@@ -48,6 +48,9 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       APP_SECRETS_DIR: /app/secrets
       APP_IMAGENES_DIR: /app/imagenes/
+      # Dominio(s) del frontend permitidos por CORS. Coolify lo inyecta con el
+      # dominio real del front; fallback "*" para no romper si aún no se cargó.
+      APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-*}
       JWT_ACCESS_TOKEN_EXPIRATION_MS: ${JWT_EXPIRATION:-43200000}
       SPRING_DEVTOOLS_RESTART_ENABLED: "false"
     volumes:
@@ -71,6 +74,8 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_DATA_SOURCE: api
+        # Dominio público del backend (lo inyecta Coolify). Ej: https://api.tudominio.com
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
     container_name: supermaster-frontend
     # Sin mapeo de puertos: Coolify enruta al puerto interno 3000 por dominio.
     expose:

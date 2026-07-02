@@ -12,10 +12,15 @@ RUN npm ci
 # Copiar el resto del codigo
 COPY . .
 
-# NEXT_PUBLIC_API_BASE_URL no se setea: el frontend detecta el hostname
-# del navegador automáticamente (ver src/app/config/runtime.ts)
+# NEXT_PUBLIC_* se hornea en build time: hay que pasarlas como build args.
 ARG NEXT_PUBLIC_DATA_SOURCE=api
 ENV NEXT_PUBLIC_DATA_SOURCE=$NEXT_PUBLIC_DATA_SOURCE
+
+# URL pública del backend. Si queda vacía, el frontend detecta el hostname
+# del navegador y le pega :8080 (ver src/app/config/runtime.ts) — sirve para
+# dev, pero en prod (Coolify) hay que setearla al dominio real del backend.
+ARG NEXT_PUBLIC_API_BASE_URL=
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 
 # Build de produccion
 RUN npm run build

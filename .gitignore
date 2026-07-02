@@ -77,10 +77,15 @@ out/
 
 # -- Deploy ---------------------------------------------------------------
 deploy/.env
+deploy/.env.deploy
 
 # -- Logs y backups del runtime (montados como volúmenes en docker) ------
 /logs/
 /backups/
+
+# -- Superpowers (andamiaje del flujo de skills, no código) --------------
+.superpowers/
+docs/superpowers/
 
 # -- OS -------------------------------------------------------------------
 .DS_Store

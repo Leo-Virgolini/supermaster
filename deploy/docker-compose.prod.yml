@@ -1,0 +1,129 @@
+# ==============================================
+# docker-compose.prod.yml — SuperMaster (Coolify / Ubuntu)
+# ==============================================
+# Despliegue en servidor Linux headless vía Coolify.
+# - Coolify expone backend y frontend por dominio con HTTPS (reverse proxy
+#   propio), por eso NO se publican puertos al host.
+# - Las credenciales (DB_USERNAME, DB_PASSWORD, ...) las inyecta Coolify como
+#   variables de entorno; acá van como ${VAR} SIN defaults inseguros.
+# - Los volúmenes usan rutas del servidor bajo /data/supermaster/*.
+#
+# Este archivo NO reemplaza al docker-compose.yml de desarrollo (Windows).
+
+services:
+  db:
+    image: mysql:8.4
+    container_name: supermaster-db
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: supermaster
+      TZ: America/Argentina/Buenos_Aires
+    # Sin mapeo de puertos: la BD solo es accesible por la red interna de Docker.
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --innodb-buffer-pool-size=512M
+      --max-connections=100
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ../supermaster-backend
+      dockerfile: Dockerfile
+    container_name: supermaster-backend
+    # Sin mapeo de puertos: Coolify enruta al puerto interno 8080 por dominio.
+    expose:
+      - "8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/supermaster?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Argentina/Buenos_Aires&characterEncoding=UTF-8&tinyInt1isBit=false&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&rewriteBatchedStatements=true
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      APP_SECRETS_DIR: /app/secrets
+      APP_IMAGENES_DIR: /app/imagenes/
+      JWT_ACCESS_TOKEN_EXPIRATION_MS: ${JWT_EXPIRATION:-43200000}
+      SPRING_DEVTOOLS_RESTART_ENABLED: "false"
+    volumes:
+      # Tokens/credenciales de APIs (.json) — jwt-secret.key se autogenera acá.
+      # Carpeta del host: más fácil subir/leer los .json en el servidor.
+      - /data/supermaster/secrets:/app/secrets
+      # Imágenes: por ahora volumen local en el servidor.
+      - /data/supermaster/imagenes:/app/imagenes
+      # Salida de catálogos PDF (luego se sincroniza a Google Drive con rclone, aparte).
+      - /data/supermaster/catalogos:/app/catalogos-salida
+      # Logs persistentes del backend.
+      - /data/supermaster/logs:/app/logs
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ../supermaster-frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_DATA_SOURCE: api
+    container_name: supermaster-frontend
+    # Sin mapeo de puertos: Coolify enruta al puerto interno 3000 por dominio.
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  db-backup:
+    image: mysql:8.4
+    container_name: supermaster-db-backup
+    environment:
+      MYSQL_PWD: ${DB_PASSWORD}
+      TZ: America/Argentina/Buenos_Aires
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        while true; do
+          # Calcular segundos hasta la 1:00 AM
+          AHORA=$$(date +%s)
+          TARGET=$$(date -d "today 01:00" +%s)
+          if [ $$AHORA -ge $$TARGET ]; then
+            TARGET=$$(date -d "tomorrow 01:00" +%s)
+          fi
+          ESPERA=$$((TARGET - AHORA))
+          echo "[`date +%Y-%m-%d_%H:%M`] Próximo backup a la 01:00 (en $$((ESPERA / 3600))h $$((ESPERA % 3600 / 60))m)"
+          sleep $$ESPERA
+          # Ejecutar backup
+          FECHA=$$(date +%Y-%m-%d_%H-%M)
+          echo "[$$FECHA] Iniciando backup..."
+          mysqldump -h db -u ${DB_USERNAME} --single-transaction --routines --triggers supermaster | gzip > /backups/supermaster_$$FECHA.sql.gz
+          if [ $$? -eq 0 ]; then
+            echo "[$$FECHA] Backup completado: supermaster_$$FECHA.sql.gz"
+          else
+            echo "[$$FECHA] Error en el backup"
+          fi
+          find /backups -name "supermaster_*.sql.gz" -mtime +7 -delete
+          sleep 60
+        done
+    volumes:
+      - /data/supermaster/backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  mysql_data:

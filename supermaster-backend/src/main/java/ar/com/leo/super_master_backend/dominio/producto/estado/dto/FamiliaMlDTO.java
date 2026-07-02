@@ -11,10 +11,11 @@ public record FamiliaMlDTO(
         String modelo,
         String familyId,
         String familyName,
+        String ejeAtributoId,
         String ejeNombre,
         List<FamiliaVarianteDTO> variantes
 ) {
     public static FamiliaMlDTO ninguna() {
-        return new FamiliaMlDTO(null, null, null, null, List.of());
+        return new FamiliaMlDTO(null, null, null, null, null, List.of());
     }
 }

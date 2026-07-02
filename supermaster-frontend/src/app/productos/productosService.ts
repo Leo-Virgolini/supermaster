@@ -558,7 +558,7 @@ async function getEstadoCanal<T>(id: number, canal: string): Promise<T> {
 	return r.json();
 }
 export type FamiliaVariante = { productoId: number | null; sku: string | null; titulo: string | null; esActual: boolean; ejeValor: string | null; stock: number | null; status: string | null; variationId: number | null };
-export type FamiliaMl = { modelo: string | null; familyId: string | null; familyName: string | null; ejeNombre: string | null; variantes: FamiliaVariante[] };
+export type FamiliaMl = { modelo: string | null; familyId: string | null; familyName: string | null; ejeAtributoId: string | null; ejeNombre: string | null; variantes: FamiliaVariante[] };
 export const getFamiliaAPI = (id: number) => getEstadoCanal<FamiliaMl>(id, "familia");
 // Trae un producto por id (para abrir el modal de otra variante desde el panel de familia).
 export const getProductoByIdAPI = async (id: number): Promise<ProductoDTO> => {

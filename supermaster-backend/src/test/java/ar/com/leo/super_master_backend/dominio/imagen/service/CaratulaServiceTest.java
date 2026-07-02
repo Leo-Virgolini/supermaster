@@ -27,7 +27,7 @@ class CaratulaServiceTest {
     void generar_conCrudaElegida_usaEsaCruda() {
         when(imagenService.resolverCrudasPorSku("ABC")).thenReturn(List.of("ABC.jpg", "ABC_1.jpg"));
         when(imagenService.leerCrudaBytes("ABC_1.jpg")).thenReturn(new byte[]{1});
-        when(openAiImagenService.generarCaratula(new byte[]{1}, "ABC_1.jpg")).thenReturn(new byte[]{2});
+        when(openAiImagenService.generarCaratula(new byte[]{1}, "ABC_1.jpg", null)).thenReturn(new byte[]{2});
 
         GeneracionCaratula g = service.generar("ABC", "ABC_1.jpg");
 

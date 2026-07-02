@@ -8,7 +8,9 @@ import ar.com.leo.super_master_backend.dominio.producto.estado.dto.DuxCanalDTO;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoPublicacionUpdateDTO;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.MlCanalDTO;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.NubeCanalDTO;
+import ar.com.leo.super_master_backend.apis.ml.service.MlCategoriaAtributoService;
 import ar.com.leo.super_master_backend.dominio.producto.mla.entity.Mla;
+import ar.com.leo.super_master_backend.dominio.producto.mla.repository.MlaRepository;
 import ar.com.leo.super_master_backend.dominio.producto.repository.ProductoRepository;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
@@ -25,7 +27,9 @@ class EstadoPublicacionServiceTest {
     private final MercadoLibreService ml = mock(MercadoLibreService.class);
     private final TiendaNubeService nube = mock(TiendaNubeService.class);
     private final DuxService dux = mock(DuxService.class);
-    private final EstadoPublicacionService service = new EstadoPublicacionService(repo, ml, nube, dux);
+    private final MlaRepository mlaRepo = mock(MlaRepository.class);
+    private final MlCategoriaAtributoService catAttr = mock(MlCategoriaAtributoService.class);
+    private final EstadoPublicacionService service = new EstadoPublicacionService(repo, ml, nube, dux, mlaRepo, catAttr);
 
     private static tools.jackson.databind.JsonNode json(String s) {
         return new ObjectMapper().readTree(s);

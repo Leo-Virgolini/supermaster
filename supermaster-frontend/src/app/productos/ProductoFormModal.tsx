@@ -700,6 +700,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             else notificar.success(`Variante ${nvSku.trim()} agregada a la familia`);
             if (editandoProductoId) { try { setFamilia(await getFamiliaAPI(editandoProductoId)); } catch { /* se refresca al reabrir */ } }
             setNvSku(""); setNvEjeValorId(null); setNvEjeValorNombre(""); setNvStock(0); setNvEan(""); setAgregandoVariante(false);
+        } catch (e) {
+            if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "No se pudo crear la variante");
         } finally { setIsSaving(false); }
     };
 
@@ -717,6 +719,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
 
     const handleCreate = async () => {
         if (!validateForm()) return;
+        setResultadosVariantes([]); // limpia resultados de un intento de variantes anterior
         if (tieneVariantes) { await handleCrearConVariantes(); return; }
         try {
             setIsSaving(true);
@@ -2548,7 +2551,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 <VariantesSection
                                     tiene={tieneVariantes} onTiene={setTieneVariantes}
                                     ejeOpciones={ejeOpciones}
-                                    ejeAtributoId={ejeAtributoId} onEje={setEjeAtributoId}
+                                    ejeAtributoId={ejeAtributoId}
+                                    onEje={(id) => { setEjeAtributoId(id); setEjeValorBaseId(null); setEjeValorBase(""); setVariantesBorrador(vs => vs.map(v => ({ ...v, ejeValorId: null, ejeValorNombre: "" }))); }}
                                     ejeValorBase={ejeValorBase} ejeValorBaseId={ejeValorBaseId}
                                     onEjeValorBase={(id, nombre) => { setEjeValorBaseId(id); setEjeValorBase(nombre); }}
                                     skuBase={sku}
@@ -2595,13 +2599,14 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                     ))}
                                 </ul>
                                 {familia.modelo === "NUEVO" && (!agregandoVariante ? (
-                                    <button type="button" onClick={() => setAgregandoVariante(true)}
+                                    <button type="button" onClick={() => { setAgregandoVariante(true); setEjeAtributoId(familia.ejeAtributoId ?? ""); setNvEjeValorId(null); setNvEjeValorNombre(""); }}
                                         className="mt-2 rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300">+ Agregar variante</button>
                                 ) : (
                                     <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50/70 p-2.5 dark:border-slate-700 dark:bg-slate-800/60">
                                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                            <label className="block"><span className="text-[11px] text-slate-500">Eje</span>
-                                                <select className={`${selectBaseClassName} w-full`} value={ejeAtributoId} onChange={e => setEjeAtributoId(e.target.value)}>
+                                            <label className="block"><span className="text-[11px] text-slate-500">Eje{familia.ejeAtributoId ? " (de la familia)" : ""}</span>
+                                                <select className={`${selectBaseClassName} w-full`} value={ejeAtributoId} disabled={!!familia.ejeAtributoId}
+                                                    onChange={e => { setEjeAtributoId(e.target.value); setNvEjeValorId(null); setNvEjeValorNombre(""); }}>
                                                     <option value="">— elegir eje —</option>
                                                     {ejeOpciones.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
                                                 </select></label>

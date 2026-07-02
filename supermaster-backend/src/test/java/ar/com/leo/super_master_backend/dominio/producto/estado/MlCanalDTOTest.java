@@ -12,7 +12,7 @@ class MlCanalDTOTest {
     @Test
     void exponeTitulo() {
         MlCanalDTO dto = new MlCanalDTO(EstadoCanalDTO.noPublicado(), null, null,
-                List.of(), null, null, null, null, null, null, "Olla acero 24cm");
+                List.of(), null, null, null, null, null, null, "Olla acero 24cm", null);
         assertThat(dto.titulo()).isEqualTo("Olla acero 24cm");
     }
 }

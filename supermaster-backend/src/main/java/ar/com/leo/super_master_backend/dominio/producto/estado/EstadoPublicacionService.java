@@ -137,6 +137,7 @@ public class EstadoPublicacionService {
         String categoryId = (itemActual != null) ? itemActual.path("category_id").asString(null) : null;
         List<MlAtributoDefDTO> ejeDefs = ejesDeCategoria(categoryId);
         Set<String> ejeIds = ejeDefs.stream().map(MlAtributoDefDTO::id).collect(Collectors.toSet());
+        String ejeAtributoId = ejeDefs.isEmpty() ? null : ejeDefs.get(0).id();
         String ejeNombre = ejeDefs.isEmpty() ? null : ejeDefs.get(0).name();
 
         List<FamiliaVarianteDTO> variantes = new ArrayList<>();
@@ -157,12 +158,13 @@ public class EstadoPublicacionService {
         }
         variantes.sort(Comparator.comparing(FamiliaVarianteDTO::sku, Comparator.nullsLast(Comparator.naturalOrder())));
         return new FamiliaMlDTO("NUEVO", mla != null ? mla.getFamilyId() : null,
-                familyName != null ? familyName : (mla != null ? mla.getFamilyName() : null), ejeNombre, variantes);
+                familyName != null ? familyName : (mla != null ? mla.getFamilyName() : null), ejeAtributoId, ejeNombre, variantes);
     }
 
     /** Familia legacy: se arma del array variations[] del ítem. */
     private FamiliaMlDTO familiaLegacy(JsonNode item, Integer productoId) {
         List<MlAtributoDefDTO> ejeDefs = ejesDeCategoria(item.path("category_id").asString(null));
+        String ejeAtributoId = ejeDefs.isEmpty() ? null : ejeDefs.get(0).id();
         String ejeNombre = ejeDefs.isEmpty() ? null : ejeDefs.get(0).name();
         String status = item.path("status").asString(null);
         List<FamiliaVarianteDTO> variantes = new ArrayList<>();
@@ -176,7 +178,7 @@ public class EstadoPublicacionService {
             variantes.add(new FamiliaVarianteDTO(prodId, sku, null,
                     prodId != null && prodId.equals(productoId), ejeValor, stock, status, variationId));
         }
-        return new FamiliaMlDTO("LEGACY", null, item.path("title").asString(null), ejeNombre, variantes);
+        return new FamiliaMlDTO("LEGACY", null, item.path("title").asString(null), ejeAtributoId, ejeNombre, variantes);
     }
 
     /** Atributos de la categoría que permiten variación (allow_variations). Best-effort. */
@@ -230,6 +232,9 @@ public class EstadoPublicacionService {
      * Quita un producto de su familia de variantes: PAUSA su publicación en ML (best-effort,
      * reversible) y lo DESASOCIA localmente (limpia family_id/family_name de su MLA). El producto y
      * su MLA no se borran. No-op si el producto no es de familia.
+     * Supuesto: en el modelo nuevo (User Products) cada variante tiene su PROPIO MLA (1:1), así que
+     * limpiar la familia del MLA afecta solo a esta variante. Si un MLA estuviera compartido por
+     * varios productos, esto los desasociaría a todos.
      */
     @Transactional
     public void quitarDeFamilia(Integer productoId) {

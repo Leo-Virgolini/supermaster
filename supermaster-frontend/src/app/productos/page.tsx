@@ -11,10 +11,11 @@ import { useAuth } from "../context/AuthContext";
 import { useProductos } from "./useProductos";
 import ProductosFilterPanel, { ProductosFilterToggle } from "./ProductosFilterBar";
 import {
-    getProductosForExportAPI,
+    getProductosForExportAPI, getProductoByIdAPI,
     searchMarcas, searchClasifGral, searchClasifGastro, searchTipos, searchProveedores, searchOrigenes, searchMateriales, searchMlas,
     searchCatalogos, searchAptos, searchSegmentos, searchCanales,
 } from "./productosService";
+import { notificar } from "../utils/notificar";
 import { getColumns } from "./columns";
 import ProductoFormModal from "./ProductoFormModal";
 import { ProductoDTO, ProductoPatchDTO } from "./types";
@@ -52,6 +53,11 @@ export default function ProductosPage() {
     const abrirCrear = useCallback(() => { setProductoAEditar(null); setIsModalOpen(true); }, []);
     const abrirEdicion = useCallback((p: ProductoDTO) => { setProductoAEditar(p); setIsModalOpen(true); }, []);
     const cerrarModal = useCallback(() => { setIsModalOpen(false); setProductoAEditar(null); }, []);
+    // Abre el modal para editar otra variante (desde el panel de familia): trae su DTO y lo carga.
+    const editarOtro = useCallback(async (id: number) => {
+        try { setProductoAEditar(await getProductoByIdAPI(id)); setIsModalOpen(true); }
+        catch (e) { notificar.error(e instanceof Error ? e.message : "No se pudo abrir la variante"); }
+    }, []);
 
     // Sync header search param (también limpia cuando se remueve ?q del URL)
     useEffect(() => {
@@ -375,11 +381,13 @@ export default function ProductosPage() {
 
             {isModalOpen && (
                 <ProductoFormModal
+                    key={productoAEditar?.id ?? "nuevo"}
                     producto={productoAEditar}
                     canExportarDux={canExportarDux}
                     createProducto={createProducto}
                     onClose={cerrarModal}
                     onSuccess={refresh}
+                    onEditarOtro={editarOtro}
                 />
             )}
 

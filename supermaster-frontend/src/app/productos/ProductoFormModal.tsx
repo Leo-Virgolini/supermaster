@@ -134,9 +134,11 @@ type ProductoFormModalProps = {
     createProducto: (data: ProductoCreateDTO, afterCreate?: (id: number) => Promise<void>) => Promise<ProductoDTO>;
     onClose: () => void;
     onSuccess: () => void | Promise<void>;
+    /** Abre el modal para editar OTRO producto (usado por el link "Editar" de una variante hermana). */
+    onEditarOtro?: (productoId: number) => void;
 };
 
-export default function ProductoFormModal({ producto, canExportarDux, createProducto, onClose, onSuccess }: ProductoFormModalProps) {
+export default function ProductoFormModal({ producto, canExportarDux, createProducto, onClose, onSuccess, onEditarOtro }: ProductoFormModalProps) {
     const [isSaving, setIsSaving] = useState(false);
 
     // --- Campos del Formulario ---
@@ -2567,15 +2569,20 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                             <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono dark:bg-slate-700">{v.sku}</span>
                                             <span className="truncate">{v.titulo}</span>
                                             {v.esActual && <span className="text-[10px] text-blue-500">(este)</span>}
-                                            {quitandoId === v.productoId ? (
-                                                <span className="ml-auto flex items-center gap-1">
-                                                    <span className="text-[10px] text-slate-500">¿Pausar y quitar?</span>
-                                                    <button type="button" disabled={isSaving} onClick={() => handleQuitarDeFamilia(v.productoId)} className="rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white disabled:opacity-50">Sí</button>
-                                                    <button type="button" disabled={isSaving} onClick={() => setQuitandoId(null)} className="rounded border border-slate-300 px-1.5 py-0.5 text-[10px] dark:border-slate-600">No</button>
-                                                </span>
-                                            ) : (
-                                                <button type="button" onClick={() => setQuitandoId(v.productoId)} className="ml-auto text-[10px] font-medium text-red-500 hover:underline">Quitar</button>
-                                            )}
+                                            <span className="ml-auto flex items-center gap-2">
+                                                {!v.esActual && onEditarOtro && (
+                                                    <button type="button" onClick={() => onEditarOtro(v.productoId)} className="text-[10px] font-medium text-blue-600 hover:underline dark:text-blue-400">Editar</button>
+                                                )}
+                                                {quitandoId === v.productoId ? (
+                                                    <span className="flex items-center gap-1">
+                                                        <span className="text-[10px] text-slate-500">¿Pausar y quitar?</span>
+                                                        <button type="button" disabled={isSaving} onClick={() => handleQuitarDeFamilia(v.productoId)} className="rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white disabled:opacity-50">Sí</button>
+                                                        <button type="button" disabled={isSaving} onClick={() => setQuitandoId(null)} className="rounded border border-slate-300 px-1.5 py-0.5 text-[10px] dark:border-slate-600">No</button>
+                                                    </span>
+                                                ) : (
+                                                    <button type="button" onClick={() => setQuitandoId(v.productoId)} className="text-[10px] font-medium text-red-500 hover:underline">Quitar</button>
+                                                )}
+                                            </span>
                                         </li>
                                     ))}
                                 </ul>

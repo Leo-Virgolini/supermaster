@@ -1,7 +1,7 @@
 import { API_BASE_URL } from "../config/runtime";
 import { fetchAPI } from "../utils/fetchAPI";
 import type { AuditoriaCambioDTO } from "../auditoria/types";
-import { ProductoCreateDTO, ProductoPatchDTO } from "./types";
+import { ProductoCreateDTO, ProductoDTO, ProductoPatchDTO } from "./types";
 
 const API_URL = `${API_BASE_URL}/api/productos`;
 type ProductoAuditOrigin = "FORM" | "INLINE" | "TABLE" | "MONITOR_PRECIOS" | "API";
@@ -560,6 +560,12 @@ async function getEstadoCanal<T>(id: number, canal: string): Promise<T> {
 export type FamiliaVariante = { productoId: number; sku: string; titulo: string | null; esActual: boolean };
 export type FamiliaMl = { modelo: string | null; familyId: string | null; familyName: string | null; variantes: FamiliaVariante[] };
 export const getFamiliaAPI = (id: number) => getEstadoCanal<FamiliaMl>(id, "familia");
+// Trae un producto por id (para abrir el modal de otra variante desde el panel de familia).
+export const getProductoByIdAPI = async (id: number): Promise<ProductoDTO> => {
+	const r = await fetchAPI(`${API_URL}/${id}`);
+	if (!r.ok) throw new Error(await extraerMensajeError(r, "No se pudo obtener el producto"));
+	return await r.json();
+};
 // Quita un producto de su familia: pausa su publicación en ML y lo desasocia (no borra el producto).
 export const quitarDeFamiliaAPI = async (productoId: number): Promise<void> => {
 	const r = await fetchAPI(`${API_BASE_URL}/api/productos/${productoId}/estado-publicacion/familia`, { method: "DELETE" });

@@ -1576,6 +1576,56 @@ public class MercadoLibreService {
         }
     }
 
+    /** Lista los user_product_id de una familia (GET /sites/MLA/user-products-families/{familyId}). */
+    public List<String> listarUserProductsDeFamilia(String familyId) {
+        if (familyId == null || familyId.isBlank()) return List.of();
+        verificarTokens();
+        try {
+            String resp = retryHandler.get("/sites/MLA/user-products-families/" + familyId, () -> tokens.accessToken);
+            List<String> ups = new ArrayList<>();
+            if (resp != null) {
+                JsonNode arr = objectMapper.readTree(resp).path("user_products_ids");
+                if (arr.isArray()) for (JsonNode n : arr) {
+                    String id = n.asString(null);
+                    if (id != null && !id.isBlank()) ups.add(id);
+                }
+            }
+            return ups;
+        } catch (Exception e) {
+            log.warn("ML - no se pudieron listar los user products de la familia {}: {}", familyId, e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
+     * Renombra el family_name de una familia vía el editor de familia (POST /user-products-families/{id}/tasks).
+     * A diferencia del PUT /items family_name, funciona aunque los ítems estén pausados/sin stock (como la web).
+     * Es asíncrono: devuelve el task_id (o null). Lanza si falla. Envía TODOS los user products de la familia
+     * (requisito del recurso) con family_name en common_content.
+     */
+    public String renombrarFamilia(String familyId, String familyName) {
+        if (!isConfigured()) throw new IllegalStateException("Mercado Libre no configurado");
+        verificarTokens();
+        if (familyId == null || familyId.isBlank()) throw new IllegalArgumentException("Falta family_id");
+        if (familyName == null || familyName.isBlank()) throw new IllegalArgumentException("Falta family_name");
+        List<String> ups = listarUserProductsDeFamilia(familyId);
+        if (ups.isEmpty()) throw new IllegalStateException("La familia no tiene User Products en ML (family_id " + familyId + ")");
+        try {
+            Map<String, Object> body = new java.util.HashMap<>();
+            body.put("common_content", Map.of("family_name", familyName));
+            body.put("user_products", ups.stream().map(id -> Map.of("id", id)).toList());
+            String resp = retryHandler.postJson("/user-products-families/" + familyId + "/tasks",
+                    () -> tokens.accessToken, objectMapper.writeValueAsString(body));
+            String err = extraerErrorMl(objectMapper, resp);
+            if (err != null) throw new IllegalStateException(err);
+            return resp != null ? objectMapper.readTree(resp).path("task_id").asString(null) : null;
+        } catch (IllegalStateException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IllegalStateException("No se pudo renombrar la familia en ML: " + e.getMessage(), e);
+        }
+    }
+
     /** GET /items/{id}/description → texto plano de la descripción publicada en ML. Null si falla/ausente. */
     public String leerDescripcionMl(String mlaCode) {
         if (mlaCode == null || mlaCode.isBlank()) return null;

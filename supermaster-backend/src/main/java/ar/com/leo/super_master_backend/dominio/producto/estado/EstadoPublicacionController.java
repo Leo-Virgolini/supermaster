@@ -51,6 +51,16 @@ public class EstadoPublicacionController {
         return ResponseEntity.ok(estadoPublicacionService.leerFamilia(id));
     }
 
+    public record FamiliaRenameDTO(String familyName) {}
+
+    @PutMapping("/familia/nombre")
+    @PreAuthorize(Permisos.INTEGRACIONES_EDITAR)
+    public ResponseEntity<java.util.Map<String, String>> renombrarFamilia(@PathVariable @Positive Integer id,
+                                                                          @RequestBody FamiliaRenameDTO body) {
+        String taskId = estadoPublicacionService.renombrarFamilia(id, body.familyName());
+        return ResponseEntity.ok(java.util.Map.of("taskId", taskId == null ? "" : taskId));
+    }
+
     @DeleteMapping("/familia")
     @PreAuthorize(Permisos.INTEGRACIONES_EDITAR)
     public ResponseEntity<Void> quitarDeFamilia(@PathVariable @Positive Integer id) {

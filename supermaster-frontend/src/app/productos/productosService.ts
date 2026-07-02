@@ -560,6 +560,13 @@ async function getEstadoCanal<T>(id: number, canal: string): Promise<T> {
 export type FamiliaVariante = { productoId: number | null; sku: string | null; titulo: string | null; esActual: boolean; ejeValor: string | null; stock: number | null; status: string | null; variationId: number | null };
 export type FamiliaMl = { modelo: string | null; familyId: string | null; familyName: string | null; ejeAtributoId: string | null; ejeNombre: string | null; variantes: FamiliaVariante[] };
 export const getFamiliaAPI = (id: number) => getEstadoCanal<FamiliaMl>(id, "familia");
+// Renombra el family_name de la familia (editor de familia de ML, async). Funciona con la publicación pausada/sin stock.
+export async function renombrarFamiliaAPI(id: number, familyName: string): Promise<void> {
+	const r = await fetchAPI(`${API_BASE_URL}/api/productos/${id}/estado-publicacion/familia/nombre`, {
+		method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ familyName }),
+	});
+	if (!r.ok) throw new Error(await extraerMensajeError(r, "No se pudo renombrar la familia"));
+}
 // Trae un producto por id (para abrir el modal de otra variante desde el panel de familia).
 export const getProductoByIdAPI = async (id: number): Promise<ProductoDTO> => {
 	const r = await fetchAPI(`${API_URL}/${id}`);

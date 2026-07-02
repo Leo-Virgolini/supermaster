@@ -22,7 +22,7 @@ import {
     type MlFicha, type MlComponente,
     getMlCategoriaMaxTitleAPI,
     putEstadoPublicacionAPI,
-    getEstadoMlAPI, getEstadoHogarAPI, getEstadoGastroAPI, getEstadoDuxAPI, getFamiliaAPI, quitarDeFamiliaAPI, type FamiliaMl,
+    getEstadoMlAPI, getEstadoHogarAPI, getEstadoGastroAPI, getEstadoDuxAPI, getFamiliaAPI, quitarDeFamiliaAPI, renombrarFamiliaAPI, type FamiliaMl,
     type EstadoCanal, type EstadoPublicacionUpdate,
     type MlCanal, type NubeCanal, type DuxCanal,
     generarCaratulaAPI, guardarCaratulaAPI,
@@ -310,6 +310,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const [resultadosVariantes, setResultadosVariantes] = useState<{ sku: string; resultados: ResultadoCanal[] }[]>([]);
     // Familia de variantes del producto (solo edición; 2b-1: lista read-only desde la BD por family_id).
     const [familia, setFamilia] = useState<FamiliaMl | null>(null);
+    const [renombrandoFamilia, setRenombrandoFamilia] = useState(false);
+    const [nombreFamiliaEdit, setNombreFamiliaEdit] = useState("");
     const [quitandoId, setQuitandoId] = useState<number | null>(null); // 2b-3: variante en confirmación de quitar
     useEffect(() => {
         if (!editandoProductoId) { setFamilia(null); return; }
@@ -719,6 +721,20 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         } catch (e) {
             if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "No se pudo quitar la variante");
         } finally { setIsSaving(false); setQuitandoId(null); }
+    };
+
+    // Renombra el family_name de la familia (editor de familia de ML; funciona con la publicación pausada/sin stock).
+    const handleRenombrarFamilia = async () => {
+        if (!editandoProductoId || !nombreFamiliaEdit.trim()) return;
+        setIsSaving(true);
+        try {
+            await renombrarFamiliaAPI(editandoProductoId, nombreFamiliaEdit.trim());
+            notificar.success("Nombre de familia actualizado (ML lo aplica en unos minutos)");
+            try { setFamilia(await getFamiliaAPI(editandoProductoId)); } catch { /* se refresca al reabrir */ }
+            setRenombrandoFamilia(false);
+        } catch (e) {
+            if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "No se pudo renombrar la familia");
+        } finally { setIsSaving(false); }
     };
 
     const handleCreate = async () => {
@@ -2548,7 +2564,20 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         <legend className={sectionTitleClassName}><ShoppingBagIcon /> Familia de variantes</legend>
                         <div className="rounded-2xl border border-slate-200 bg-white/60 p-3 dark:border-slate-700 dark:bg-slate-800/40">
                             <div className="mb-2 flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                                {familia.familyName ?? "(sin nombre)"}
+                                {renombrandoFamilia ? (
+                                    <>
+                                        <input className={`${inputBaseClassName} !mt-0 max-w-xs`} value={nombreFamiliaEdit} onChange={e => setNombreFamiliaEdit(e.target.value)} placeholder="Nombre de la familia" maxLength={maxTitleLengthMl ?? undefined} />
+                                        <button type="button" onClick={handleRenombrarFamilia} disabled={isSaving || !nombreFamiliaEdit.trim()} className="rounded bg-primary px-2 py-0.5 text-[11px] font-semibold text-white disabled:opacity-50">Guardar</button>
+                                        <button type="button" onClick={() => setRenombrandoFamilia(false)} disabled={isSaving} className="text-[11px] text-slate-500">Cancelar</button>
+                                    </>
+                                ) : (
+                                    <>
+                                        {familia.familyName ?? "(sin nombre)"}
+                                        {familia.modelo === "NUEVO" && (
+                                            <button type="button" onClick={() => { setNombreFamiliaEdit(familia.familyName ?? ""); setRenombrandoFamilia(true); }} className="text-[11px] font-medium text-blue-600 hover:underline dark:text-blue-400">✎ renombrar</button>
+                                        )}
+                                    </>
+                                )}
                                 <span className="text-xs font-normal text-slate-400">({familia.variantes.length}{familia.ejeNombre ? ` · eje: ${familia.ejeNombre}` : ""})</span>
                                 {familia.modelo === "LEGACY" && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">legacy</span>}
                             </div>

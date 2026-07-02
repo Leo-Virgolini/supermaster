@@ -251,6 +251,26 @@ public class EstadoPublicacionService {
         mlaRepository.save(mla);
     }
 
+    /**
+     * Renombra el family_name de la familia del producto usando el editor de familia de ML (async).
+     * Funciona aunque los ítems estén pausados/sin stock. Refleja el nuevo nombre en la BD de forma
+     * optimista (ML lo aplica async). Devuelve el task_id de ML (o null). Sin @Transactional: el HTTP
+     * corre fuera de transacción; el update local va por saveAll (tx propia de Spring Data).
+     */
+    public String renombrarFamilia(Integer productoId, String familyName) {
+        if (familyName == null || familyName.isBlank()) throw new IllegalArgumentException("El nombre de la familia no puede estar vacío");
+        Producto p = productoRepository.findByIdConMla(productoId)
+                .orElseThrow(() -> new NotFoundException("Producto no encontrado"));
+        Mla mla = p.getMla();
+        if (mla == null || mla.getFamilyId() == null || mla.getFamilyId().isBlank())
+            throw new IllegalArgumentException("El producto no pertenece a una familia de variantes");
+        String taskId = mercadoLibreService.renombrarFamilia(mla.getFamilyId(), familyName.trim());
+        List<Mla> mlas = mlaRepository.findByFamilyId(mla.getFamilyId());
+        mlas.forEach(m -> m.setFamilyName(familyName.trim()));
+        mlaRepository.saveAll(mlas);
+        return taskId;
+    }
+
     /** Lee una tienda Nube (una sola GET reutilizada para estado, descripción, SEO y dims). Nunca lanza. */
     @Transactional(readOnly = true)
     public NubeCanalDTO leerNube(Integer id, String store) {

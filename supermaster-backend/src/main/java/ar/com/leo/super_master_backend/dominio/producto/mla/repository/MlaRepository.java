@@ -21,4 +21,7 @@ public interface MlaRepository extends JpaRepository<Mla, Integer> {
     List<Mla> findByMlaIsNotNullAndPrecioEnvioIsNull();
 
     List<Mla> findByTopePromocionGreaterThan(int valor);
+
+    /** MLAs de una familia de variantes (para reflejar localmente el rename del family_name). */
+    List<Mla> findByFamilyId(String familyId);
 }

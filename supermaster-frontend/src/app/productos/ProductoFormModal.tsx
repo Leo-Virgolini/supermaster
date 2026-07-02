@@ -635,6 +635,22 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         ean: over.ean,
     });
 
+    // Crea un producto-variante (clon del actual con override) y lo publica a sus canales inyectando
+    // el atributo de eje. Devuelve resultados por canal. Reusado por "crear con variantes" y "agregar a familia".
+    const crearYPublicarVariante = async (ov: {
+        sku: string; stock: number | ""; ean: string | null; mlaId: number | null;
+        cuotaMl: number; cuotaHogar: number; cuotaGastro: number;
+        ejeValorId: string | null; ejeValorNombre: string;
+    }): Promise<ResultadoCanal[]> => {
+        const creado = await createProducto(construirPayloadVariante({ sku: ov.sku, stock: ov.stock, ean: ov.ean, mlaId: ov.mlaId }), asociarMargenYRelaciones);
+        if (creado?.id && (subirKtHogar || subirKtGastro) && canExportarDux) { try { await recalcularProductoAPI(creado.id); } catch { /* el export avisa */ } }
+        const mlBase = Object.values(mlAtributosVal).filter(a => a.attributeId !== ejeAtributoId);
+        return ejecutarExportsCanales(ov.sku, canalesMarcados(), {
+            cuotaMl: ov.cuotaMl, cuotaHogar: ov.cuotaHogar, cuotaGastro: ov.cuotaGastro,
+            mlAtributos: [...mlBase, { attributeId: ejeAtributoId, valueId: ov.ejeValorId, valueName: ov.ejeValorNombre.trim(), noAplica: false }],
+        });
+    };
+
     // Alta con variantes: crea N productos (base + hermanas) y publica cada uno con el MISMO
     // family_name (tituloMl compartido) + su atributo de eje → ML los agrupa en una familia.
     const handleCrearConVariantes = async () => {
@@ -647,20 +663,14 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             let mlaIdBase: number | null = null;
             try { const r = await resolverMlaParaGuardar(); mlaIdBase = r.mlaId; }
             catch (e) { if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "Error al guardar el MLA"); return; }
-            const canales = canalesMarcados();
-            const ejeAttr = (valorId: string | null, valorNombre: string): ProductoMlAtributo => ({ attributeId: ejeAtributoId, valueId: valorId, valueName: valorNombre.trim(), noAplica: false });
-            const mlBase = Object.values(mlAtributosVal).filter(a => a.attributeId !== ejeAtributoId);
             const items = [
-                { sku: sku.trim(), stock, ean: ean.trim() || null, mlaId: mlaIdBase, cuotaMl, cuotaHogar, cuotaGastro, mlAtributos: [...mlBase, ejeAttr(ejeValorBaseId, ejeValorBase)] },
-                ...variantesBorrador.map(v => ({ sku: v.sku.trim(), stock: v.stock, ean: v.ean.trim() || null, mlaId: null as number | null, cuotaMl: v.cuotaMl, cuotaHogar: v.cuotaHogar, cuotaGastro: v.cuotaGastro, mlAtributos: [...mlBase, ejeAttr(v.ejeValorId, v.ejeValorNombre)] })),
+                { sku: sku.trim(), stock, ean: ean.trim() || null, mlaId: mlaIdBase, cuotaMl, cuotaHogar, cuotaGastro, ejeValorId: ejeValorBaseId, ejeValorNombre: ejeValorBase },
+                ...variantesBorrador.map(v => ({ sku: v.sku.trim(), stock: v.stock, ean: v.ean.trim() || null, mlaId: null as number | null, cuotaMl: v.cuotaMl, cuotaHogar: v.cuotaHogar, cuotaGastro: v.cuotaGastro, ejeValorId: v.ejeValorId, ejeValorNombre: v.ejeValorNombre })),
             ];
             const acumulado: { sku: string; resultados: ResultadoCanal[] }[] = [];
             for (const it of items) {
                 try {
-                    const creado = await createProducto(construirPayloadVariante({ sku: it.sku, stock: it.stock, ean: it.ean, mlaId: it.mlaId }), asociarMargenYRelaciones);
-                    if (creado?.id && (subirKtHogar || subirKtGastro) && canExportarDux) { try { await recalcularProductoAPI(creado.id); } catch { /* el export avisa */ } }
-                    const rc = await ejecutarExportsCanales(it.sku, canales, { cuotaMl: it.cuotaMl, cuotaHogar: it.cuotaHogar, cuotaGastro: it.cuotaGastro, mlAtributos: it.mlAtributos });
-                    acumulado.push({ sku: it.sku, resultados: rc });
+                    acumulado.push({ sku: it.sku, resultados: await crearYPublicarVariante(it) });
                 } catch (e) {
                     acumulado.push({ sku: it.sku, resultados: [{ canal: "Mercado Libre", estado: "error", detalle: e instanceof Error ? e.message : "no se pudo crear la variante" }] });
                 }
@@ -676,25 +686,19 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     // (clon del actual) y lo publica con el MISMO tituloMl (= family_name) + su atributo de eje → ML lo
     // une a la familia. Best-effort; refresca el panel de familia al terminar.
     const handleAgregarVariante = async () => {
+        // Para que ML la agrupe en la familia, la nueva variante DEBE publicarse a ML.
+        if (!subirMl) { notificar.error("Activá 'Sincronizar con Mercado Libre' para agregar la variante a la familia."); return; }
         if (!ejeAtributoId) { notificar.error("Elegí el eje de variación."); return; }
         if (!nvSku.trim()) { notificar.error("Cargá el SKU de la variante."); return; }
         if (!nvEjeValorNombre.trim()) { notificar.error("Cargá el valor del eje de la variante."); return; }
         if (familia?.variantes.some(v => (v.sku ?? "").trim().toLowerCase() === nvSku.trim().toLowerCase())) {
             notificar.error("Ese SKU ya está en la familia."); return;
         }
-        if (subirMl) {
-            await cargarImagenesVariantes([nvSku]);
-            if (!imagenesDetectadasPorSku(nvSku)) { notificar.error("Mercado Libre exige al menos una imagen para el SKU."); return; }
-        }
+        await cargarImagenesVariantes([nvSku]);
+        if (!imagenesDetectadasPorSku(nvSku)) { notificar.error("Mercado Libre exige al menos una imagen para el SKU."); return; }
         setIsSaving(true);
         try {
-            const creado = await createProducto(construirPayloadVariante({ sku: nvSku.trim(), stock: nvStock, ean: nvEan.trim() || null, mlaId: null }), asociarMargenYRelaciones);
-            if (creado?.id && (subirKtHogar || subirKtGastro) && canExportarDux) { try { await recalcularProductoAPI(creado.id); } catch { /* el export avisa */ } }
-            const mlBase = Object.values(mlAtributosVal).filter(a => a.attributeId !== ejeAtributoId);
-            const rc = await ejecutarExportsCanales(nvSku.trim(), canalesMarcados(), {
-                cuotaMl, cuotaHogar, cuotaGastro,
-                mlAtributos: [...mlBase, { attributeId: ejeAtributoId, valueId: nvEjeValorId, valueName: nvEjeValorNombre.trim(), noAplica: false }],
-            });
+            const rc = await crearYPublicarVariante({ sku: nvSku.trim(), stock: nvStock, ean: nvEan.trim() || null, mlaId: null, cuotaMl, cuotaHogar, cuotaGastro, ejeValorId: nvEjeValorId, ejeValorNombre: nvEjeValorNombre });
             const errores = rc.filter(r => r.estado === "error");
             if (errores.length) notificar.error(`Variante creada con errores: ${errores.map(r => `${r.canal} — ${r.detalle}`).join("; ")}`);
             else notificar.success(`Variante ${nvSku.trim()} agregada a la familia`);

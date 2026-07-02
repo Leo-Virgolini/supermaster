@@ -1618,11 +1618,70 @@ public class MercadoLibreService {
                     () -> tokens.accessToken, objectMapper.writeValueAsString(body));
             String err = extraerErrorMl(objectMapper, resp);
             if (err != null) throw new IllegalStateException(err);
-            return resp != null ? objectMapper.readTree(resp).path("task_id").asString(null) : null;
+            String taskId = resp != null ? objectMapper.readTree(resp).path("task_id").asString(null) : null;
+            // La tarea es asíncrona: se hace un poll corto para detectar fallos por variante y no
+            // reportar un éxito falso. Si sigue pendiente tras los reintentos, se acepta "en proceso".
+            if (taskId != null && !taskId.isBlank()) verificarTaskFamilia(taskId);
+            return taskId;
         } catch (IllegalStateException e) {
             throw e;
         } catch (Exception e) {
             throw new IllegalStateException("No se pudo renombrar la familia en ML: " + e.getMessage(), e);
+        }
+    }
+
+    /** Poll corto del resultado de una tarea del editor de familia. Lanza si alguna variante falló. */
+    private void verificarTaskFamilia(String taskId) {
+        for (int intento = 0; intento < 3; intento++) {
+            try { Thread.sleep(1000); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); return; }
+            String resp;
+            try {
+                resp = retryHandler.get("/user-products-families/tasks/" + taskId, () -> tokens.accessToken);
+            } catch (Exception e) {
+                log.warn("ML - no se pudo consultar la task {}: {}", taskId, e.getMessage());
+                return; // no bloqueamos por un fallo de consulta
+            }
+            if (resp == null) continue;
+            try {
+                JsonNode ups = objectMapper.readTree(resp).path("user-products");
+                List<String> fallos = new ArrayList<>();
+                boolean algunaPendiente = false;
+                for (JsonNode up : ups) {
+                    String st = up.path("status").asString("");
+                    if ("failed".equals(st)) {
+                        JsonNode reasons = up.path("reasons");
+                        String msg = (reasons.isArray() && !reasons.isEmpty()) ? reasons.get(0).path("message").asString("error") : "error";
+                        fallos.add(up.path("id").asString("?") + ": " + msg);
+                    } else if (!"succeeded".equals(st)) {
+                        algunaPendiente = true;
+                    }
+                }
+                if (!fallos.isEmpty()) throw new IllegalStateException("El renombre fue rechazado por ML: " + String.join("; ", fallos));
+                if (!algunaPendiente && !ups.isEmpty()) return; // todas succeeded
+            } catch (IllegalStateException e) {
+                throw e;
+            } catch (Exception e) {
+                log.warn("ML - respuesta de task {} no procesable: {}", taskId, e.getMessage());
+                return;
+            }
+        }
+        // Sigue pendiente tras los reintentos: se acepta como "en proceso" (no se lanza).
+    }
+
+    /** Actualiza el título (campo {@code title}) de un ítem clásico/legacy vía PUT /items. */
+    public void actualizarTituloItem(String mla, String title) {
+        if (!isConfigured()) throw new IllegalStateException("Mercado Libre no configurado");
+        verificarTokens();
+        if (mla == null || mla.isBlank()) throw new IllegalArgumentException("Falta el código MLA");
+        try {
+            String resp = retryHandler.putJson("/items/" + mla, () -> tokens.accessToken,
+                    objectMapper.writeValueAsString(Map.of("title", title)));
+            String err = extraerErrorMl(objectMapper, resp);
+            if (err != null) throw new IllegalStateException(err);
+        } catch (IllegalStateException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IllegalStateException("No se pudo actualizar el título en ML: " + e.getMessage(), e);
         }
     }
 

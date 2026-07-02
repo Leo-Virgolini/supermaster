@@ -257,18 +257,25 @@ public class EstadoPublicacionService {
      * optimista (ML lo aplica async). Devuelve el task_id de ML (o null). Sin @Transactional: el HTTP
      * corre fuera de transacción; el update local va por saveAll (tx propia de Spring Data).
      */
-    public String renombrarFamilia(Integer productoId, String familyName) {
-        if (familyName == null || familyName.isBlank()) throw new IllegalArgumentException("El nombre de la familia no puede estar vacío");
+    public String renombrarFamilia(Integer productoId, String nombre) {
+        if (nombre == null || nombre.isBlank()) throw new IllegalArgumentException("El nombre no puede estar vacío");
         Producto p = productoRepository.findByIdConMla(productoId)
                 .orElseThrow(() -> new NotFoundException("Producto no encontrado"));
         Mla mla = p.getMla();
-        if (mla == null || mla.getFamilyId() == null || mla.getFamilyId().isBlank())
-            throw new IllegalArgumentException("El producto no pertenece a una familia de variantes");
-        String taskId = mercadoLibreService.renombrarFamilia(mla.getFamilyId(), familyName.trim());
-        List<Mla> mlas = mlaRepository.findByFamilyId(mla.getFamilyId());
-        mlas.forEach(m -> m.setFamilyName(familyName.trim()));
-        mlaRepository.saveAll(mlas);
-        return taskId;
+        if (mla == null || mla.getMla() == null || mla.getMla().isBlank())
+            throw new IllegalArgumentException("El producto no tiene publicación en Mercado Libre");
+
+        if (mla.getFamilyId() != null && !mla.getFamilyId().isBlank()) {
+            // Modelo nuevo (User Products): editor de familia → cambia el family_name (ML recalcula los títulos).
+            String taskId = mercadoLibreService.renombrarFamilia(mla.getFamilyId(), nombre.trim());
+            List<Mla> mlas = mlaRepository.findByFamilyId(mla.getFamilyId());
+            mlas.forEach(m -> m.setFamilyName(nombre.trim()));
+            mlaRepository.saveAll(mlas);
+            return taskId;
+        }
+        // Legacy/clásico: no hay family_name; se actualiza el `title` del ítem directamente.
+        mercadoLibreService.actualizarTituloItem(mla.getMla(), nombre.trim());
+        return null;
     }
 
     /** Lee una tienda Nube (una sola GET reutilizada para estado, descripción, SEO y dims). Nunca lanza. */

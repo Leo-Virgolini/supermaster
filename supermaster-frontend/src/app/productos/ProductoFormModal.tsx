@@ -2573,9 +2573,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                 ) : (
                                     <>
                                         {familia.familyName ?? "(sin nombre)"}
-                                        {familia.modelo === "NUEVO" && (
-                                            <button type="button" onClick={() => { setNombreFamiliaEdit(familia.familyName ?? ""); setRenombrandoFamilia(true); }} className="text-[11px] font-medium text-blue-600 hover:underline dark:text-blue-400">✎ renombrar</button>
-                                        )}
+                                        <button type="button" onClick={() => { setNombreFamiliaEdit(familia.familyName ?? ""); setRenombrandoFamilia(true); }} className="text-[11px] font-medium text-blue-600 hover:underline dark:text-blue-400">✎ renombrar</button>
                                     </>
                                 )}
                                 <span className="text-xs font-normal text-slate-400">({familia.variantes.length}{familia.ejeNombre ? ` · eje: ${familia.ejeNombre}` : ""})</span>

@@ -34,6 +34,11 @@ export const SIZE_OPCIONES = ["1024x1024", "1024x1536", "1536x1024", "auto"] as 
 export const QUALITY_OPCIONES = ["low", "medium", "high", "auto"] as const;
 export const FORMATO_OPCIONES = ["png", "jpeg", "webp"] as const;
 
+export const MODEL_SEO_OPCIONES: string[] = [
+    "gpt-5.5", "gpt-5.5-pro", "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.4-pro",
+    "gpt-5.2", "gpt-5.2-pro", "gpt-5.1", "gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-5-pro", "gpt-4.1",
+];
+
 export const MODEL_IMAGEN_OPCIONES: { value: string; label: string }[] = [
     { value: "gpt-image-2", label: "GPT Image 2" },
     { value: "gpt-image-1.5", label: "GPT Image 1.5" },

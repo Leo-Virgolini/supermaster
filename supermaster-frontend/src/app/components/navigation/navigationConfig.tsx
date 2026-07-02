@@ -157,7 +157,7 @@ export const navigationSections: NavSectionConfig[] = [
                 href: "/segmentos",
                 label: "Segmentos",
                 description: "Listado de segmentos habilitados",
-                icon: UsersIcon,
+                icon: TagIcon,
                 color: "blue",
                 requiredPermission: "MAESTROS_VER",
             },

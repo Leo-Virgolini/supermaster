@@ -82,6 +82,9 @@ public class Producto {
     private String nubeAncho;
     @Transient
     private String nubeAlto;
+    /** Título override por canal Nube (no persistido). Si es null, el publish usa {@link #tituloNube}. */
+    @Transient
+    private String tituloNubeCanal;
 
     @Size(max = 20)
     @Column(name = "ean", length = 20)

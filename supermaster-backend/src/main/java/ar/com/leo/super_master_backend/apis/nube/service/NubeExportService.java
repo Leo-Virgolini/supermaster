@@ -64,10 +64,13 @@ public class NubeExportService {
                 producto.setDescripcionNube(destino.descripcion());
                 producto.setEquipamientoGastro(
                         TiendaNubeService.STORE_GASTRO.equals(tienda) && NubeEquipamiento.esEquipamiento(producto));
-                producto.setNubePeso(request.nubePeso());
-                producto.setNubeProfundidad(request.nubeProfundidad());
-                producto.setNubeAncho(request.nubeAncho());
-                producto.setNubeAlto(request.nubeAlto());
+                producto.setNubePeso(destino.peso());
+                producto.setNubeProfundidad(destino.profundidad());
+                producto.setNubeAncho(destino.ancho());
+                producto.setNubeAlto(destino.alto());
+                // Título override por canal (no persistido). Si viene vacío, el builder cae al título base.
+                producto.setTituloNubeCanal(
+                        destino.titulo() != null && !destino.titulo().isBlank() ? destino.titulo().trim() : null);
 
                 // Upsert: si ya existe en la tienda, actualizar; si no, crear.
                 ResultadoAltaNube r;

@@ -3,7 +3,7 @@ import { getErrorMessage } from "@/lib/errors";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { notificar } from "../utils/notificar";
-import { UserIcon, CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { TagIcon, CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { confirmDialog } from "../utils/confirmDialog";
 import Table, { getInitialPageSize } from "../components/Table/core/Table";
 import SearchInput from "../components/SearchInput/SearchInput";
@@ -115,7 +115,7 @@ export default function SegmentosPage() {
             <div className="flex justify-between items-center mb-2">
                 <div>
                     <h1 className="inline-flex items-center gap-2 leading-none text-3xl font-bold text-gray-800">
-                        <UserIcon className="w-8 h-8 text-gray-600" />
+                        <TagIcon className="w-8 h-8 text-gray-600" />
                         Segmentos
                     </h1>
                 </div>
@@ -165,7 +165,7 @@ export default function SegmentosPage() {
                 <div className="flex flex-col gap-4">
                     <label className="block">
                         <span className="font-bold text-gray-700">Nombre del Segmento <span className="text-red-500">*</span></span>
-                        <input type="text" className={`w-full border p-2 rounded ${formTouched && !segmento.trim() ? "border-red-400 bg-red-50" : ""}`} value={segmento} onChange={e => setSegmento(e.target.value)} placeholder="Ej: Mayorista" autoFocus />
+                        <input type="text" className={`w-full border p-2 rounded ${formTouched && !segmento.trim() ? "border-red-400 bg-red-50" : ""}`} value={segmento} onChange={e => setSegmento(e.target.value)} placeholder="Ej: Cocina, Bar, Restaurant" autoFocus />
                         {formTouched && !segmento.trim() && <span className="text-xs text-red-500 mt-1">Campo obligatorio</span>}
                     </label>
                 </div>

@@ -18,7 +18,9 @@ public final class NubeProductoPayloadBuilder {
     public static Map<String, Object> construir(Producto p, BigDecimal pvp, BigDecimal pvpInflado,
                                                 List<Long> categoriaIds, SeoGeneradoDTO seo) {
         Map<String, Object> payload = new LinkedHashMap<>();
-        String nombre = NubeEquipamiento.tituloConSufijo(p.getTituloNube() != null ? p.getTituloNube() : "", p.isEquipamientoGastro());
+        // Título: override por canal si vino en el export; si no, el título base persistido del producto.
+        String tituloBase = p.getTituloNubeCanal() != null ? p.getTituloNubeCanal() : p.getTituloNube();
+        String nombre = NubeEquipamiento.tituloConSufijo(tituloBase != null ? tituloBase : "", p.isEquipamientoGastro());
         payload.put("name", Map.of("es", nombre));
         String descNube = NubeEquipamiento.descripcionConBullet(NubeDescripcionBuilder.construir(p), p.isEquipamientoGastro());
         if (descNube != null && !descNube.isBlank()) payload.put("description", Map.of("es", descNube));

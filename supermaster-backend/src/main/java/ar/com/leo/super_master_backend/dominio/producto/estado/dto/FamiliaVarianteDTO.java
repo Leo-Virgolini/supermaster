@@ -10,5 +10,7 @@ public record FamiliaVarianteDTO(
         String ejeValor,   // valor del atributo que varía (ej. "Plateado"), leído de ML
         Integer stock,     // available_quantity en ML
         String status,     // active/paused/closed…
-        Long variationId   // solo modelo legacy (variations[])
+        Long variationId,  // solo modelo legacy (variations[])
+        String ean,        // GTIN del ítem en ML (código universal)
+        String skuMl       // SELLER_SKU del ítem en ML (para comparar con el SKU local)
 ) {}

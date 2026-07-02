@@ -557,7 +557,7 @@ async function getEstadoCanal<T>(id: number, canal: string): Promise<T> {
 	if (!r.ok) throw new Error(await extraerMensajeError(r, "No se pudo leer el estado del canal"));
 	return r.json();
 }
-export type FamiliaVariante = { productoId: number | null; sku: string | null; titulo: string | null; esActual: boolean; ejeValor: string | null; stock: number | null; status: string | null; variationId: number | null };
+export type FamiliaVariante = { productoId: number | null; sku: string | null; titulo: string | null; esActual: boolean; ejeValor: string | null; stock: number | null; status: string | null; variationId: number | null; ean: string | null; skuMl: string | null };
 export type FamiliaMl = { modelo: string | null; familyId: string | null; familyName: string | null; ejeAtributoId: string | null; ejeNombre: string | null; variantes: FamiliaVariante[] };
 export const getFamiliaAPI = (id: number) => getEstadoCanal<FamiliaMl>(id, "familia");
 // Renombra el family_name de la familia (editor de familia de ML, async). Funciona con la publicación pausada/sin stock.

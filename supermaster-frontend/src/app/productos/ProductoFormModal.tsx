@@ -2859,7 +2859,11 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                     {familia.variantes.map((v, i) => (
                                         <li key={v.productoId ?? v.sku ?? i} className={`flex items-center gap-2 text-xs ${v.esActual ? "font-semibold text-slate-800 dark:text-slate-100" : "text-slate-600 dark:text-slate-300"}`}>
                                             <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono dark:bg-slate-700">{v.sku ?? "—"}</span>
+                                            {v.skuMl && v.sku && v.skuMl.trim() !== v.sku.trim() && (
+                                                <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400" title="El SKU cargado en ML difiere del local">⚠ SKU ML: {v.skuMl}</span>
+                                            )}
                                             {v.ejeValor && <span className="rounded bg-blue-50 px-1.5 py-0.5 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">{v.ejeValor}</span>}
+                                            {v.ean && <span className="text-[10px] text-slate-400" title="Código universal (GTIN) en ML">EAN {v.ean}</span>}
                                             {v.stock != null && <span className="text-[10px] text-slate-400">stock {v.stock}</span>}
                                             {v.status && <span className="text-[10px] text-slate-400">{v.status}</span>}
                                             {v.esActual && <span className="text-[10px] text-blue-500">(este)</span>}

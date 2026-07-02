@@ -144,7 +144,7 @@ public class EstadoPublicacionService {
         List<FamiliaVarianteDTO> variantes = new ArrayList<>();
         for (Producto h : hermanos) {
             String hMla = (h.getMla() != null) ? h.getMla().getMla() : null;
-            Integer stock = null; String status = null; String ejeValor = null;
+            Integer stock = null; String status = null; String ejeValor = null; String ean = null; String skuMl = null;
             try {
                 JsonNode hi = h.getId().equals(actual.getId()) ? itemActual
                         : (hMla != null && !hMla.isBlank() ? mercadoLibreService.leerItemRaw(hMla) : null);
@@ -152,10 +152,16 @@ public class EstadoPublicacionService {
                     if (hi.path("available_quantity").isNumber()) stock = hi.path("available_quantity").asInt();
                     status = hi.path("status").asString(null);
                     ejeValor = valorEje(hi, ejeIds);
+                    ean = atributoItem(hi, "GTIN");
+                    skuMl = atributoItem(hi, "SELLER_SKU");
+                    if (skuMl == null) {
+                        String scf = hi.path("seller_custom_field").asString(null);
+                        skuMl = (scf != null && !scf.isBlank()) ? scf.trim() : null;
+                    }
                 }
             } catch (Exception ignored) { /* variante sin datos de ML */ }
             variantes.add(new FamiliaVarianteDTO(h.getId(), h.getSku(), tituloDe(h),
-                    h.getId().equals(actual.getId()), ejeValor, stock, status, null));
+                    h.getId().equals(actual.getId()), ejeValor, stock, status, null, ean, skuMl));
         }
         variantes.sort(Comparator.comparing(FamiliaVarianteDTO::sku, Comparator.nullsLast(Comparator.naturalOrder())));
         return new FamiliaMlDTO("NUEVO", mla != null ? mla.getFamilyId() : null,
@@ -174,10 +180,11 @@ public class EstadoPublicacionService {
             Integer stock = v.path("available_quantity").isNumber() ? v.path("available_quantity").asInt() : null;
             String sku = sellerSku(v);
             String ejeValor = valorEjeCombinations(v);
+            String ean = atributoItem(v, "GTIN");
             Integer prodId = (sku != null && !sku.isBlank())
                     ? productoRepository.findBySku(sku).map(Producto::getId).orElse(null) : null;
             variantes.add(new FamiliaVarianteDTO(prodId, sku, null,
-                    prodId != null && prodId.equals(productoId), ejeValor, stock, status, variationId));
+                    prodId != null && prodId.equals(productoId), ejeValor, stock, status, variationId, ean, sku));
         }
         return new FamiliaMlDTO("LEGACY", null, item.path("title").asString(null), ejeAtributoId, ejeNombre, variantes);
     }
@@ -198,6 +205,17 @@ public class EstadoPublicacionService {
             if (ejeIds.contains(a.path("id").asString(null))) {
                 String vn = a.path("value_name").asString(null);
                 if (vn != null && !vn.isBlank()) return vn;
+            }
+        }
+        return null;
+    }
+
+    /** value_name del atributo de nivel ítem con ese id (GTIN, SELLER_SKU, …). null si no está. */
+    private static String atributoItem(JsonNode item, String attrId) {
+        for (JsonNode a : item.path("attributes")) {
+            if (attrId.equals(a.path("id").asString(null))) {
+                String vn = a.path("value_name").asString(null);
+                if (vn != null && !vn.isBlank()) return vn.trim();
             }
         }
         return null;

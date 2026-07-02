@@ -22,7 +22,7 @@ import {
     type MlFicha, type MlComponente,
     getMlCategoriaMaxTitleAPI,
     putEstadoPublicacionAPI,
-    getEstadoMlAPI, getEstadoHogarAPI, getEstadoGastroAPI, getEstadoDuxAPI, getFamiliaAPI, quitarDeFamiliaAPI, renombrarFamiliaAPI, type FamiliaMl,
+    getEstadoMlAPI, getEstadoHogarAPI, getEstadoGastroAPI, getEstadoDuxAPI, getFamiliaAPI, quitarDeFamiliaAPI, renombrarFamiliaAPI, deleteProductoAPI, type FamiliaMl,
     type EstadoCanal, type EstadoPublicacionUpdate,
     type MlCanal, type NubeCanal, type DuxCanal,
     generarCaratulaAPI, guardarCaratulaAPI,
@@ -320,6 +320,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const [renombrandoFamilia, setRenombrandoFamilia] = useState(false);
     const [nombreFamiliaEdit, setNombreFamiliaEdit] = useState("");
     const [quitandoId, setQuitandoId] = useState<number | null>(null); // 2b-3: variante en confirmación de quitar
+    const [eliminandoId, setEliminandoId] = useState<number | null>(null); // variante en confirmación de eliminar (destructivo)
     useEffect(() => {
         if (!editandoProductoId) { setFamilia(null); return; }
         let cancel = false;
@@ -728,6 +729,21 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         } catch (e) {
             if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "No se pudo quitar la variante");
         } finally { setIsSaving(false); setQuitandoId(null); }
+    };
+
+    // Elimina la variante por completo: pausa/desagrupa en ML (best-effort) y BORRA el producto de la BD.
+    // A diferencia de "Quitar" (reversible), esto es destructivo. La publicación de ML queda pausada
+    // (la API no hace hard-delete) pero el producto local desaparece.
+    const handleEliminarVariante = async (productoId: number) => {
+        setIsSaving(true);
+        try {
+            try { await quitarDeFamiliaAPI(productoId); } catch { /* pausar/desagrupar es best-effort; igual borramos */ }
+            await deleteProductoAPI(productoId, "API");
+            notificar.success("Variante eliminada (producto borrado; publicación pausada en ML)");
+            if (editandoProductoId) { try { setFamilia(await getFamiliaAPI(editandoProductoId)); } catch { /* se refresca al reabrir */ } }
+        } catch (e) {
+            if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "No se pudo eliminar la variante");
+        } finally { setIsSaving(false); setEliminandoId(null); }
     };
 
     // Renombra el family_name de la familia (editor de familia de ML; funciona con la publicación pausada/sin stock).
@@ -2879,7 +2895,18 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                                             <button type="button" disabled={isSaving} onClick={() => setQuitandoId(null)} className="rounded border border-slate-300 px-1.5 py-0.5 text-[10px] dark:border-slate-600">No</button>
                                                         </span>
                                                     ) : (
-                                                        <button type="button" onClick={() => setQuitandoId(v.productoId)} className="text-[10px] font-medium text-red-500 hover:underline">Quitar</button>
+                                                        <button type="button" title="Sacar de la familia y pausar en ML (reversible; el producto queda en la BD)" onClick={() => { setEliminandoId(null); setQuitandoId(v.productoId); }} className="text-[10px] font-medium text-red-500 hover:underline">Quitar</button>
+                                                    )
+                                                )}
+                                                {familia.modelo === "NUEVO" && v.productoId != null && !v.esActual && (
+                                                    eliminandoId === v.productoId ? (
+                                                        <span className="flex items-center gap-1">
+                                                            <span className="text-[10px] text-slate-500">¿Eliminar el producto?</span>
+                                                            <button type="button" disabled={isSaving} onClick={() => handleEliminarVariante(v.productoId!)} className="rounded bg-red-700 px-1.5 py-0.5 text-[10px] font-semibold text-white disabled:opacity-50">Sí, borrar</button>
+                                                            <button type="button" disabled={isSaving} onClick={() => setEliminandoId(null)} className="rounded border border-slate-300 px-1.5 py-0.5 text-[10px] dark:border-slate-600">No</button>
+                                                        </span>
+                                                    ) : (
+                                                        <button type="button" title="Borrar el producto de la BD (destructivo) y pausar la publicación en ML" onClick={() => { setQuitandoId(null); setEliminandoId(v.productoId); }} className="text-[10px] font-semibold text-red-700 hover:underline dark:text-red-500">Eliminar</button>
                                                     )
                                                 )}
                                             </span>

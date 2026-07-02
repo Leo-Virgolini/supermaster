@@ -2008,7 +2008,12 @@ public class MercadoLibreService {
                 try {
                     putTitle.accept(mla, producto.getTituloMl());
                 } catch (Exception e) {
-                    advertencia = concatAdv(advertencia, conMotivo("título no actualizado", e));
+                    // ML rechaza el family_name por API cuando la publicación está pausada/sin stock
+                    // (desde la web sí se puede, usa el editor de familia). Mensaje accionable en ese caso.
+                    String m = e.getMessage() == null ? "" : e.getMessage().toLowerCase();
+                    advertencia = concatAdv(advertencia, m.contains("family")
+                            ? "título no actualizado: Mercado Libre no permite cambiar el nombre por API con la publicación pausada o sin stock; editalo desde la página de Mercado Libre"
+                            : conMotivo("título no actualizado", e));
                 }
             } else {
                 advertencia = "título no actualizado (la publicación tuvo ventas)";
@@ -2066,10 +2071,12 @@ public class MercadoLibreService {
         BigDecimal precioFinal;
         String categoryIdActual = null;
         String familyNameActual = null;
+        String tituloItemActual = null;
         try {
             ar.com.leo.super_master_backend.apis.ml.model.Producto itemPublicado = getItemByMLA(mla);
             categoryIdActual = (itemPublicado != null) ? itemPublicado.categoryId : null;
             familyNameActual = (itemPublicado != null) ? itemPublicado.familyName : null;
+            tituloItemActual = (itemPublicado != null) ? itemPublicado.title : null;
 
             // Patrón "null = no tocar": en re-sync por lote el request no trae título (tituloMl es @Transient
             // y el lote no pasa por el modal). Si el título llega null/blank, lo recuperamos del ítem publicado
@@ -2107,6 +2114,11 @@ public class MercadoLibreService {
         // El máximo (max_title_length) se toma de la categoría REAL del ítem publicado, no de la del
         // producto (que el usuario pudo cambiar): es la categoría donde rige el límite del título.
         final String categoriaItem = categoryIdActual;
+        // Valor actual del campo de título en ML (family_name o title según el modelo): si el título a
+        // enviar no cambió, NO se hace el PUT (ML rechaza family_name con "invalid" cuando el User
+        // Product tuvo ventas; reintentar sin cambios generaba un aviso espurio al editar otros campos).
+        final String tituloActual = (familyNameActual != null && !familyNameActual.isBlank())
+                ? familyNameActual : tituloItemActual;
 
         ResultadoAltaMl r = actualizarItemEnMlCore(
                 producto, mla,
@@ -2122,6 +2134,8 @@ public class MercadoLibreService {
                     // el core deja el motivo como advertencia (best-effort, no aborta).
                     try {
                         String tituloUpd = construirFamilyName(producto.getTituloMl(), obtenerMaxTitleLength(categoriaItem));
+                        // Sin cambios respecto al valor vigente en ML → no tocar (evita rechazos innecesarios).
+                        if (tituloActual != null && tituloUpd.equals(tituloActual.trim())) return;
                         retryHandler.putJson("/items/" + m, () -> tokens.accessToken,
                                 objectMapper.writeValueAsString(Map.of(campoTitulo, tituloUpd)));
                     } catch (Exception e) { throw new RuntimeException(e.getMessage(), e); }

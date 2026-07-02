@@ -3,7 +3,9 @@ package ar.com.leo.super_master_backend.dominio.producto.estado;
 import ar.com.leo.super_master_backend.apis.dux.model.Item;
 import ar.com.leo.super_master_backend.apis.dux.service.DuxService;
 import ar.com.leo.super_master_backend.apis.ml.dto.MlAtributoDTO;
+import ar.com.leo.super_master_backend.apis.ml.dto.MlAtributoDefDTO;
 import ar.com.leo.super_master_backend.apis.ml.service.MercadoLibreService;
+import ar.com.leo.super_master_backend.apis.ml.service.MlCategoriaAtributoService;
 import ar.com.leo.super_master_backend.apis.nube.service.TiendaNubeService;
 import ar.com.leo.super_master_backend.dominio.common.exception.NotFoundException;
 import ar.com.leo.super_master_backend.dominio.producto.entity.Producto;
@@ -24,8 +26,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class EstadoPublicacionService {
@@ -35,17 +40,20 @@ public class EstadoPublicacionService {
     private final TiendaNubeService tiendaNubeService;
     private final DuxService duxService;
     private final MlaRepository mlaRepository;
+    private final MlCategoriaAtributoService mlCategoriaAtributoService;
 
     public EstadoPublicacionService(ProductoRepository productoRepository,
                                     MercadoLibreService mercadoLibreService,
                                     TiendaNubeService tiendaNubeService,
                                     DuxService duxService,
-                                    MlaRepository mlaRepository) {
+                                    MlaRepository mlaRepository,
+                                    MlCategoriaAtributoService mlCategoriaAtributoService) {
         this.productoRepository = productoRepository;
         this.mercadoLibreService = mercadoLibreService;
         this.tiendaNubeService = tiendaNubeService;
         this.duxService = duxService;
         this.mlaRepository = mlaRepository;
+        this.mlCategoriaAtributoService = mlCategoriaAtributoService;
     }
 
     /**
@@ -99,16 +107,123 @@ public class EstadoPublicacionService {
         Producto p = productoRepository.findById(productoId)
                 .orElseThrow(() -> new NotFoundException("Producto no encontrado"));
         Mla mla = p.getMla();
-        if (mla == null || mla.getFamilyId() == null || mla.getFamilyId().isBlank()) {
-            return FamiliaMlDTO.ninguna();
+        String mlaCode = (mla != null) ? mla.getMla() : null;
+
+        // Lee el ítem actual de ML (best-effort) para detectar el modelo y enriquecer.
+        JsonNode item = null;
+        try { if (mlaCode != null && !mlaCode.isBlank()) item = mercadoLibreService.leerItemRaw(mlaCode); }
+        catch (Exception ignored) { /* sin ML seguimos con la BD */ }
+
+        String familyName = (item != null) ? item.path("family_name").asString(null) : null;
+        JsonNode variations = (item != null) ? item.path("variations") : null;
+        boolean hayVariations = variations != null && variations.isArray() && !variations.isEmpty();
+
+        // LEGACY: sin family_name pero con variations[] anidado en el ítem.
+        if ((familyName == null || familyName.isBlank()) && hayVariations) {
+            return familiaLegacy(item, productoId);
         }
-        List<FamiliaVarianteDTO> variantes = productoRepository.findByMla_FamilyId(mla.getFamilyId()).stream()
-                .map(h -> new FamiliaVarianteDTO(h.getId(), h.getSku(),
-                        (h.getTituloNube() != null && !h.getTituloNube().isBlank()) ? h.getTituloNube() : h.getTituloDux(),
-                        h.getId().equals(productoId)))
-                .sorted(Comparator.comparing(FamiliaVarianteDTO::sku, Comparator.nullsLast(Comparator.naturalOrder())))
-                .toList();
-        return new FamiliaMlDTO("NUEVO", mla.getFamilyId(), mla.getFamilyName(), variantes);
+        // NUEVO: family_name presente, o family_id persistido en el MLA.
+        boolean esNuevo = (familyName != null && !familyName.isBlank())
+                || (mla != null && mla.getFamilyId() != null && !mla.getFamilyId().isBlank());
+        if (!esNuevo) return FamiliaMlDTO.ninguna();
+        return familiaNueva(p, mla, familyName, item);
+    }
+
+    /** Familia del modelo nuevo: hermanos por family_id (BD) enriquecidos con eje/stock/status de ML. */
+    private FamiliaMlDTO familiaNueva(Producto actual, Mla mla, String familyName, JsonNode itemActual) {
+        List<Producto> hermanos = (mla != null && mla.getFamilyId() != null && !mla.getFamilyId().isBlank())
+                ? productoRepository.findByMla_FamilyId(mla.getFamilyId())
+                : List.of(actual);
+        String categoryId = (itemActual != null) ? itemActual.path("category_id").asString(null) : null;
+        List<MlAtributoDefDTO> ejeDefs = ejesDeCategoria(categoryId);
+        Set<String> ejeIds = ejeDefs.stream().map(MlAtributoDefDTO::id).collect(Collectors.toSet());
+        String ejeNombre = ejeDefs.isEmpty() ? null : ejeDefs.get(0).name();
+
+        List<FamiliaVarianteDTO> variantes = new ArrayList<>();
+        for (Producto h : hermanos) {
+            String hMla = (h.getMla() != null) ? h.getMla().getMla() : null;
+            Integer stock = null; String status = null; String ejeValor = null;
+            try {
+                JsonNode hi = h.getId().equals(actual.getId()) ? itemActual
+                        : (hMla != null && !hMla.isBlank() ? mercadoLibreService.leerItemRaw(hMla) : null);
+                if (hi != null) {
+                    if (hi.path("available_quantity").isNumber()) stock = hi.path("available_quantity").asInt();
+                    status = hi.path("status").asString(null);
+                    ejeValor = valorEje(hi, ejeIds);
+                }
+            } catch (Exception ignored) { /* variante sin datos de ML */ }
+            variantes.add(new FamiliaVarianteDTO(h.getId(), h.getSku(), tituloDe(h),
+                    h.getId().equals(actual.getId()), ejeValor, stock, status, null));
+        }
+        variantes.sort(Comparator.comparing(FamiliaVarianteDTO::sku, Comparator.nullsLast(Comparator.naturalOrder())));
+        return new FamiliaMlDTO("NUEVO", mla != null ? mla.getFamilyId() : null,
+                familyName != null ? familyName : (mla != null ? mla.getFamilyName() : null), ejeNombre, variantes);
+    }
+
+    /** Familia legacy: se arma del array variations[] del ítem. */
+    private FamiliaMlDTO familiaLegacy(JsonNode item, Integer productoId) {
+        List<MlAtributoDefDTO> ejeDefs = ejesDeCategoria(item.path("category_id").asString(null));
+        String ejeNombre = ejeDefs.isEmpty() ? null : ejeDefs.get(0).name();
+        String status = item.path("status").asString(null);
+        List<FamiliaVarianteDTO> variantes = new ArrayList<>();
+        for (JsonNode v : item.path("variations")) {
+            Long variationId = v.path("id").isNumber() ? v.path("id").asLong() : null;
+            Integer stock = v.path("available_quantity").isNumber() ? v.path("available_quantity").asInt() : null;
+            String sku = sellerSku(v);
+            String ejeValor = valorEjeCombinations(v);
+            Integer prodId = (sku != null && !sku.isBlank())
+                    ? productoRepository.findBySku(sku).map(Producto::getId).orElse(null) : null;
+            variantes.add(new FamiliaVarianteDTO(prodId, sku, null,
+                    prodId != null && prodId.equals(productoId), ejeValor, stock, status, variationId));
+        }
+        return new FamiliaMlDTO("LEGACY", null, item.path("title").asString(null), ejeNombre, variantes);
+    }
+
+    /** Atributos de la categoría que permiten variación (allow_variations). Best-effort. */
+    private List<MlAtributoDefDTO> ejesDeCategoria(String categoryId) {
+        if (categoryId == null || categoryId.isBlank()) return List.of();
+        try {
+            return mlCategoriaAtributoService.obtenerAtributos(categoryId).stream()
+                    .filter(MlAtributoDefDTO::allowVariations).toList();
+        } catch (Exception e) { return List.of(); }
+    }
+
+    /** value_name del primer atributo del ítem cuyo id sea un eje (allow_variations). */
+    private static String valorEje(JsonNode item, Set<String> ejeIds) {
+        if (ejeIds.isEmpty()) return null;
+        for (JsonNode a : item.path("attributes")) {
+            if (ejeIds.contains(a.path("id").asString(null))) {
+                String vn = a.path("value_name").asString(null);
+                if (vn != null && !vn.isBlank()) return vn;
+            }
+        }
+        return null;
+    }
+
+    /** value_name de la primera attribute_combinations de una variación legacy. */
+    private static String valorEjeCombinations(JsonNode variation) {
+        JsonNode comb = variation.path("attribute_combinations");
+        if (comb.isArray() && !comb.isEmpty()) {
+            String vn = comb.get(0).path("value_name").asString(null);
+            if (vn != null && !vn.isBlank()) return vn;
+        }
+        return null;
+    }
+
+    /** SELLER_SKU (o seller_custom_field como fallback) de una variación legacy. */
+    private static String sellerSku(JsonNode variation) {
+        for (JsonNode a : variation.path("attributes")) {
+            if ("SELLER_SKU".equals(a.path("id").asString(null))) {
+                String vn = a.path("value_name").asString(null);
+                if (vn != null && !vn.isBlank()) return vn.trim();
+            }
+        }
+        String scf = variation.path("seller_custom_field").asString(null);
+        return (scf != null && !scf.isBlank()) ? scf.trim() : null;
+    }
+
+    private static String tituloDe(Producto h) {
+        return (h.getTituloNube() != null && !h.getTituloNube().isBlank()) ? h.getTituloNube() : h.getTituloDux();
     }
 
     /**

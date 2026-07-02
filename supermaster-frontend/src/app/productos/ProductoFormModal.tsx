@@ -2562,31 +2562,39 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         )}
                         {editandoProductoId && familia && familia.variantes.length > 1 && (
                             <div className="mb-4 rounded-2xl border border-slate-200 bg-white/60 p-3 dark:border-slate-700 dark:bg-slate-800/40">
-                                <div className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-200">Familia de variantes{familia.familyName ? ` · ${familia.familyName}` : ""} <span className="text-xs font-normal text-slate-400">({familia.variantes.length})</span></div>
+                                <div className="mb-2 flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                    Familia de variantes{familia.familyName ? ` · ${familia.familyName}` : ""}
+                                    <span className="text-xs font-normal text-slate-400">({familia.variantes.length}{familia.ejeNombre ? ` · eje: ${familia.ejeNombre}` : ""})</span>
+                                    {familia.modelo === "LEGACY" && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">legacy</span>}
+                                </div>
                                 <ul className="space-y-1">
-                                    {familia.variantes.map(v => (
-                                        <li key={v.productoId} className={`flex items-center gap-2 text-xs ${v.esActual ? "font-semibold text-slate-800 dark:text-slate-100" : "text-slate-600 dark:text-slate-300"}`}>
-                                            <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono dark:bg-slate-700">{v.sku}</span>
-                                            <span className="truncate">{v.titulo}</span>
+                                    {familia.variantes.map((v, i) => (
+                                        <li key={v.productoId ?? v.sku ?? i} className={`flex items-center gap-2 text-xs ${v.esActual ? "font-semibold text-slate-800 dark:text-slate-100" : "text-slate-600 dark:text-slate-300"}`}>
+                                            <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono dark:bg-slate-700">{v.sku ?? "—"}</span>
+                                            {v.ejeValor && <span className="rounded bg-blue-50 px-1.5 py-0.5 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">{v.ejeValor}</span>}
+                                            {v.stock != null && <span className="text-[10px] text-slate-400">stock {v.stock}</span>}
+                                            {v.status && <span className="text-[10px] text-slate-400">{v.status}</span>}
                                             {v.esActual && <span className="text-[10px] text-blue-500">(este)</span>}
                                             <span className="ml-auto flex items-center gap-2">
-                                                {!v.esActual && onEditarOtro && (
-                                                    <button type="button" onClick={() => onEditarOtro(v.productoId)} className="text-[10px] font-medium text-blue-600 hover:underline dark:text-blue-400">Editar</button>
+                                                {!v.esActual && v.productoId != null && onEditarOtro && (
+                                                    <button type="button" onClick={() => onEditarOtro(v.productoId!)} className="text-[10px] font-medium text-blue-600 hover:underline dark:text-blue-400">Editar</button>
                                                 )}
-                                                {quitandoId === v.productoId ? (
-                                                    <span className="flex items-center gap-1">
-                                                        <span className="text-[10px] text-slate-500">¿Pausar y quitar?</span>
-                                                        <button type="button" disabled={isSaving} onClick={() => handleQuitarDeFamilia(v.productoId)} className="rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white disabled:opacity-50">Sí</button>
-                                                        <button type="button" disabled={isSaving} onClick={() => setQuitandoId(null)} className="rounded border border-slate-300 px-1.5 py-0.5 text-[10px] dark:border-slate-600">No</button>
-                                                    </span>
-                                                ) : (
-                                                    <button type="button" onClick={() => setQuitandoId(v.productoId)} className="text-[10px] font-medium text-red-500 hover:underline">Quitar</button>
+                                                {familia.modelo === "NUEVO" && v.productoId != null && (
+                                                    quitandoId === v.productoId ? (
+                                                        <span className="flex items-center gap-1">
+                                                            <span className="text-[10px] text-slate-500">¿Pausar y quitar?</span>
+                                                            <button type="button" disabled={isSaving} onClick={() => handleQuitarDeFamilia(v.productoId!)} className="rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white disabled:opacity-50">Sí</button>
+                                                            <button type="button" disabled={isSaving} onClick={() => setQuitandoId(null)} className="rounded border border-slate-300 px-1.5 py-0.5 text-[10px] dark:border-slate-600">No</button>
+                                                        </span>
+                                                    ) : (
+                                                        <button type="button" onClick={() => setQuitandoId(v.productoId)} className="text-[10px] font-medium text-red-500 hover:underline">Quitar</button>
+                                                    )
                                                 )}
                                             </span>
                                         </li>
                                     ))}
                                 </ul>
-                                {!agregandoVariante ? (
+                                {familia.modelo === "NUEVO" && (!agregandoVariante ? (
                                     <button type="button" onClick={() => setAgregandoVariante(true)}
                                         className="mt-2 rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300">+ Agregar variante</button>
                                 ) : (
@@ -2621,7 +2629,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                             <button type="button" onClick={handleAgregarVariante} disabled={isSaving} className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">{isSaving ? "Creando…" : "Crear variante"}</button>
                                         </div>
                                     </div>
-                                )}
+                                ))}
                             </div>
                         )}
                         <div className="mb-4 grid grid-cols-1">

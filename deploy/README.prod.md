@@ -35,7 +35,7 @@ son relativos a `deploy/`, así que resuelven a esas carpetas del repo.
 Crear las carpetas de datos persistentes (bind mounts), incluida la de `secrets`:
 
 ```bash
-sudo mkdir -p /data/supermaster/{secrets,imagenes,catalogos,logs,backups}
+sudo mkdir -p /data/supermaster/{secrets,imagenes,imagenes-raw,catalogos,logs,backups}
 sudo chmod 700 /data/supermaster/secrets   # solo el dueño puede leer los tokens
 ```
 
@@ -43,6 +43,7 @@ sudo chmod 700 /data/supermaster/secrets   # solo el dueño puede leer los token
 |------------------|-------------------------------|-----------|
 | `/data/supermaster/secrets`   | `/app/secrets`           | Tokens de APIs (ver paso 4) |
 | `/data/supermaster/imagenes`  | `/app/imagenes`          | Imágenes (volumen local por ahora) |
+| `/data/supermaster/imagenes-raw` | `/app/imagenes-raw`   | Imágenes crudas (entrada para carátulas) |
 | `/data/supermaster/catalogos` | `/app/catalogos-salida`  | PDFs de catálogos (luego → Google Drive con rclone) |
 | `/data/supermaster/logs`      | `/app/logs`              | Logs del backend |
 | `/data/supermaster/backups`   | `/backups`               | Backups diarios de MySQL (1 AM) |

@@ -62,14 +62,13 @@ public class AutomatizacionPreciosController {
 
     /**
      * Endpoint para n8n / automatización externa.
-     * Sin autenticación (configurado en SecurityConfig como permitAll).
-     * SEGURIDAD: depende de que el backend NO esté expuesto a internet (solo LAN).
-     * Si alguna vez se expone públicamente, proteger con API key o auth.
+     * No lleva JWT (permitAll en SecurityConfig); la protección es el secreto
+     * compartido X-Automation-Token validado por {@link ar.com.leo.super_master_backend.config.AutomationAuth}.
      * Inicia la sincronización y espera a que termine (sincrónico).
      * Si ya hay un proceso corriendo, retorna 409.
      */
     @PostMapping("/ejecutar")
-    @PreAuthorize("permitAll()")
+    @PreAuthorize("@automationAuth.valid()")
     public ResponseEntity<SincronizacionResultDTO> ejecutar()
             throws InterruptedException {
         SincronizacionRequestDTO allSteps = new SincronizacionRequestDTO(

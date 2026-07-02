@@ -101,13 +101,19 @@ public class CatalogoPdfController {
         return generarRespuestaPdf(request, "/api/catalogos-pdf/exportar");
     }
 
+    // n8n: sin JWT (permitAll en SecurityConfig), protegido por el secreto
+    // compartido X-Automation-Token (ver AutomationAuth).
     @PostMapping("/generar-automatico-todos")
+    @PreAuthorize("@automationAuth.valid()")
     public ResponseEntity<GenerarTodosResultDTO> generarTodosLosAutomaticos() {
         GenerarTodosResultDTO result = catalogoPdfService.generarTodosLosAutomaticos();
         return ResponseEntity.ok(result);
     }
 
+    // n8n: sin JWT (permitAll en SecurityConfig), protegido por el secreto
+    // compartido X-Automation-Token (ver AutomationAuth).
     @PostMapping("/generar-automatico/{id}")
+    @PreAuthorize("@automationAuth.valid()")
     public ResponseEntity<?> generarCatalogoPdfAutomaticoPorId(@PathVariable Integer id) {
         String path = "/api/catalogos-pdf/generar-automatico/" + id;
         try {

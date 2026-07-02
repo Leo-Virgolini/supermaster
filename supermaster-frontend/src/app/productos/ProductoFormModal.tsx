@@ -2648,7 +2648,23 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         <div className="mb-4 grid grid-cols-1">
                             <label className="block">
                                 <span className="flex items-center justify-between gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                                    <span>Título ML{subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}</span>
+                                    <span className="flex items-center gap-1">
+                                        Título ML{subirMl && <span className="ml-0.5 font-bold text-red-600">*</span>}
+                                        <Tooltip className="flex items-center" content={(
+                                            <div className="space-y-1 text-sm">
+                                                <p>Creá títulos simples, claros y descriptivos para ayudar a que encuentren tu producto.</p>
+                                                <p>Usá la opción de "Sugerir un título" con inteligencia artificial para recibir recomendaciones que sigan estos consejos.</p>
+                                                <p className="font-medium">Si vas a escribirlo por tu cuenta:</p>
+                                                <ul className="ml-4 list-disc space-y-0.5">
+                                                    <li>Mencioná las características principales del producto, como marca y modelo.</li>
+                                                    <li>No incluyas datos adicionales como precio, forma de pago o envíos, porque ya los mostramos en el resto de tu publicación.</li>
+                                                    <li>Si tu producto tiene variantes, podés crear un título genérico que describa las características comunes a todas ellas.</li>
+                                                </ul>
+                                            </div>
+                                        )}>
+                                            <InformationCircleIcon className="h-4 w-4 shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200" />
+                                        </Tooltip>
+                                    </span>
                                     {maxTitleLengthMl != null && (
                                         <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ${
                                             tituloMl.length >= maxTitleLengthMl

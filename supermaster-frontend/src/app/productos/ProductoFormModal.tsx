@@ -74,6 +74,14 @@ function clasificarExport(canal: CanalExport, r: { creados?: number; actualizado
     return { canal, estado: "ok", detalle: partes.join(" · ") || "sin cambios", conAvisos };
 }
 
+// Título de una variante para canales con producto SEPARADO (Nube/Dux): base + valor del eje,
+// para que N variantes no queden con nombre idéntico. El título ML NO usa esto (es el family_name).
+const tituloVariante = (base: string, ejeValor: string) => {
+    const b = base.trim();
+    const e = ejeValor.trim();
+    return e ? `${b} ${e}`.trim() : b;
+};
+
 // Una línea por canal ("Canal: detalle") para armar un único toast consolidado.
 const lineasCanales = (resultados: ResultadoCanal[]) => resultados.map(r => `${r.canal}: ${r.detalle}`);
 // El toast es warning si algún canal trae avisos (ej. "creado sin imagen"); si no, success.
@@ -635,7 +643,9 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     };
     // Payload de alta de una variante = clon del base con override de sku/stock/ean/mlaId.
     const construirPayloadVariante = (over: { sku: string; stock: number | ""; ean: string | null; mlaId: number | null; ejeValorNombre: string }): ProductoCreateDTO => ({
-        sku: over.sku, codExt, tituloDux: tituloDux.trim(), tituloNube: tituloNube.trim() || null, esCombo, uxb, activo,
+        sku: over.sku, codExt,
+        tituloDux: tituloVariante(tituloDux, over.ejeValorNombre),
+        tituloNube: tituloVariante(tituloNube, over.ejeValorNombre) || null, esCombo, uxb, activo,
         capacidad, largo: normalizarFisico("largo") || null, ancho: normalizarFisico("ancho") || null, alto: normalizarFisico("alto") || null,
         diamboca: normalizarFisico("diamboca") || null, diambase: normalizarFisico("diambase") || null, espesor: normalizarFisico("espesor") || null,
         costo: costo === "" ? 0 : costo, iva,

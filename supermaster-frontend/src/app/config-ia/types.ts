@@ -39,9 +39,6 @@ export const MODEL_SEO_OPCIONES: string[] = [
     "gpt-5.2", "gpt-5.2-pro", "gpt-5.1", "gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-5-pro", "gpt-4.1",
 ];
 
-export const MODEL_IMAGEN_OPCIONES: { value: string; label: string }[] = [
-    { value: "gpt-image-2", label: "GPT Image 2" },
-    { value: "gpt-image-1.5", label: "GPT Image 1.5" },
-    { value: "gpt-image-1", label: "GPT Image 1" },
-    { value: "gpt-image-1-mini", label: "GPT Image 1 Mini" },
+export const MODEL_IMAGEN_OPCIONES: string[] = [
+    "gpt-image-2", "gpt-image-1.5", "gpt-image-1", "gpt-image-1-mini",
 ];

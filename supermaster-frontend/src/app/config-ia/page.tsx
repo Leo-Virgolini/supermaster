@@ -164,10 +164,10 @@ function ConfigIaInner() {
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <div><label className="text-xs text-slate-500">Modelo</label>
                         <select className={inputCls} value={imgModel} onChange={e => setImgModel(e.target.value)} disabled={isLoading}>
-                            {!MODEL_IMAGEN_OPCIONES.some(o => o.value === imgModel) && imgModel !== "" && (
+                            {!MODEL_IMAGEN_OPCIONES.includes(imgModel) && imgModel !== "" && (
                                 <option value={imgModel}>{imgModel}</option>
                             )}
-                            {MODEL_IMAGEN_OPCIONES.map(o => <option key={o.value} value={o.value}>{o.value}</option>)}
+                            {MODEL_IMAGEN_OPCIONES.map(m => <option key={m} value={m}>{m}</option>)}
                         </select>
                     </div>
                     <div><label className="text-xs text-slate-500">Tamaño</label>

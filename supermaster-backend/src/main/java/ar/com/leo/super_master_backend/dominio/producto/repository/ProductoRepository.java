@@ -58,8 +58,14 @@ public interface ProductoRepository extends JpaRepository<Producto, Integer>, Jp
 
     List<Producto> findByMlaId(Integer mlaId);
 
-    /** Hermanos de una familia de variantes ML (modelo nuevo): productos cuyo MLA comparte family_id. */
-    List<Producto> findByMla_FamilyId(String familyId);
+    /** Hermanos de una familia de variantes ML (modelo nuevo), con el MLA cargado (fetch) para poder
+     *  leerlo fuera de la transacción (OSIV off). */
+    @Query("select p from Producto p left join fetch p.mla m where m.familyId = :familyId")
+    List<Producto> findByFamilyIdFetchMla(@Param("familyId") String familyId);
+
+    /** Producto por id con su MLA cargado (fetch), para acceder al MLA fuera de la transacción. */
+    @Query("select p from Producto p left join fetch p.mla where p.id = :id")
+    Optional<Producto> findByIdConMla(@Param("id") Integer id);
 
     List<Producto> findByMaterialId(Integer materialId);
 

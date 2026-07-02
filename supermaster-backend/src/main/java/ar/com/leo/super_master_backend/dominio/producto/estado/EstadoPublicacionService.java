@@ -102,9 +102,10 @@ public class EstadoPublicacionService {
      * (los hermanos son productos cuyo MLA comparte family_id). Si el producto no es de familia,
      * devuelve {@link FamiliaMlDTO#ninguna()}.
      */
-    @Transactional(readOnly = true)
+    // Sin @Transactional: se cargan producto y hermanos con el MLA por fetch-join (queries cortas propias)
+    // y las lecturas a ML se hacen FUERA de una transacción, para no retener la conexión JDBC durante los HTTP.
     public FamiliaMlDTO leerFamilia(Integer productoId) {
-        Producto p = productoRepository.findById(productoId)
+        Producto p = productoRepository.findByIdConMla(productoId)
                 .orElseThrow(() -> new NotFoundException("Producto no encontrado"));
         Mla mla = p.getMla();
         String mlaCode = (mla != null) ? mla.getMla() : null;
@@ -132,7 +133,7 @@ public class EstadoPublicacionService {
     /** Familia del modelo nuevo: hermanos por family_id (BD) enriquecidos con eje/stock/status de ML. */
     private FamiliaMlDTO familiaNueva(Producto actual, Mla mla, String familyName, JsonNode itemActual) {
         List<Producto> hermanos = (mla != null && mla.getFamilyId() != null && !mla.getFamilyId().isBlank())
-                ? productoRepository.findByMla_FamilyId(mla.getFamilyId())
+                ? productoRepository.findByFamilyIdFetchMla(mla.getFamilyId())
                 : List.of(actual);
         String categoryId = (itemActual != null) ? itemActual.path("category_id").asString(null) : null;
         List<MlAtributoDefDTO> ejeDefs = ejesDeCategoria(categoryId);

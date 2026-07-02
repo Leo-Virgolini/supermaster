@@ -2577,7 +2577,9 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         </div>
                     </fieldset>
 
-                    {editandoProductoId && familia && familia.variantes.length > 1 && (
+                    {/* Se muestra en cualquier familia del modelo nuevo (aunque tenga 1 sola variante, para poder
+                        sumarle hermanas) o en una legacy con más de una variante. Un producto clásico suelto no aplica. */}
+                    {editandoProductoId && familia && (familia.modelo === "NUEVO" || familia.variantes.length > 1) && (
                     <fieldset className={`${sectionClassName} ${SECTION_TINT.ml}`}>
                         <legend className={sectionTitleClassName}><ShoppingBagIcon /> Familia de variantes</legend>
                         <div className="rounded-2xl border border-slate-200 bg-white/60 p-3 dark:border-slate-700 dark:bg-slate-800/40">

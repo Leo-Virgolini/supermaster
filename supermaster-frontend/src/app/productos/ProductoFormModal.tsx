@@ -1670,6 +1670,12 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const indicadorCarga = (texto: string) => (
         <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-800/60"><SpinnerIcon /> {texto}</div>
     );
+    // Skeleton con forma de input (misma altura) para mientras se cargan los datos del canal al editar.
+    const inputSkeleton = () => (
+        <div className={`${inputBaseClassName} flex items-center`} aria-hidden="true">
+            <span className="h-3.5 w-2/3 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+        </div>
+    );
 
     // Renderiza el input de un atributo según el tipo de componente de ML.
     const renderMlAtributoInput = (d: MlAtributoDef, c: MlComponente) => {
@@ -2702,7 +2708,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                         </span>
                                     )}
                                 </span>
-                                <input type="text" className={`${inputBaseClassName} ${formErrors.tituloMl ? inputErrorClassName : ""}`} value={tituloMl} onChange={e => { setTituloMl(e.target.value); if (formErrors.tituloMl) setFormErrors(p => ({ ...p, tituloMl: "" })); }} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handlePredecirCategoriasMl(); } }} placeholder="Título para Mercado Libre" maxLength={maxTitleLengthMl ?? undefined} />
+                                {cargandoMl ? inputSkeleton() : <input type="text" className={`${inputBaseClassName} ${formErrors.tituloMl ? inputErrorClassName : ""}`} value={tituloMl} onChange={e => { setTituloMl(e.target.value); if (formErrors.tituloMl) setFormErrors(p => ({ ...p, tituloMl: "" })); }} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handlePredecirCategoriasMl(); } }} placeholder="Título para Mercado Libre" maxLength={maxTitleLengthMl ?? undefined} />}
                                 {formErrors.tituloMl && <p className="mt-1 text-xs text-red-500">{formErrors.tituloMl}</p>}
                                 {mlPublicado ? (
                                     <div className="mt-2 flex flex-col gap-1">
@@ -2777,7 +2783,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
                             <label className="block xl:col-span-3">
                                 <span className={fieldLabelClassName}>Código MLA</span>
-                                <input
+                                {cargandoMl ? inputSkeleton() : <input
                                     type="text"
                                     className={`${inputBaseClassName} ${mlaVerif?.alerta ? inputErrorClassName : ""}`}
                                     value={mlaCodigo}
@@ -2788,29 +2794,29 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                         if (!v.trim()) { setMlaId(null); setMlaDetalle(null); setMlaMlau(""); setMlaPrecioEnvio(""); setMlaComision(""); setMlaTope(""); }
                                     }}
                                     placeholder="MLA123456789"
-                                />
+                                />}
                             </label>
                             <label className="block xl:col-span-3">
                                 <span className={fieldLabelClassName}>MLAU</span>
-                                <input type="text" className={inputBaseClassName} value={mlaMlau} onChange={e => setMlaMlau(e.target.value)} placeholder="Opcional" />
+                                {cargandoMl ? inputSkeleton() : <input type="text" className={inputBaseClassName} value={mlaMlau} onChange={e => setMlaMlau(e.target.value)} placeholder="Opcional" />}
                             </label>
                             <label className="block xl:col-span-2">
                                 <span className={fieldLabelClassName}>Precio envío</span>
-                                <input type="number" min={0} className={inputBaseClassName} value={mlaPrecioEnvio} onChange={e => setMlaPrecioEnvio(e.target.value === "" ? "" : Number(e.target.value))} placeholder="0" />
+                                {cargandoMl ? inputSkeleton() : <input type="number" min={0} className={inputBaseClassName} value={mlaPrecioEnvio} onChange={e => setMlaPrecioEnvio(e.target.value === "" ? "" : Number(e.target.value))} placeholder="0" />}
                                 {mlaDetalle?.fechaCalculoEnvio && (
                                     <span className="mt-0.5 block text-[11px] text-slate-400 dark:text-slate-500">calculado el {new Date(mlaDetalle.fechaCalculoEnvio).toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" })}</span>
                                 )}
                             </label>
                             <label className="block xl:col-span-2">
                                 <span className={fieldLabelClassName}>Comisión (%)</span>
-                                <input type="number" min={0} step={0.5} className={inputBaseClassName} value={mlaComision} onChange={e => setMlaComision(e.target.value === "" ? "" : Number(e.target.value))} placeholder="0" />
+                                {cargandoMl ? inputSkeleton() : <input type="number" min={0} step={0.5} className={inputBaseClassName} value={mlaComision} onChange={e => setMlaComision(e.target.value === "" ? "" : Number(e.target.value))} placeholder="0" />}
                                 {mlaDetalle?.fechaCalculoComision && (
                                     <span className="mt-0.5 block text-[11px] text-slate-400 dark:text-slate-500">calculado el {new Date(mlaDetalle.fechaCalculoComision).toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" })}</span>
                                 )}
                             </label>
                             <label className="block xl:col-span-2">
                                 <span className={fieldLabelClassName}>Tope promoción</span>
-                                <input type="number" min={0} className={inputBaseClassName} value={mlaTope} onChange={e => setMlaTope(e.target.value === "" ? "" : Number(e.target.value))} placeholder="0" />
+                                {cargandoMl ? inputSkeleton() : <input type="number" min={0} className={inputBaseClassName} value={mlaTope} onChange={e => setMlaTope(e.target.value === "" ? "" : Number(e.target.value))} placeholder="0" />}
                             </label>
                         </div>
 

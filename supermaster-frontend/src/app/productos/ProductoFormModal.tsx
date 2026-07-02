@@ -2653,7 +2653,6 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                         <Tooltip className="flex items-center" content={(
                                             <div className="space-y-1 text-sm">
                                                 <p>Creá títulos simples, claros y descriptivos para ayudar a que encuentren tu producto.</p>
-                                                <p>Usá la opción de "Sugerir un título" con inteligencia artificial para recibir recomendaciones que sigan estos consejos.</p>
                                                 <p className="font-medium">Si vas a escribirlo por tu cuenta:</p>
                                                 <ul className="ml-4 list-disc space-y-0.5">
                                                     <li>Mencioná las características principales del producto, como marca y modelo.</li>

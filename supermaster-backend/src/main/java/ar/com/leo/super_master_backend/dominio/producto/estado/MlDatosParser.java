@@ -32,6 +32,21 @@ public final class MlDatosParser {
         return item.path("category_id").asString(null);
     }
 
+    /** Código universal (barcode) publicado en ML: value_name del atributo GTIN (preferido) o EAN. Null si no hay. */
+    public static String codigoUniversal(JsonNode item) {
+        if (item == null) return null;
+        String ean = null;
+        for (JsonNode a : item.path("attributes")) {
+            String id = a.path("id").asString(null);
+            if (!"GTIN".equals(id) && !"EAN".equals(id)) continue;
+            String vn = a.path("value_name").asString(null);
+            if (vn == null || vn.isBlank()) continue;
+            if ("GTIN".equals(id)) return vn.trim();  // GTIN tiene prioridad
+            ean = vn.trim();
+        }
+        return ean;
+    }
+
     public static List<MlAtributoDTO> atributos(JsonNode item) {
         List<MlAtributoDTO> out = new ArrayList<>();
         if (item == null) return out;

@@ -16,5 +16,6 @@ public record MlCanalDTO(
         Double mlPaqAncho,
         Double mlPaqLargo,
         Double mlPaqPeso,
-        String titulo
+        String titulo,
+        String ean
 ) {}

@@ -297,6 +297,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const [nvStock, setNvStock] = useState<number | "">(0);
     const [nvEan, setNvEan] = useState("");
     const [nvSkuYaExiste, setNvSkuYaExiste] = useState(false); // aviso en vivo de SKU duplicado al agregar variante
+    const [nvImagenes, setNvImagenes] = useState<ImagenDetalle[]>([]); // imágenes detectadas (por SKU) para la variante nueva
     // Atributos de la categoría ML (fuente confiable de allowVariations para el eje).
     const [ejeAtributosCat, setEjeAtributosCat] = useState<MlAtributoDef[]>([]);
     const ejeOpciones = useMemo(
@@ -1181,6 +1182,17 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             catch { /* silencioso: el backend igual rechaza al crear */ }
         }, 400);
         return () => { clearTimeout(t); controller.abort(); };
+    }, [nvSku, agregandoVariante]);
+
+    // Imágenes (resueltas por SKU) de la variante nueva: preview + aviso si no hay (ML/Nube las exigen).
+    useEffect(() => {
+        const valor = nvSku.trim();
+        if (!agregandoVariante || !valor) { setNvImagenes([]); return; }
+        let cancel = false;
+        const t = setTimeout(() => {
+            getImagenDetalleAPI(valor).then(imgs => { if (!cancel) setNvImagenes(imgs); }).catch(() => { if (!cancel) setNvImagenes([]); });
+        }, 400);
+        return () => { cancel = true; clearTimeout(t); };
     }, [nvSku, agregandoVariante]);
 
     // Carga el detalle de imágenes del SKU para mostrar el aviso preventivo de formato/tamaño.
@@ -2959,6 +2971,24 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                             <label className="block"><span className="text-[11px] text-slate-500">EAN</span>
                                                 <input className={inputBaseClassName} value={nvEan} onChange={e => setNvEan(e.target.value)} placeholder="Código de barras" /></label>
                                         </div>
+                                        {/* Imágenes de la variante: se resuelven por SKU (mismo modelo que el producto). Preview + aviso si faltan. */}
+                                        {nvSku.trim() && (
+                                            <div className="mt-2">
+                                                <span className="mb-1 block text-[11px] text-slate-500">Imágenes (por SKU)</span>
+                                                {nvImagenes.length === 0 ? (
+                                                    <p className="text-[11px] font-medium text-amber-600 dark:text-amber-400">⚠ No hay imágenes para este SKU en la carpeta. Mercado Libre exige al menos una.</p>
+                                                ) : (
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {nvImagenes.map(img => (
+                                                            <button key={img.nombre} type="button" onClick={() => setCarouselSku(nvSku.trim())}
+                                                                className="h-14 w-14 overflow-hidden rounded-lg border border-slate-200 hover:border-blue-400 dark:border-slate-700" title={img.nombre}>
+                                                                <img src={`${API_BASE_URL}/api/imagenes/${img.nombre}?v=${caratulaCacheBust}`} alt={img.nombre} loading="lazy" className="h-full w-full bg-white object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                         <div className="mt-2 flex justify-end gap-2">
                                             <button type="button" onClick={() => setAgregandoVariante(false)} disabled={isSaving} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 disabled:opacity-50 dark:border-slate-600 dark:text-slate-300">Cancelar</button>
                                             <button type="button" onClick={handleAgregarVariante} disabled={isSaving || nvSkuYaExiste} className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">{isSaving ? "Creando…" : "Crear variante"}</button>

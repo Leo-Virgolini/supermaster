@@ -87,11 +87,13 @@ services:
     # Sin mapeo de puertos: Coolify enruta al puerto interno 3000 por dominio.
     expose:
       - "3000"
+    # Healthcheck con node (siempre presente en la imagen): sano si el server
+    # responde con status < 500 (un 200 o un redirect a /login cuentan como vivo).
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"]
       interval: 30s
       timeout: 5s
-      start_period: 30s
+      start_period: 40s
       retries: 3
     restart: unless-stopped
     depends_on:

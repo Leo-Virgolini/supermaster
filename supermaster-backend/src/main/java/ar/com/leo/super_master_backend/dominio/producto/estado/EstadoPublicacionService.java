@@ -11,6 +11,7 @@ import ar.com.leo.super_master_backend.dominio.producto.estado.dto.DuxCanalDTO;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.FamiliaMlDTO;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.FamiliaVarianteDTO;
 import ar.com.leo.super_master_backend.dominio.producto.mla.entity.Mla;
+import ar.com.leo.super_master_backend.dominio.producto.mla.repository.MlaRepository;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoAplicarDTO;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoAplicarDTO.CanalAplicado;
 import ar.com.leo.super_master_backend.dominio.producto.estado.dto.EstadoCanalDTO;
@@ -33,15 +34,18 @@ public class EstadoPublicacionService {
     private final MercadoLibreService mercadoLibreService;
     private final TiendaNubeService tiendaNubeService;
     private final DuxService duxService;
+    private final MlaRepository mlaRepository;
 
     public EstadoPublicacionService(ProductoRepository productoRepository,
                                     MercadoLibreService mercadoLibreService,
                                     TiendaNubeService tiendaNubeService,
-                                    DuxService duxService) {
+                                    DuxService duxService,
+                                    MlaRepository mlaRepository) {
         this.productoRepository = productoRepository;
         this.mercadoLibreService = mercadoLibreService;
         this.tiendaNubeService = tiendaNubeService;
         this.duxService = duxService;
+        this.mlaRepository = mlaRepository;
     }
 
     /**
@@ -105,6 +109,25 @@ public class EstadoPublicacionService {
                 .sorted(Comparator.comparing(FamiliaVarianteDTO::sku, Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
         return new FamiliaMlDTO("NUEVO", mla.getFamilyId(), mla.getFamilyName(), variantes);
+    }
+
+    /**
+     * Quita un producto de su familia de variantes: PAUSA su publicación en ML (best-effort,
+     * reversible) y lo DESASOCIA localmente (limpia family_id/family_name de su MLA). El producto y
+     * su MLA no se borran. No-op si el producto no es de familia.
+     */
+    @Transactional
+    public void quitarDeFamilia(Integer productoId) {
+        Producto p = productoRepository.findById(productoId)
+                .orElseThrow(() -> new NotFoundException("Producto no encontrado"));
+        Mla mla = p.getMla();
+        if (mla == null || mla.getFamilyId() == null || mla.getFamilyId().isBlank()) return;
+        try {
+            if (mla.getMla() != null && !mla.getMla().isBlank()) mercadoLibreService.updateItemStatus(mla.getMla(), "paused");
+        } catch (Exception ignored) { /* pausar es best-effort; igual desasociamos localmente */ }
+        mla.setFamilyId(null);
+        mla.setFamilyName(null);
+        mlaRepository.save(mla);
     }
 
     /** Lee una tienda Nube (una sola GET reutilizada para estado, descripción, SEO y dims). Nunca lanza. */

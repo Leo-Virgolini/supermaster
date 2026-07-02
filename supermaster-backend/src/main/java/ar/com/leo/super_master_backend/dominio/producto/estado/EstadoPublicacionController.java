@@ -51,6 +51,13 @@ public class EstadoPublicacionController {
         return ResponseEntity.ok(estadoPublicacionService.leerFamilia(id));
     }
 
+    @DeleteMapping("/familia")
+    @PreAuthorize(Permisos.INTEGRACIONES_EDITAR)
+    public ResponseEntity<Void> quitarDeFamilia(@PathVariable @Positive Integer id) {
+        estadoPublicacionService.quitarDeFamilia(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @PutMapping
     @PreAuthorize(Permisos.INTEGRACIONES_EDITAR)
     public ResponseEntity<EstadoAplicarDTO> aplicar(@PathVariable @Positive Integer id,

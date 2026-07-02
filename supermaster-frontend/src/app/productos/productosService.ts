@@ -560,6 +560,11 @@ async function getEstadoCanal<T>(id: number, canal: string): Promise<T> {
 export type FamiliaVariante = { productoId: number; sku: string; titulo: string | null; esActual: boolean };
 export type FamiliaMl = { modelo: string | null; familyId: string | null; familyName: string | null; variantes: FamiliaVariante[] };
 export const getFamiliaAPI = (id: number) => getEstadoCanal<FamiliaMl>(id, "familia");
+// Quita un producto de su familia: pausa su publicación en ML y lo desasocia (no borra el producto).
+export const quitarDeFamiliaAPI = async (productoId: number): Promise<void> => {
+	const r = await fetchAPI(`${API_BASE_URL}/api/productos/${productoId}/estado-publicacion/familia`, { method: "DELETE" });
+	if (!r.ok) throw new Error(await extraerMensajeError(r, "No se pudo quitar la variante de la familia"));
+};
 
 export const getEstadoMlAPI = (id: number) => getEstadoCanal<MlCanal>(id, "ml");
 export const getEstadoHogarAPI = (id: number) => getEstadoCanal<NubeCanal>(id, "hogar");

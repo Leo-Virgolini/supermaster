@@ -22,7 +22,7 @@ import {
     type MlFicha, type MlComponente,
     getMlCategoriaMaxTitleAPI,
     putEstadoPublicacionAPI,
-    getEstadoMlAPI, getEstadoHogarAPI, getEstadoGastroAPI, getEstadoDuxAPI, getFamiliaAPI, type FamiliaMl,
+    getEstadoMlAPI, getEstadoHogarAPI, getEstadoGastroAPI, getEstadoDuxAPI, getFamiliaAPI, quitarDeFamiliaAPI, type FamiliaMl,
     type EstadoCanal, type EstadoPublicacionUpdate,
     type MlCanal, type NubeCanal, type DuxCanal,
     generarCaratulaAPI, guardarCaratulaAPI,
@@ -308,6 +308,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const [resultadosVariantes, setResultadosVariantes] = useState<{ sku: string; resultados: ResultadoCanal[] }[]>([]);
     // Familia de variantes del producto (solo edición; 2b-1: lista read-only desde la BD por family_id).
     const [familia, setFamilia] = useState<FamiliaMl | null>(null);
+    const [quitandoId, setQuitandoId] = useState<number | null>(null); // 2b-3: variante en confirmación de quitar
     useEffect(() => {
         if (!editandoProductoId) { setFamilia(null); return; }
         let cancel = false;
@@ -698,6 +699,18 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             if (editandoProductoId) { try { setFamilia(await getFamiliaAPI(editandoProductoId)); } catch { /* se refresca al reabrir */ } }
             setNvSku(""); setNvEjeValorId(null); setNvEjeValorNombre(""); setNvStock(0); setNvEan(""); setAgregandoVariante(false);
         } finally { setIsSaving(false); }
+    };
+
+    // 2b-3: quita una variante de la familia (pausa en ML + desasocia). Refresca el panel.
+    const handleQuitarDeFamilia = async (productoId: number) => {
+        setIsSaving(true);
+        try {
+            await quitarDeFamiliaAPI(productoId);
+            notificar.success("Variante pausada y quitada de la familia");
+            if (editandoProductoId) { try { setFamilia(await getFamiliaAPI(editandoProductoId)); } catch { /* se refresca al reabrir */ } }
+        } catch (e) {
+            if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "No se pudo quitar la variante");
+        } finally { setIsSaving(false); setQuitandoId(null); }
     };
 
     const handleCreate = async () => {
@@ -2554,6 +2567,15 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                             <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono dark:bg-slate-700">{v.sku}</span>
                                             <span className="truncate">{v.titulo}</span>
                                             {v.esActual && <span className="text-[10px] text-blue-500">(este)</span>}
+                                            {quitandoId === v.productoId ? (
+                                                <span className="ml-auto flex items-center gap-1">
+                                                    <span className="text-[10px] text-slate-500">¿Pausar y quitar?</span>
+                                                    <button type="button" disabled={isSaving} onClick={() => handleQuitarDeFamilia(v.productoId)} className="rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white disabled:opacity-50">Sí</button>
+                                                    <button type="button" disabled={isSaving} onClick={() => setQuitandoId(null)} className="rounded border border-slate-300 px-1.5 py-0.5 text-[10px] dark:border-slate-600">No</button>
+                                                </span>
+                                            ) : (
+                                                <button type="button" onClick={() => setQuitandoId(v.productoId)} className="ml-auto text-[10px] font-medium text-red-500 hover:underline">Quitar</button>
+                                            )}
                                         </li>
                                     ))}
                                 </ul>

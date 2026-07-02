@@ -62,16 +62,23 @@ function clasificarExport(canal: CanalExport, r: { creados?: number; actualizado
     if (r.errores.length) return { canal, estado: "error", detalle: sinPrefijoSku(r.errores, sku).join("; ") };
     const partes: string[] = [];
     if (r.creados) partes.push(plural(r.creados, "creado", "creados"));
-    if (r.actualizados?.length) partes.push(plural(r.actualizados.length, "actualizado", "actualizados"));
+    if (r.actualizados?.length) {
+        // En Tienda Nube cada ítem actualizado es una sub-tienda (KT HOGAR / KT GASTRO): nombrar cuáles.
+        partes.push(canal === "Tienda Nube"
+            ? `${sinPrefijoSku(r.actualizados, sku).join(", ")} ${r.actualizados.length === 1 ? "actualizada" : "actualizadas"}`
+            : plural(r.actualizados.length, "actualizado", "actualizados"));
+    }
     if (r.yaExistian?.length) partes.push(plural(r.yaExistian.length, "ya existía", "ya existían"));
     const conAvisos = !!r.advertencias?.length;
     if (conAvisos) partes.push(`⚠ ${sinPrefijoSku(r.advertencias!, sku).join("; ")}`);
     return { canal, estado: "ok", detalle: partes.join(" · ") || "sin cambios", conAvisos };
 }
 
-// Emite un toast por canal: warning si trae avisos (ej. "creado sin imagen"), success si salió limpio.
-const notificarCanales = (resultados: ResultadoCanal[]) =>
-    resultados.forEach(r => (r.conAvisos ? notificar.warning : notificar.success)(`${r.canal}: ${r.detalle}`));
+// Una línea por canal ("Canal: detalle") para armar un único toast consolidado.
+const lineasCanales = (resultados: ResultadoCanal[]) => resultados.map(r => `${r.canal}: ${r.detalle}`);
+// El toast es warning si algún canal trae avisos (ej. "creado sin imagen"); si no, success.
+const notificarConsolidado = (lineas: string[], conAvisos: boolean) =>
+    (conAvisos ? notificar.warning : notificar.success)(lineas.join("\n"));
 
 // Spinner del botón de submit mientras se crea/edita el producto.
 function SpinnerIcon() {
@@ -792,8 +799,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             const resultados = await ejecutarExportsCanales(sk, canalesMarcados());
             setResultadosCanal(resultados);
             if (resultados.every(r => r.estado === "ok")) {
-                notificar.success(`Producto ${sk} creado`);
-                notificarCanales(resultados);
+                // Un único toast: producto + una línea por canal.
+                notificarConsolidado([`Producto ${sk} creado`, ...lineasCanales(resultados)], resultados.some(r => r.conAvisos));
                 onClose();
             } else {
                 // Mantener el modal abierto con el panel de estado por canal.
@@ -1053,6 +1060,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
 
             // Estado de publicación: aplicar solo lo que cambió respecto de lo leído al abrir.
             // Se deriva el estado "actual" desde los 4 estados independientes.
+            // La línea de éxito se acumula para el toast consolidado; un error sí se avisa aparte.
+            let estadoPublicacionLinea: string | null = null;
             {
                 const upd: EstadoPublicacionUpdate = {};
                 if (estadoMl?.estado.publicado && estadoMl.estado.estado !== estadoMlOriginal?.estado.estado) upd.ml = estadoMl.estado.estado;
@@ -1067,7 +1076,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                         const huboError = [res.ml, res.hogar, res.gastro].some(r => r && !r.ok);
                         if (lineas.length) {
                             if (huboError) notificar.error(`Estado de publicación:\n${lineas.join("\n")}`);
-                            else notificar.success(`Estado de publicación — ${lineas.join(" · ")}`);
+                            else estadoPublicacionLinea = `Estado de publicación — ${lineas.join(" · ")}`;
                         }
                     } catch (e) { if (!esSesionExpirada(e)) notificar.error("No se pudo aplicar el cambio de estado de publicación"); }
                 }
@@ -1075,12 +1084,15 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
 
             await onSuccess();
             if (resultados.every(r => r.estado === "ok")) {
-                notificar.success(`Producto ${sku} actualizado`);
-                notificarCanales(resultados);
+                // Un único toast: producto + una línea por canal + (si cambió) el estado de publicación.
+                const lineas = [`Producto ${sku} actualizado`, ...lineasCanales(resultados)];
+                if (estadoPublicacionLinea) lineas.push(estadoPublicacionLinea);
+                notificarConsolidado(lineas, resultados.some(r => r.conAvisos));
                 onClose();
             } else {
                 const fallidos = resultados.filter(r => r.estado === "error").map(r => `• ${r.canal} — ${r.detalle}`).join("\n");
                 notificar.error(`Los cambios se guardaron, pero falló la subida:\n${fallidos}`);
+                if (estadoPublicacionLinea) notificar.success(estadoPublicacionLinea);
             }
         } catch (e) {
             if (!esSesionExpirada(e)) notificar.error(e instanceof Error ? e.message : "Error al guardar los cambios");
@@ -1096,7 +1108,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
             const nuevos = await ejecutarExportsCanales(skuSubida, fallidos);
             setResultadosCanal(prev => prev.map(p => nuevos.find(n => n.canal === p.canal) ?? p));
             if (nuevos.every(r => r.estado === "ok")) {
-                notificarCanales(nuevos);
+                notificarConsolidado(lineasCanales(nuevos), nuevos.some(r => r.conAvisos));
                 onClose();
                 await onSuccess();
             }

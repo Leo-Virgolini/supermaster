@@ -2181,11 +2181,13 @@ public class MercadoLibreService {
         String categoryIdActual = null;
         String familyNameActual = null;
         String tituloItemActual = null;
+        Long familyIdActual = null;
         try {
             ar.com.leo.super_master_backend.apis.ml.model.Producto itemPublicado = getItemByMLA(mla);
             categoryIdActual = (itemPublicado != null) ? itemPublicado.categoryId : null;
             familyNameActual = (itemPublicado != null) ? itemPublicado.familyName : null;
             tituloItemActual = (itemPublicado != null) ? itemPublicado.title : null;
+            familyIdActual = (itemPublicado != null) ? itemPublicado.familyId : null;
 
             // Patrón "null = no tocar": en re-sync por lote el request no trae título (tituloMl es @Transient
             // y el lote no pasa por el modal). Si el título llega null/blank, lo recuperamos del ítem publicado
@@ -2228,6 +2230,9 @@ public class MercadoLibreService {
         // Product tuvo ventas; reintentar sin cambios generaba un aviso espurio al editar otros campos).
         final String tituloActual = (familyNameActual != null && !familyNameActual.isBlank())
                 ? familyNameActual : tituloItemActual;
+        // family_id del ítem publicado (modelo User Products): habilita renombrar por el editor de
+        // familia en lugar del PUT /items family_name (que ML rechaza si el ítem está pausado/sin stock).
+        final Long familyIdItem = familyIdActual;
 
         ResultadoAltaMl r = actualizarItemEnMlCore(
                 producto, mla,
@@ -2245,6 +2250,13 @@ public class MercadoLibreService {
                         String tituloUpd = construirFamilyName(producto.getTituloMl(), obtenerMaxTitleLength(categoriaItem));
                         // Sin cambios respecto al valor vigente en ML → no tocar (evita rechazos innecesarios).
                         if (tituloActual != null && tituloUpd.equals(tituloActual.trim())) return;
+                        // Modelo User Products (family_name): el nombre de familia se edita por el editor de
+                        // familia (POST /user-products-families/{id}/tasks), que funciona aunque el ítem esté
+                        // pausado/sin stock (como la web). El PUT /items family_name es rechazado en ese caso.
+                        if ("family_name".equals(campoTitulo) && familyIdItem != null) {
+                            renombrarFamilia(String.valueOf(familyIdItem), tituloUpd);
+                            return;
+                        }
                         retryHandler.putJson("/items/" + m, () -> tokens.accessToken,
                                 objectMapper.writeValueAsString(Map.of(campoTitulo, tituloUpd)));
                     } catch (Exception e) { throw new RuntimeException(e.getMessage(), e); }

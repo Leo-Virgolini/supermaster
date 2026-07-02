@@ -56,10 +56,12 @@ export default function VariantesSection(p: Props) {
                             {p.ejeOpciones.length === 0 && <span className="mt-0.5 block text-[11px] text-amber-600">Elegí primero la categoría ML; el eje sale de sus atributos.</span>}
                         </label>
                         <label className="block">
-                            <span className="text-xs text-slate-500">Valor del eje · variante #1 ({p.skuBase || "SKU base"})</span>
+                            <span className="text-xs text-slate-500">Valor del eje <span className="text-red-600">*</span> · variante #1 ({p.skuBase || "SKU base"})</span>
                             {selectorValor(p.ejeValorBaseId, p.ejeValorBase, p.onEjeValorBase)}
                         </label>
                     </div>
+
+                    <p className="text-[11px] text-slate-400">El resto de los datos (títulos, descripciones, dimensiones, atributos, SEO, costo…) se heredan del producto base; podés personalizar cada variante con &quot;Editar&quot; luego de crearla.</p>
 
                     <div className="space-y-2">
                         {p.variantes.map((v, i) => (
@@ -73,9 +75,9 @@ export default function VariantesSection(p: Props) {
                                 </div>
                                 {v.expandida && (
                                     <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                        <label className="block"><span className="text-[11px] text-slate-500">SKU</span>
+                                        <label className="block"><span className="text-[11px] text-slate-500">SKU <span className="text-red-600">*</span></span>
                                             <input className={p.inputCls} value={v.sku} onChange={e => setV(v.id, { sku: e.target.value })} placeholder="SKU de la variante" /></label>
-                                        <label className="block"><span className="text-[11px] text-slate-500">Valor del eje</span>
+                                        <label className="block"><span className="text-[11px] text-slate-500">Valor del eje <span className="text-red-600">*</span></span>
                                             {selectorValor(v.ejeValorId, v.ejeValorNombre, (id, nombre) => setV(v.id, { ejeValorId: id, ejeValorNombre: nombre }))}</label>
                                         <label className="block"><span className="text-[11px] text-slate-500">Stock</span>
                                             <input type="number" min={0} step={1} className={p.inputCls} value={v.stock} onChange={e => setV(v.id, { stock: e.target.value === "" ? "" : Number(e.target.value) })} placeholder="0" /></label>

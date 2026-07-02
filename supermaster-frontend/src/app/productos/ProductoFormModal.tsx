@@ -2950,14 +2950,15 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                         className="mt-2 rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300">+ Agregar variante</button>
                                 ) : (
                                     <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50/70 p-2.5 dark:border-slate-700 dark:bg-slate-800/60">
+                                        <p className="mb-2 text-[11px] text-slate-400">El resto de los datos se heredan del producto base; personalizá esta variante con &quot;Editar&quot; después de crearla.</p>
                                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                            <label className="block"><span className="text-[11px] text-slate-500">Eje{familia.ejeAtributoId ? " (de la familia)" : ""}</span>
+                                            <label className="block"><span className="text-[11px] text-slate-500">Eje{familia.ejeAtributoId ? " (de la familia)" : ""} <span className="text-red-600">*</span></span>
                                                 <select className={`${selectBaseClassName} w-full`} value={ejeAtributoId} disabled={!!familia.ejeAtributoId}
                                                     onChange={e => { setEjeAtributoId(e.target.value); setNvEjeValorId(null); setNvEjeValorNombre(""); }}>
                                                     <option value="">— elegir eje —</option>
                                                     {ejeOpciones.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
                                                 </select></label>
-                                            <label className="block"><span className="text-[11px] text-slate-500">Valor del eje</span>
+                                            <label className="block"><span className="text-[11px] text-slate-500">Valor del eje <span className="text-red-600">*</span></span>
                                                 {(() => {
                                                     const vals = ejeOpciones.find(o => o.id === ejeAtributoId)?.values ?? [];
                                                     return vals.length > 0 ? (
@@ -2969,7 +2970,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                                         <input className={inputBaseClassName} value={nvEjeValorNombre} onChange={e => { setNvEjeValorId(null); setNvEjeValorNombre(e.target.value); }} placeholder="Valor del eje" />
                                                     );
                                                 })()}</label>
-                                            <label className="block"><span className="text-[11px] text-slate-500">SKU</span>
+                                            <label className="block"><span className="text-[11px] text-slate-500">SKU <span className="text-red-600">*</span></span>
                                                 <input className={`${inputBaseClassName} ${nvSkuYaExiste ? "border-amber-400 bg-amber-50 dark:bg-amber-900/20" : ""}`} value={nvSku} onChange={e => setNvSku(e.target.value)} placeholder="SKU de la variante" />
                                                 {nvSkuYaExiste && <p className="mt-1 text-[11px] font-medium text-amber-600 dark:text-amber-400">⚠ Ya existe un producto con este SKU</p>}</label>
                                             <label className="block"><span className="text-[11px] text-slate-500">Stock</span>

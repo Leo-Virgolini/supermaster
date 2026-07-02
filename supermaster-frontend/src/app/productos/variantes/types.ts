@@ -7,21 +7,15 @@ export type VarianteBorrador = {
     ejeValorNombre: string;     // value_name (o valor libre)
     stock: number | "";
     ean: string;
-    cuotaMl: number;
-    cuotaHogar: number;
-    cuotaGastro: number;
     expandida: boolean;
 };
 
 let _seq = 0;
 
-/** Crea una variante vacía con las cuotas por defecto (las del producto base). */
-export function nuevaVariante(cuotas: { ml: number; hogar: number; gastro: number }): VarianteBorrador {
+/** Crea una variante vacía. Las cuotas NO son por variante: se usan las del producto base. */
+export function nuevaVariante(): VarianteBorrador {
     _seq += 1;
-    return {
-        id: `v${_seq}`, sku: "", ejeValorId: null, ejeValorNombre: "", stock: "", ean: "",
-        cuotaMl: cuotas.ml, cuotaHogar: cuotas.hogar, cuotaGastro: cuotas.gastro, expandida: true,
-    };
+    return { id: `v${_seq}`, sku: "", ejeValorId: null, ejeValorNombre: "", stock: "", ean: "", expandida: true };
 }
 
 /**

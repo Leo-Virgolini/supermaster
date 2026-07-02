@@ -2,7 +2,6 @@
 import { VarianteBorrador, nuevaVariante } from "./types";
 
 type EjeOpcion = { id: string; name: string; values: { id: string | null; name: string }[] };
-type Cuota = { cuotas: number; descripcion: string };
 
 type Props = {
     tiene: boolean; onTiene: (v: boolean) => void;
@@ -10,10 +9,7 @@ type Props = {
     ejeAtributoId: string; onEje: (id: string) => void;
     ejeValorBase: string; ejeValorBaseId: string | null; onEjeValorBase: (id: string | null, nombre: string) => void;
     skuBase: string;
-    cuotasMlOpts: Cuota[]; cuotasHogarOpts: Cuota[]; cuotasGastroOpts: Cuota[];
-    cuotasDefault: { ml: number; hogar: number; gastro: number };
     variantes: VarianteBorrador[]; onVariantes: (v: VarianteBorrador[]) => void;
-    subirMl: boolean; subirKtHogar: boolean; subirKtGastro: boolean;
     inputCls: string; selectCls: string;
 };
 
@@ -85,20 +81,11 @@ export default function VariantesSection(p: Props) {
                                             <input type="number" min={0} step={1} className={p.inputCls} value={v.stock} onChange={e => setV(v.id, { stock: e.target.value === "" ? "" : Number(e.target.value) })} placeholder="0" /></label>
                                         <label className="block"><span className="text-[11px] text-slate-500">EAN</span>
                                             <input className={p.inputCls} value={v.ean} onChange={e => setV(v.id, { ean: e.target.value })} placeholder="Código de barras" /></label>
-                                        {p.subirMl && <label className="block"><span className="text-[11px] text-slate-500">Cuota ML</span>
-                                            <select className={full(p.selectCls)} value={v.cuotaMl} onChange={e => setV(v.id, { cuotaMl: Number(e.target.value) })}>
-                                                {p.cuotasMlOpts.map(c => <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>)}</select></label>}
-                                        {p.subirKtHogar && <label className="block"><span className="text-[11px] text-slate-500">Cuota KT HOGAR</span>
-                                            <select className={full(p.selectCls)} value={v.cuotaHogar} onChange={e => setV(v.id, { cuotaHogar: Number(e.target.value) })}>
-                                                {p.cuotasHogarOpts.map(c => <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>)}</select></label>}
-                                        {p.subirKtGastro && <label className="block"><span className="text-[11px] text-slate-500">Cuota KT GASTRO</span>
-                                            <select className={full(p.selectCls)} value={v.cuotaGastro} onChange={e => setV(v.id, { cuotaGastro: Number(e.target.value) })}>
-                                                {p.cuotasGastroOpts.map(c => <option key={c.cuotas} value={c.cuotas}>{c.descripcion}</option>)}</select></label>}
                                     </div>
                                 )}
                             </div>
                         ))}
-                        <button type="button" onClick={() => p.onVariantes([...p.variantes, nuevaVariante(p.cuotasDefault)])}
+                        <button type="button" onClick={() => p.onVariantes([...p.variantes, nuevaVariante()])}
                             className="rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300">+ Agregar variante</button>
                     </div>
                 </div>

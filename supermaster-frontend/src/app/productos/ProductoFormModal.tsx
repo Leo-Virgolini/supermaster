@@ -296,6 +296,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
     const [nvEjeValorNombre, setNvEjeValorNombre] = useState("");
     const [nvStock, setNvStock] = useState<number | "">(0);
     const [nvEan, setNvEan] = useState("");
+    const [nvSkuYaExiste, setNvSkuYaExiste] = useState(false); // aviso en vivo de SKU duplicado al agregar variante
     // Atributos de la categoría ML (fuente confiable de allowVariations para el eje).
     const [ejeAtributosCat, setEjeAtributosCat] = useState<MlAtributoDef[]>([]);
     const ejeOpciones = useMemo(
@@ -704,6 +705,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         if (familia?.variantes.some(v => (v.sku ?? "").trim().toLowerCase() === nvSku.trim().toLowerCase())) {
             notificar.error("Ese SKU ya está en la familia."); return;
         }
+        if (nvSkuYaExiste) { notificar.error("Ya existe un producto con ese SKU."); return; }
         await cargarImagenesVariantes([nvSku]);
         if (!imagenesDetectadasPorSku(nvSku)) { notificar.error("Mercado Libre exige al menos una imagen para el SKU."); return; }
         setIsSaving(true);
@@ -1168,6 +1170,18 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         }, 400);
         return () => { clearTimeout(t); controller.abort(); };
     }, [sku, editandoProductoId]);
+
+    // Mismo aviso de SKU duplicado, pero para el SKU de la variante nueva (al agregar a una familia).
+    useEffect(() => {
+        const valor = nvSku.trim();
+        if (!agregandoVariante || !valor) { setNvSkuYaExiste(false); return; }
+        const controller = new AbortController();
+        const t = setTimeout(async () => {
+            try { setNvSkuYaExiste(await existeSkuAPI(valor, controller.signal)); }
+            catch { /* silencioso: el backend igual rechaza al crear */ }
+        }, 400);
+        return () => { clearTimeout(t); controller.abort(); };
+    }, [nvSku, agregandoVariante]);
 
     // Carga el detalle de imágenes del SKU para mostrar el aviso preventivo de formato/tamaño.
     useEffect(() => {
@@ -2938,7 +2952,8 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                                     );
                                                 })()}</label>
                                             <label className="block"><span className="text-[11px] text-slate-500">SKU</span>
-                                                <input className={inputBaseClassName} value={nvSku} onChange={e => setNvSku(e.target.value)} placeholder="SKU de la variante" /></label>
+                                                <input className={`${inputBaseClassName} ${nvSkuYaExiste ? "border-amber-400 bg-amber-50 dark:bg-amber-900/20" : ""}`} value={nvSku} onChange={e => setNvSku(e.target.value)} placeholder="SKU de la variante" />
+                                                {nvSkuYaExiste && <p className="mt-1 text-[11px] font-medium text-amber-600 dark:text-amber-400">⚠ Ya existe un producto con este SKU</p>}</label>
                                             <label className="block"><span className="text-[11px] text-slate-500">Stock</span>
                                                 <input type="number" min={0} step={1} className={inputBaseClassName} value={nvStock} onChange={e => setNvStock(e.target.value === "" ? "" : Number(e.target.value))} placeholder="0" /></label>
                                             <label className="block"><span className="text-[11px] text-slate-500">EAN</span>
@@ -2946,7 +2961,7 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
                                         </div>
                                         <div className="mt-2 flex justify-end gap-2">
                                             <button type="button" onClick={() => setAgregandoVariante(false)} disabled={isSaving} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 disabled:opacity-50 dark:border-slate-600 dark:text-slate-300">Cancelar</button>
-                                            <button type="button" onClick={handleAgregarVariante} disabled={isSaving} className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">{isSaving ? "Creando…" : "Crear variante"}</button>
+                                            <button type="button" onClick={handleAgregarVariante} disabled={isSaving || nvSkuYaExiste} className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">{isSaving ? "Creando…" : "Crear variante"}</button>
                                         </div>
                                     </div>
                                 ))}

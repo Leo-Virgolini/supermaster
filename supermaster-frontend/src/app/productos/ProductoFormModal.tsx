@@ -2045,10 +2045,13 @@ export default function ProductoFormModal({ producto, canExportarDux, createProd
         </div>
     );
 
+    const esFamilia = !!familia && (familia.modelo === "NUEVO" || familia.variantes.length > 1);
+    const sufijoFamilia = esFamilia ? ` · Familia · ${familia!.variantes.length} variante${familia!.variantes.length === 1 ? "" : "s"}` : "";
+
     return (
         <>
             {/* MODAL CREAR / EDITAR PRODUCTO */}
-            <Modal isOpen={true} onClose={() => { if (!isSaving) onClose(); }} title={editandoProductoId ? `Editar Producto${sku ? ` · ${sku}` : ""}` : "Nuevo Producto"} size="3xl" closeOnEscape={false} busy={isSaving}
+            <Modal isOpen={true} onClose={() => { if (!isSaving) onClose(); }} title={editandoProductoId ? `Editar Producto${sku ? ` · ${sku}` : ""}${sufijoFamilia}` : "Nuevo Producto"} size="3xl" closeOnEscape={false} busy={isSaving}
                 footer={<div className="flex w-full items-center justify-between gap-3">
                     <div className="min-w-0 flex-1">
                         {resultadosVariantes.some(v => v.resultados.some(r => r.estado === "error"))
